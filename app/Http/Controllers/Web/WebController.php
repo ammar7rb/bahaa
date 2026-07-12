@@ -42,6 +42,7 @@ use App\Models\Wishlist;
 use App\Services\CustomerActivationInvoiceService;
 use App\Services\CustomerPurchaseLimitService;
 use App\Traits\CommonTrait;
+use App\Traits\FileManagerTrait;
 use App\Traits\SmsGateway;
 use App\Utils\CartManager;
 use App\Utils\Convert;
@@ -70,6 +71,7 @@ class WebController extends Controller
     use SmsGateway;
     use MaintenanceModeTrait;
     use CacheManagerTrait;
+    use FileManagerTrait;
 
     private function redirectGuestCustomerToLogin(Request $request): RedirectResponse|JsonResponse
     {
@@ -389,7 +391,7 @@ class WebController extends Controller
             return isset($response['redirect']) ? redirect($response['redirect']) : redirect('/');
         }
 
-        if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForCheckout($request, true)) {
+        if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForCheckout($request)) {
             return $purchaseLimitResponse;
         }
 
@@ -564,7 +566,7 @@ class WebController extends Controller
             return isset($response['redirect']) ? redirect($response['redirect']) : redirect('/');
         }
 
-        if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForCheckout($request)) {
+        if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForCheckout($request, true)) {
             return $purchaseLimitResponse;
         }
 
@@ -709,7 +711,7 @@ class WebController extends Controller
             return isset($response['redirect']) ? redirect($response['redirect']) : redirect('/');
         }
 
-        if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForCheckout($request)) {
+        if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForCheckout($request, true)) {
             return $purchaseLimitResponse;
         }
 
@@ -734,15 +736,55 @@ class WebController extends Controller
         $method = OfflinePaymentMethod::where(['id' => $request['method_id'], 'status' => 1])->first();
 
         if (isset($method)) {
-            $fields = array_column($method->method_informations, 'customer_input');
             $values = $request->all();
+            $missingFields = [];
 
             $offlinePaymentInfo['method_id'] = $request['method_id'];
             $offlinePaymentInfo['method_name'] = $method->method_name;
-            foreach ($fields as $field) {
-                if (key_exists($field, $values)) {
-                    $offlinePaymentInfo[$field] = $values[$field];
+            foreach (($method->method_informations ?? []) as $field) {
+                $inputName = $field['customer_input'] ?? null;
+                if (!$inputName) {
+                    continue;
                 }
+
+                $fieldText = strtolower($inputName . ' ' . ($field['customer_placeholder'] ?? ''));
+                $isImageField = str_contains($fieldText, 'screenshot')
+                    || str_contains($fieldText, 'image')
+                    || str_contains($fieldText, 'receipt')
+                    || str_contains($fieldText, 'proof');
+
+                if ($isImageField) {
+                    if (($field['is_required'] ?? 0) && !$request->hasFile($inputName)) {
+                        $missingFields[] = $inputName;
+                    }
+                    continue;
+                }
+
+                if (($field['is_required'] ?? 0) && empty($values[$inputName])) {
+                    $missingFields[] = $inputName;
+                    continue;
+                }
+
+                if (key_exists($inputName, $values)) {
+                    $offlinePaymentInfo[$inputName] = $values[$inputName];
+                }
+            }
+
+            if ($missingFields) {
+                Toastr::error(translate('required_offline_payment_information_is_missing'));
+                return back()->withInput();
+            }
+
+            foreach (($method->method_informations ?? []) as $field) {
+                $inputName = $field['customer_input'] ?? null;
+                if (!$inputName || !$request->hasFile($inputName)) {
+                    continue;
+                }
+
+                $offlinePaymentInfo[$inputName] = [
+                    'image_name' => $this->upload(dir: 'offline-payment/order-proof/', format: 'webp', image: $request->file($inputName)),
+                    'storage' => config('filesystems.disks.default') ?? 'public',
+                ];
             }
         }
 
@@ -783,6 +825,8 @@ class WebController extends Controller
             'payment_note' => $request['payment_note'],
             'offline_payment_info' => $offlinePaymentInfo,
         ]);
+
+        app(CustomerActivationInvoiceService::class)->createForPaidOrderGroup($orderIds);
 
         $isNewCustomerInSession = session('newCustomerRegister');
         session(['order_success_ids' => $orderIds, 'isNewCustomerInSession' => $isNewCustomerInSession]);

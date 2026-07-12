@@ -277,7 +277,7 @@
                         </button>
                     </div>
                     <div class="modal-body">
-                        <form action="{{ route('offline-payment-checkout-complete') }}" method="post"
+                        <form action="{{ route('offline-payment-checkout-complete') }}" method="post" enctype="multipart/form-data"
                               class="needs-validation form-loading-button-form">
                             @csrf
                             <div class="d-flex justify-content-center mb-4">

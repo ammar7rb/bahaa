@@ -13,6 +13,7 @@ use App\Models\CustomerPurchasePackage;
 use App\Models\OfflinePaymentMethod;
 use App\Services\CustomerActivationInvoiceService;
 use App\Services\CustomerPurchaseLimitService;
+use App\Traits\FileManagerTrait;
 use App\Traits\Payment;
 use App\Traits\PaymentGatewayTrait;
 use App\Utils\Convert;
@@ -25,7 +26,7 @@ use function App\Utils\payment_gateways;
 
 class CustomerPurchasePackageController extends Controller
 {
-    use Payment, PaymentGatewayTrait;
+    use Payment, PaymentGatewayTrait, FileManagerTrait;
 
     public function list(Request $request, CustomerPurchaseLimitService $purchaseLimitService): JsonResponse
     {
@@ -227,6 +228,13 @@ class CustomerPurchasePackageController extends Controller
                 continue;
             }
 
+            if ($inputName === 'payment_screenshot') {
+                if (($field['is_required'] ?? 0) && !$request->hasFile('payment_proof') && !$request->hasFile('payment_screenshot')) {
+                    $missingFields[] = $inputName;
+                }
+                continue;
+            }
+
             $value = $submittedInformation[$inputName] ?? null;
             if (($field['is_required'] ?? 0) && ($value === null || $value === '')) {
                 $missingFields[] = $inputName;
@@ -243,6 +251,14 @@ class CustomerPurchasePackageController extends Controller
                 'message' => translate('required_offline_payment_information_is_missing'),
                 'missing_fields' => $missingFields,
             ], 403);
+        }
+
+        $proofFile = $request->file('payment_proof') ?: $request->file('payment_screenshot');
+        if ($proofFile) {
+            $offlinePaymentInfo['payment_proof'] = [
+                'image_name' => $this->upload(dir: 'offline-payment/activation-invoice-proof/', format: 'webp', image: $proofFile),
+                'storage' => config('filesystems.disks.default') ?? 'public',
+            ];
         }
 
         $metadata = $invoice->metadata ?: [];

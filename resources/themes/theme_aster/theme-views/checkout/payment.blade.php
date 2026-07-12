@@ -279,7 +279,7 @@
                                                                 aria-label="Close"></button>
                                                     </div>
                                                     <form action="{{ route('offline-payment-checkout-complete') }}"
-                                                          method="post" class="needs-validation form-loading-button-form">
+                                                          method="post" enctype="multipart/form-data" class="needs-validation form-loading-button-form">
                                                         @csrf
                                                         <div class="modal-body p-3 p-md-5">
 

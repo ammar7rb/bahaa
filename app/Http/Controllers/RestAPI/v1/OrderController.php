@@ -16,6 +16,7 @@ use App\Models\OrderDetailsRewards;
 use App\Models\RefundRequest;
 use App\Models\Setting;
 use App\Models\ShippingAddress;
+use App\Services\CustomerActivationInvoiceService;
 use App\Services\OrderService;
 use App\Services\CustomerPurchaseLimitService;
 use App\Traits\CommonTrait;
@@ -42,11 +43,12 @@ class OrderController extends Controller
 
     public function __construct(
         private readonly OrderService $orderService,
+        private readonly CustomerActivationInvoiceService $activationInvoiceService,
     )
     {
     }
 
-    private function validateCustomerPurchaseLimitForApiOrder(Request $request, mixed $user, mixed $carts): ?JsonResponse
+    private function validateCustomerPurchaseLimitForApiOrder(Request $request, mixed $user, mixed $carts, bool $allowActivationInvoice = false): ?JsonResponse
     {
         if ($user == 'offline') {
             return response()->json([
@@ -55,7 +57,10 @@ class OrderController extends Controller
             ], 403);
         }
 
-        $purchaseLimitValidation = app(CustomerPurchaseLimitService::class)->validateCheckoutAccess($user, $carts);
+        $purchaseLimitValidation = $allowActivationInvoice
+            ? $this->activationInvoiceService->validateProductPaymentAccess($user, $carts, true)
+            : app(CustomerPurchaseLimitService::class)->validateCheckoutAccess($user, $carts);
+
         if ($purchaseLimitValidation['status'] == 0) {
             return response()->json([
                 'message' => $purchaseLimitValidation['message'],
@@ -65,6 +70,66 @@ class OrderController extends Controller
         }
 
         return null;
+    }
+
+    private function formatActivationInvoiceForApi($invoice): ?array
+    {
+        if (!$invoice) {
+            return null;
+        }
+
+        return [
+            'id' => $invoice->id,
+            'invoice_no' => $invoice->invoice_no,
+            'order_id' => $invoice->order_id,
+            'order_group_id' => $invoice->order_group_id,
+            'package' => [
+                'id' => $invoice->customer_purchase_package_id,
+                'name' => $invoice->package_name,
+                'price' => (float) $invoice->package_price,
+                'purchase_limit' => (float) $invoice->package_purchase_limit,
+            ],
+            'insurance' => [
+                'original_amount' => (float) $invoice->insurance_original_amount,
+                'discount_amount' => (float) $invoice->insurance_discount_amount,
+                'discount_type' => $invoice->insurance_discount_type,
+                'amount' => (float) $invoice->insurance_amount,
+                'period_start' => $invoice->insurance_period_start,
+                'period_end' => $invoice->insurance_period_end,
+            ],
+            'total_amount' => (float) $invoice->total_amount,
+            'paid_amount' => (float) $invoice->paid_amount,
+            'currency_code' => $invoice->currency_code,
+            'payment_status' => $invoice->payment_status,
+            'status' => $invoice->status,
+            'message' => $this->activationInvoiceService->getActivationHoldMessage($invoice),
+        ];
+    }
+
+    private function decodeOfflinePaymentInformation(?string $encodedInformation): array
+    {
+        if (!$encodedInformation) {
+            return [];
+        }
+
+        $decoded = base64_decode($encodedInformation, true);
+        $json = $decoded !== false ? $decoded : $encodedInformation;
+        $data = json_decode($json, true);
+
+        return is_array($data) ? $data : [];
+    }
+
+    private function getOfflinePaymentProof(Request $request, string $dir): ?array
+    {
+        $proofFile = $request->file('payment_proof') ?: $request->file('payment_screenshot');
+        if (!$proofFile) {
+            return null;
+        }
+
+        return [
+            'image_name' => $this->upload(dir: $dir, format: 'webp', image: $proofFile),
+            'storage' => config('filesystems.disks.default') ?? 'public',
+        ];
     }
 
     public function track_by_order_id(Request $request)
@@ -257,7 +322,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Check minimum order amount requirement'], 403);
         }
 
-        if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForApiOrder($request, $user, $carts)) {
+        if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForApiOrder($request, $user, $carts, true)) {
             return $purchaseLimitResponse;
         }
 
@@ -312,14 +377,42 @@ class OrderController extends Controller
         $method = OfflinePaymentMethod::where(['id' => $request['method_id'], 'status' => 1])->first();
 
         if (isset($method)) {
-            $fields = array_column($method->method_informations, 'customer_input');
-            $values = (array)json_decode(base64_decode($request['method_informations']));
+            $values = $this->decodeOfflinePaymentInformation($request['method_informations'] ?? null);
+            $missingFields = [];
             $offlinePaymentInfo['method_id'] = $request['method_id'];
             $offlinePaymentInfo['method_name'] = $method->method_name;
-            foreach ($fields as $field) {
-                if (key_exists($field, $values)) {
-                    $offlinePaymentInfo[$field] = $values[$field];
+            foreach (($method->method_informations ?? []) as $field) {
+                $inputName = $field['customer_input'] ?? null;
+                if (!$inputName) {
+                    continue;
                 }
+
+                if ($inputName === 'payment_screenshot') {
+                    if (($field['is_required'] ?? 0) && !$request->hasFile('payment_proof') && !$request->hasFile('payment_screenshot')) {
+                        $missingFields[] = $inputName;
+                    }
+                    continue;
+                }
+
+                if (($field['is_required'] ?? 0) && empty($values[$inputName])) {
+                    $missingFields[] = $inputName;
+                    continue;
+                }
+
+                if (key_exists($inputName, $values)) {
+                    $offlinePaymentInfo[$inputName] = $values[$inputName];
+                }
+            }
+
+            if ($missingFields) {
+                return response()->json([
+                    'message' => translate('required_offline_payment_information_is_missing'),
+                    'missing_fields' => $missingFields,
+                ], 403);
+            }
+
+            if ($proof = $this->getOfflinePaymentProof($request, 'offline-payment/order-proof/')) {
+                $offlinePaymentInfo['payment_proof'] = $proof;
             }
         }
 
@@ -341,10 +434,23 @@ class OrderController extends Controller
             'requestObj' => $request,
         ]);
 
+        $activationInvoice = $user != 'offline'
+            ? $this->activationInvoiceService->createForPaidOrderGroup($orderIds)
+            : null;
+
         return response()->json([
-            'messages' => translate('order_placed_successfully'),
+            'messages' => $activationInvoice
+                ? translate('offline_payment_information_submitted_successfully')
+                : translate('order_placed_successfully'),
+            'message' => $activationInvoice
+                ? $this->activationInvoiceService->getActivationHoldMessage($activationInvoice)
+                : translate('order_placed_successfully'),
             'new_user' => (bool)$newCustomerRegister,
             'order_ids' => $orderIds,
+            'offline_payment_pending_review' => true,
+            'activation_required' => (bool) $activationInvoice,
+            'next_action' => $activationInvoice ? 'open_activation_invoice' : 'order_review',
+            'activation_invoice' => $this->formatActivationInvoiceForApi($activationInvoice),
         ], 200);
     }
 
@@ -860,7 +966,24 @@ class OrderController extends Controller
 
     public function offline_payment_method_list(Request $request): JsonResponse
     {
-        $data = OfflinePaymentMethod::where('status', 1)->get();
+        $data = OfflinePaymentMethod::where('status', 1)->get()->map(function (OfflinePaymentMethod $method) {
+            $method->method_informations = collect($method->method_informations ?? [])->map(function (array $field) {
+                $inputName = strtolower((string) ($field['customer_input'] ?? ''));
+                $placeholder = strtolower((string) ($field['customer_placeholder'] ?? ''));
+                $fieldText = $inputName . ' ' . $placeholder;
+                $field['input_type'] = str_contains($fieldText, 'screenshot')
+                    || str_contains($fieldText, 'image')
+                    || str_contains($fieldText, 'receipt')
+                    || str_contains($fieldText, 'proof')
+                        ? 'image'
+                        : 'text';
+
+                return $field;
+            })->values()->all();
+
+            return $method;
+        });
+
         return response()->json(['offline_methods' => $data], 200);
     }
 

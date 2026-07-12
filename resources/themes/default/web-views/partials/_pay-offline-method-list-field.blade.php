@@ -26,13 +26,20 @@
                     $count_status = $count % 2 == 1 ? 'odd' : 'even';
                     ?>
                 @foreach ($method['method_informations'] as $key => $information)
+                    @php($fieldText = strtolower(($information['customer_input'] ?? '') . ' ' . ($information['customer_placeholder'] ?? '')))
+                    @php($isImageField = str_contains($fieldText, 'screenshot') || str_contains($fieldText, 'image') || str_contains($fieldText, 'receipt') || str_contains($fieldText, 'proof'))
                     <div class="col-sm-{{$key == 0 && $count_status==="odd" ? 12 : 6}}">
                         <div class="form-group">
                             <label for="payment_by">{{ translate($information['customer_input']) }}
                                 <span class="text-danger">{{ $information['is_required'] == 1?'*':''}}</span>
                             </label>
-                            <input type="text" name="{{ $information['customer_input'] }}" class="form-control"
-                                   placeholder="{{ translate($information['customer_placeholder']) }}" {{ $information['is_required'] == 1?'required':''}}>
+                            @if($isImageField)
+                                <input type="file" name="{{ $information['customer_input'] }}" class="form-control"
+                                       accept="image/*" {{ $information['is_required'] == 1?'required':''}}>
+                            @else
+                                <input type="text" name="{{ $information['customer_input'] }}" class="form-control"
+                                       placeholder="{{ translate($information['customer_placeholder']) }}" {{ $information['is_required'] == 1?'required':''}}>
+                            @endif
                         </div>
                     </div>
                 @endforeach

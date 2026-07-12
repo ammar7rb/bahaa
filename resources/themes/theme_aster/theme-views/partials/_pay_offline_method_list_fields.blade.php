@@ -21,13 +21,20 @@
 
         <div class="row">
             @foreach ($method['method_informations'] as $information)
+                @php($fieldText = strtolower(($information['customer_input'] ?? '') . ' ' . ($information['customer_placeholder'] ?? '')))
+                @php($isImageField = str_contains($fieldText, 'screenshot') || str_contains($fieldText, 'image') || str_contains($fieldText, 'receipt') || str_contains($fieldText, 'proof'))
                 <div class="col-md-12 col-lg-6 mb-3">
                     <label style="font-weight: 600;">
                         {{ translate($information['customer_input']) }}
                         <span class="text-danger">{{ $information['is_required'] == 1?'*':''}}</span>
                     </label>
-                    <input type="text" class="form-control" name="{{ $information['customer_input'] }}"
-                           placeholder="{{ translate($information['customer_placeholder']) }}" {{ $information['is_required'] == 1?'required':''}}>
+                    @if($isImageField)
+                        <input type="file" class="form-control" name="{{ $information['customer_input'] }}"
+                               accept="image/*" {{ $information['is_required'] == 1?'required':''}}>
+                    @else
+                        <input type="text" class="form-control" name="{{ $information['customer_input'] }}"
+                               placeholder="{{ translate($information['customer_placeholder']) }}" {{ $information['is_required'] == 1?'required':''}}>
+                    @endif
                 </div>
             @endforeach
 
