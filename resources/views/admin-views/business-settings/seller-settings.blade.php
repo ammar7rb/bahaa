@@ -1,3 +1,4 @@
+@php use App\Utils\Convert; @endphp
 @extends('layouts.admin.app')
 
 @section('title', translate('vendors'))

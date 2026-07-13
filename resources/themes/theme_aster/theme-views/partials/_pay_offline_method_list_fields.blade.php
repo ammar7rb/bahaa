@@ -1,15 +1,15 @@
 @if ($method)
     <div class="payment-list-area p-0">
         <div class="p-3 my-3 rounded --bg-light-sky-blue">
-            <h6 class="pb-2" style="color: {{$web_config['primary_color']}};">{{ $method['method_name'] }}</h6>
+            <h6 class="pb-2" style="color: {{$web_config['primary_color']}};">{{ translatePaymentText($method['method_name']) }}</h6>
             <input type="hidden" value="offline_payment" name="payment_method">
             <input type="hidden" value="{{ $method['id'] }}" name="method_id">
 
             <div class="row">
                 @foreach ($method['method_fields'] as $method_field)
                     <div class="col-6 pb-2">
-                        <span>{{ translate($method_field['input_name']).' '.':'}}</span>
-                        <span>{{ $method_field['input_data'] }}</span>
+                        <span>{{ translatePaymentText($method_field['input_name']).' '.':'}}</span>
+                        <span>{{ translatePaymentText($method_field['input_data']) }}</span>
                     </div>
                 @endforeach
             </div>
@@ -25,7 +25,7 @@
                 @php($isImageField = str_contains($fieldText, 'screenshot') || str_contains($fieldText, 'image') || str_contains($fieldText, 'receipt') || str_contains($fieldText, 'proof'))
                 <div class="col-md-12 col-lg-6 mb-3">
                     <label style="font-weight: 600;">
-                        {{ translate($information['customer_input']) }}
+                        {{ translatePaymentText($information['customer_input']) }}
                         <span class="text-danger">{{ $information['is_required'] == 1?'*':''}}</span>
                     </label>
                     @if($isImageField)
@@ -33,7 +33,7 @@
                                accept="image/*" {{ $information['is_required'] == 1?'required':''}}>
                     @else
                         <input type="text" class="form-control" name="{{ $information['customer_input'] }}"
-                               placeholder="{{ translate($information['customer_placeholder']) }}" {{ $information['is_required'] == 1?'required':''}}>
+                               placeholder="{{ translatePaymentText($information['customer_placeholder']) }}" {{ $information['is_required'] == 1?'required':''}}>
                     @endif
                 </div>
             @endforeach

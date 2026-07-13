@@ -117,6 +117,7 @@
             @endif
 
             @php($business_mode = getWebConfig(name: 'business_mode'))
+            @if(false)
             <div>
                 <div class="widget-title">
                     <a class="{{Request::is('chat/vendor')?'active-menu': '' }} {{Request::is('chat/delivery-man')?'active-menu': '' }}" href="{{route('chat', ['type' => $business_mode == 'multi' ? 'vendor' : 'delivery-man'])}}">
@@ -136,6 +137,7 @@
                     </a>
                 </div>
             </div>
+            @endif
             <div>
                 <div class="widget-title">
                     <a class="{{Request::is('account-address*')?'active-menu':''}}"
@@ -229,7 +231,6 @@
         </div>
     </div>
 </div>
-
 
 
 

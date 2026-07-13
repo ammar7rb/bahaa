@@ -13,6 +13,7 @@ use App\Http\Controllers\BaseController;
 use App\Http\Requests\Web\ChattingRequest;
 use App\Services\ChattingService;
 use App\Traits\PushNotificationTrait;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -51,10 +52,8 @@ class ChattingController extends BaseController
      */
     public function index(?Request $request, string|array|null $type = null): View|Collection|LengthAwarePaginator|null|callable|RedirectResponse
     {
-        return match ($type) {
-            'delivery-man' => $this->getChatList(relation: ['deliveryMan'], columnName: 'delivery_man_id', type: $type),
-            'vendor' => $this->getChatList(relation: ['seller'], columnName: 'seller_id', type: $type),
-        };
+        Toastr::info(translate('please_open_a_support_ticket_to_contact_the_platform'));
+        return redirect()->route('account-tickets');
     }
 
     /**
@@ -64,33 +63,7 @@ class ChattingController extends BaseController
      */
     public function getMessageByUser(Request $request): JsonResponse
     {
-        if ($request->has(key: 'delivery_man_id')) {
-            $getUser = $this->deliveryManRepo->getFirstWhere(params: ['id' => $request['delivery_man_id']]);
-            $requestColumn = 'delivery_man_id';
-            $requestId = $request['delivery_man_id'];
-            $whereNotNull = ['user_id', 'delivery_man_id'];
-            $relation = ['deliveryMan'];
-            $type = 'delivery-man';
-        } elseif ($request->has(key: 'vendor_id') && $request['vendor_id'] == 0) {
-            $getUser = 'admin';
-            $requestColumn = 'admin_id';
-            $requestId = 0;
-            $whereNotNull = ['user_id', 'admin_id'];
-            $relation = ['admin'];
-            $type = 'admin';
-        } else {
-            $vendorData = $this->vendorRepo->getFirstWhere(params: ['id' => $request['vendor_id']], relations: ['shop']);
-            $getUser = $vendorData->shop;
-            $requestColumn = 'seller_id';
-            $requestId = $request['vendor_id'];
-            $whereNotNull = ['user_id', 'seller_id', 'shop_id'];
-            $relation = ['seller'];
-            $type = 'vendor';
-        }
-        $this->updateAllUnseenMessageStatus(requestColumn: $requestColumn, requestId: $requestId);
-        $chattingMessages = $this->getMessage(requestColumn: $requestColumn, requestId: $requestId, whereNotNull: $whereNotNull, relation: $relation);
-        $data = self::getRenderMessagesView(user: $getUser, message: $chattingMessages, type: $type);
-        return response()->json($data);
+        return $this->directChatBlockedResponse();
     }
 
     /**
@@ -100,6 +73,8 @@ class ChattingController extends BaseController
      */
     public function addMessage(ChattingRequest $request): JsonResponse
     {
+        return $this->directChatBlockedResponse();
+
         if($request->hasFile('file')) {
             foreach ($request->file('file') as $file) {
                 $extension = strtolower($file->getClientOriginalExtension());
@@ -138,40 +113,8 @@ class ChattingController extends BaseController
             $relation = ['deliveryMan'];
             $type = 'delivery-man';
             event(new ChattingEvent(key: 'message_from_customer', type: 'delivery_man', userData: $getUser, messageForm: $customer));
-        } elseif ($request->has(key: 'vendor_id') && $request['vendor_id'] == 0) {
-            $this->chattingRepo->add(
-                data: $this->chattingService->addChattingDataForWeb(
-                    request: $request,
-                    userId: $customerId,
-                    type: 'admin',
-                    adminId: $request['vendor_id']
-                )
-            );
-            $getUser = 'admin';
-            $requestColumn = 'admin_id';
-            $requestId = 0;
-            $whereNotNull = ['user_id', 'admin_id'];
-            $relation = ['admin'];
-            $type = 'admin';
         } else {
-            $vendorData = $this->vendorRepo->getFirstWhere(params: ['id' => $request['vendor_id']], relations: ['shop']);
-
-            $this->chattingRepo->add(
-                data: $this->chattingService->addChattingDataForWeb(
-                    request: $request,
-                    userId: $customerId,
-                    type: 'seller',
-                    shopId: $vendorData?->shop?->id,
-                    vendorId: $vendorData['id'])
-            );
-
-            event(new ChattingEvent(key: 'message_from_customer', type: 'seller', userData: $vendorData, messageForm: $customer));
-            $getUser = $vendorData->shop;
-            $requestColumn = 'seller_id';
-            $requestId = $vendorData['id'];
-            $whereNotNull = ['user_id', 'seller_id', 'shop_id'];
-            $relation = ['seller'];
-            $type = 'vendor';
+            return $this->directChatBlockedResponse();
         }
         $chattingMessages = $this->getMessage(requestColumn: $requestColumn, requestId: $requestId, whereNotNull: $whereNotNull, relation: $relation);
         $data = self::getRenderMessagesView(user: $getUser, message: $chattingMessages, type: $type);
@@ -305,5 +248,13 @@ class ChattingController extends BaseController
             params: ['user_id' => $customerId, $requestColumn => $requestId],
             data: ['seen_by_customer' => 1]
         );
+    }
+
+    private function directChatBlockedResponse(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => translate('please_open_a_support_ticket_to_contact_the_platform'),
+        ]);
     }
 }

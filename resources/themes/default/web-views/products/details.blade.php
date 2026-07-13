@@ -819,29 +819,14 @@
                                         <div class="col-12 position-static mt-3">
                                             <div class="chat_with_seller-buttons">
                                                 @if (auth('customer')->id())
-                                                    <button
-                                                        class="btn w-100 d-block text-center web--bg-primary text-white"
-                                                        data-toggle="modal"
-                                                        data-target="#chatting_modal"
-                                                        @if(checkVendorAbility(type: 'vendor', status: 'temporary_close', vendor: $product->seller->shop))
-                                                            disabled
-                                                        @endif
-                                                    >
-                                                        <img class="mb-1" alt=""
-                                                             src="{{ theme_asset(path: 'public/assets/front-end/img/chat-16-filled-icon.png') }}">
-                                                        <span class="d-none d-sm-inline-block text-capitalize">
-                                                        {{ translate('chat_with_vendor') }}
-                                                    </span>
-                                                    </button>
+                                                    <a href="{{ route('account-tickets') }}"
+                                                       class="btn w-100 d-block text-center web--bg-primary text-white">
+                                                        {{ translate('support_ticket') }}
+                                                    </a>
                                                 @else
                                                     <a href="{{ route('customer.auth.login') }}"
                                                        class="btn w-100 d-block text-center web--bg-primary text-white">
-                                                        <img
-                                                            src="{{ theme_asset(path: 'public/assets/front-end/img/chat-16-filled-icon.png') }}"
-                                                            class="mb-1" alt="">
-                                                        <span class="d-none d-sm-inline-block text-capitalize">
-                                                        {{ translate('chat_with_vendor') }}
-                                                    </span>
+                                                        {{ translate('support_ticket') }}
                                                     </a>
                                                 @endif
                                             </div>
@@ -913,24 +898,14 @@
                                     <div class="col-12 position-static mt-3">
                                         <div class="chat_with_seller-buttons">
                                             @if (auth('customer')->id())
-                                                <button class="btn w-100 d-block text-center web--bg-primary text-white"
-                                                        data-toggle="modal" data-target="#chatting_modal"
-                                                    {{ checkVendorAbility(type: 'inhouse', status: 'temporary_close') ? 'disabled' : '' }}
-                                                >
-                                                    <img class="mb-1" alt=""
-                                                         src="{{ theme_asset(path: 'public/assets/front-end/img/chat-16-filled-icon.png') }}">
-                                                    <span class="d-none d-sm-inline-block text-capitalize">
-                                                        {{ translate('chat_with_vendor') }}
-                                                </span>
-                                                </button>
-                                            @else
-                                                <a href="{{ route('vendor-shop', ['slug' => getInHouseShopConfig(key:'slug')]) }}"
+                                                <a href="{{ route('account-tickets') }}"
                                                    class="btn w-100 d-block text-center web--bg-primary text-white">
-                                                    <img class="mb-1" alt=""
-                                                         src="{{ theme_asset(path: 'public/assets/front-end/img/chat-16-filled-icon.png') }}">
-                                                    <span class="d-none d-sm-inline-block text-capitalize">
-                                                        {{ translate('chat_with_vendor') }}
-                                                    </span>
+                                                    {{ translate('support_ticket') }}
+                                                </a>
+                                            @else
+                                                <a href="{{ route('customer.auth.login') }}"
+                                                   class="btn w-100 d-block text-center web--bg-primary text-white">
+                                                    {{ translate('support_ticket') }}
                                                 </a>
                                             @endif
                                         </div>
@@ -1025,8 +1000,6 @@
     @if($product?->preview_file_full_url['path'])
         @include('web-views.partials._product-preview-modal', ['previewFileInfo' => $previewFileInfo])
     @endif
-
-    @include('layouts.front-end.partials.modal._chatting',['seller'=>$product->seller, 'user_type'=>$product->added_by])
 
     <span id="route-review-list-product" data-url="{{ route('review-list-product') }}"></span>
     <span id="products-details-page-data" data-id="{{ $product['id'] }}"></span>

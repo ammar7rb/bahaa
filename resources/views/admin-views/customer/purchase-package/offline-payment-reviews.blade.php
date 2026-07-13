@@ -114,30 +114,24 @@
                                     @if($offlinePayment)
                                         <div class="fs-12">
                                             <strong>{{ translate('Method') }}:</strong>
-                                            {{ $offlinePayment['method_name'] ?? translate('N/A') }}
+                                            {{ translatePaymentText($offlinePayment['method_name'] ?? translate('N/A')) }}
                                         </div>
-                                        <div class="fs-12">
-                                            <strong>{{ translate('Sender') }}:</strong>
-                                            {{ $offlinePayment['sender_wallet_or_phone'] ?? translate('N/A') }}
-                                        </div>
-                                        @if(!empty($offlinePayment['sender_name']))
-                                            <div class="fs-12">
-                                                <strong>{{ translate('Name') }}:</strong>
-                                                {{ $offlinePayment['sender_name'] }}
-                                            </div>
-                                        @endif
-                                        @if(!empty($offlinePayment['payment_screenshot']))
-                                            <div class="fs-12 text-break">
-                                                <strong>{{ translate('Proof') }}:</strong>
-                                                {{ $offlinePayment['payment_screenshot'] }}
-                                            </div>
-                                        @endif
-                                        @if(!empty($offlinePayment['payment_note']))
-                                            <div class="fs-12 text-muted text-break">
-                                                <strong>{{ translate('Note') }}:</strong>
-                                                {{ $offlinePayment['payment_note'] }}
-                                            </div>
-                                        @endif
+                                        @foreach($offlinePayment as $paymentInfoKey => $paymentInfoValue)
+                                            @if(!in_array($paymentInfoKey, ['method_id', 'method_name']))
+                                                <div class="fs-12 text-break {{ $paymentInfoKey === 'payment_note' ? 'text-muted' : '' }}">
+                                                    <strong>{{ translatePaymentText($paymentInfoKey) }}:</strong>
+                                                    @php($proofUrl = getOfflinePaymentProofUrl($paymentInfoValue, ['offline-payment/activation-invoice-proof', 'offline-payment/customer-package-proof']))
+                                                    @if($proofUrl)
+                                                        <a href="{{ $proofUrl }}" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">
+                                                            <img src="{{ $proofUrl }}" width="52" height="52" class="rounded border object-cover" alt="{{ translatePaymentText($paymentInfoKey) }}">
+                                                            <span>{{ translate('View') }}</span>
+                                                        </a>
+                                                    @else
+                                                        {{ formatOrderPaymentInfoValue($paymentInfoValue) }}
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        @endforeach
                                     @else
                                         <span class="text-muted">{{ translate('No_data_found') }}</span>
                                     @endif

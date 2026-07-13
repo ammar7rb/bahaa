@@ -9,9 +9,11 @@ use App\Library\Receiver;
 use App\Models\Currency;
 use App\Models\CustomerActivationInvoice;
 use App\Models\CustomerPurchasePackage;
+use App\Models\OfflinePaymentMethod;
 use App\Services\CustomerActivationInvoiceService;
 use App\Utils\Convert;
 use App\Services\CustomerPurchaseLimitService;
+use App\Traits\FileManagerTrait;
 use App\Traits\Payment;
 use App\Traits\PaymentGatewayTrait;
 use Brian2694\Toastr\Facades\Toastr;
@@ -24,7 +26,7 @@ use function App\Utils\payment_gateways;
 
 class CustomerPurchasePackageController extends Controller
 {
-    use Payment, PaymentGatewayTrait;
+    use Payment, PaymentGatewayTrait, FileManagerTrait;
 
     public function index(CustomerPurchaseLimitService $purchaseLimitService, CustomerActivationInvoiceService $activationInvoiceService): View
     {
@@ -32,6 +34,9 @@ class CustomerPurchasePackageController extends Controller
         $paymentGatewayList = payment_gateways();
         $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
         $digitalPaymentAvailable = count($paymentGatewayList) > 0 && ($digitalPaymentStatus['status'] ?? 0);
+        $offlinePaymentMethods = OfflinePaymentMethod::query()->where('status', 1)->get();
+        $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
+        $offlinePaymentAvailable = ($offlinePaymentStatus['status'] ?? 0) && $offlinePaymentMethods->count() > 0;
         $packages = CustomerPurchasePackage::query()
             ->where('status', 1)
             ->where(function ($query) use ($customer) {
@@ -50,6 +55,9 @@ class CustomerPurchasePackageController extends Controller
             'pendingActivationInvoice' => $activationInvoiceService->getPendingInvoiceForCustomer($customer->id),
             'paymentGatewayList' => $paymentGatewayList,
             'digitalPaymentAvailable' => $digitalPaymentAvailable,
+            'offlinePaymentMethods' => $offlinePaymentMethods,
+            'offlinePaymentAvailable' => $offlinePaymentAvailable,
+            'paymentAvailable' => $digitalPaymentAvailable || $offlinePaymentAvailable,
         ]);
     }
 
@@ -150,6 +158,28 @@ class CustomerPurchasePackageController extends Controller
         return redirect($redirectLink);
     }
 
+    public function payActivationInvoiceByOfflinePayment(Request $request, int $id): RedirectResponse
+    {
+        $customer = auth('customer')->user();
+        $invoice = CustomerActivationInvoice::where('id', $id)
+            ->where('customer_id', $customer->id)
+            ->where('payment_status', 'unpaid')
+            ->whereIn('status', ['pending', 'pending_offline_review'])
+            ->first();
+
+        if (!$invoice) {
+            Toastr::error(translate('activation_invoice_not_found'));
+            return back();
+        }
+
+        if (!$invoice->customer_purchase_package_id || (float) $invoice->total_amount <= 0) {
+            Toastr::error(translate('invalid_activation_invoice_amount'));
+            return back();
+        }
+
+        return $this->submitOfflinePaymentReview($request, $invoice, 'offline-payment/activation-invoice-proof/');
+    }
+
     public function purchase(Request $request, int $id): RedirectResponse
     {
         $validator = Validator::make($request->all(), [
@@ -240,6 +270,52 @@ class CustomerPurchasePackageController extends Controller
         }
 
         return redirect($redirectLink);
+    }
+
+    public function purchaseByOfflinePayment(Request $request, int $id): RedirectResponse
+    {
+        $customer = auth('customer')->user();
+        $package = CustomerPurchasePackage::query()
+            ->where('id', $id)
+            ->where('status', 1)
+            ->where(function ($query) use ($customer) {
+                $query->where('is_custom', 0)
+                    ->orWhere('customer_id', $customer->id);
+            })
+            ->first();
+
+        if (!$package) {
+            Toastr::error(translate('customer_purchase_package_not_found'));
+            return back();
+        }
+
+        if ((float) $package->package_price <= 0 || (float) $package->purchase_limit <= 0) {
+            Toastr::error(translate('invalid_customer_purchase_package'));
+            return back();
+        }
+
+        $invoice = CustomerActivationInvoice::create([
+            'invoice_no' => $this->generateCustomerPackageInvoiceNo(),
+            'customer_id' => $customer->id,
+            'customer_purchase_package_id' => $package->id,
+            'package_name' => $package->name,
+            'package_price' => (float) $package->package_price,
+            'package_purchase_limit' => (float) $package->purchase_limit,
+            'insurance_original_amount' => 0,
+            'insurance_discount_amount' => 0,
+            'insurance_amount' => 0,
+            'total_amount' => (float) $package->package_price,
+            'paid_amount' => 0,
+            'currency_code' => Currency::find(getWebConfig(name: 'system_default_currency'))?->code ?: 'USD',
+            'payment_status' => 'unpaid',
+            'status' => 'pending',
+            'metadata' => [
+                'created_from' => 'customer_purchase_package',
+                'is_custom' => (bool) $package->is_custom,
+            ],
+        ]);
+
+        return $this->submitOfflinePaymentReview($request, $invoice, 'offline-payment/customer-package-proof/');
     }
 
     public function purchaseExtraCredit(Request $request, CustomerPurchaseLimitService $purchaseLimitService): RedirectResponse
@@ -344,5 +420,106 @@ class CustomerPurchasePackageController extends Controller
         }
 
         return redirect($redirectLink);
+    }
+
+    private function submitOfflinePaymentReview(Request $request, CustomerActivationInvoice $invoice, string $proofDirectory): RedirectResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'method_id' => 'required|integer',
+            'payment_note' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            foreach ($validator->errors()->all() as $error) {
+                Toastr::error(translate($error));
+            }
+            return back();
+        }
+
+        $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
+        if (!($offlinePaymentStatus['status'] ?? 0)) {
+            Toastr::error(translate('offline_payment_is_not_available'));
+            return back();
+        }
+
+        $method = OfflinePaymentMethod::query()
+            ->where('id', $request->get('method_id'))
+            ->where('status', 1)
+            ->first();
+
+        if (!$method) {
+            Toastr::error(translate('offline_payment_method_not_found'));
+            return back();
+        }
+
+        $offlinePaymentInfo = [
+            'method_id' => $method->id,
+            'method_name' => $method->method_name,
+            'payment_note' => $request->get('payment_note', ''),
+            'submitted_at' => now()->toDateTimeString(),
+        ];
+
+        $missingFields = [];
+        foreach (($method->method_informations ?? []) as $field) {
+            $inputName = $field['customer_input'] ?? null;
+            if (!$inputName) {
+                continue;
+            }
+
+            $fieldText = strtolower($inputName . ' ' . ($field['customer_placeholder'] ?? ''));
+            $isImageField = str_contains($fieldText, 'screenshot')
+                || str_contains($fieldText, 'image')
+                || str_contains($fieldText, 'receipt')
+                || str_contains($fieldText, 'proof');
+
+            if ($isImageField) {
+                if ($request->hasFile($inputName)) {
+                    $offlinePaymentInfo[$inputName] = [
+                        'image_name' => $this->upload(dir: $proofDirectory, format: 'webp', image: $request->file($inputName)),
+                        'storage' => config('filesystems.disks.default') ?? 'public',
+                    ];
+                } elseif (($field['is_required'] ?? 0)) {
+                    $missingFields[] = $inputName;
+                }
+                continue;
+            }
+
+            $value = $request->get($inputName);
+            if (($field['is_required'] ?? 0) && ($value === null || $value === '')) {
+                $missingFields[] = $inputName;
+                continue;
+            }
+
+            if ($value !== null && $value !== '') {
+                $offlinePaymentInfo[$inputName] = $value;
+            }
+        }
+
+        if ($missingFields) {
+            Toastr::error(translate('required_offline_payment_information_is_missing'));
+            return back();
+        }
+
+        $metadata = $invoice->metadata ?: [];
+        $metadata['offline_payment'] = $offlinePaymentInfo;
+
+        $invoice->update([
+            'payment_method' => 'offline_payment',
+            'payment_reference' => 'offline-review:' . $method->id,
+            'status' => 'pending_offline_review',
+            'metadata' => $metadata,
+        ]);
+
+        Toastr::success(translate('offline_payment_information_submitted_successfully'));
+        return redirect()->route('customer.purchase-package.index');
+    }
+
+    private function generateCustomerPackageInvoiceNo(): string
+    {
+        do {
+            $invoiceNo = 'PKG-' . now()->format('YmdHis') . '-' . random_int(1000, 9999);
+        } while (CustomerActivationInvoice::where('invoice_no', $invoiceNo)->exists());
+
+        return $invoiceNo;
     }
 }

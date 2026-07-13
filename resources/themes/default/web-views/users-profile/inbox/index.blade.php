@@ -1,7 +1,7 @@
 @extends('layouts.front-end.app')
 
 @section('title')
-    {{ Request::is('chat/vendor') ? translate('Chat_With_Vendor') : translate('Chat_With_Delivery_Man')}}
+    {{ translate('Chat_With_Delivery_Man') }}
 @endsection
 
 @section('content')
@@ -27,12 +27,14 @@
                             <div class="chat--sidebar-card h-100">
                                 <div class="chat--sidebar-top">
                                     <ul class="nav nav-tabs nav--tabs justify-content-center">
+                                        @if(false)
                                         <li class="nav-item">
                                             <a class="nav-link {{Request::is('chat/vendor')?'active': '' }}"
                                                href="{{route('chat', ['type' => 'vendor'])}}">
                                                 {{translate('vendor')}}
                                             </a>
                                         </li>
+                                        @endif
                                         <li class="nav-item">
                                             <a class="nav-link {{Request::is('chat/delivery-man')?'active': '' }}"
                                                href="{{route('chat', ['type' => 'delivery-man'])}}">
@@ -340,4 +342,3 @@
     <script src="{{ theme_asset(path: 'public/assets/front-end/js/select-multiple-file.js')}}"></script>
     <script src="{{ theme_asset(path: 'public/assets/front-end/js/select-multiple-image-for-message.js')}}"></script>
 @endpush
-

@@ -6675,4 +6675,5 @@ return [
     "category  is required!" => "Category is required!",
     "all_messages_are_in_translated" => "All messages are in translated",
     "All_Messages_are_translated" => "All Messages are translated",
+    "please_open_a_support_ticket_to_contact_the_platform" => "Please open a support ticket to contact the platform.",
 ];

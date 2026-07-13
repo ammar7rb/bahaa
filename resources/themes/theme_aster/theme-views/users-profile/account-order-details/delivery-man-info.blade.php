@@ -46,10 +46,10 @@
                                                 </div>
                                             </div>
                                             <div class="d-flex flex-wrap flex-md-column gap-3">
-                                                <button data-bs-toggle="modal" data-bs-target="#chatModal" class="btn btn-outline-primary flex-grow-1 text-capitalize">
-                                                    <i class="bi bi-chat-square-fill"></i>
-                                                    {{translate('chat_with_delivery')}}
-                                                </button>
+                                                <a href="{{ route('account-tickets') }}" class="btn btn-outline-primary flex-grow-1 text-capitalize">
+                                                    <i class="bi bi-headset"></i>
+                                                    {{translate('support_ticket')}}
+                                                </a>
                                                 @if($order->payment_status == 'paid' && $order->order_type == 'default_type' && $order->order_status=='delivered' && $order->delivery_man_id)
                                                     <button  class="btn btn-primary flex-grow-1"
                                                              data-bs-toggle="modal" data-bs-target="#reviewModal">
@@ -58,6 +58,7 @@
                                                     </button>
                                                 @endif
                                             </div>
+                                            @if(false)
                                             <div class="modal fade" id="chatModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
                                                 <div class="modal-dialog modal-dialog-centered">
                                                     <div class="modal-content">
@@ -101,6 +102,7 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @endif
                                             <div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
                                                 <div class="modal-dialog modal-lg">
                                                     <div class="modal-content">

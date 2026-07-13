@@ -135,15 +135,15 @@
                                                 @csrf
                                                 <input type="hidden" name="package_id" value="{{ $package->id }}">
                                                 <input type="hidden" name="method_id" value="{{ $method->id }}">
-                                                <div class="fw-semibold mb-2">{{ $method->method_name }}</div>
+                                                <div class="fw-semibold mb-2">{{ translatePaymentText($method->method_name) }}</div>
                                                 @foreach(($method->method_fields ?? []) as $field)
-                                                    <div class="fs-12 mb-1"><strong>{{ ucwords(str_replace('_', ' ', $field['input_name'] ?? '')) }}:</strong> {{ $field['input_data'] ?? '' }}</div>
+                                                    <div class="fs-12 mb-1"><strong>{{ translatePaymentText($field['input_name'] ?? '') }}:</strong> {{ translatePaymentText($field['input_data'] ?? '') }}</div>
                                                 @endforeach
                                                 @foreach(($method->method_informations ?? []) as $field)
                                                     @php($inputName = $field['customer_input'] ?? null)
                                                     @continue(!$inputName || $inputName === 'payment_screenshot')
                                                     <input type="text" class="form-control mt-2" name="method_information[{{ $inputName }}]"
-                                                           placeholder="{{ $field['customer_placeholder'] ?? ucwords(str_replace('_', ' ', $inputName)) }}"
+                                                           placeholder="{{ translatePaymentText($field['customer_placeholder'] ?? $inputName) }}"
                                                            {{ ($field['is_required'] ?? 0) ? 'required' : '' }}>
                                                 @endforeach
                                                 <input type="file" class="form-control mt-2" name="payment_proof" accept="image/jpeg,image/png,image/webp" required>

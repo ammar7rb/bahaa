@@ -57,22 +57,12 @@
                                             </ul>
                                         </div>
 
-                                        <?php
-
-                                        $isTemporaryClosed = checkVendorAbility(type: 'vendor', status: 'temporary_close', vendor: $order->seller->shop);
-                                        $canChat = !$isTemporaryClosed;
-                                        ?>
-
                                         <div>
-                                            <button type="button" class="btn btn-soft-info text-capitalize px-2 px-sm-4"
-                                                data-toggle="modal" data-target="#chatting_modal"
-                                                @if (!$canChat) disabled @endif>
-                                                <img alt=""
-                                                    src="{{ theme_asset(path: 'public/assets/front-end/img/seller-info-chat.png') }}">
-                                                <span class="d-none d-sm-inline-block">
-                                                    {{ translate('chat_with_vendor') }}
+                                            <a href="{{ route('account-tickets') }}" class="btn btn-soft-info text-capitalize px-2 px-sm-4">
+                                                <span>
+                                                    {{ translate('support_ticket') }}
                                                 </span>
-                                            </button>
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -124,20 +114,13 @@
                                                 </li>
                                             </ul>
                                         </div>
-                                        <?php
-                                        $isTemporaryClosed = checkVendorAbility(type: 'inhouse', status: 'temporary_close');
-                                        $canChat = !$isTemporaryClosed;
-                                        ?>
                                         <div>
-                                            <button @if (!$canChat) disabled @endif type="button"
-                                                class="btn btn-soft-info text-capitalize px-2 px-sm-4" data-toggle="modal"
-                                                data-target="#chatting_modal">
-                                                <img alt=""
-                                                    src="{{ theme_asset(path: 'public/assets/front-end/img/seller-info-chat.png') }}">
-                                                <span class="d-none d-sm-inline-block">
-                                                    {{ translate('chat_with_vendor') }}
+                                            <a href="{{ route('account-tickets') }}"
+                                                class="btn btn-soft-info text-capitalize px-2 px-sm-4">
+                                                <span>
+                                                    {{ translate('support_ticket') }}
                                                 </span>
-                                            </button>
+                                            </a>
                                         </div>
 
                                     </div>
@@ -149,9 +132,4 @@
             </section>
         </div>
     </div>
-
-    @include('layouts.front-end.partials.modal._chatting', [
-        'seller' => $order->seller,
-        'user_type' => $order->seller_is,
-    ])
 @endsection

@@ -22,6 +22,10 @@ class ChatController extends Controller
 {
     public function list(Request $request, $type):JsonResponse
     {
+        if (in_array($type, ['seller', 'delivery-man'])) {
+            return $this->customerChatBlockedResponse();
+        }
+
         $admin_size = 0;
         $admin_chat_id = [];
         if ($type == 'delivery-man') {
@@ -106,6 +110,10 @@ class ChatController extends Controller
 
     public function search(Request $request, $type):JsonResponse
     {
+        if (in_array($type, ['seller', 'delivery-man'])) {
+            return $this->customerChatBlockedResponse();
+        }
+
         $terms = explode(" ", $request->input('search'));
         if ($type == 'seller') {
             $id_param = 'seller_id';
@@ -157,6 +165,10 @@ class ChatController extends Controller
 
     public function get_message(Request $request, $type, $id):JsonResponse
     {
+        if (in_array($type, ['seller', 'delivery-man'])) {
+            return $this->customerChatBlockedResponse();
+        }
+
         $validator = Validator::make($request->all(), [
             'offset' => 'required',
             'limit' => 'required',
@@ -208,6 +220,10 @@ class ChatController extends Controller
 
     public function send_message(CustomerSendMessageRequest $request, $type):JsonResponse
     {
+        if (in_array($type, ['seller', 'delivery-man'])) {
+            return $this->customerChatBlockedResponse();
+        }
+
         $uploadMaxFileSize = ini_get('upload_max_filesize');
         if (strpos($uploadMaxFileSize, 'G') !== false) {
             $uploadMaxFileSize = str_replace('G', '', $uploadMaxFileSize);
@@ -277,6 +293,10 @@ class ChatController extends Controller
 
     public function seen_message(Request $request, $type):JsonResponse
     {
+        if (in_array($type, ['seller', 'delivery-man'])) {
+            return $this->customerChatBlockedResponse();
+        }
+
         $validator = Validator::make($request->all(), [
             'id' => 'required',
         ]);
@@ -317,5 +337,12 @@ class ChatController extends Controller
             'path' => $path,
             'size' => $size
         ];
+    }
+
+    private function customerChatBlockedResponse(): JsonResponse
+    {
+        return response()->json([
+            'message' => translate('please_open_a_support_ticket_to_contact_the_platform'),
+        ], 403);
     }
 }

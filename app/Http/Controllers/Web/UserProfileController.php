@@ -832,7 +832,7 @@ class UserProfileController extends Controller
 
         if (isset($orderExist)) {
             if ($orderExist['order_type'] == 'POS') {
-                Toastr::error(translate('this_order_is_created_by_') . ($orderExist['seller_is'] == 'seller' ? 'vendor' : 'admin') . translate('_from POS') . ',' . translate('please_contact_with_') . ($orderDetails['seller_is'] == 'seller' ? 'vendor' : 'admin') . translate('_to_know_more_details') . '.');
+                Toastr::error(translate('please_open_a_support_ticket_to_contact_the_platform'));
                 return redirect()->back();
             }
             if ($orderExist && $orderExist->orderDetails()->whereHas('product', fn($q) => $q->where('product_type', 'physical'))->exists()) {

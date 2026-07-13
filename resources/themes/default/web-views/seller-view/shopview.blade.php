@@ -122,6 +122,7 @@
 
     <span id="shop-sort-by-filter-url" data-url="{{url('/')}}/shopView/{{$shopInfoArray['slug']}}"></span>
 
+    @if(false)
     <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog"
          aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
@@ -154,6 +155,8 @@
             </div>
         </div>
     </div>
+
+    @endif
 
     <span id="products-search-data-backup"
           data-page="{{ request('page') ?? 1 }}"
@@ -194,5 +197,4 @@
         });
     </script>
 @endpush
-
 

@@ -823,7 +823,7 @@
                                                                     <span class="product-qty title-semidark">
                                                                        {{ translate('Due Amount Paid By') }}
                                                                     </span>
-                                                                    <span>({{ ucwords(str_replace('_', ' ', $order?->latestEditHistory?->order_due_payment_method)) }})</span>
+                                                                    <span>({{ translate($order?->latestEditHistory?->order_due_payment_method) }})</span>
                                                                 </div>
                                                             </td>
                                                             <td class="pt-0">
@@ -901,7 +901,7 @@
                                                                             {{ translate('Returned by') }}
                                                                         </strong>
                                                                     </span>
-                                                                    <span>({{ ucwords(str_replace('_', ' ', $order?->latestEditHistory?->order_return_payment_method)) }})</span>
+                                                                    <span>({{ translate($order?->latestEditHistory?->order_return_payment_method) }})</span>
                                                                 </div>
                                                             </td>
                                                             <td class="pt-0">
@@ -1061,10 +1061,18 @@
                                     @foreach ($order->offlinePayments->payment_info as $key=>$value)
                                         @if ($key != 'method_id')
                                             <div class="d-flex align-items-center gap-2">
-                                                <span class="text-capitalize min-w-120">{{translate($key)}}</span>
+                                                <span class="text-capitalize min-w-120">{{ translatePaymentText($key) }}</span>
                                                 <span>:</span>
                                                 <span class="font-weight-medium fs-12 ">
-                                                   {{$value ?? "N/a"}}
+                                                   @php($proofUrl = getOfflinePaymentProofUrl($value, ['offline-payment/order-proof']))
+                                                   @if($proofUrl)
+                                                       <a href="{{ $proofUrl }}" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">
+                                                           <img src="{{ $proofUrl }}" width="48" height="48" class="rounded border object-cover" alt="{{ translatePaymentText($key) }}">
+                                                           <span>{{ translate('View') }}</span>
+                                                       </a>
+                                                   @else
+                                                       {{ formatOrderPaymentInfoValue($value, 'N/a') }}
+                                                   @endif
                                                </span>
                                             </div>
                                         @endif
@@ -1111,11 +1119,19 @@
                                     @if($key !== 'method_id')
                                         <div class="d-flex align-items-center gap-2">
                                     <span class="text-capitalize min-w-120">
-                                        {{ translate(str_replace('_', ' ', $key)) }}
+                                        {{ translatePaymentText($key) }}
                                     </span>
                                             <span>:</span>
                                             <span class="font-weight-medium">
-                                        {{ $value ?? 'N/A' }}
+                                        @php($proofUrl = getOfflinePaymentProofUrl($value, ['offline-payment/order-proof']))
+                                        @if($proofUrl)
+                                            <a href="{{ $proofUrl }}" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">
+                                                <img src="{{ $proofUrl }}" width="48" height="48" class="rounded border object-cover" alt="{{ translatePaymentText($key) }}">
+                                                <span>{{ translate('View') }}</span>
+                                            </a>
+                                        @else
+                                            {{ formatOrderPaymentInfoValue($value) }}
+                                        @endif
                                     </span>
                                         </div>
                                     @endif

@@ -46,3 +46,82 @@ if (!function_exists('getOrderStatusList')) {
         ];
     }
 }
+
+if (!function_exists('formatOrderPaymentInfoValue')) {
+    function formatOrderPaymentInfoValue(mixed $value, string $fallback = 'N/A'): string
+    {
+        if (is_array($value)) {
+            $flattenedValue = collect($value)
+                ->flatten()
+                ->filter(fn($item) => is_scalar($item) && $item !== '')
+                ->implode(', ');
+
+            return $flattenedValue !== '' ? (string) $flattenedValue : $fallback;
+        }
+
+        if (is_null($value) || $value === '') {
+            return $fallback;
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return json_encode($value, JSON_UNESCAPED_UNICODE) ?: $fallback;
+    }
+}
+
+if (!function_exists('getOfflinePaymentProofUrl')) {
+    function getOfflinePaymentProofUrl(mixed $value, array $paths = []): ?string
+    {
+        if (!is_array($value) || empty($value['image_name'])) {
+            return null;
+        }
+
+        $paths = $paths ?: [
+            'offline-payment/order-proof',
+            'offline-payment/activation-invoice-proof',
+            'offline-payment/customer-package-proof',
+            'seller-package/payment-proof',
+            'seller-insurance/payment-proof',
+        ];
+
+        foreach ($paths as $path) {
+            $storage = storageLink(trim($path, '/'), $value['image_name'], $value['storage'] ?? 'public');
+            $url = is_array($storage) ? ($storage['path'] ?? null) : $storage;
+
+            if ($url) {
+                return $url;
+            }
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('translatePaymentText')) {
+    function translatePaymentText(mixed $text): string
+    {
+        if (!is_scalar($text)) {
+            return '';
+        }
+
+        $text = trim((string) $text);
+        if ($text === '') {
+            return '';
+        }
+
+        $knownKeys = [
+            'manual transfer / auto payment form' => 'manual_transfer_auto_payment_form',
+            'transfer the amount then submit sender number and payment screenshot.' => 'Transfer_the_amount_then_submit_sender_number_and_payment_screenshot.',
+            'sender wallet / phone number' => 'Sender_wallet_/_phone_number',
+            'sender wallet or phone' => 'sender_wallet_or_phone',
+            'sender name' => 'sender_name',
+            'payment screenshot' => 'payment_screenshot',
+            'payment proof' => 'payment_proof',
+            'instructions' => 'instructions',
+        ];
+
+        return translate($knownKeys[strtolower($text)] ?? $text);
+    }
+}

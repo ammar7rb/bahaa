@@ -551,7 +551,7 @@
                                     <tr>
                                         <td class="px-2 pt-1 pb-1">{{ translate('Method') }}</td>
                                         <td class="pt-1 pb-1">:</td>
-                                        <td class="px-2 pt-1 pb-1"><span class="text-dark">{{ str_replace('_',' ',$order->payment_method) }}</span></td>
+                            <td class="px-2 pt-1 pb-1"><span class="text-dark">{{ translate($order->payment_method) }}</span></td>
                                     </tr>
                                     @if(!empty($order->transaction_ref))
                                         <tr>
@@ -564,9 +564,16 @@
                                         @foreach ($order->offlinePayments?->payment_info as $key=>$item)
                                             @if (isset($item) && $key != 'method_id')
                                                 <tr>
-                                                    <td class="px-2 pt-1 pb-1">{{ str_replace('_',' ',$key) }}</td>
+                                                    <td class="px-2 pt-1 pb-1">{{ translatePaymentText($key) }}</td>
                                                     <td class="pt-1 pb-1">:</td>
-                                                    <td class="px-2 pt-1 pb-1"><span class="text-dark">{{ $item }}</span></td>
+                                                    <td class="px-2 pt-1 pb-1"><span class="text-dark">
+                                                        @php($proofUrl = getOfflinePaymentProofUrl($item, ['offline-payment/order-proof']))
+                                                        @if($proofUrl)
+                                                            <a href="{{ $proofUrl }}" target="_blank" rel="noopener">{{ translate('View') }}</a>
+                                                        @else
+                                                            {{ formatOrderPaymentInfoValue($item) }}
+                                                        @endif
+                                                    </span></td>
                                                 </tr>
                                             @endif
                                         @endforeach
@@ -585,7 +592,7 @@
                                         <tr>
                                             <td class="px-2 pt-1 pb-1">{{ translate('Method') }}</td>
                                             <td class="pt-1 pb-1">:</td>
-                                            <td class="px-2 pt-1 pb-1"><span class="text-dark">{{str_replace('_',' ',$order?->latestEditHistory?->order_due_payment_method)}}</span></td>
+                                            <td class="px-2 pt-1 pb-1"><span class="text-dark">{{ translate($order?->latestEditHistory?->order_due_payment_method) }}</span></td>
                                         </tr>
                                         <tr>
                                             <td class="px-2 pt-1 pb-1">{{ translate('Due_amount') }}</td>
@@ -877,7 +884,7 @@
                                                                         <h5 class="m-0">
                                                                             {{ translate('Due_Amount_Paid_By') }}
                                                                             <span>
-                                                                            ({{ ucwords(str_replace('_',' ',$order?->latestEditHistory?->order_due_payment_method)) }})
+                                                                            ({{ translate($order?->latestEditHistory?->order_due_payment_method) }})
                                                                         </span>
                                                                         </h5>
                                                                     </td>
@@ -947,7 +954,7 @@
                                                                         <h5 class="m-0">
                                                                             {{ translate('Returned_By') }}
                                                                             <span>
-                                                                                ({{ ucwords(str_replace('_',' ',$order?->latestEditHistory?->order_return_payment_method)) }})
+                                                                                ({{ translate($order?->latestEditHistory?->order_return_payment_method) }})
                                                                             </span>
                                                                         </h5>
                                                                     </td>

@@ -112,7 +112,7 @@
                                             <button class="btn btn-light w-100 text-left d-flex justify-content-between align-items-center"
                                                     type="button" data-toggle="collapse"
                                                     data-target="#offline-method-{{ $method->id }}" aria-expanded="{{ $loop->first ? 'true' : 'false' }}">
-                                                <span>{{ $method->method_name }}</span>
+                                                <span>{{ translatePaymentText($method->method_name) }}</span>
                                                 <i class="fi fi-sr-angle-small-down"></i>
                                             </button>
                                             <div id="offline-method-{{ $method->id }}" class="collapse {{ $loop->first ? 'show' : '' }}"
@@ -126,8 +126,8 @@
                                                         <div class="bg-light rounded p-3 mb-3">
                                                             @foreach($method->method_fields as $field)
                                                                 <div class="fs-12 mb-1">
-                                                                    <strong>{{ ucwords(str_replace('_', ' ', $field['input_name'] ?? '')) }}:</strong>
-                                                                    {{ $field['input_data'] ?? '' }}
+                                                                    <strong>{{ translatePaymentText($field['input_name'] ?? '') }}:</strong>
+                                                                    {{ translatePaymentText($field['input_data'] ?? '') }}
                                                                 </div>
                                                             @endforeach
                                                         </div>
@@ -138,7 +138,7 @@
                                                         @continue(!$inputName || $inputName === 'payment_screenshot')
                                                         <div class="form-group mb-3">
                                                             <label class="form-label" for="offline-{{ $method->id }}-{{ $inputName }}">
-                                                                {{ $field['customer_placeholder'] ?? ucwords(str_replace('_', ' ', $inputName)) }}
+                                                                {{ translatePaymentText($field['customer_placeholder'] ?? $inputName) }}
                                                                 @if($field['is_required'] ?? 0)<span class="text-danger">*</span>@endif
                                                             </label>
                                                             <input type="text" class="form-control"

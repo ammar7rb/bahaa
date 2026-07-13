@@ -1,7 +1,7 @@
 @extends('theme-views.layouts.app')
 
 @section('title')
-    {{ Request::is('chat/vendor') ? translate('chat_with_vendor') : translate('chat_with_delivery_man')}}
+    {{ translate('chat_with_delivery_man') }}
 @endsection
 
 @push('css_or_js')
@@ -31,10 +31,12 @@
                                     </form>
 
                                     <ul class="nav nav--tabs gap-3">
+                                        @if(false)
                                         <li class="nav-item" role="presentation">
                                             <a class="{{Request::is('chat/vendor')?'active':''}}"
                                                href="{{route('chat', ['type' => 'vendor'])}}">{{translate('vendor')}}</a>
                                         </li>
+                                        @endif
                                         <li class="nav-item">
                                             <a class="{{Request::is('chat/delivery-man')?'active':''}}"
                                                href="{{route('chat', ['type' => 'delivery-man'])}}">{{translate('delivery_man')}}</a>
@@ -313,4 +315,3 @@
     <script src="{{ theme_asset('assets/js/select-multiple-image-for-message.js')}}"></script>
     <script src="{{ theme_asset('assets/js/owl.min.js')}}"></script>
 @endpush
-

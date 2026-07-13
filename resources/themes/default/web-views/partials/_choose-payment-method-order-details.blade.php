@@ -181,7 +181,7 @@
                                                                 data-order-id="{{ $order['id'] }}"
                                                                 data-edit-due-amount="{{ $order['edit_due_amount'] }}"
                                                         >
-                                                            {{ $method->method_name }}
+                                                            {{ translatePaymentText($method->method_name) }}
                                                         </button>
                                                     @endforeach
                                                 </div>
@@ -239,7 +239,7 @@
                                 <option value="" disabled selected>{{ translate('select_Payment_Method') }}</option>
                                 @foreach ($offlinePaymentMethods as $method)
                                     <option value="{{ $method->id }}">{{ translate('payment_Method') }} :
-                                        {{ $method->method_name }}</option>
+                                        {{ translatePaymentText($method->method_name) }}</option>
                                 @endforeach
                             </select>
                             <div id="payment_method_field_{{ $order['id'] }}"

@@ -103,6 +103,7 @@
                             </a>
                         </li>
                     @endif
+                    @if(false)
                     <li class="{{Request::is ('chat/vendor') || Request::is ('chat/delivery-man') ? 'active' : ''}}">
                         <a href="{{route('chat', ['type' => 'vendor'])}}">
                             <img width="20" src="{{theme_asset('assets/img/icons/profile-icon7.png')}}"
@@ -110,6 +111,7 @@
                             <span>{{translate('inbox')}}</span>
                         </a>
                     </li>
+                    @endif
                     <li class="{{Request::is ('account-tickets') || Request::is('support-ticket*') ? 'active' : ''}}">
                         <a href="{{route('account-tickets')}}">
                             <img width="20" src="{{theme_asset('assets/img/icons/profile-icon8.png')}}"

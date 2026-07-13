@@ -676,10 +676,20 @@
                                     @if (isset($item) && $key != 'method_id')
                                         <div class="d-flex gap-3 align-items-center overflow-wrap-anywhere">
                                             <span class="w-120 flex-shrink-0 text-capitalize text-capitalize">
-                                                {{ translate($key) }}
+                                                {{ translatePaymentText($key) }}
                                             </span>
                                             <span>:</span>
-                                            <span class="fw-semibold">{{ $item ?? 'N/a' }}</span>
+                                            <span class="fw-semibold">
+                                                @php($proofUrl = getOfflinePaymentProofUrl($item, ['offline-payment/order-proof']))
+                                                @if($proofUrl)
+                                                    <a href="{{ $proofUrl }}" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">
+                                                        <img src="{{ $proofUrl }}" width="52" height="52" class="rounded border object-cover" alt="{{ translatePaymentText($key) }}">
+                                                        <span>{{ translate('View') }}</span>
+                                                    </a>
+                                                @else
+                                                    {{ formatOrderPaymentInfoValue($item, 'N/a') }}
+                                                @endif
+                                            </span>
                                         </div>
                                     @endif
                                 @endforeach
@@ -844,21 +854,28 @@
                                                     <div class="d-flex gap-3 align-items-center overflow-wrap-anywhere">
                                                         <span
                                                             class="w-120 flex-shrink-0 text-capitalize text-capitalize">
-                                                            {{ translate($orderDuePaymentInfoKey) }}
+                                                            {{ translatePaymentText($orderDuePaymentInfoKey) }}
                                                         </span>
                                                         <span>:</span>
                                                         <span class="fw-semibold">
-                                                        @if($orderDuePaymentInfoKey === 'payment_note' && strlen($orderDuePaymentInfo) > 250)
-                                                                {{ Str::limit($orderDuePaymentInfo, 250) }}
+                                                        @php($proofUrl = getOfflinePaymentProofUrl($orderDuePaymentInfo, ['offline-payment/order-proof']))
+                                                        @php($formattedOrderDuePaymentInfo = formatOrderPaymentInfoValue($orderDuePaymentInfo))
+                                                        @if($proofUrl)
+                                                            <a href="{{ $proofUrl }}" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">
+                                                                <img src="{{ $proofUrl }}" width="52" height="52" class="rounded border object-cover" alt="{{ translatePaymentText($orderDuePaymentInfoKey) }}">
+                                                                <span>{{ translate('View') }}</span>
+                                                            </a>
+                                                        @elseif($orderDuePaymentInfoKey === 'payment_note' && strlen($formattedOrderDuePaymentInfo) > 250)
+                                                                {{ Str::limit($formattedOrderDuePaymentInfo, 250) }}
                                                                 <a href="javascript:void(0)"
                                                                    class="text-primary ms-1"
                                                                    data-bs-toggle="modal"
                                                                    data-bs-target="#paymentNoteModal-{{$orderDuePaymentInfoKey}}">
                                                                     {{ translate('Read more') }}
                                                                     </a>
-                                                            @else
-                                                                {{ $orderDuePaymentInfo ?? 'N/A' }}
-                                                            @endif
+                                                        @else
+                                                                {{ $formattedOrderDuePaymentInfo }}
+                                                        @endif
                                                         </span>
                                                     </div>
                                                 @endif
@@ -869,14 +886,14 @@
                                                         class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                                                         <div class="modal-content">
                                                             <div class="modal-header">
-                                                                <h5 class="modal-title">Payment Note</h5>
+                                                                <h5 class="modal-title">{{ translate('Payment_Note') }}</h5>
                                                                 <button type="button" class="btn-close"
                                                                         data-bs-dismiss="modal"></button>
                                                             </div>
 
                                                             <div class="modal-body">
                                                                 <p class="mb-0" style="white-space: pre-wrap;">
-                                                                    {{ $order?->latestEditHistory?->order_due_payment_info['payment_note'] ?? 'N/A' }}
+                                                                    {{ formatOrderPaymentInfoValue($order?->latestEditHistory?->order_due_payment_info['payment_note'] ?? null) }}
                                                                 </p>
                                                             </div>
                                                         </div>

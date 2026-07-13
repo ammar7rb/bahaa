@@ -274,19 +274,21 @@ class CustomerActivationInvoiceService
                 ]);
             }
 
-            $orders = Order::where('order_group_id', $invoice->order_group_id)
-                ->where('customer_id', $invoice->customer_id)
-                ->lockForUpdate()
-                ->get();
+            if ($invoice->order_group_id) {
+                $orders = Order::where('order_group_id', $invoice->order_group_id)
+                    ->where('customer_id', $invoice->customer_id)
+                    ->lockForUpdate()
+                    ->get();
 
-            foreach ($orders as $order) {
-                $order->update([
-                    'order_status' => 'confirmed',
-                    'activation_status' => 'activation_completed',
-                    'activation_completed_at' => now(),
-                ]);
+                foreach ($orders as $order) {
+                    $order->update([
+                        'order_status' => 'confirmed',
+                        'activation_status' => 'activation_completed',
+                        'activation_completed_at' => now(),
+                    ]);
 
-                $this->purchaseLimitService->debitOrderLimit($order->fresh('details'));
+                    $this->purchaseLimitService->debitOrderLimit($order->fresh('details'));
+                }
             }
 
             return ['status' => 1, 'message' => 'paid', 'invoice' => $invoice->fresh(), 'subscription' => $subscription];

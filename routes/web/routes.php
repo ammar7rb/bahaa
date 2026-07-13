@@ -228,8 +228,8 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
 
     Route::controller(ChattingController::class)->group(function () {
         Route::get('chat/{type}', 'index')->name('chat')->middleware('customer');
-        Route::get('message', 'getMessageByUser')->name('messages');
-        Route::post('message', 'addMessage');
+        Route::get('message', 'getMessageByUser')->name('messages')->middleware('customer');
+        Route::post('message', 'addMessage')->middleware('customer');
     });
 
     Route::controller(UserWalletController::class)->group(function () {
@@ -361,8 +361,10 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
     Route::group(['prefix' => 'purchase-package', 'as' => 'purchase-package.', 'middleware' => ['auth:customer']], function () {
         Route::get('/', [CustomerPurchasePackageController::class, 'index'])->name('index');
         Route::post('purchase/{id}', [CustomerPurchasePackageController::class, 'purchase'])->name('purchase');
+        Route::post('purchase/{id}/offline-payment', [CustomerPurchasePackageController::class, 'purchaseByOfflinePayment'])->name('purchase.offline-payment');
         Route::post('extra-credit/purchase', [CustomerPurchasePackageController::class, 'purchaseExtraCredit'])->name('extra-credit.purchase');
         Route::post('activation-invoice/{id}/pay', [CustomerPurchasePackageController::class, 'payActivationInvoice'])->name('activation-invoice.pay');
+        Route::post('activation-invoice/{id}/pay-by-offline-payment', [CustomerPurchasePackageController::class, 'payActivationInvoiceByOfflinePayment'])->name('activation-invoice.offline-payment');
     });
 
     Route::group(['prefix' => 'reward-points', 'as' => 'reward-points.', 'middleware' => ['auth:customer']], function () {

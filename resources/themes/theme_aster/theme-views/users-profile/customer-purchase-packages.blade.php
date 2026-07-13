@@ -46,7 +46,7 @@
                                 </div>
                             </div>
 
-                            @if(!$digitalPaymentAvailable)
+                            @if(!$paymentAvailable)
                                 <div class="alert alert-warning">{{ translate('payment_methods_are_not_available_at_this_time.') }}</div>
                             @endif
 
@@ -100,6 +100,7 @@
                                     @if($pendingActivationInvoice->status === 'pending_package_assignment')
                                         <div class="alert alert-warning mb-0">{{ translate('no_active_package_can_cover_this_order_total_please_ask_admin_to_create_a_custom_package') }}</div>
                                     @else
+                                        @if($digitalPaymentAvailable || !$offlinePaymentAvailable)
                                         <form action="{{ route('customer.purchase-package.activation-invoice.pay', ['id' => $pendingActivationInvoice->id]) }}" method="post">
                                             @csrf
                                             <input type="hidden" value="web" name="payment_platform">
@@ -117,19 +118,27 @@
                                                                 <span class="form-check-label">{{ $gatewayTitle }}</span>
                                                             </label>
                                                         @endforeach
-                                                    @else
+                                                    @elseif(!$offlinePaymentAvailable)
                                                         <div class="text-muted">{{ translate('payment_unavailable') }}</div>
                                                     @endif
                                                 </div>
                                                 <div class="col-md-4 d-flex align-items-end">
                                                     @if($digitalPaymentAvailable)
                                                         <button type="submit" class="btn btn-primary w-100">{{ translate('pay_activation_invoice') }}</button>
-                                                    @else
+                                                    @elseif(!$offlinePaymentAvailable)
                                                         <button type="button" class="btn btn-secondary w-100" disabled>{{ translate('payment_unavailable') }}</button>
                                                     @endif
                                                 </div>
                                             </div>
                                         </form>
+                                        @endif
+                                        @include('system-partials._purchase-package-offline-payment-modals', [
+                                            'formAction' => route('customer.purchase-package.activation-invoice.offline-payment', ['id' => $pendingActivationInvoice->id]),
+                                            'modalIdPrefix' => 'aster-activation-invoice-' . $pendingActivationInvoice->id,
+                                            'amount' => $pendingActivationInvoice->total_amount,
+                                            'buttonClass' => 'btn-outline-primary',
+                                            'submitClass' => 'btn-primary',
+                                        ])
                                     @endif
                                 </div>
                             @endif
@@ -239,10 +248,17 @@
                                                         @endforeach
                                                     </div>
                                                     <button type="submit" class="btn btn-primary w-100">{{ translate('buy_package') }}</button>
-                                                @else
+                                                @elseif(!$offlinePaymentAvailable)
                                                     <button type="button" class="btn btn-secondary w-100" disabled>{{ translate('payment_unavailable') }}</button>
                                                 @endif
                                             </form>
+                                            @include('system-partials._purchase-package-offline-payment-modals', [
+                                                'formAction' => route('customer.purchase-package.purchase.offline-payment', ['id' => $package->id]),
+                                                'modalIdPrefix' => 'aster-package-' . $package->id,
+                                                'amount' => $package->package_price,
+                                                'buttonClass' => 'btn-outline-primary',
+                                                'submitClass' => 'btn-primary',
+                                            ])
                                         </div>
                                     </div>
                                 @empty

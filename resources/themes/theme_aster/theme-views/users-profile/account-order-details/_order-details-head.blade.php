@@ -335,8 +335,18 @@ foreach ($order->details as $key => $detail) {
                             @foreach ($order->offlinePayments->payment_info as $key=>$value)
                                 @if ($key != 'method_id')
                                     <div class="fs-12 d-flex justify-content-start gap-2">
-                                        <span class="text-muted text-capitalize">{{translate($key)}} :</span>
-                                        <span class="text-dark text-capitalize fw-semibold"> {{$value ?? "N/a"}}</span>
+                                        <span class="text-muted text-capitalize">{{ translatePaymentText($key) }} :</span>
+                                        <span class="text-dark text-capitalize fw-semibold">
+                                            @php($proofUrl = getOfflinePaymentProofUrl($value, ['offline-payment/order-proof']))
+                                            @if($proofUrl)
+                                                <a href="{{ $proofUrl }}" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">
+                                                    <img src="{{ $proofUrl }}" width="48" height="48" class="rounded border object-cover" alt="{{ translatePaymentText($key) }}">
+                                                    <span>{{ translate('View') }}</span>
+                                                </a>
+                                            @else
+                                                {{ formatOrderPaymentInfoValue($value, 'N/a') }}
+                                            @endif
+                                        </span>
                                     </div>
                                 @endif
                             @endforeach
@@ -371,10 +381,18 @@ foreach ($order->details as $key => $detail) {
                             @foreach($order->latestEditHistory->order_due_payment_info as $key => $value)
                                 <div class="fs-12 d-flex justify-content-start gap-2">
                                 <span class="text-muted text-capitalize">
-                                    {{ translate($key) }} :
+                                    {{ translatePaymentText($key) }} :
                                 </span>
                                     <span class="text-dark fw-semibold">
-                                    {{ $value ?? 'N/A' }}
+                                    @php($proofUrl = getOfflinePaymentProofUrl($value, ['offline-payment/order-proof']))
+                                    @if($proofUrl)
+                                        <a href="{{ $proofUrl }}" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">
+                                            <img src="{{ $proofUrl }}" width="48" height="48" class="rounded border object-cover" alt="{{ translatePaymentText($key) }}">
+                                            <span>{{ translate('View') }}</span>
+                                        </a>
+                                    @else
+                                        {{ formatOrderPaymentInfoValue($value) }}
+                                    @endif
                                 </span>
                                 </div>
                             @endforeach
