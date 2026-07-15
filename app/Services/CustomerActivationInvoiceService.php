@@ -171,6 +171,166 @@ class CustomerActivationInvoiceService
             ->first();
     }
 
+    public function assignPackageToInvoice(int $customerId, int $invoiceId, int $packageId): array
+    {
+        return DB::transaction(function () use ($customerId, $invoiceId, $packageId) {
+            $invoice = CustomerActivationInvoice::where('id', $invoiceId)
+                ->where('customer_id', $customerId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$invoice || $invoice->payment_status !== 'unpaid') {
+                return ['status' => 0, 'message' => 'activation_invoice_not_found'];
+            }
+
+            if (!in_array($invoice->status, ['pending', 'pending_package_assignment'], true)) {
+                return ['status' => 0, 'message' => 'activation_invoice_not_available'];
+            }
+
+            $package = CustomerPurchasePackage::where('id', $packageId)
+                ->where('status', 1)
+                ->where(function ($query) use ($customerId) {
+                    $query->where('is_custom', 0)->orWhere('customer_id', $customerId);
+                })
+                ->first();
+
+            $productTotal = (float) data_get($invoice->metadata, 'product_total', 0);
+            if (!$package || (float) $package->purchase_limit < $productTotal) {
+                return ['status' => 0, 'message' => 'selected_package_does_not_cover_order'];
+            }
+
+            $invoice->update([
+                'customer_purchase_package_id' => $package->id,
+                'package_name' => $package->name,
+                'package_price' => (float) $package->package_price,
+                'package_purchase_limit' => (float) $package->purchase_limit,
+                'total_amount' => round((float) $package->package_price + (float) $invoice->insurance_amount, 2),
+                'status' => 'pending',
+                'metadata' => array_merge($invoice->metadata ?? [], [
+                    'package_missing' => false,
+                    'selected_from_app' => true,
+                    'selected_package_id' => $package->id,
+                ]),
+            ]);
+
+            return ['status' => 1, 'invoice' => $invoice->fresh()];
+        });
+    }
+
+    public function createStandaloneInvoiceForPackage(mixed $customer, int $packageId): array
+    {
+        return DB::transaction(function () use ($customer, $packageId) {
+            $package = CustomerPurchasePackage::where('id', $packageId)
+                ->where('status', 1)
+                ->where(function ($query) use ($customer) {
+                    $query->where('is_custom', 0)->orWhere('customer_id', $customer->id);
+                })
+                ->first();
+
+            if (!$package || (float) $package->package_price <= 0 || (float) $package->purchase_limit <= 0) {
+                return ['status' => 0, 'message' => 'customer_purchase_package_not_found'];
+            }
+
+            $existingInvoice = $this->getPendingInvoiceForCustomer((int) $customer->id);
+            if ($existingInvoice) {
+                return $this->assignPackageToInvoice((int) $customer->id, (int) $existingInvoice->id, $packageId);
+            }
+
+            $insurance = $this->getInsuranceLine($customer);
+            $invoice = CustomerActivationInvoice::create([
+                'invoice_no' => $this->generateInvoiceNo(),
+                'customer_id' => $customer->id,
+                'customer_purchase_package_id' => $package->id,
+                'package_name' => $package->name,
+                'package_price' => (float) $package->package_price,
+                'package_purchase_limit' => (float) $package->purchase_limit,
+                'insurance_original_amount' => $insurance['original_amount'],
+                'insurance_discount_amount' => $insurance['discount_amount'],
+                'insurance_discount_type' => $insurance['discount_type'],
+                'insurance_amount' => $insurance['amount'],
+                'total_amount' => round((float) $package->package_price + (float) $insurance['amount'], 2),
+                'paid_amount' => 0,
+                'currency_code' => $this->getDefaultCurrencyCode(),
+                'payment_status' => 'unpaid',
+                'status' => 'pending',
+                'insurance_period_start' => $insurance['period_start'],
+                'insurance_period_end' => $insurance['period_end'],
+                'metadata' => [
+                    'product_total' => 0,
+                    'package_missing' => false,
+                    'created_from' => 'standalone_package_purchase',
+                ],
+            ]);
+
+            return ['status' => 1, 'invoice' => $invoice];
+        });
+    }
+
+    public function handleProductPaymentApproved(Order $order): array
+    {
+        return DB::transaction(function () use ($order) {
+            $lockedOrder = Order::with('details')
+                ->where('id', $order->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$lockedOrder) {
+                return ['status' => 0, 'message' => 'order_not_found'];
+            }
+
+            if ($lockedOrder->payment_status !== 'paid') {
+                return ['status' => 0, 'message' => 'product_payment_not_approved'];
+            }
+
+            $invoice = CustomerActivationInvoice::query()
+                ->where('customer_id', $lockedOrder->customer_id)
+                ->where('order_group_id', $lockedOrder->order_group_id)
+                ->whereIn('status', ['pending', 'pending_package_assignment', 'pending_offline_review', 'paid'])
+                ->latest('id')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$invoice) {
+                $summary = $this->purchaseLimitService->getLimitSummary($lockedOrder->customer_id);
+                if (!($summary['has_active_package'] ?? false)) {
+                    $invoice = $this->createForPaidOrderGroup([$lockedOrder->id]);
+                }
+            }
+
+            if ($invoice && $invoice->payment_status !== 'paid') {
+                $lockedOrder->update([
+                    'order_status' => 'pending',
+                    'activation_status' => 'activation_pending',
+                    'activation_pending_at' => $lockedOrder->activation_pending_at ?: now(),
+                ]);
+
+                return [
+                    'status' => 1,
+                    'message' => 'activation_payment_pending',
+                    'invoice' => $invoice,
+                    'order' => $lockedOrder->fresh(),
+                ];
+            }
+
+            $lockedOrder->update([
+                'order_status' => 'confirmed',
+                'activation_status' => $invoice ? 'activation_completed' : 'not_required',
+                'activation_completed_at' => $invoice ? now() : null,
+                'is_pause' => 0,
+            ]);
+
+            $debit = $this->purchaseLimitService->debitOrderLimit($lockedOrder->fresh('details'));
+
+            return [
+                'status' => 1,
+                'message' => 'product_payment_approved',
+                'invoice' => $invoice,
+                'debit' => $debit,
+                'order' => $lockedOrder->fresh(),
+            ];
+        });
+    }
+
     public function markInvoicePaidAndReleaseOrder(CustomerActivationInvoice $invoice, array $paymentData): array
     {
         return DB::transaction(function () use ($invoice, $paymentData) {
@@ -281,6 +441,10 @@ class CustomerActivationInvoiceService
                     ->get();
 
                 foreach ($orders as $order) {
+                    if ($order->payment_status !== 'paid') {
+                        continue;
+                    }
+
                     $order->update([
                         'order_status' => 'confirmed',
                         'activation_status' => 'activation_completed',
@@ -309,7 +473,7 @@ class CustomerActivationInvoiceService
             ->first();
     }
 
-    private function getInsuranceLine(User $customer): array
+    private function getInsuranceLine(mixed $customer): array
     {
         $insuranceEnabled = (bool) getWebConfig(name: 'customer_monthly_insurance_status');
         $originalAmount = $insuranceEnabled ? (float) (getWebConfig(name: 'customer_monthly_insurance_amount') ?? 0) : 0.0;

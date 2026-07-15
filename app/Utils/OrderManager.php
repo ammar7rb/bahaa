@@ -1308,7 +1308,11 @@ class OrderManager
             );
 
             $order = Order::with('customer', 'seller.shop', 'details')->find($order_id);
-            if ($order?->activation_status !== 'activation_pending') {
+            $offlinePaymentPendingReview = $order
+                && $order->payment_method === 'offline_payment'
+                && $order->payment_status !== 'paid';
+
+            if ($order?->activation_status !== 'activation_pending' && !$offlinePaymentPendingReview) {
                 app(CustomerPurchaseLimitService::class)->debitOrderLimit($order);
             }
             OrderManager::getAddOrderTransactionsOnGenerateOrder(order: $order, ordersData: $ordersData);

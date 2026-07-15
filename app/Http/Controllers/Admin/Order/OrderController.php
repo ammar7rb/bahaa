@@ -34,6 +34,7 @@ use Illuminate\Http\Request;
 use App\Enums\GlobalConstant;
 use App\Traits\CustomerTrait;
 use App\Services\OrderService;
+use App\Services\CustomerActivationInvoiceService;
 use App\Events\OrderStatusEvent;
 use App\Models\ReferralCustomer;
 use App\Traits\FileManagerTrait;
@@ -333,7 +334,7 @@ class OrderController extends BaseController
         return redirect()->back();
     }
 
-    public function orderDueAmountMarkAsPaid(Request $request)
+    public function orderDueAmountMarkAsPaid(Request $request, CustomerActivationInvoiceService $activationInvoiceService)
     {
         $validated = $request->validate([
             'order_id' => 'required|exists:orders,id',
@@ -364,6 +365,10 @@ class OrderController extends BaseController
                     ]);
                 }
             });
+            if ($order->payment_method === 'offline_payment') {
+                $activationInvoiceService->handleProductPaymentApproved($order->fresh());
+            }
+
             ToastMagic::success(translate('Mark_as_paid_successfully'));
         } catch (\Throwable $e) {
             ToastMagic::error($e->getMessage());
@@ -872,7 +877,7 @@ class OrderController extends BaseController
         return response()->json($customers);
     }
 
-    public function updatePaymentStatus(Request $request): JsonResponse
+    public function updatePaymentStatus(Request $request, CustomerActivationInvoiceService $activationInvoiceService): JsonResponse
     {
         $order = $this->orderRepo->getFirstWhere(params: ['id' => $request['id']]);
 
@@ -882,13 +887,27 @@ class OrderController extends BaseController
                 'message' => translate('account_has_been_deleted_you_can_not_change_the_status'),
             ]);
         }
-        if ($order['payment_method'] == 'offline_payment' && $order['payment_status'] == 'unpaid') {
+        if ($order['payment_method'] == 'offline_payment'
+            && $order['payment_status'] == 'unpaid'
+            && $request['payment_status'] !== 'paid') {
             return response()->json([
                 'status' => 0,
                 'message' => translate('Please confirm the offline payment information before editing this order.'),
             ]);
         }
         $this->orderRepo->update(id: $request['id'], data: ['payment_status' => $request['payment_status']]);
+
+        if ($order['payment_method'] == 'offline_payment' && $request['payment_status'] === 'paid') {
+            $result = $activationInvoiceService->handleProductPaymentApproved($order->fresh());
+
+            if (($result['status'] ?? 0) != 1) {
+                return response()->json([
+                    'status' => 0,
+                    'message' => translate($result['message'] ?? 'offline_payment_approval_failed'),
+                ], 403);
+            }
+        }
+
         return response()->json([
             'status' => 1,
             'message' => translate('status_change_successfully')

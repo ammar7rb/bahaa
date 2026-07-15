@@ -371,6 +371,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::group(['prefix' => 'activation-invoice'], function () {
             Route::controller(CustomerPurchasePackageController::class)->group(function () {
                 Route::get('current', 'currentActivationInvoice');
+                Route::post('create-for-package', 'createActivationInvoiceForPackage');
+                Route::post('select-package', 'selectActivationInvoicePackage');
                 Route::post('pay', 'payActivationInvoice');
                 Route::post('pay-by-offline-payment', 'payActivationInvoiceByOfflinePayment');
             });

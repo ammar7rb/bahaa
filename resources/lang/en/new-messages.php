@@ -1125,4 +1125,12 @@ return [
 	"offline_payment_method_update_successfully" => "Offline payment method update successfully",
 	"offline_payment_is_not_available" => "Offline payment is not available",
 	"offline_payment_method_not_found" => "Offline payment method not found",
+	"The_first_name_field_is_required." => "The first name field is required.",
+	"The_last_name_field_is_required." => "The last name field is required.",
+	"you_must_accept_the_terms_and_conditions" => "You must accept the terms and conditions",
+	"you_must_accept_the_privacy_policy" => "You must accept the privacy policy",
+	"successfully_added!" => "Successfully added!",
+	"Same_Day_Delivery" => "Same Day Delivery",
+	"shop_not_found" => "Shop not found",
+	"Cart_key_or_ID_is_required!" => "Cart key or ID is required!",
 ];

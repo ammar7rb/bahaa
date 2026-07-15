@@ -97,6 +97,55 @@ class CustomerPurchasePackageController extends Controller
         ], 200);
     }
 
+    public function selectActivationInvoicePackage(Request $request, CustomerActivationInvoiceService $activationInvoiceService): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'activation_invoice_id' => 'required|integer',
+            'package_id' => 'required|integer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
+        }
+
+        $result = $activationInvoiceService->assignPackageToInvoice(
+            (int) $request->user()->id,
+            (int) $request['activation_invoice_id'],
+            (int) $request['package_id']
+        );
+
+        if (($result['status'] ?? 0) !== 1) {
+            return response()->json(['message' => translate($result['message'] ?? 'activation_invoice_not_available')], 403);
+        }
+
+        return response()->json([
+            'message' => translate('activation_package_selected_successfully'),
+            'invoice' => $this->formatActivationInvoice($result['invoice']),
+        ], 200);
+    }
+
+    public function createActivationInvoiceForPackage(Request $request, CustomerActivationInvoiceService $activationInvoiceService): JsonResponse
+    {
+        $validator = Validator::make($request->all(), ['package_id' => 'required|integer']);
+        if ($validator->fails()) {
+            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
+        }
+
+        $result = $activationInvoiceService->createStandaloneInvoiceForPackage(
+            $request->user(),
+            (int) $request['package_id']
+        );
+
+        if (($result['status'] ?? 0) !== 1) {
+            return response()->json(['message' => translate($result['message'] ?? 'customer_purchase_package_not_found')], 403);
+        }
+
+        return response()->json([
+            'message' => translate('activation_invoice_created_successfully'),
+            'invoice' => $this->formatActivationInvoice($result['invoice']),
+        ], 200);
+    }
+
     public function payActivationInvoice(Request $request, CustomerActivationInvoiceService $activationInvoiceService): JsonResponse
     {
         $validator = Validator::make($request->all(), [

@@ -265,6 +265,10 @@ class OrderController extends Controller
             $currencyCode = Currency::find(getWebConfig(name: 'system_default_currency'))->code;
         }
 
+        $activationAssessment = app(CustomerPurchaseLimitService::class)
+            ->getCheckoutLimitAssessment($user, $carts);
+        $activationRequired = !(bool) ($activationAssessment['has_active_package'] ?? false);
+
         $orderIds = OrderManager::generateOrder(data: [
             'is_guest' => $user == 'offline' ? 1 : 0,
             'guest_id' => $request['guest_id'],
@@ -416,11 +420,18 @@ class OrderController extends Controller
             }
         }
 
+        $activationAssessment = app(CustomerPurchaseLimitService::class)
+            ->getCheckoutLimitAssessment($user, $carts);
+        $activationRequired = $user != 'offline'
+            && !($activationAssessment['has_active_package'] ?? false);
+
         $orderIds = OrderManager::generateOrder(data: [
             'is_guest' => $user == 'offline' ? 1 : 0,
             'guest_id' => $request['guest_id'],
             'customer_id' => $user == 'offline' ? $request['guest_id'] : $user['id'],
             'order_status' => 'pending',
+            'activation_status' => $activationRequired ? 'activation_pending' : 'offline_payment_review',
+            'activation_pending_at' => $activationRequired ? now() : null,
             'payment_method' => 'offline_payment',
             'payment_status' => 'unpaid',
             'transaction_ref' => '',
@@ -434,17 +445,15 @@ class OrderController extends Controller
             'requestObj' => $request,
         ]);
 
-        $activationInvoice = $user != 'offline'
+        $activationInvoice = $activationRequired && $user != 'offline'
             ? $this->activationInvoiceService->createForPaidOrderGroup($orderIds)
             : null;
 
         return response()->json([
-            'messages' => $activationInvoice
-                ? translate('offline_payment_information_submitted_successfully')
-                : translate('order_placed_successfully'),
+            'messages' => translate('offline_payment_information_submitted_successfully'),
             'message' => $activationInvoice
                 ? $this->activationInvoiceService->getActivationHoldMessage($activationInvoice)
-                : translate('order_placed_successfully'),
+                : translate('offline_payment_information_submitted_successfully'),
             'new_user' => (bool)$newCustomerRegister,
             'order_ids' => $orderIds,
             'offline_payment_pending_review' => true,
