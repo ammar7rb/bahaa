@@ -4,6 +4,8 @@ namespace App\Http\Controllers\RestAPI\v1;
 
 use App\Http\Controllers\Controller;
 use App\Utils\Helpers;
+use App\Models\EgyptShippingZoneRate;
+use App\Services\GoogleMapsShippingLocationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -11,6 +13,54 @@ use Illuminate\Support\Facades\Validator;
 
 class MapApiController extends Controller
 {
+
+    /** Governorates currently available to the customer app for delivery. */
+    public function shippingGovernorates(): JsonResponse
+    {
+        return response()->json([
+            'governorates' => EgyptShippingZoneRate::query()
+                ->where('status', true)
+                ->whereNotNull('governorate')
+                ->whereNotNull('normal_cost')
+                ->orderBy('governorate')
+                ->get(['governorate'])
+                ->pluck('governorate')
+                ->unique()
+                ->values(),
+        ]);
+    }
+
+    /**
+     * Text-only address verification for the mobile app. No map, marker, or
+     * client API key is involved; callers should show the review message when
+     * status is not "resolved" and must not show a final delivery price.
+     */
+    public function resolveShippingAddress(Request $request, GoogleMapsShippingLocationService $locationService): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'state' => ['required', 'string'],
+            'city' => ['required', 'string', 'max:120'],
+            'address' => ['required', 'string', 'max:500'],
+            'district' => ['required', 'string', 'max:120'],
+            'area' => ['required', 'string', 'max:120'],
+            'street' => ['required', 'string', 'max:180'],
+            'building_number' => ['required', 'string', 'max:100'],
+            'landmark' => ['nullable', 'string', 'max:180'],
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
+        }
+
+        return response()->json($locationService->resolve($validator->validated()));
+    }
+
+    private function missingMapApiKeyResponse(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Google Maps server API key is not configured.',
+        ], 503);
+    }
+
     public function placeApiAutocomplete(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -19,6 +69,10 @@ class MapApiController extends Controller
 
         if ($validator->errors()->count() > 0) {
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
+        }
+
+        if (blank(getWebConfig(name: 'map_api_key_server'))) {
+            return $this->missingMapApiKeyResponse();
         }
 
         $response = Http::withHeaders([
@@ -43,6 +97,10 @@ class MapApiController extends Controller
 
         if ($validator->errors()->count() > 0) {
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
+        }
+
+        if (blank(getWebConfig(name: 'map_api_key_server'))) {
+            return $this->missingMapApiKeyResponse();
         }
 
         $origin = [
@@ -91,6 +149,10 @@ class MapApiController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
+        if (blank(getWebConfig(name: 'map_api_key_server'))) {
+            return $this->missingMapApiKeyResponse();
+        }
+
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
             'X-Goog-Api-Key' => getWebConfig(name: 'map_api_key_server'),
@@ -109,6 +171,10 @@ class MapApiController extends Controller
 
         if ($validator->errors()->count() > 0) {
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
+        }
+
+        if (blank(getWebConfig(name: 'map_api_key_server'))) {
+            return $this->missingMapApiKeyResponse();
         }
 
         $apiKey = getWebConfig(name: 'map_api_key_server');

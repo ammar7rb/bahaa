@@ -26,6 +26,25 @@
             </ul>
         </div>
 
+        <div class="alert alert-info d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+            <div>
+                <h5 class="mb-1">{{ app()->getLocale() === 'ar' ? 'وسائل التحويل الظاهرة في تطبيق العميل' : 'Customer app transfer methods' }}</h5>
+                <div>
+                    {{ app()->getLocale() === 'ar'
+                        ? 'استخدم اسم «InstaPay / إنستا باي» أو «Electronic Wallet / محفظة إلكترونية». الوسيلة المفعّلة فقط هي التي تظهر عند الدفع والإيداع، وبيانات الحساب والرقم والتعليمات تُؤخذ من حقول معلومات الدفع أدناه.'
+                        : 'Use the name “InstaPay” or “Electronic Wallet”. Only active matching methods appear during checkout and deposits; account, phone and transfer instructions come from the payment information fields below.' }}
+                </div>
+                <small class="d-block mt-1">
+                    {{ app()->getLocale() === 'ar'
+                        ? 'أضف ضمن البيانات المطلوبة من العميل: اسم المحوّل، رقم المحوّل، وإثبات التحويل (صورة).'
+                        : 'Require the customer sender name, sender phone and transfer proof (image).' }}
+                </small>
+            </div>
+            <a class="btn btn-outline-primary text-nowrap" href="{{ route('admin.customer.wallet.deposits') }}">
+                {{ app()->getLocale() === 'ar' ? 'مراجعة طلبات الإيداع والإثباتات' : 'Review deposits and proofs' }}
+            </a>
+        </div>
+
         <div class="tab-content" id="nav-tabContent">
             <div class="tab-pane fade show active" id="nav-all" role="tabpanel" aria-labelledby="nav-all-tab">
                 <div class="card">

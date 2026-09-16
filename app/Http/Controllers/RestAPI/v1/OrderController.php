@@ -41,6 +41,21 @@ class OrderController extends Controller
 {
     use CommonTrait, FileManagerTrait;
 
+    public function insuranceQuote(Request $request): JsonResponse
+    {
+        $carts = OrderManager::processOrderGenerateData(data: [
+            'coupon_code' => $request->input('coupon_code', ''), 'requestObj' => $request,
+        ]);
+        $customer = Helpers::getCustomerInformation($request);
+        $customerId = $customer === 'offline' ? null : (int) $customer->id;
+        $quote = app(\App\Services\OrderInsuranceService::class)->calculateCartList($carts, $customerId);
+        return response()->json(array_merge($quote, [
+            'post_purchase_enabled' => app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled(),
+            'first_payment_amount' => collect($carts)->sum('first_payment_amount'),
+            'balance' => $customerId ? app(\App\Services\CustomerInsuranceBalanceService::class)->summary($customerId) : ['available_balance' => 0],
+        ]));
+    }
+
     public function __construct(
         private readonly OrderService $orderService,
         private readonly CustomerActivationInvoiceService $activationInvoiceService,
@@ -55,6 +70,10 @@ class OrderController extends Controller
                 'message' => translate('please_login_your_account'),
                 'code' => 'customer_login_required',
             ], 403);
+        }
+
+        if (app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {
+            return null;
         }
 
         $purchaseLimitValidation = $allowActivationInvoice
@@ -126,6 +145,14 @@ class OrderController extends Controller
             return null;
         }
 
+        $validator = Validator::make($request->all(), [
+            'payment_proof' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'payment_screenshot' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+        ]);
+        if ($validator->fails()) {
+            return ['validation_errors' => Helpers::validationErrorProcessor($validator)];
+        }
+
         return [
             'image_name' => $this->upload(dir: $dir, format: 'webp', image: $proofFile),
             'storage' => config('filesystems.disks.default') ?? 'public',
@@ -191,6 +218,12 @@ class OrderController extends Controller
 
     public function place_order(Request $request): JsonResponse
     {
+        // Orders are prepaid only. Keep the legacy endpoint from being used by
+        // an old client or a manually crafted request.
+        return response()->json([
+            'message' => translate('cash_on_delivery_is_not_available'),
+        ], 403);
+
         $user = Helpers::getCustomerInformation($request);
         $newCustomerRegister = null;
         $cartGroupIds = CartManager::get_cart_group_ids(request: $request, type: 'checked');
@@ -416,13 +449,17 @@ class OrderController extends Controller
             }
 
             if ($proof = $this->getOfflinePaymentProof($request, 'offline-payment/order-proof/')) {
+                if (isset($proof['validation_errors'])) {
+                    return response()->json(['errors' => $proof['validation_errors']], 403);
+                }
                 $offlinePaymentInfo['payment_proof'] = $proof;
             }
         }
 
         $activationAssessment = app(CustomerPurchaseLimitService::class)
             ->getCheckoutLimitAssessment($user, $carts);
-        $activationRequired = $user != 'offline'
+        $activationRequired = ! app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()
+            && $user != 'offline'
             && !($activationAssessment['has_active_package'] ?? false);
 
         $orderIds = OrderManager::generateOrder(data: [
@@ -445,7 +482,9 @@ class OrderController extends Controller
             'requestObj' => $request,
         ]);
 
-        $activationInvoice = $activationRequired && $user != 'offline'
+        $secondStageInvoices = app(\App\Services\PostPurchaseInvoiceService::class)
+            ->createForPaidOrderGroup($orderIds, includeSubmittedOffline: true);
+        $activationInvoice = ! app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled() && $activationRequired && $user != 'offline'
             ? $this->activationInvoiceService->createForPaidOrderGroup($orderIds)
             : null;
 
@@ -458,7 +497,7 @@ class OrderController extends Controller
             'order_ids' => $orderIds,
             'offline_payment_pending_review' => true,
             'activation_required' => (bool) $activationInvoice,
-            'next_action' => $activationInvoice ? 'open_activation_invoice' : 'order_review',
+            'next_action' => $secondStageInvoices ? 'open_post_purchase_invoice' : ($activationInvoice ? 'open_activation_invoice' : 'order_review'),
             'activation_invoice' => $this->formatActivationInvoiceForApi($activationInvoice),
         ], 200);
     }
@@ -484,7 +523,7 @@ class OrderController extends Controller
             'coupon_code' => $request['coupon_code'] ?? '',
             'requestObj' => $request,
         ]);
-        $paymentAmount = collect($vendorWiseCartList)->sum('order_amount_with_tax');
+        $paymentAmount = collect($vendorWiseCartList)->sum('first_payment_amount');
 
         $user = Helpers::getCustomerInformation($request);
         if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForApiOrder($request, $user, $carts)) {
@@ -536,9 +575,12 @@ class OrderController extends Controller
             ]);
 
             CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment');
+            $postPurchaseInvoices = \App\Models\PostPurchaseInvoice::query()->whereIn('order_id', $orderIds)->get();
             return response()->json([
                 'messages' => translate('order_placed_successfully'),
                 'order_ids' => $orderIds,
+                'post_purchase_invoices' => $postPurchaseInvoices->map(fn ($invoice) => app(\App\Services\PostPurchaseInvoiceService::class)->paymentSummary($invoice))->values(),
+                'next_action' => $postPurchaseInvoices->isNotEmpty() ? 'pay_post_purchase_invoice' : 'order_review',
             ], 200);
         }
     }
