@@ -17,16 +17,18 @@ class MapApiController extends Controller
     /** Governorates currently available to the customer app for delivery. */
     public function shippingGovernorates(): JsonResponse
     {
+        $rates = EgyptShippingZoneRate::query()
+            ->where('status', true)
+            ->whereNotNull('governorate')
+            ->whereNotNull('normal_cost')
+            ->orderBy('governorate')
+            ->get(['governorate', 'normal_cost', 'sigma_cost'])
+            ->unique('governorate')
+            ->values();
+
         return response()->json([
-            'governorates' => EgyptShippingZoneRate::query()
-                ->where('status', true)
-                ->whereNotNull('governorate')
-                ->whereNotNull('normal_cost')
-                ->orderBy('governorate')
-                ->get(['governorate'])
-                ->pluck('governorate')
-                ->unique()
-                ->values(),
+            'governorates' => $rates->pluck('governorate'),
+            'rates' => $rates,
         ]);
     }
 
