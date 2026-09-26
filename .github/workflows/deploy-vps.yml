@@ -1,0 +1,72 @@
+name: Deploy website to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sigma-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # The first deployment must wait until main contains the current live code.
+    if: vars.SIGMA_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          VPS_DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+        run: |
+          set -eu
+          test -n "$VPS_DEPLOY_KEY"
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_DEPLOY_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' '187.77.66.167 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL4p2rOOazJEqaNzBXGYmCfQK1hTGWud9XKDsChRRHOt' > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Check production prerequisites
+        run: |
+          ssh -o BatchMode=yes sigma-eg@187.77.66.167 \
+            'test -f /home/sigma-eg/htdocs/sigma-eg.net/.env && test -f /home/sigma-eg/htdocs/sigma-eg.net/storage/oauth-private.key && test -d /home/sigma-eg/htdocs/sigma-eg.net/vendor'
+
+      - name: Sync application code
+        run: |
+          rsync -az --delete --delay-updates --no-owner --no-group --no-perms \
+            --exclude='/.git/***' \
+            --exclude='/.github/***' \
+            --exclude='/.env*' \
+            --exclude='/storage/***' \
+            --exclude='/vendor/***' \
+            --exclude='/node_modules/***' \
+            --exclude='/bootstrap/cache/***' \
+            --exclude='/public/storage' \
+            --exclude='/public/themes/***' \
+            --exclude='/public/hot' \
+            --exclude='/public/.well-known/***' \
+            --exclude='/public/.user.ini' \
+            --exclude='/Modules/Gateways/***' \
+            --exclude='/public/Modules/Gateways/***' \
+            --exclude='/tmp/***' \
+            --exclude='/output/***' \
+            --exclude='/tests/***' \
+            ./ sigma-eg@187.77.66.167:/home/sigma-eg/htdocs/sigma-eg.net/
+
+      - name: Install dependencies and update Laravel
+        run: |
+          ssh -o BatchMode=yes sigma-eg@187.77.66.167 'bash -s' < scripts/deploy-vps.sh
+
+      - name: Verify public API
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 \
+            --output /dev/null https://sigma-eg.net/api/v1/config
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 \
+            --output /dev/null 'https://sigma-eg.net/api/v1/categories?guest_id=1'
