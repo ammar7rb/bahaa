@@ -15,7 +15,7 @@ class OfflineSecondStageTest extends TestCase
     {
         Schema::create('business_settings', function (Blueprint $t) { $t->id(); $t->string('type'); $t->text('value'); });
         foreach (['feature_post_purchase_tax_invoice_v3'=>'1','commerce_contract_version'=>'post_purchase_v3',
-            'customer_order_insurance_status'=>'1','customer_order_insurance_threshold'=>'0',
+            'customer_order_insurance_status'=>'1','customer_order_insurance_scope'=>'all','customer_order_insurance_threshold'=>'0',
             'customer_order_insurance_type'=>'fixed','customer_order_insurance_value'=>'50'] as $type=>$value) {
             DB::table('business_settings')->insert(compact('type','value'));
         }
@@ -44,6 +44,16 @@ class OfflineSecondStageTest extends TestCase
             $this->assertSame('unpaid',Order::find($id)->payment_status);
             $service->createForPaidOrderGroup([$id], true);
             $this->assertSame(1,PostPurchaseInvoice::count());
+            DB::table('business_settings')->where('type', 'customer_order_insurance_scope')->update(['value' => 'selected']);
+            $unselectedOrderId = DB::table('orders')->insertGetId([
+                'customer_id' => 2, 'order_amount' => 100, 'total_tax_amount' => 14,
+                'payment_method' => 'offline_payment', 'payment_status' => 'paid',
+                'commerce_flow_version' => 'post_purchase_v3',
+            ]);
+            $unselectedInvoice = $service->createForPaidOrderGroup([$unselectedOrderId]);
+            $this->assertCount(1, $unselectedInvoice);
+            $this->assertEquals(0, $unselectedInvoice[0]->insurance_amount);
+            $this->assertEquals(14, $unselectedInvoice[0]->total_amount);
             $invoices[0]->update(['status'=>'paid','paid_amount'=>64]);
             $this->expectException(\DomainException::class);
             $service->releaseToSeller($invoices[0],1);

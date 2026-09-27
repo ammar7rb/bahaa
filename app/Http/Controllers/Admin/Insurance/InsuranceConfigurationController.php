@@ -40,24 +40,50 @@ class InsuranceConfigurationController extends Controller
     {
         $activeTab = in_array($request->get('tab'), ['rules', 'customers', 'sellers'], true)
             ? $request->get('tab') : 'rules';
+        $activeSection = in_array($request->get('section'), ['overview', 'rules', 'exceptions', 'incentives', 'balances'], true)
+            ? $request->get('section') : 'overview';
         $customerInsurances = null;
         $sellerInsurances = null;
+        $insuranceStatuses = collect();
+        $accountSearch = trim((string) $request->query('account_search', ''));
+        $accountType = in_array($request->query('account_type'), ['customer', 'seller'], true)
+            ? $request->query('account_type') : 'customer';
+        $accountResults = collect();
+        if ($activeTab === 'rules' && $activeSection === 'exceptions' && mb_strlen($accountSearch) >= 2 && mb_strlen($accountSearch) <= 255) {
+            $model = $accountType === 'customer' ? User::class : Seller::class;
+            $accountResults = $model::query()->select(['id', 'f_name', 'l_name', 'email'])
+                ->where('email', 'like', '%' . addcslashes($accountSearch, '%_\\') . '%')
+                ->orderBy('email')->limit(20)->get();
+        }
         if ($activeTab === 'customers') {
             $customerInsurances = $this->customerInsuranceQuery($request)->paginate(25)->withQueryString();
+            $insuranceStatuses = OrderInsurance::query()->whereNotNull('status')->distinct()->orderBy('status')->pluck('status');
         }
         if ($activeTab === 'sellers') {
             $sellerInsurances = $this->sellerInsuranceQuery($request)->paginate(25)->withQueryString();
+            $insuranceStatuses = SellerOrderInsurance::query()->whereNotNull('status')->distinct()->orderBy('status')->pluck('status');
         }
+        $subjectOverrides = InsuranceSubjectOverride::query()->latest('id')->limit(100)->get();
+        $selectedAccountEmails = [
+            'customer' => User::query()->whereIn('id', $subjectOverrides->where('subject_type', 'customer')->pluck('subject_id'))->pluck('email', 'id'),
+            'seller' => Seller::query()->whereIn('id', $subjectOverrides->where('subject_type', 'seller')->pluck('subject_id'))->pluck('email', 'id'),
+        ];
 
         return view('admin-views.insurance.index', [
             'activeTab' => $activeTab,
+            'activeSection' => $activeSection,
             'customerRules' => InsuranceRule::query()->where('subject_type', 'customer')->orderBy('priority')->get(),
             'sellerRules' => InsuranceRule::query()->where('subject_type', 'seller')->orderBy('priority')->get(),
             'incentives' => InsuranceIncentive::query()->orderBy('priority')->get(),
-            'subjectOverrides' => InsuranceSubjectOverride::query()->latest('id')->limit(100)->get(),
+            'subjectOverrides' => $subjectOverrides,
+            'selectedAccountEmails' => $selectedAccountEmails,
             'balanceActions' => InsuranceBalanceAction::query()->latest('id')->limit(50)->get(),
             'customerInsurances' => $customerInsurances,
             'sellerInsurances' => $sellerInsurances,
+            'insuranceStatuses' => $insuranceStatuses,
+            'accountSearch' => $accountSearch,
+            'accountType' => $accountType,
+            'accountResults' => $accountResults,
             'insuranceStats' => $this->insuranceStats(),
             'report' => [
                 'welcome_credit' => (float) CustomerInsuranceLedgerEntry::query()->where('entry_type', 'welcome_credit')->sum('credit'),
@@ -175,17 +201,21 @@ class InsuranceConfigurationController extends Controller
     {
         $data = $request->validate([
             'customer_enabled' => 'nullable|in:1', 'customer_maturity_days' => 'required|integer|min:1|max:3650',
+            'customer_scope' => ['required', Rule::in(['selected', 'all'])],
             'customer_payment_deadline_hours' => 'required|integer|min:1|max:720',
             'customer_purchase_refund_delay_days' => 'required|integer|min:0|max:365',
             'seller_enabled' => 'nullable|in:1', 'seller_pending_days' => 'required|integer|min:1|max:90',
+            'seller_scope' => ['required', Rule::in(['selected', 'all'])],
             'seller_reuse_after_days' => 'required|integer|min:1|max:3650',
         ]);
         foreach ([
             'customer_order_insurance_status' => $request->boolean('customer_enabled') ? 1 : 0,
+            'customer_order_insurance_scope' => $data['customer_scope'],
             'customer_order_insurance_maturity_days' => $data['customer_maturity_days'],
             'customer_order_insurance_payment_deadline_hours' => $data['customer_payment_deadline_hours'],
             'customer_purchase_refund_delay_days' => $data['customer_purchase_refund_delay_days'],
             'seller_order_insurance_status' => $request->boolean('seller_enabled') ? 1 : 0,
+            'seller_order_insurance_scope' => $data['seller_scope'],
             'seller_order_insurance_pending_days' => $data['seller_pending_days'],
             'seller_order_insurance_reuse_after_days' => $data['seller_reuse_after_days'],
         ] as $type => $value) {
@@ -236,7 +266,7 @@ class InsuranceConfigurationController extends Controller
         $data = $request->validate([
             'subject_type' => ['required', Rule::in(['customer', 'seller'])],
             'subject_id' => 'required|integer|min:1',
-            'mode' => ['required', Rule::in(['exempt', 'required'])],
+            'mode' => ['required', Rule::in(['included', 'exempt', 'required'])],
             'calculation_type' => ['nullable', Rule::in(['percentage', 'fixed'])],
             'calculation_value' => 'nullable|numeric|min:0.01',
             'reason' => 'required|string|max:500',
@@ -256,7 +286,7 @@ class InsuranceConfigurationController extends Controller
         if (($data['calculation_type'] ?? null) === 'fixed') {
             $data['calculation_value'] = currencyConverter(amount: $data['calculation_value']);
         }
-        if ($data['mode'] === 'exempt') {
+        if ($data['mode'] !== 'required') {
             $data['calculation_type'] = null;
             $data['calculation_value'] = null;
         }
@@ -266,13 +296,13 @@ class InsuranceConfigurationController extends Controller
             ['subject_type' => $data['subject_type'], 'subject_id' => $data['subject_id']],
             $data,
         );
-        return back()->with('success', 'تم حفظ استثناء التأمين للحساب، وسيُطبق على الطلبات الجديدة.');
+        return back()->with('success', 'تم حفظ إعداد التأمين للحساب، وسيُطبق على الطلبات الجديدة.');
     }
 
     public function deleteSubjectOverride(InsuranceSubjectOverride $override): RedirectResponse
     {
         $override->delete();
-        return back()->with('success', 'تم حذف استثناء التأمين وسيعود الحساب إلى القواعد العامة.');
+        return back()->with('success', 'تم حذف إعداد الحساب وسيعود إلى نطاق تطبيق التأمين المحدد.');
     }
 
     public function toggleRule(InsuranceRule $rule): RedirectResponse

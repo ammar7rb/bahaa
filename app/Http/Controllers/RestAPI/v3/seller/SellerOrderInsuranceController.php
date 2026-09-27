@@ -31,7 +31,7 @@ class SellerOrderInsuranceController extends Controller
     public function show(Request $request, int|string $id): JsonResponse
     {
         try {
-            [$order, $insurance] = $this->resolve($request, $id);
+            [$order, $insurance] = $this->resolve($request, $id, true);
             if (! $insurance) return response()->json(['enabled' => false, 'can_view_order_details' => true]);
             $payload = $this->service->payload($insurance);
             if (!$this->service->canViewDetails($insurance)) {
@@ -50,7 +50,7 @@ class SellerOrderInsuranceController extends Controller
                         'key' => $gateway['key_name'] ?? null,
                         'title' => translatePaymentText($gateway['key_name'] ?? ''),
                     ])->filter(fn ($gateway) => $gateway['key'])->values(),
-                    'offline_methods' => OfflinePaymentMethod::query()->where('status', 1)->get(['id', 'method_name', 'method_fields']),
+                    'offline_methods' => OfflinePaymentMethod::query()->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])->get(['id', 'method_name', 'method_fields', 'payment_channel']),
                 ],
             ]);
         } catch (DomainException $exception) {
@@ -107,7 +107,7 @@ class SellerOrderInsuranceController extends Controller
             'method_id' => 'required|integer', 'payment_note' => 'nullable|string|max:1000',
             'payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
-        $method = OfflinePaymentMethod::query()->where('id', $request->integer('method_id'))->where('status', 1)->first();
+        $method = OfflinePaymentMethod::query()->where('id', $request->integer('method_id'))->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])->first();
         if (! (getWebConfig(name: 'offline_payment')['status'] ?? 0) || ! $method) return response()->json(['message' => translate('offline_payment_method_not_found')], 422);
         try {
             [, $insurance] = $this->resolve($request, $id);
@@ -125,7 +125,7 @@ class SellerOrderInsuranceController extends Controller
         }
     }
 
-    private function resolve(Request $request, int|string $id): array
+    private function resolve(Request $request, int|string $id, bool $allowMissingInsurance = false): array
     {
         $seller = $request->seller;
         $reference = (string) $id;
@@ -142,6 +142,8 @@ class SellerOrderInsuranceController extends Controller
             && ! in_array($order->commerce_flow_status, ['seller_insurance_pending', 'seller_insurance_under_review', 'released_to_seller', 'seller_insurance_paid', 'seller_released', 'fulfillment_in_progress', 'completed', 'cancelled'], true)) {
             throw new DomainException('seller_order_insurance_order_not_found');
         }
-        return [$order, $this->service->getOrCreate($order, $seller)];
+        $insurance = $this->service->getOrCreate($order, $seller);
+        if (! $insurance && ! $allowMissingInsurance) throw new DomainException('seller_order_insurance_order_not_found');
+        return [$order, $insurance];
     }
 }

@@ -17,7 +17,7 @@
                 <div class="d-flex justify-content-between mb-2"><span class="text-muted">{{ translate('Order_Amount') }}</span><strong>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount)) }}</strong></div>
                 <div class="d-flex justify-content-between mb-2"><span class="text-muted">{{ translate('Insurance_Amount') }}</span><strong>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $insurance?->amount ?? 0)) }}</strong></div>
                 <div class="fs-12 text-muted mb-3">{{ translate('seller_order_insurance_expires_at') }}: {{ $insurance?->expires_at ?: '-' }}</div>
-                <a class="btn btn--primary w-100" href="{{ route('vendor.orders.details', $order->seller_restricted_access_token) }}">{{ translate('view_and_pay_insurance') }}</a>
+                <a class="btn btn--primary w-100" href="{{ route('vendor.orders.details', app(\App\Services\OrderCommerceContractService::class)->restrictedAccessToken($order)) }}">{{ translate('view_and_pay_insurance') }}</a>
             </div></div></div>
         @empty
             <div class="col-12"><div class="card card-body text-center p-5">{{ translate('no_insurance_pending_orders') }}</div></div>

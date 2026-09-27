@@ -168,6 +168,8 @@ class SellerOrderInsuranceWebController extends Controller
             throw new DomainException('seller_order_insurance_order_not_found');
         }
 
-        return [$order, $this->insuranceService->getOrCreate($order, $seller)];
+        $insurance = $this->insuranceService->getOrCreate($order, $seller);
+        if (! $insurance) throw new DomainException('seller_order_insurance_order_not_found');
+        return [$order, $insurance];
     }
 }

@@ -426,13 +426,27 @@ class PostPurchaseInvoiceService
         $base = max(0, round((float) $order->order_amount, 4));
         $type = $this->setting('customer_order_insurance_type', 'percentage');
         $value = max(0, $this->settingFloat('customer_order_insurance_value', 0));
-        $applies = $enabled && $base > 0 && ($threshold === 0.0 || $base >= $threshold);
-        $amount = ! $applies ? 0.0 : ($type === 'fixed' ? $value : ($base * $value / 100));
+        $engine = app(InsuranceRuleEngineService::class);
+        $applies = $enabled && $engine->accountIsIncluded('customer', (int) $order->customer_id);
+        $customerCreatedAt = $applies && \Illuminate\Support\Facades\Schema::hasTable('users')
+            ? User::query()->whereKey($order->customer_id)->value('created_at') : null;
+        $calculation = $applies ? $engine->resolve(
+            subjectType: 'customer', orderAmount: $base,
+            accountCreatedAt: $customerCreatedAt,
+            fallback: [
+                'code' => 'customer-post-purchase-default', 'rule_type' => 'default', 'priority' => 1000,
+                'minimum_order_amount' => $threshold, 'maximum_order_amount' => null,
+                'minimum_account_age_days' => 0, 'maximum_account_age_days' => null,
+                'calculation_type' => $type, 'calculation_value' => $value,
+            ],
+            subjectId: (int) $order->customer_id,
+        ) : null;
+        $amount = ($calculation['applicable'] ?? false) ? (float) $calculation['amount'] : 0.0;
 
         return [
             'enabled' => $enabled,
-            'type' => $type === 'fixed' ? 'fixed' : 'percentage',
-            'value' => $value,
+            'type' => $calculation['calculation_type'] ?? ($type === 'fixed' ? 'fixed' : 'percentage'),
+            'value' => $calculation['calculation_value'] ?? $value,
             'threshold' => $threshold,
             'base_amount' => $base,
             'maturity_days' => app(OrderInsuranceService::class)->maturityDays(),

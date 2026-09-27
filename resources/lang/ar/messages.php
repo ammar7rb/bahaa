@@ -309,5 +309,14 @@ return array_replace(
         'required_insurance_amount' => 'قيمة التأمين المطلوبة',
         'confirm_and_pay_insurance' => 'تأكيد ودفع التأمين',
         'transfer_exact_amount_then_upload_proof' => 'حوّل قيمة التأمين الموضحة إلى بيانات الحساب التالية، ثم أدخل بيانات العملية وارفع إثبات الدفع.',
+        'Finance' => 'الماليات',
+        'Withdraw_List' => 'قائمة طلبات السحب',
+        'blog_setup' => 'إعداد المدونة',
+        'earnings' => 'الأرباح',
+        'sales_and_transactions' => 'المبيعات والمعاملات',
+        'vat_tax_setup' => 'إعداد ضريبة القيمة المضافة',
+        'Jump_to_anything' => 'الانتقال إلى أي قسم',
+        'orders_vendors_settings' => 'إعدادات الطلبات والتجار',
+        'navigate' => 'التنقل',
     ]
 );

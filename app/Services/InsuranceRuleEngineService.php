@@ -4,11 +4,28 @@ namespace App\Services;
 
 use App\Models\InsuranceRule;
 use App\Models\InsuranceSubjectOverride;
+use App\Models\BusinessSetting;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Schema;
 
 class InsuranceRuleEngineService
 {
+    public function accountIsIncluded(string $subjectType, ?int $subjectId): bool
+    {
+        $scopeKey = $subjectType === 'seller' ? 'seller_order_insurance_scope' : 'customer_order_insurance_scope';
+        $scope = BusinessSetting::query()->where('type', $scopeKey)->value('value') ?: 'selected';
+        if (! $subjectId) return $scope === 'all';
+        $override = Schema::hasTable('insurance_subject_overrides')
+            ? InsuranceSubjectOverride::query()->where('subject_type', $subjectType)
+                ->where('subject_id', $subjectId)->where('is_active', true)->first()
+            : null;
+
+        if ($override?->mode === 'exempt') return false;
+        if (in_array($override?->mode, ['included', 'required'], true)) return true;
+
+        return $scope === 'all';
+    }
+
     public function resolve(
         string $subjectType,
         float $orderAmount,

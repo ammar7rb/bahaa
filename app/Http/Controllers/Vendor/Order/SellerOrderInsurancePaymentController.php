@@ -98,6 +98,7 @@ class SellerOrderInsurancePaymentController extends Controller
                 abort(404);
             }
             $insurance = $this->insuranceService->getOrCreate($order, $seller);
+            if (! $insurance) throw new DomainException('seller_order_insurance_order_not_found');
             $proof = $this->upload(dir: 'seller-order-insurance/payment-proof/', format: 'webp', image: $request->file('payment_proof'));
             $this->insuranceService->submitOfflinePayment($insurance, [
                 'method_id' => $method->id, 'method_name' => $method->method_name, 'payment_note' => $request->get('payment_note'),

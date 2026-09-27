@@ -36,7 +36,7 @@ class SellerOrderInsuranceService
     {
         $settings = $this->settings();
         $orderAmount = round(max(0, (float) $order->order_amount), 2);
-        if (! $settings['enabled']) {
+        if (! $settings['enabled'] || ! app(InsuranceRuleEngineService::class)->accountIsIncluded('seller', (int) $seller->id)) {
             return [
                 'applicable' => false, 'amount' => 0.0, 'order_amount' => $orderAmount,
                 'calculation_type' => $settings['calculation_type'],
@@ -85,7 +85,8 @@ class SellerOrderInsuranceService
             $source = 'default_rule';
 
             if ($mode === 'default' && ! ($preview['applicable'] ?? false)) {
-                throw new DomainException('seller_order_insurance_rule_is_not_configured');
+                $mode = 'waive';
+                $reason = 'التأمين غير مفعل لهذا التاجر أو لا توجد قاعدة مناسبة.';
             }
             if ($mode === 'manual') {
                 $type = (string) ($decision['calculation_type'] ?? 'fixed');
@@ -145,7 +146,7 @@ class SellerOrderInsuranceService
         if ((int) $order->seller_id !== (int) $seller->id || $order->seller_is !== 'seller') {
             throw new DomainException('seller_order_insurance_order_not_found');
         }
-        return DB::transaction(function () use ($order, $seller, $settings): SellerOrderInsurance {
+        return DB::transaction(function () use ($order, $seller, $settings): ?SellerOrderInsurance {
             $existing = SellerOrderInsurance::query()
                 ->where('order_id', $order->id)
                 ->where('seller_id', $seller->id)
@@ -153,6 +154,9 @@ class SellerOrderInsuranceService
                 ->first();
             if ($existing) {
                 return $existing;
+            }
+            if (! app(InsuranceRuleEngineService::class)->accountIsIncluded('seller', (int) $seller->id)) {
+                return null;
             }
 
             $orderAmount = round(max(0, (float) $order->order_amount), 2);

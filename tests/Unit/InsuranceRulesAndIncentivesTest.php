@@ -77,7 +77,7 @@ class InsuranceRulesAndIncentivesTest extends TestCase
         });
 
         foreach ([
-            'customer_order_insurance_status' => 1, 'customer_order_insurance_threshold' => 1000,
+            'customer_order_insurance_status' => 1, 'customer_order_insurance_scope' => 'all', 'customer_order_insurance_threshold' => 1000,
             'customer_order_insurance_calculation_type' => 'percentage', 'customer_order_insurance_calculation_value' => 2,
             'customer_order_insurance_maturity_days' => 90,
         ] as $type => $value) {
@@ -168,6 +168,27 @@ class InsuranceRulesAndIncentivesTest extends TestCase
         $this->assertTrue($required['applicable']);
         $this->assertSame(75.0, $required['amount']);
         $this->assertSame('account-required-insurance', $required['rule_code']);
+    }
+
+    public function test_selected_scope_does_not_insure_new_customers_until_they_are_included(): void
+    {
+        DB::table('business_settings')->where('type', 'customer_order_insurance_scope')->update(['value' => 'selected']);
+        $customerId = DB::table('users')->insertGetId(['name' => 'New customer', 'email' => 'new@example.test', 'created_at' => now(), 'updated_at' => now()]);
+        $service = app(OrderInsuranceService::class);
+
+        $this->assertFalse($service->calculate(2000, $customerId)['applicable']);
+
+        InsuranceSubjectOverride::query()->create([
+            'subject_type' => 'customer', 'subject_id' => $customerId,
+            'mode' => 'included', 'reason' => 'Admin selection', 'is_active' => true,
+        ]);
+        $this->assertTrue($service->calculate(2000, $customerId)['applicable']);
+        $this->assertSame(40.0, $service->calculate(2000, $customerId)['amount']);
+
+        InsuranceSubjectOverride::query()->where('subject_id', $customerId)->update([
+            'mode' => 'required', 'calculation_type' => 'fixed', 'calculation_value' => 75,
+        ]);
+        $this->assertSame(75.0, $service->calculate(2000, $customerId)['amount']);
     }
 
     public function test_created_order_keeps_rule_and_discount_snapshots_after_admin_changes(): void

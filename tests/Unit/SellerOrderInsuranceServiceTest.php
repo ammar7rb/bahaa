@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\Order;
 use App\Models\Seller;
 use App\Models\SellerOrderInsurance;
+use App\Services\SellerLedgerService;
 use App\Services\SellerOrderInsuranceService;
 use Carbon\Carbon;
 use DomainException;
@@ -28,6 +29,33 @@ class SellerOrderInsuranceServiceTest extends TestCase
         Schema::create('sellers', function (Blueprint $table): void {
             $table->id();
             $table->string('status')->default('approved');
+            $table->timestamps();
+        });
+        Schema::create('seller_wallets', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('seller_id');
+            $table->decimal('total_earning', 24, 3)->default(0);
+            $table->decimal('pending_withdraw', 24, 3)->default(0);
+            $table->decimal('withdrawn', 24, 3)->default(0);
+            $table->timestamps();
+        });
+        Schema::create('seller_ledger_entries', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('seller_id');
+            $table->string('bucket', 32);
+            $table->string('direction', 8);
+            $table->decimal('amount', 40, 20);
+            $table->string('event_type', 64);
+            $table->string('reporting_category', 64)->nullable();
+            $table->string('group_key', 191);
+            $table->char('idempotency_key', 64)->unique();
+            $table->string('reference_type', 128)->nullable();
+            $table->unsignedBigInteger('reference_id')->nullable();
+            $table->string('reference_code')->nullable();
+            $table->json('metadata')->nullable();
+            $table->char('previous_hash', 64)->nullable();
+            $table->char('entry_hash', 64);
+            $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
         });
         Schema::create('orders', function (Blueprint $table): void {
@@ -90,6 +118,7 @@ class SellerOrderInsuranceServiceTest extends TestCase
 
         foreach ([
             'seller_order_insurance_status' => '1',
+            'seller_order_insurance_scope' => 'all',
             'seller_order_insurance_percentage' => '5',
             'seller_order_insurance_pending_days' => '4',
             'seller_order_insurance_reuse_after_days' => '90',
@@ -105,6 +134,8 @@ class SellerOrderInsuranceServiceTest extends TestCase
         Schema::dropIfExists('seller_order_insurance_decisions');
         Schema::dropIfExists('seller_order_insurances');
         Schema::dropIfExists('orders');
+        Schema::dropIfExists('seller_ledger_entries');
+        Schema::dropIfExists('seller_wallets');
         Schema::dropIfExists('sellers');
         Schema::dropIfExists('business_settings');
         parent::tearDown();
@@ -131,6 +162,71 @@ class SellerOrderInsuranceServiceTest extends TestCase
         $this->assertSame(SellerOrderInsurance::STATUS_PAID, $paid->status);
         $this->assertTrue($paid->reusable_at->equalTo(now()->addDays(90)));
         $this->assertTrue($service->canViewDetails($paid));
+    }
+
+    public function test_selected_scope_does_not_create_insurance_for_unselected_seller(): void
+    {
+        DB::table('business_settings')->where('type', 'seller_order_insurance_scope')->update(['value' => 'selected']);
+        $seller = Seller::query()->create(['status' => 'approved']);
+        $order = Order::query()->create(['seller_id' => $seller->id, 'seller_is' => 'seller', 'order_amount' => 2000]);
+        $service = app(SellerOrderInsuranceService::class);
+
+        $this->assertFalse($service->preview($order, $seller)['applicable']);
+        $this->assertNull($service->getOrCreate($order, $seller));
+        $this->assertDatabaseCount('seller_order_insurances', 0);
+    }
+
+    public function test_insurance_credit_is_unavailable_before_maturity_and_can_pay_after_release(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-10 12:00:00'));
+        $seller = Seller::query()->create(['status' => 'approved']);
+        $service = app(SellerOrderInsuranceService::class);
+        $ledger = app(SellerLedgerService::class);
+        $firstOrder = Order::query()->create(['seller_id' => $seller->id, 'seller_is' => 'seller', 'order_amount' => 2000]);
+        $firstInsurance = $service->markPaid($service->getOrCreate($firstOrder, $seller), 'offline_payment');
+
+        $this->assertSame(0, $service->releaseReusableCredits());
+        $this->assertSame(0.0, $ledger->summary($seller->id)[SellerLedgerService::ORDER_INSURANCE_CREDIT]);
+        $pendingOrder = Order::query()->create(['seller_id' => $seller->id, 'seller_is' => 'seller', 'order_amount' => 2000]);
+        $pendingInsurance = $service->getOrCreate($pendingOrder, $seller);
+        try {
+            $service->payFromReusableCredit($pendingInsurance);
+            $this->fail('Unmatured insurance must not be available to pay another order.');
+        } catch (DomainException $exception) {
+            $this->assertSame('seller_order_insurance_credit_insufficient', $exception->getMessage());
+        }
+        $this->assertSame(SellerOrderInsurance::STATUS_PENDING_PAYMENT, $pendingInsurance->fresh()->status);
+
+        Carbon::setTestNow($firstInsurance->reusable_at->copy()->addSecond());
+        $this->assertSame(1, $service->releaseReusableCredits());
+        $this->assertSame(100.0, $ledger->summary($seller->id)[SellerLedgerService::ORDER_INSURANCE_CREDIT]);
+
+        $secondOrder = Order::query()->create(['seller_id' => $seller->id, 'seller_is' => 'seller', 'order_amount' => 2000]);
+        $secondInsurance = $service->payFromReusableCredit($service->getOrCreate($secondOrder, $seller));
+        $this->assertSame(SellerOrderInsurance::STATUS_PAID, $secondInsurance->status);
+        $this->assertSame(0.0, $ledger->summary($seller->id)[SellerLedgerService::ORDER_INSURANCE_CREDIT]);
+    }
+
+    public function test_insurance_credit_payment_rejects_a_partial_balance(): void
+    {
+        $seller = Seller::query()->create(['status' => 'approved']);
+        $order = Order::query()->create(['seller_id' => $seller->id, 'seller_is' => 'seller', 'order_amount' => 2000]);
+        $insurance = app(SellerOrderInsuranceService::class)->getOrCreate($order, $seller);
+        app(SellerLedgerService::class)->post(
+            sellerId: $seller->id,
+            eventType: 'seller_order_insurance_credit_released',
+            groupKey: 'partial-credit',
+            movements: [['bucket' => SellerLedgerService::ORDER_INSURANCE_CREDIT, 'direction' => 'credit', 'amount' => 40]],
+        );
+
+        try {
+            app(SellerOrderInsuranceService::class)->payFromReusableCredit($insurance);
+            $this->fail('Partial insurance credit must not pay the order insurance.');
+        } catch (DomainException $exception) {
+            $this->assertSame('seller_order_insurance_credit_insufficient', $exception->getMessage());
+        }
+        $this->assertSame(SellerOrderInsurance::STATUS_PENDING_PAYMENT, $insurance->fresh()->status);
+        $this->assertSame(40.0, app(SellerLedgerService::class)->summary($seller->id)[SellerLedgerService::ORDER_INSURANCE_CREDIT]);
     }
 
     public function test_admin_can_override_seller_insurance_with_audited_percentage_or_fixed_amount(): void

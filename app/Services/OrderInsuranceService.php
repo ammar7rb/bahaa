@@ -21,10 +21,11 @@ class OrderInsuranceService
         return $paymentMethod !== 'cash_on_delivery';
     }
 
-    public function appliesToAmount(float $amount): bool
+    public function appliesToAmount(float $amount, ?int $customerId = null): bool
     {
         $threshold = (float) (BusinessSetting::where('type', 'customer_order_insurance_threshold')->value('value') ?? 0);
         return $this->isEnabled()
+            && app(InsuranceRuleEngineService::class)->accountIsIncluded('customer', $customerId)
             && $amount > 0
             && ($threshold <= 0 || $amount > $threshold);
     }
@@ -50,7 +51,9 @@ class OrderInsuranceService
             ],
             subjectId: $customerId,
         );
-        $applicable = $this->isEnabled() && $resolved['applicable'];
+        $applicable = $this->isEnabled()
+            && app(InsuranceRuleEngineService::class)->accountIsIncluded('customer', $customerId)
+            && $resolved['applicable'];
         $originalAmount = $applicable ? $resolved['original_amount'] : 0.0;
         $discount = $applicable
             ? app(CustomerInsuranceIncentiveService::class)->discountFor($customerId, $originalAmount, $excludedIncentiveIds)

@@ -7195,4 +7195,7 @@ return [
     "customers" => "Customers",
     "vendors" => "Vendors",
     "pinned" => "Pinned",
+    "Insurance_Subject_Overrides" => "Account exceptions",
+    "Insurance_Overview" => "Overview",
+    "Insurance_Selected_Accounts" => "Selected accounts",
 ];

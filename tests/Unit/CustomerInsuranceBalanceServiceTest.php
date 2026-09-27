@@ -70,6 +70,7 @@ class CustomerInsuranceBalanceServiceTest extends TestCase
 
         $settings = [
             'customer_order_insurance_status' => '1',
+            'customer_order_insurance_scope' => 'all',
             'customer_order_insurance_threshold' => '1000',
             'customer_order_insurance_calculation_type' => 'fixed',
             'customer_order_insurance_calculation_value' => '75',

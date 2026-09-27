@@ -165,7 +165,7 @@
                                     <div class="fs-12 text-muted">{{ date('d M Y H:i', strtotime($recentOrder->created_at)) }}</div>
                                 </div>
                                 <div class="text-end">
-                                    <span class="badge badge-soft-primary text-capitalize">{{ str_replace('_', ' ', $recentOrder->order_status) }}</span>
+                                    <span class="badge badge-soft-primary text-capitalize">{{ translate($recentOrder->order_status === 'processing' ? 'packaging' : $recentOrder->order_status) }}</span>
                                     @if(($recentOrder->shipping_assignment_status ?? 'pending') !== 'assigned')
                                         <div class="fs-12 text-warning mt-1">{{ translate('shipping_decision_pending') }}</div>
                                     @else
@@ -273,7 +273,17 @@
                         <tbody>
                         @foreach($orders as $key=>$order)
                             @php($restrictedOrder = in_array($order->commerce_flow_version, [config('order_commerce.new_flow_version'), \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION], true) && in_array($order->commerce_flow_status, [\App\Support\Commerce\OrderCommerceState::SELLER_INSURANCE_PENDING, \App\Support\Commerce\OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW], true))
+                            @php($restrictedAccessReference = $restrictedOrder ? app(\App\Services\OrderCommerceContractService::class)->restrictedAccessToken($order) : null)
                             <tr class="{{ $restrictedOrder ? 'opacity-75' : '' }}">
+                                @if($restrictedOrder)
+                                <td>{{ $orders->firstItem() + $key }}</td>
+                                <td><a class="title-color hover-c1" href="{{ route('vendor.orders.details', $restrictedAccessReference) }}">***{{ str_pad(substr((string) $order->id, -3), 3, '0', STR_PAD_LEFT) }}</a></td>
+                                <td>—</td>
+                                <td>—</td>
+                                <td class="text-end fw-bold">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount), currencyCode: getCurrencyCode()) }}</td>
+                                <td>—</td>
+                                <td><a class="btn btn-outline--success icon-btn" title="{{ translate('view_and_pay_insurance') }}" href="{{ route('vendor.orders.details', $restrictedAccessReference) }}"><i class="fi fi-sr-eye d-flex"></i></a></td>
+                                @else
                                 <td>
                                     {{ $orders->firstItem() + $key}}
                                 </td>
@@ -361,28 +371,28 @@
                                     <td class="text-capitalize d-flex justify-content-center align-items-center">
                                         @if($order->order_status=='pending')
                                             <label
-                                                class="badge badge-soft-primary">{{$order['order_status']}}</label>
+                                                class="badge badge-soft-primary">{{ translate($order['order_status']) }}</label>
                                         @elseif($order->order_status=='processing' || $order->order_status=='out_for_delivery')
                                             <label
-                                                class="badge badge-soft-warning">{{str_replace('_',' ',$order['order_status'] == 'processing' ? 'packaging' : $order['order_status'])}}</label>
+                                                class="badge badge-soft-warning">{{ translate($order['order_status'] == 'processing' ? 'packaging' : $order['order_status']) }}</label>
                                         @elseif($order->order_status=='delivered' || $order->order_status=='confirmed')
                                             <label
-                                                class="badge badge-soft-success">{{$order['order_status']}}</label>
+                                                class="badge badge-soft-success">{{ translate($order['order_status']) }}</label>
                                         @elseif($order->order_status=='returned')
                                             <label
-                                                class="badge badge-soft-danger">{{$order['order_status']}}</label>
+                                                class="badge badge-soft-danger">{{ translate($order['order_status']) }}</label>
                                         @elseif($order['order_status']=='failed')
                                             <span class="badge badge-danger fs-12">
                                                     {{translate('failed_to_deliver')}}
                                             </span>
                                         @else
                                             <label
-                                                class="badge badge-soft-danger">{{$order['order_status']}}</label>
+                                                class="badge badge-soft-danger">{{ translate($order['order_status']) }}</label>
                                         @endif
                                     </td>
                                 @else
                                     <td class="text-capitalize">
-                                        {{str_replace('_',' ',$order['payment_method'])}}
+                                        {{ translate($order['payment_method']) }}
                                     </td>
                                 @endif
                                 <td>
@@ -399,6 +409,7 @@
                                         </a>@endunless
                                     </div>
                                 </td>
+                                @endif
                             </tr>
                         @endforeach
                         </tbody>
