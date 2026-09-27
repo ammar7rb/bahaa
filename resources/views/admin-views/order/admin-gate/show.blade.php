@@ -49,21 +49,20 @@
 
     <div class="row g-3">
         <div class="col-xl-8">
-            <form class="card mb-3" method="post" action="{{ route('admin.orders.admin-gate.assignment',$order->id) }}">@csrf
+            <form class="card mb-3 border-0 shadow-sm" dir="rtl" method="post" action="{{ route('admin.orders.admin-gate.assignment',$order->id) }}">@csrf
                 <div class="card-header"><h4 class="mb-1">{{ translate('insurance_and_shipping_decision') }}</h4><p class="text-muted mb-0">{{ translate('admin_assignment_form_help') }}</p></div>
                 <div class="card-body">
                     @if($order->sellerOrderInsurance && in_array($order->sellerOrderInsurance->status, ['paid','waived']))
                         <div class="alert alert-info">{{ translate('seller_insurance_is_already_paid_only_shipping_terms_will_be_updated') }}</div>
                     @endif
-                    <h5>{{ translate('seller_insurance_decision') }}</h5>
+                    <h5 class="border-bottom pb-2 mb-3">{{ translate('seller_insurance_decision') }}</h5>
                     <div class="alert alert-info">{{ translate('rule_engine_suggestion') }}: <strong>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $suggestion['amount']??0)) }}</strong> — {{ translate($suggestion['calculation_type']??'percentage') }} {{ $suggestion['calculation_value']??0 }}</div>
                     <div class="row g-2 mb-3">
                         <div class="col-md-4"><label class="form-label">{{ translate('decision_source') }}</label><select class="form-control" id="seller-insurance-mode" name="seller_insurance_mode" required><option value="default">{{ translate('use_default_rule') }}</option><option value="manual">{{ translate('manual_override') }}</option><option value="waive">{{ translate('waive_insurance') }}</option></select></div>
                         <div class="col-md-4 manual-insurance"><label class="form-label">{{ translate('calculation_type') }}</label><select class="form-control" name="seller_insurance_calculation_type"><option value="percentage">{{ translate('percentage') }}</option><option value="fixed">{{ translate('fixed_amount') }}</option></select></div>
                         <div class="col-md-4 manual-insurance"><label class="form-label">{{ translate('value') }}</label><input class="form-control" type="number" min="0.01" step="0.01" name="seller_insurance_calculation_value"></div>
-                        <div class="col-12 override-reason"><label class="form-label">{{ translate('override_reason') }}</label><textarea class="form-control" name="seller_insurance_override_reason" rows="2"></textarea></div>
                     </div>
-                    <hr><h5>{{ translate('shipping_decision') }}</h5>
+                    <hr><h5 class="border-bottom pb-2 mb-3">{{ translate('shipping_decision') }}</h5>
                     <div class="row g-2">
                         <div class="col-md-4"><label class="form-label">{{ translate('shipping_party') }}</label><select class="form-control" id="shipping-mode" name="shipping_mode" required><option value="admin_shipping">{{ translate('company_shipping') }}</option><option value="seller_shipping">{{ translate('seller_shipping') }}</option></select></div>
                         <div class="col-md-4 admin-shipping"><label class="form-label">{{ translate('shipping_company') }}</label><select class="form-control" name="shipping_method_id"><option value="">{{ translate('select') }}</option>@foreach($shippingMethods as $method)<option value="{{ $method->id }}">{{ $method->title }} — {{ $method->cost }}</option>@endforeach</select></div>
@@ -74,7 +73,6 @@
                         <div class="col-md-6"><label class="form-label">{{ translate('tracking_number') }}</label><input class="form-control" name="shipping_tracking_number" value="{{ $order->third_party_delivery_tracking_id }}"></div>
                         <div class="col-md-6"><label class="form-label">{{ translate('service_name') }}</label><input class="form-control" name="shipping_service_name" value="{{ $order->delivery_service_name }}"></div>
                         <div class="col-12"><label class="form-label">{{ translate('operational_address_snapshot') }}</label><div class="form-control bg-light" style="height:auto">{{ data_get((array)$order->shipping_address_data,'address','—') }} — {{ data_get((array)$order->shipping_address_data,'city','') }}</div></div>
-                        <div class="col-12"><label class="form-label">{{ translate('decision_note') }} *</label><textarea class="form-control" name="decision_note" rows="3" required></textarea></div>
                     </div>
                 </div>
                 <div class="card-footer"><button class="btn btn-primary">{{ translate('save_assignment_decision') }}</button></div>
@@ -83,7 +81,7 @@
             <div class="card mb-3"><div class="card-header"><h4 class="mb-0">{{ translate('decision_history') }}</h4></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>{{ translate('date') }}</th><th>{{ translate('action') }}</th><th>{{ translate('admin') }}</th><th>{{ translate('status') }}</th><th>{{ translate('note') }}</th></tr></thead><tbody>@forelse($order->adminGateDecisions as $decision)<tr><td>{{ dateFormat($decision->created_at) }}</td><td>{{ translate($decision->action) }}</td><td>{{ $decision->admin?->name??'—' }}</td><td>{{ translate($decision->status_after) }}</td><td>{{ $decision->note }}</td></tr>@empty<tr><td colspan="5" class="text-center">{{ translate('no_data_found') }}</td></tr>@endforelse</tbody></table></div></div>
         </div>
         <div class="col-xl-4">
-            <form class="card mb-3" method="post" action="{{ route('admin.orders.admin-gate.release',$order->id) }}">@csrf<div class="card-header"><h4 class="mb-0">{{ translate('release_order_to_seller') }}</h4></div><div class="card-body"><p class="text-muted">{{ translate('release_requires_complete_admin_decision') }}</p><textarea class="form-control mb-3" name="note" required placeholder="{{ translate('release_note') }}"></textarea><button class="btn btn-success w-100" @disabled($openInvestigation)>{{ translate('approve_and_send_restricted_order') }}</button></div></form>
+            <form class="card mb-3 border-0 shadow-sm" dir="rtl" method="post" action="{{ route('admin.orders.admin-gate.release',$order->id) }}">@csrf<div class="card-header"><h4 class="mb-0">{{ translate('release_order_to_seller') }}</h4></div><div class="card-body"><p class="text-muted">{{ translate('release_requires_complete_admin_decision') }}</p><button class="btn btn-success w-100" @disabled($openInvestigation)>{{ translate('approve_and_send_restricted_order') }}</button></div></form>
 
             @if(in_array($sellerResponseStatus, ['pending','overdue'], true))
             <form class="card border-warning mb-3" method="post" action="{{ route('admin.orders.admin-gate.seller-follow-up',$order->id) }}">@csrf
@@ -111,7 +109,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     const insuranceMode = document.getElementById('seller-insurance-mode');
     const shippingMode = document.getElementById('shipping-mode');
-    function syncInsurance(){document.querySelectorAll('.manual-insurance').forEach(el=>el.style.display=insuranceMode.value==='manual'?'block':'none');document.querySelectorAll('.override-reason').forEach(el=>el.style.display=insuranceMode.value==='default'?'none':'block');}
+    function syncInsurance(){document.querySelectorAll('.manual-insurance').forEach(el=>el.style.display=insuranceMode.value==='manual'?'block':'none');}
     function syncShipping(){document.querySelectorAll('.admin-shipping').forEach(el=>el.style.display=shippingMode.value==='admin_shipping'?'block':'none');}
     insuranceMode.addEventListener('change',syncInsurance);shippingMode.addEventListener('change',syncShipping);syncInsurance();syncShipping();
 });

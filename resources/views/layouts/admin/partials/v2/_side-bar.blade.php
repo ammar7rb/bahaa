@@ -487,18 +487,6 @@
                     <a class="v2-nav-item {{ request()->routeIs('admin.customer.wallet.deposits*') ? 'v2-is-active' : '' }}" href="{{ route('admin.customer.wallet.deposits') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('customer_deposit_requests') }}</span></span>
                     </a>
-                    <a class="v2-nav-item {{ Request::is('admin/customer/wallet/report') ? 'v2-is-active' : '' }}" data-item="wallet" href="{{ route('admin.customer.wallet.report') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('wallet') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="wallet" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ (Request::is('admin/customer/wallet/bonus-setup') || Request::is('admin/customer/wallet/bonus-setup/edit/*')) ? 'v2-is-active' : '' }}" data-item="wallet-bonus" href="{{ route('admin.customer.wallet.bonus-setup') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('wallet_Bonus_Setup') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="wallet-bonus" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/customer/loyalty/report') ? 'v2-is-active' : '' }}" data-item="loyalty" href="{{ route('admin.customer.loyalty.report') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('loyalty_Points') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="loyalty" aria-label="Pin"></button></div>
-                    </a>
                     {{-- Customer purchase packages are suspended; keep historical routes and records only. --}}
                     @if(false)
                     <a class="v2-nav-item {{ (Request::is('admin/customer/purchase-package') || Request::is('admin/customer/purchase-package/edit*')) ? 'v2-is-active' : '' }}" data-item="purchase-packages" href="{{ route('admin.customer.purchase-package.index') }}">
@@ -511,10 +499,6 @@
                     </a>
                     @endif
 
-                    <a class="v2-nav-item {{ Request::is('admin/customer/subscriber-list') ? 'v2-is-active' : '' }}" data-item="subscribers" href="{{ route('admin.customer.subscriber-list') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('subscribers') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="subscribers" aria-label="Pin"></button></div>
-                    </a>
                 </div>
 
                 <div class="v2-ctx-group">
@@ -631,41 +615,6 @@
             </div>
 
             <div class="v2-ctx-group">
-                <div class="v2-ctx-group-head"><span>{{ translate('finance') }}</span></div>
-                <a class="v2-nav-item {{ (Request::is('admin/report/admin-earning') || Request::is('admin/report/vendor-earning')) ? 'v2-is-active' : '' }}" data-item="earnings" href="{{ route('admin.report.admin-earning') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('earnings') }}</span></span>
-                    <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="earnings" aria-label="Pin"></button></div>
-                </a>
-
-                <div class="v2-nav-item v2-has-children {{ (Request::is('admin/report/inhouse-product-sale') || Request::is('admin/report/vendor-report') || Request::is('admin/transaction/order-transaction-list') || Request::is('admin/transaction/expense-transaction-list') || Request::is('admin/report/transaction/refund-transaction-list') || Request::is('admin/transaction/wallet-bonus')) ? 'v2-is-active' : '' }}" data-item="sales-report">
-                    <a class="v2-nav-btn" href="{{ route('admin.report.inhouse-product-sale') }}">
-                        <span class="v2-nav-label">{{ translate('sales_and_transactions') }}</span>
-                    </a>
-                    <div class="v2-nav-right">
-                        <button class="v2-pin-btn" type="button" data-pin="sales-report" aria-label="Pin"></button>
-                        <span class="v2-nav-chev">
-                            <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 5 5 5-5 5"/></svg>
-                        </span>
-                    </div>
-                </div>
-                <div class="v2-nav-children v2-is-collapsed" data-children-for="sales-report">
-                    <a class="v2-nav-child {{ Request::is('admin/report/inhouse-product-sale') ? 'v2-is-on' : '' }}" href="{{ route('admin.report.inhouse-product-sale') }}">
-                        <span class="v2-nav-child-dot" data-tone="primary"></span>
-                        <span class="v2-nav-child-label">{{ translate('inhouse_Sales') }}</span>
-                    </a>
-                    <a class="v2-nav-child {{ Request::is('admin/report/vendor-report') ? 'v2-is-on' : '' }}" href="{{ route('admin.report.vendor-report') }}">
-                        <span class="v2-nav-child-dot" data-tone="primary"></span>
-                        <span class="v2-nav-child-label">{{ translate('vendor_Sales') }}</span>
-                    </a>
-                    <a class="v2-nav-child {{ (Request::is('admin/transaction/order-transaction-list') || Request::is('admin/transaction/expense-transaction-list') || Request::is('admin/transaction/refund-transaction-list') || Request::is('admin/report/transaction/refund-transaction-list') || Request::is('admin/transaction/wallet-bonus')) ? 'v2-is-on' : '' }}" href="{{ route('admin.transaction.order-transaction-list') }}">
-                        <span class="v2-nav-child-dot" data-tone="success"></span>
-                        <span class="v2-nav-child-label">{{ translate('transactions') }}</span>
-                    </a>
-                </div>
-            </div>
-
-            <div class="v2-ctx-group">
                 <div class="v2-ctx-group-head"><span>{{ translate('operations') }}</span></div>
                 <a class="v2-nav-item {{ (Request::is('admin/report/all-product') || Request::is('admin/stock/product-in-wishlist') || Request::is('admin/stock/product-stock')) ? 'v2-is-active' : '' }}" data-item="product-report" href="{{ route('admin.report.all-product') }}">
                     <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('product_Report') }}</span></span>
@@ -677,7 +626,7 @@
                 </a>
             </div>
 
-            @if ($v2Tax && count($v2TaxReportRoutes))
+            @if (false)
                 <div class="v2-ctx-group">
                     <div class="v2-ctx-group-head"><span>{{ translate('tax') }}</span></div>
                     @foreach ($v2TaxReportRoutes as $v2TaxReport)
@@ -904,30 +853,6 @@
     @endif
 
     </div>{{-- /.v2-ctx-scroll --}}
-
-    {{-- Setup guide footer (super-admin only, always pinned at bottom when ctxpanel is visible) --}}
-    @php
-        $v2Setup = function_exists('checkSetupGuideRequirements') ? checkSetupGuideRequirements(panel: 'admin') : ['completePercent' => 100, 'totalSteps' => 0];
-        $v2ShowSetupGuide = ($v2Setup['completePercent'] ?? 100) < 100 && auth('admin')->user()->admin_role_id == 1;
-    @endphp
-    @if ($v2ShowSetupGuide)
-        <div class="v2-ctx-foot">
-            <button type="button" class="v2-setup-guide" data-v2-setup-trigger aria-label="{{ translate('Setup_Guide') }}">
-                <div class="v2-setup-guide-icon">
-                    <img src="{{ dynamicAsset(path: 'public/assets/new/back-end/img/setup_guide.png') }}"
-                         width="18" height="18" alt="">
-                </div>
-                <div class="v2-setup-guide-body">
-                    <span class="v2-setup-guide-title">{{ translate('Setup_Guide') }}</span>
-                    <span class="v2-setup-guide-sub">{{ $v2Setup['completePercent'] ?? 0 }}% {{ translate('complete') }}</span>
-                </div>
-                <div class="v2-setup-guide-chev">
-                    <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 5 5 5-5 5"/></svg>
-                </div>
-            </button>
-        </div>
-    @endif
 
 </aside>
 

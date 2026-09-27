@@ -180,6 +180,15 @@ class AdminOrderGatePhaseThreeTest extends TestCase
         $this->assertTrue(config('order_commerce.features.admin_review_before_seller'));
     }
 
+    public function test_invoice_footer_does_not_expose_contact_details(): void
+    {
+        $generator = new class { use \App\Traits\PdfGenerator; };
+        $footer = $generator::footerHtml('admin');
+
+        $this->assertStringNotContainsString('@', $footer);
+        $this->assertStringContainsString(url('/'), $footer);
+    }
+
     private function order(): Order
     {
         \DB::table('users')->insert(['id'=>1,'f_name'=>'Customer','wallet_balance'=>0,'created_at'=>now(),'updated_at'=>now()]);
@@ -191,7 +200,7 @@ class AdminOrderGatePhaseThreeTest extends TestCase
 
     private function assignment(): array
     {
-        return ['seller_insurance_mode'=>'manual','seller_insurance_calculation_type'=>'percentage','seller_insurance_calculation_value'=>5,'seller_insurance_override_reason'=>'Risk adjustment','shipping_mode'=>'admin_shipping','shipping_customer_cost'=>50,'shipping_seller_cost'=>20,'shipping_tracking_number'=>'TRK-1','decision_note'=>'Reviewed'];
+        return ['seller_insurance_mode'=>'manual','seller_insurance_calculation_type'=>'percentage','seller_insurance_calculation_value'=>5,'shipping_mode'=>'admin_shipping','shipping_customer_cost'=>50,'shipping_seller_cost'=>20,'shipping_tracking_number'=>'TRK-1'];
     }
 
     private function service(): array

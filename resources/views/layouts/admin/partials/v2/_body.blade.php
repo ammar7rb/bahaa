@@ -63,7 +63,6 @@
 @include('layouts.admin.partials._sign-out-modal')
 @include('layouts.admin.partials._modals')
 @include('layouts.admin.partials._alert-message')
-@include('layouts.admin.partials.v2._setup-popover')
 
 {{-- Server-side pin shortcuts: load the current admin's saved pin list
      so the v2 JS can render the pin section on first paint without an

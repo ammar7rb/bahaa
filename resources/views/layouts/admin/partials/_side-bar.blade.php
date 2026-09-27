@@ -688,6 +688,7 @@
                     </small>
                 </li>
 
+                @if(false)
                 <li class="{{ (Request::is('admin/report/admin-earning') || Request::is('admin/report/vendor-earning') || Request::is('admin/report/inhouse-product-sale') || Request::is('admin/report/vendor-report') || Request::is('admin/report/earning') || Request::is('admin/transaction/order-transaction-list') || Request::is('admin/transaction/expense-transaction-list') || Request::is('admin/report/transaction/refund-transaction-list') || Request::is('admin/transaction/wallet-bonus')) ? 'sub-menu-opened' : '' }}">
                     <a class="nav-link nav-link-toggle {{ (Request::is('admin/report/admin-earning') || Request::is('admin/report/vendor-earning') || Request::is('admin/report/inhouse-product-sale') || Request::is('admin/report/vendor-report') || Request::is('admin/report/earning') || Request::is('admin/transaction/order-transaction-list') || Request::is('admin/transaction/expense-transaction-list') || Request::is('admin/report/transaction/refund-transaction-list') || Request::is('admin/transaction/wallet-bonus')) ? 'active' : '' }}"
                        href="javascript:" title="{{ translate('sales_&_Transaction_Report') }}">
@@ -739,6 +740,7 @@
                         </li>
                     </ul>
                 </li>
+                @endif
 
                 <li>
                     <a class="nav-link {{ (Request::is('admin/report/all-product') || Request::is('admin/stock/product-in-wishlist') || Request::is('admin/stock/product-stock')) ? 'active' : '' }}"
@@ -762,7 +764,7 @@
                     </a>
                 </li>
 
-                @if(getCheckAddonPublishedStatus(moduleName: 'TaxModule'))
+                @if(false)
                     @foreach(include(base_path("Modules/TaxModule/Addon/tax_report_routes.php")) as $route)
                         <li>
                             <a class="nav-link
@@ -866,6 +868,7 @@
                                 <span class="text-truncate">{{ translate('customer_deposit_requests') }}</span>
                             </a>
                         </li>
+                        @if(false)
                         <li class="nav-item">
                             <a class="nav-link {{ Request::is('admin/customer/wallet/report') ? 'active' : '' }}"
                                title="{{ translate('wallet') }}" href="{{ route('admin.customer.wallet.report') }}">
@@ -892,6 +895,7 @@
                                 </span>
                             </a>
                         </li>
+                        @endif
                         {{-- Customer purchase packages are suspended; keep historical routes and records only. --}}
                         @if(false)
                         <li class="nav-item">
@@ -1049,6 +1053,7 @@
                     </li>
                 @endif
 
+                @if(false)
                 <li>
                     <a class="nav-link {{ Request::is('admin/customer/subscriber-list') ? 'active' : '' }}"
                        href="{{ route('admin.customer.subscriber-list') }}" title="{{ translate('subscribers') }}">
@@ -1058,6 +1063,7 @@
                         </span>
                     </a>
                 </li>
+                @endif
             @endif
 
             @if(Helpers::module_permission_check('business_settings'))
@@ -1453,7 +1459,6 @@
     </div>
 </aside>
 
-@include("layouts.admin.partials._setup-guide")
 
 <div class="offcanvas offcanvas-start bg-panel d-lg-none w-280" tabindex="-1" id="offcanvasAside"
      aria-labelledby="offcanvasAsideLabel">

@@ -73,7 +73,6 @@ class AdminOrderGateController extends Controller
             'seller_insurance_mode' => ['required', 'in:default,manual,waive'],
             'seller_insurance_calculation_type' => ['nullable', 'required_if:seller_insurance_mode,manual', 'in:percentage,fixed'],
             'seller_insurance_calculation_value' => ['nullable', 'required_if:seller_insurance_mode,manual', 'numeric', 'min:0'],
-            'seller_insurance_override_reason' => ['nullable', 'required_unless:seller_insurance_mode,default', 'string', 'max:5000'],
             'shipping_mode' => ['required', 'in:admin_shipping,seller_shipping'],
             'shipping_method_id' => ['nullable', 'integer'],
             'shipping_customer_cost' => ['nullable', 'numeric', 'min:0'],
@@ -83,7 +82,6 @@ class AdminOrderGateController extends Controller
             'shipping_tracking_number' => ['nullable', 'string', 'max:255'],
             'shipping_expected_delivery_date' => ['nullable', 'date'],
             'shipping_instructions' => ['nullable', 'string', 'max:5000'],
-            'decision_note' => ['required', 'string', 'max:5000'],
         ]);
         try {
             $this->service->saveAssignment(Order::query()->findOrFail($id), $data, auth('admin')->id());
@@ -94,11 +92,10 @@ class AdminOrderGateController extends Controller
         return back();
     }
 
-    public function release(Request $request, int $id): RedirectResponse
+    public function release(int $id): RedirectResponse
     {
-        $data = $request->validate(['note' => ['required', 'string', 'max:5000']]);
         try {
-            $this->service->releaseToSeller(Order::query()->findOrFail($id), $data['note'], auth('admin')->id());
+            $this->service->releaseToSeller(Order::query()->findOrFail($id), 'اعتماد الإدارة وإرسال الطلب إلى التاجر', auth('admin')->id());
             ToastMagic::success(translate('order_released_to_seller_successfully'));
         } catch (\Throwable $exception) {
             ToastMagic::error(translate($exception->getMessage()));

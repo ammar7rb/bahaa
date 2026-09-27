@@ -62,7 +62,11 @@ class AdminOrderGateService
                         'mode' => $data['seller_insurance_mode'],
                         'calculation_type' => $data['seller_insurance_calculation_type'] ?? null,
                         'calculation_value' => $data['seller_insurance_calculation_value'] ?? null,
-                        'reason' => $data['seller_insurance_override_reason'] ?? null,
+                        'reason' => match ($data['seller_insurance_mode']) {
+                            'manual' => 'تحديد قيمة التأمين يدويًا بواسطة الإدارة',
+                            'waive' => 'إعفاء الطلب من تأمين التاجر بواسطة الإدارة',
+                            default => null,
+                        },
                     ],
                     $adminId,
                 );
@@ -77,7 +81,7 @@ class AdminOrderGateService
                 'tracking_number' => $data['shipping_tracking_number'] ?? null,
                 'expected_delivery_date' => $data['shipping_expected_delivery_date'] ?? null,
                 'instructions' => $data['shipping_instructions'] ?? null,
-                'note' => $data['decision_note'],
+                'note' => 'قرار الشحن والتأمين بواسطة الإدارة',
             ], $adminId);
 
             return OrderAdminGateDecision::query()->create([
@@ -89,7 +93,7 @@ class AdminOrderGateService
                 'seller_insurance_calculation_value' => $insurance->calculation_value,
                 'seller_insurance_amount' => $insurance->amount,
                 'override_reason' => $insurance->admin_decision_reason,
-                'note' => $data['decision_note'],
+                'note' => 'قرار الشحن والتأمين بواسطة الإدارة',
                 'snapshot' => $this->decisionSnapshot($locked->fresh(), $insurance->fresh(), $shipping->fresh()),
             ]);
         });
