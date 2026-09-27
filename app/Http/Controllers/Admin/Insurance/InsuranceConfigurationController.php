@@ -265,6 +265,7 @@ class InsuranceConfigurationController extends Controller
         if ($subjectType === 'customer') {
             $data = $request->validate([
                 'customer_enabled' => 'nullable|in:1',
+                'customer_tax_enabled' => 'nullable|in:1',
                 'customer_scope' => ['required', Rule::in(['selected', 'all'])],
                 'customer_maturity_days' => 'required|integer|min:1|max:3650',
                 'customer_payment_deadline_hours' => 'required|integer|min:1|max:720',
@@ -272,6 +273,9 @@ class InsuranceConfigurationController extends Controller
             ]);
             $settings = [
                 'customer_order_insurance_status' => $request->boolean('customer_enabled') ? 1 : 0,
+                'customer_second_invoice_tax_enabled' => $request->boolean('customer_tax_enabled') ? 1 : 0,
+                'feature_post_purchase_tax_invoice_v3' => ($request->boolean('customer_enabled') || $request->boolean('customer_tax_enabled')) ? 1 : 0,
+                'commerce_contract_version' => 'post_purchase_v3',
                 'customer_order_insurance_scope' => $data['customer_scope'],
                 'customer_order_insurance_maturity_days' => $data['customer_maturity_days'],
                 'customer_order_insurance_payment_deadline_hours' => $data['customer_payment_deadline_hours'],

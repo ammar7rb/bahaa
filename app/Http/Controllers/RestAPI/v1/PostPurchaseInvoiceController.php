@@ -160,7 +160,8 @@ class PostPurchaseInvoiceController extends Controller
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first()], 422);
         }
-        $method = OfflinePaymentMethod::query()->whereKey($request->method_id)->where('status', 1)->first();
+        $method = OfflinePaymentMethod::query()->whereKey($request->method_id)->where('status', 1)
+            ->whereIn('payment_channel', ['wallet', 'instapay'])->first();
         if (! $method || ! (getWebConfig(name: 'offline_payment')['status'] ?? 0)) {
             return response()->json(['message' => translate('offline_payment_method_not_found')], 422);
         }
@@ -285,6 +286,7 @@ class PostPurchaseInvoiceController extends Controller
                 'purchase_amount' => (float) ($invoice->metadata['first_payment_amount'] ?? $invoice->order?->order_amount ?? 0),
                 'tax' => ['amount' => (float) $invoice->tax_amount],
                 'insurance' => ['amount' => (float) $invoice->insurance_amount, 'payment_status' => $invoice->status === PostPurchaseInvoice::STATUS_PAID ? 'paid' : 'unpaid', 'status' => $claimStatus, 'payment_due_at' => $invoice->payment_due_at?->toIso8601String(), 'balance_use_policy' => 'insurance_only'],
+                'total_amount' => (float) $invoice->total_amount,
                 'order_is_suspended_until_insurance_payment' => $invoice->status !== PostPurchaseInvoice::STATUS_PAID,
                 'support_available' => true,
                 'purchase_refund' => ($invoice->metadata['purchase_refund'] ?? ['status' => 'not_requested', 'due_at' => null]),
@@ -298,7 +300,7 @@ class PostPurchaseInvoiceController extends Controller
                 'digital_payment' => (bool) (getWebConfig(name: 'digital_payment')['status'] ?? 0),
                 'offline_payment' => (bool) (getWebConfig(name: 'offline_payment')['status'] ?? 0),
                 'gateways' => collect(payment_gateways())->map(fn ($gateway) => ['key' => $gateway['key_name'], 'title' => $gateway['key_name']])->values(),
-                'offline_methods' => OfflinePaymentMethod::query()->where('status', 1)->get(['id', 'method_name', 'payment_channel', 'method_fields'])->map(fn ($method) => ['id' => (string) $method->id, 'method_name' => $method->method_name, 'payment_channel' => $method->payment_channel, 'method_fields' => $method->method_fields])->values(),
+                'offline_methods' => OfflinePaymentMethod::query()->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])->get(['id', 'method_name', 'payment_channel', 'method_fields'])->map(fn ($method) => ['id' => (string) $method->id, 'method_name' => $method->method_name, 'payment_channel' => $method->payment_channel, 'method_fields' => $method->method_fields])->values(),
             ],
         ];
     }

@@ -141,9 +141,9 @@ class CustomerBalanceDepositServiceTest extends TestCase
         Schema::create('currencies', function (Blueprint $table) { $table->id(); $table->string('code'); });
         DB::table('currencies')->insert(['id'=>1,'code'=>'USD']);
         Schema::create('offline_payment_methods', function (Blueprint $table) {
-            $table->id(); $table->string('method_name'); $table->boolean('status'); $table->json('method_informations')->nullable();
+            $table->id(); $table->string('method_name'); $table->string('payment_channel'); $table->boolean('status'); $table->json('method_informations')->nullable();
         });
-        DB::table('offline_payment_methods')->insert(['id'=>1,'method_name'=>'Bank','status'=>1]);
+        DB::table('offline_payment_methods')->insert(['id'=>1,'method_name'=>'Wallet','payment_channel'=>'wallet','status'=>1]);
         \Illuminate\Support\Facades\Storage::fake('local');
         $this->actingAs(\App\Models\User::find(1),'customer');
         $file = \Illuminate\Http\UploadedFile::fake()->image('receipt.png');

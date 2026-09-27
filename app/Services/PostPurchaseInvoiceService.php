@@ -25,14 +25,10 @@ class PostPurchaseInvoiceService
     public const ORDER_STATUS_AWAITING_ADMIN = 'awaiting_admin_order_review';
     public const ORDER_STATUS_RELEASED = 'released_to_seller';
 
-    public function __construct(private readonly WorkflowFeatureService $workflowFeatures)
-    {
-    }
-
     public function isEnabled(): bool
     {
-        return $this->workflowFeatures->postPurchaseTaxInvoiceEnabled()
-            && $this->workflowFeatures->commerceContractVersion() === self::CONTRACT_VERSION;
+        return $this->settingBool('customer_order_insurance_status', false)
+            || $this->settingBool('customer_second_invoice_tax_enabled', false);
     }
 
     public function usesSecondInvoice(Order $order): bool
@@ -48,7 +44,7 @@ class PostPurchaseInvoiceService
      */
     public function createForPaidOrderGroup(array $orderIds, bool $includeSubmittedOffline = false): array
     {
-        if (! $this->isEnabled() || $orderIds === []) {
+        if ($orderIds === []) {
             return [];
         }
 
@@ -143,10 +139,6 @@ class PostPurchaseInvoiceService
      */
     public function createMissingInvoicesForPaidOrders(): int
     {
-        if (! $this->isEnabled()) {
-            return 0;
-        }
-
         $orders = Order::query()
             ->where('commerce_flow_version', self::CONTRACT_VERSION)
             ->where('payment_status', 'paid')
@@ -196,9 +188,9 @@ class PostPurchaseInvoiceService
             $ledgerAvailable = \Illuminate\Support\Facades\Schema::hasTable('customer_insurance_ledger_entries')
                 ? max(0, (float) \App\Models\CustomerInsuranceLedgerEntry::where('customer_id', $customer->id)
                     ->selectRaw('COALESCE(SUM(credit - debit), 0) as balance')->value('balance')) : 0;
-            $amount = min((float) $balance->available_amount + $ledgerAvailable, $availableForInsurance);
-            if ($amount <= 0) {
-                throw new DomainException('insufficient_customer_insurance_balance');
+            $amount = $availableForInsurance;
+            if (round((float) $balance->available_amount + $ledgerAvailable, 4) < round($amount, 4)) {
+                throw new DomainException('insurance_balance_is_insufficient_deposit_or_use_transfer');
             }
 
             $before = (float) $balance->available_amount + $ledgerAvailable;
@@ -405,9 +397,10 @@ class PostPurchaseInvoiceService
 
     private function taxSnapshot(Order $order): array
     {
-        $taxableAmount = max(0, round((float) $order->order_amount, 4));
-        $amount = max(0, round((float) $order->total_tax_amount, 4));
-        $rate = $taxableAmount > 0 ? round(($amount / $taxableAmount) * 100, 4) : 0.0;
+        $enabled = $order->tax_type === 'customer_product_14';
+        $rate = $enabled ? 14.0 : 0.0;
+        $amount = $enabled ? max(0, round((float) $order->total_tax_amount, 4)) : 0.0;
+        $taxableAmount = $rate > 0 ? round($amount * 100 / $rate, 4) : 0.0;
 
         return [
             'type' => $order->tax_type,

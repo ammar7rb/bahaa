@@ -921,6 +921,8 @@ class OrderManager
                 }
             }
 
+            $secondStage = app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled();
+            $taxForCustomer = $secondStage && getWebConfig(name: 'customer_second_invoice_tax_enabled') == 1;
             $vendorWiseCartAppliedTax = 0;
             $vendorWiseCart['applied_tax_cart_list'] = [];
             foreach ($vendorWiseCart['cart_list'] as $cartItem) {
@@ -947,6 +949,17 @@ class OrderManager
                         totalDiscountedPrice: $totalDiscountPrice,
                         applicableShippingAmount: $totalApplicableShippingAmount,
                     );
+                    if ($secondStage) {
+                        $appliedTaxAmount = $taxForCustomer
+                            ? self::customerProductTaxAmount(
+                                $totalDiscountPrice,
+                                $totalDiscountProductPrice,
+                                $vendorWiseCart['coupon_discount'] + $vendorWiseCart['refer_and_earn_discount'],
+                            ) : 0;
+                        $appliedShippingTaxAmount = 0;
+                        $appliedTaxIds = [];
+                        $appliedShippingTaxIds = [];
+                    }
 
                     $vendorWiseCartAppliedTax += $appliedTaxAmount;
                     $vendorWiseCartAppliedTax += $cartItem?->product?->product_type == 'digital' ? 0 : $appliedShippingTaxAmount;
@@ -969,18 +982,28 @@ class OrderManager
                     ];
                 }
             }
+            $vendorWiseCartAppliedTax = round($vendorWiseCartAppliedTax, 4);
             $vendorWiseCart['total_tax_amount'] = $vendorWiseCartAppliedTax;
+            $vendorWiseCart['customer_tax_applied'] = $taxForCustomer;
             $vendorWiseCart['order_amount_with_tax'] = $vendorWiseCart['order_amount'] + $vendorWiseCartAppliedTax;
             // Under the v3 contract, tax is deliberately not part of the
             // first checkout payment. It is snapshotted into the second
             // post-purchase invoice after merchandise payment succeeds.
-            $vendorWiseCart['first_payment_amount'] = app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()
+            $vendorWiseCart['first_payment_amount'] = $secondStage
                 ? max(0, $vendorWiseCart['order_amount'] - $vendorWiseCart['refer_and_earn_discount'])
                 : max(0, $vendorWiseCart['order_amount_with_tax'] - $vendorWiseCart['refer_and_earn_discount']);
             $modifiedVendorWiseCartList[] = $vendorWiseCart;
         }
 
         return $modifiedVendorWiseCartList;
+    }
+
+    public static function customerProductTaxAmount(float $lineAmount, float $productSubtotal, float $couponAndReferralDiscount): float
+    {
+        if ($lineAmount <= 0 || $productSubtotal <= 0) return 0.0;
+
+        $discountShare = max(0, $couponAndReferralDiscount) * $lineAmount / $productSubtotal;
+        return round(max(0, $lineAmount - $discountShare) * 0.14, 4);
     }
 
     public static function getOrderAddData(int $orderId, string $orderGroupId, object|array $customerData = [], object|array $cartData = [], object|array $orderData = [], object|array $totalTax = []): array
@@ -1021,8 +1044,8 @@ class OrderManager
             'order_amount' => $cartData['first_payment_amount'] ?? ($cartData['order_amount_with_tax'] - $cartData['refer_and_earn_discount']),
             'init_order_amount' => $cartData['first_payment_amount'] ?? ($cartData['order_amount_with_tax'] - $cartData['refer_and_earn_discount']),
             'total_tax_amount' => $cartData['total_tax_amount'],
-            'tax_type' => $taxConfig['SystemTaxVatType'],
-            'tax_model' => $taxConfig['is_included'] ? 'include' : 'exclude',
+            'tax_type' => ! empty($cartData['customer_tax_applied']) ? 'customer_product_14' : $taxConfig['SystemTaxVatType'],
+            'tax_model' => ! empty($cartData['customer_tax_applied']) ? 'exclude' : ($taxConfig['is_included'] ? 'include' : 'exclude'),
             'bring_change_amount' => $orderData['payment_method'] == 'cash_on_delivery' ? $orderData['bring_change_amount'] ?? 0 : null,
             'bring_change_amount_currency' => $orderData['bring_change_amount_currency'] ?? null,
             'admin_commission' => $adminCommission,

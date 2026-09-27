@@ -17,7 +17,7 @@
                             {{ translate('checkout_second_stage_notice') }}
                         </p>
 
-                        <div class="alert alert-warning">
+                        <div class="alert alert-warning" @if($summary['insurance_amount'] <= 0) hidden @endif>
                             {{ translate('insurance_balance_can_only_be_used_for_the_insurance_part_and_never_for_tax') }}
                         </div>
 
@@ -27,6 +27,7 @@
                                 <tr><th>{{ translate('merchandise_payment') }}</th><td>{{ webCurrencyConverter($summary['first_payment_amount'] ?? 0) }}</td></tr>
                                 <tr><th>{{ translate('tax') }}</th><td>{{ webCurrencyConverter($summary['tax_amount']) }}</td></tr>
                                 <tr><th>{{ translate('order_insurance') }}</th><td>{{ webCurrencyConverter($summary['insurance_amount']) }}</td></tr>
+                                <tr><th>إجمالي الفاتورة الثانية</th><td class="fw-bold">{{ webCurrencyConverter($summary['total_amount']) }}</td></tr>
                                 <tr><th>{{ translate('total_due') }}</th><td class="fw-bold">{{ webCurrencyConverter($summary['external_amount_due']) }}</td></tr>
                                 <tr><th>{{ translate('payment_due_date') }}</th><td>{{ $invoice->payment_due_at?->format('d M Y, h:i A') ?? '-' }}</td></tr>
                             </table>
@@ -41,9 +42,14 @@
                         @else
                             <div class="d-flex flex-column gap-3">
                                 @if(($summary['insurance_amount'] ?? 0) > ($summary['insurance_balance_paid'] ?? 0))
+                                    @php($insuranceStillDue = max(0, $summary['insurance_amount'] - $summary['insurance_balance_paid']))
+                                    <p class="mb-1">رصيد التأمين المستحق المتاح: {{ webCurrencyConverter($insuranceBalance['available_balance'] ?? 0) }}</p>
+                                    @if(($insuranceBalance['available_balance'] ?? 0) < $insuranceStillDue)
+                                        <div class="alert alert-warning">{{ translate('insurance_balance_is_insufficient_deposit_or_use_transfer') }} <a href="{{ route('wallet') }}">{{ translate('deposit_into_insurance_balance') }}</a></div>
+                                    @endif
                                     <form method="post" action="{{ route('post-purchase-invoices.use-insurance-balance', $invoice->id) }}">
                                         @csrf
-                                        <button class="btn btn-outline-primary" type="submit">{{ translate('use_insurance_balance_for_insurance_only') }}</button>
+                                        <button class="btn btn-outline-primary" type="submit" @disabled(($insuranceBalance['available_balance'] ?? 0) < $insuranceStillDue)>{{ translate('use_insurance_balance_for_insurance_only') }}</button>
                                     </form>
                                 @endif
 
@@ -62,12 +68,12 @@
                                     </form>
                                 @endif
 
-                                @if($summary['external_amount_due'] > 0 && $offlinePaymentAvailable)
+                                @if($summary['external_amount_due'] > 0 && $offlinePaymentAvailable && $offlinePaymentMethods->isNotEmpty())
                                     <details class="border rounded p-3">
-                                        <summary class="cursor-pointer">{{ translate('submit_offline_payment') }}</summary>
+                                        <summary class="cursor-pointer">الدفع بإنستا باي أو محفظة إلكترونية</summary>
                                         @foreach($offlinePaymentMethods as $method)
                                             <details class="border rounded p-3 mt-3">
-                                                <summary>{{ translatePaymentText($method->method_name) }}</summary>
+                                                <summary>{{ $method->payment_channel === 'instapay' ? 'إنستا باي' : 'محفظة إلكترونية' }} — {{ translatePaymentText($method->method_name) }}</summary>
                                                 @foreach($method->method_fields ?? [] as $field)
                                                     <p class="small mt-2 mb-0">{{ translatePaymentText($field['input_name'] ?? '') }}: <bdi>{{ $field['input_data'] ?? '' }}</bdi></p>
                                                 @endforeach

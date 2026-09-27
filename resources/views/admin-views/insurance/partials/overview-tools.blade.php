@@ -56,12 +56,11 @@
 </div></div>
 
 @if($subjectType === 'customer')
-<div class="card insurance-panel mb-3"><div class="card-header"><h3 class="h5 mb-1">ضريبة المنتجات في الفاتورة الثانية</h3></div><div class="card-body"><p>أنشئ ضريبة بنسبة 14% من «إعداد ضريبة القيمة المضافة». لتطبيقها على كل الطلبات اختر «على مستوى الطلب» وحدد نسبة 14%. ولتحديدها لكل منتج على حدة اختر «على مستوى المنتج» ثم اربط الضريبة بالمنتجات المطلوبة. فعّل «الفاتورة الثانية»؛ قيمة الضريبة المحسوبة عند إنشاء الطلب تنتقل إليها تلقائيًا.</p>
+<div class="card insurance-panel mb-3"><div class="card-header"><h3 class="h5 mb-1">ضريبة العملاء 14% والفاتورة الثانية</h3></div><div class="card-body"><p>خيار «ضريبة العملاء على المنتجات 14%» موجود أعلى الصفحة بجوار تفعيل التأمين. إن فعّلت التأمين وحده، تظهر فاتورة ثانية بالتأمين فقط. وإن فعّلت الضريبة كذلك، تجمع الفاتورة التأمين والضريبة. تُحسب الضريبة على المنتجات بعد الخصومات، دون الشحن، ولا تدخل في تأمين التاجر.</p>
     <div class="d-flex flex-wrap gap-2">
-        @if(getCheckAddonPublishedStatus('TaxModule'))<a class="btn btn-outline-primary" href="{{ route('admin.vat-tax.index') }}">إنشاء ضريبة 14%</a><a class="btn btn-outline-primary" href="{{ route('admin.vat-tax.systemVatTax') }}">إعداد طريقة الضريبة</a>@endif
         <a class="btn btn-outline-primary" href="{{ route('admin.orders.post-purchase-invoices.index') }}">إعدادات الفاتورة الثانية وسجلاتها</a>
     </div>
-    <small class="text-muted d-block mt-2">للتجربة: احفظ الإعدادات، أنشئ طلبًا جديدًا بمنتج خاضع لـ14%، ثم افتح الفاتورة الثانية لهذا الطلب وراجع بند الضريبة. الطلبات السابقة تحتفظ بضريبتها وقت إنشائها.</small>
+    <small class="text-muted d-block mt-2">للتجربة: احفظ الإعدادات، أنشئ طلبًا جديدًا، ثم افتح فاتورته الثانية وراجع بندَي التأمين والضريبة والمجموع. الإعدادات الجديدة تسري على الطلبات الجديدة.</small>
 </div></div>
 @endif
 

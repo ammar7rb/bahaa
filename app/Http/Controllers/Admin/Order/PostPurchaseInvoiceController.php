@@ -42,8 +42,7 @@ class PostPurchaseInvoiceController extends Controller
 
         $settings = BusinessSetting::query()->whereIn('type', [
             'feature_post_purchase_tax_invoice_v3', 'commerce_contract_version',
-            'customer_order_insurance_status', 'customer_order_insurance_type',
-            'customer_order_insurance_value', 'customer_order_insurance_threshold',
+            'customer_order_insurance_status', 'customer_second_invoice_tax_enabled',
             'post_purchase_invoice_due_days',
         ])->pluck('value', 'type')->all();
 
@@ -53,29 +52,13 @@ class PostPurchaseInvoiceController extends Controller
     public function updateSettings(Request $request): RedirectResponse
     {
         $validator = Validator::make($request->all(), [
-            'enabled' => 'nullable|boolean',
-            'insurance_enabled' => 'nullable|boolean',
-            'insurance_type' => 'required|in:percentage,fixed',
-            'insurance_value' => 'required|numeric|min:0|max:1000000',
-            'insurance_threshold' => 'required|numeric|min:0|max:100000000',
             'payment_due_days' => 'required|integer|min:1|max:30',
         ]);
         if ($validator->fails()) {
             Toastr::error($validator->errors()->first());
             return back();
         }
-        if ($request->insurance_type === 'percentage' && (float) $request->insurance_value > 100) {
-            Toastr::error(translate('insurance_percentage_must_not_exceed_100'));
-            return back();
-        }
-
         $values = [
-            'feature_post_purchase_tax_invoice_v3' => $request->boolean('enabled') ? '1' : '0',
-            'commerce_contract_version' => PostPurchaseInvoiceService::CONTRACT_VERSION,
-            'customer_order_insurance_status' => $request->boolean('insurance_enabled') ? '1' : '0',
-            'customer_order_insurance_type' => $request->insurance_type,
-            'customer_order_insurance_value' => (string) $request->insurance_value,
-            'customer_order_insurance_threshold' => (string) $request->insurance_threshold,
             'post_purchase_invoice_due_days' => (string) $request->payment_due_days,
         ];
         foreach ($values as $type => $value) {

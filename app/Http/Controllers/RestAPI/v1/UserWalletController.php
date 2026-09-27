@@ -30,7 +30,7 @@ class UserWalletController extends Controller
             'insurance' => $insurance->summary($customerId),
             'purchase_enabled' => getWebConfig('wallet_status') == 1,
             'insurance_enabled' => (int) (getWebConfig('customer_order_insurance_status') ?? 0) === 1,
-            'tax_enabled' => app(\App\Services\WorkflowFeatureService::class)->postPurchaseTaxInvoiceEnabled(),
+            'tax_enabled' => getWebConfig(name: 'customer_second_invoice_tax_enabled') == 1,
             'pending_invoices_count' => $pendingInvoicesCount,
             'pending_invoices' => $pendingInvoicesQuery->with('order:id,order_group_id,order_amount')
                 ->latest('id')->limit(5)->get()->map(fn (PostPurchaseInvoice $invoice) => [

@@ -69,9 +69,10 @@ class PostPurchaseInvoiceController extends Controller
         return view($view, [
             'invoice' => $invoice,
             'summary' => $this->invoices->paymentSummary($invoice),
+            'insuranceBalance' => $this->invoices->customerInsuranceBalanceSummary((int) $invoice->customer_id),
             'digitalPaymentAvailable' => (bool) (getWebConfig(name: 'digital_payment')['status'] ?? 0) && count(payment_gateways()) > 0,
             'paymentGatewayList' => payment_gateways(),
-            'offlinePaymentMethods' => OfflinePaymentMethod::query()->where('status', 1)->get(),
+            'offlinePaymentMethods' => OfflinePaymentMethod::query()->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])->get(),
             'offlinePaymentAvailable' => (bool) (getWebConfig(name: 'offline_payment')['status'] ?? 0),
         ]);
     }
@@ -182,7 +183,8 @@ class PostPurchaseInvoiceController extends Controller
             return back();
         }
 
-        $method = OfflinePaymentMethod::query()->whereKey($request->method_id)->where('status', 1)->first();
+        $method = OfflinePaymentMethod::query()->whereKey($request->method_id)->where('status', 1)
+            ->whereIn('payment_channel', ['wallet', 'instapay'])->first();
         if (! $method || ! (getWebConfig(name: 'offline_payment')['status'] ?? 0)) {
             Toastr::error(translate('offline_payment_method_not_found'));
             return back();
