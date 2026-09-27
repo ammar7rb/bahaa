@@ -62,16 +62,11 @@ class OrderCommerceContractService
             'order_last_three_digits' => str_pad(substr((string) $order->id, -3), 3, '0', STR_PAD_LEFT),
             'order_amount' => (float) $order->order_amount,
             'flow_status' => $order->commerce_flow_status,
-            'created_at' => $order->created_at?->toIso8601String(),
             'seller_insurance' => [
                 'amount' => (float) ($insurance?->amount ?? 0),
                 'status' => $insurance?->status,
                 'payment_status' => $insurance?->payment_status,
-                'expires_at' => $insurance?->expires_at?->toIso8601String(),
-                'amount_source' => $insurance?->amount_source,
-                'balance_use_policy' => $insurance?->balance_use_policy ?: 'insurance_only',
             ],
-            'support_available' => true,
         ];
     }
 

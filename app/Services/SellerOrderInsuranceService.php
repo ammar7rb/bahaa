@@ -209,7 +209,21 @@ class SellerOrderInsuranceService
 
     public function payload(SellerOrderInsurance $insurance): array
     {
+        $this->releaseReusableCredits(null, (int) $insurance->seller_id);
         $summary = $this->ledger->summary((int) $insurance->seller_id);
+        if (! $this->canViewDetails($insurance)) {
+            return [
+                'id' => $insurance->id,
+                'order_last_three_digits' => str_pad(substr((string) $insurance->order_id, -3), 3, '0', STR_PAD_LEFT),
+                'order_amount' => (float) $insurance->order_amount,
+                'amount' => (float) $insurance->amount,
+                'status' => $insurance->status,
+                'payment_status' => $insurance->payment_status,
+                'details_hidden' => true,
+                'can_view_order_details' => false,
+                'balances' => ['reusable_insurance_credit' => (float) ($summary[SellerLedgerService::ORDER_INSURANCE_CREDIT] ?? 0)],
+            ];
+        }
         return [
             'id' => $insurance->id, 'order_id' => $insurance->order_id,
             'order_reference' => 'ORD-' . $insurance->order_id,
@@ -272,10 +286,11 @@ class SellerOrderInsuranceService
     }
 
     /** Releases a paid deposit only to the restricted insurance-credit bucket; it is never withdrawable. */
-    public function releaseReusableCredits(?int $limit = null): int
+    public function releaseReusableCredits(?int $limit = null, ?int $sellerId = null): int
     {
         $query = SellerOrderInsurance::query()->where('status', SellerOrderInsurance::STATUS_PAID)
             ->whereNotNull('reusable_at')->where('reusable_at', '<=', now())->whereNull('reusable_released_at')->orderBy('id');
+        if ($sellerId !== null) $query->where('seller_id', $sellerId);
         if ($limit) $query->limit($limit);
         $released = 0;
         foreach ($query->get() as $insurance) {

@@ -971,6 +971,14 @@
                             </li>
                         @endif
                         <li class="nav-item">
+                            <a class="nav-link {{ Request::is('admin/vendors/balance-deposits*') ? 'active' : '' }}"
+                               href="{{ route('admin.vendors.balance-deposits.index') }}"><span class="text-truncate">طلبات إيداع رصيد التجار</span></a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ Request::is('admin/vendors/balance-funding-settings*') ? 'active' : '' }}"
+                               href="{{ route('admin.vendors.balance-funding-settings.index') }}"><span class="text-truncate">إعدادات إيداع رصيد التجار</span></a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {{ Request::is('admin/vendors/packages*') ? 'active' : '' }}"
                                title="{{ translate('Vendor_Packages') }}"
                                href="{{ route('admin.vendors.packages.index') }}">

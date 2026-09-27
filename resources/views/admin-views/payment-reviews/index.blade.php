@@ -13,7 +13,7 @@
         <div class="card"><div class="card-body">
             <form method="get" class="row g-2 mb-4">
                 <div class="col-md-2"><select name="audience" class="form-select"><option value="">{{ translate('all_users') }}</option><option value="vendor" @selected(request('audience') === 'vendor')>{{ translate('vendor') }}</option><option value="customer" @selected(request('audience') === 'customer')>{{ translate('customer') }}</option></select></div>
-                <div class="col-md-2"><select name="kind" class="form-select"><option value="">{{ translate('all_payment_types') }}</option><option value="order" @selected(request('kind') === 'order')>{{ translate('order') }}</option><option value="package" @selected(request('kind') === 'package')>{{ translate('package') }}</option><option value="insurance" @selected(request('kind') === 'insurance')>{{ translate('insurance') }}</option></select></div>
+                <div class="col-md-2"><select name="kind" class="form-select"><option value="">{{ translate('all_payment_types') }}</option><option value="order" @selected(request('kind') === 'order')>{{ translate('order') }}</option><option value="package" @selected(request('kind') === 'package')>{{ translate('package') }}</option><option value="insurance" @selected(request('kind') === 'insurance')>{{ translate('insurance') }}</option><option value="balance_deposit" @selected(request('kind') === 'balance_deposit')>إيداع رصيد التاجر</option></select></div>
                 <div class="col-md-2"><select name="status" class="form-select"><option value="">{{ translate('all_Status') }}</option><option value="pending" @selected(request('status') === 'pending')>{{ translate('pending') }}</option><option value="approved" @selected(request('status') === 'approved')>{{ translate('approved') }}</option><option value="rejected" @selected(request('status') === 'rejected')>{{ translate('rejected') }}</option></select></div>
                 <div class="col-md-4"><input class="form-control" name="searchValue" value="{{ request('searchValue') }}" placeholder="{{ translate('search_seller_customer_or_reference') }}"></div>
                 <div class="col-md-2"><button class="btn btn--primary w-100">{{ translate('filter') }}</button></div>
@@ -34,7 +34,7 @@
                                         <div class="fs-12 text-break">
                                             {{ translatePaymentText($infoKey) }}:
                                             @php
-                                                $proofUrl = getOfflinePaymentProofUrl($infoValue, ['offline-payment/order-proof', 'offline-payment/activation-invoice-proof', 'offline-payment/customer-package-proof', 'seller-package/payment-proof', 'seller-insurance/payment-proof']);
+                                                $proofUrl = getOfflinePaymentProofUrl($infoValue, ['offline-payment/order-proof', 'offline-payment/activation-invoice-proof', 'offline-payment/customer-package-proof', 'seller-package/payment-proof', 'seller-insurance/payment-proof', 'seller-balance/payment-proof']);
                                             @endphp
                                             @if ($proofUrl)<a href="{{ $proofUrl }}" target="_blank" rel="noopener">{{ translate('view') }}</a>@else{{ formatOrderPaymentInfoValue($infoValue) }}@endif
                                         </div>

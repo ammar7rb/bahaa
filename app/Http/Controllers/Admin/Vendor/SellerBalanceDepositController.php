@@ -19,9 +19,11 @@ class SellerBalanceDepositController extends Controller
 
     public function index(Request $request): View
     {
+        $request->validate(['status' => 'nullable|in:pending,paid,rejected,reversed', 'source' => 'nullable|in:offline,digital', 'target' => 'nullable|in:operating,insurance', 'q' => 'nullable|string|max:191']);
         $deposits = SellerBalanceDeposit::query()->with(['seller:id,f_name,l_name,email,phone', 'offlinePaymentMethod:id,method_name'])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->get('status')))
             ->when($request->filled('source'), fn ($q) => $q->where('source', $request->get('source')))
+            ->when($request->filled('target'), fn ($q) => $q->where('metadata->wallet_target', $request->get('target')))
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = '%'.$request->get('q').'%';
                 $q->where(function ($inner) use ($term) {

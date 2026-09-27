@@ -77,7 +77,7 @@ class SellerBalanceController extends Controller
             'digital_payment_available' => $funding['digital_enabled'] && $gateways->isNotEmpty() && ($digital['status'] ?? 0),
             'payment_gateways' => $gateways->map(fn ($gateway) => ['key_name' => $gateway->key_name, 'title' => $gateway->key_name])->values(),
             'offline_payment_available' => $funding['offline_enabled'] && (bool) ($offline['status'] ?? 0),
-            'offline_payment_methods' => OfflinePaymentMethod::query()->where('status', 1)->get(['id', 'method_name', 'payment_channel', 'method_fields', 'method_informations']),
+            'offline_payment_methods' => OfflinePaymentMethod::query()->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])->get(['id', 'method_name', 'payment_channel', 'method_fields', 'method_informations']),
             'funding_settings' => ['min_amount' => Convert::default($funding['min_amount']), 'max_amount' => Convert::default($funding['max_amount']), 'currency_code' => Currency::find(getWebConfig(name: 'system_default_currency'))?->code, 'company_accounts' => $funding['company_accounts']],
         ]);
     }
@@ -110,7 +110,7 @@ class SellerBalanceController extends Controller
     {
         $validator = Validator::make($request->all(), ['amount' => 'required|numeric|min:0.01', 'method_id' => 'required|integer', 'method_informations' => 'nullable|string', 'payment_note' => 'nullable|string|max:1000', 'payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120', 'wallet_target' => 'nullable|in:operating,insurance']);
         if ($validator->fails()) return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 422);
-        $method = OfflinePaymentMethod::query()->whereKey($request->get('method_id'))->where('status', 1)->first();
+        $method = OfflinePaymentMethod::query()->whereKey($request->get('method_id'))->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])->first();
         $funding = $this->fundingSettings->get();
         if (!$funding['offline_enabled'] || !(getWebConfig(name: 'offline_payment')['status'] ?? 0) || !$method) return response()->json(['message' => translate('offline_payment_method_not_found')], 404);
         $information = json_decode((string) $request->get('method_informations', '{}'), true);

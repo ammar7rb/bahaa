@@ -39,6 +39,9 @@ use App\Http\Controllers\Admin\Vendor\SellerInsuranceController;
 use App\Http\Controllers\Admin\Vendor\SellerPackageController;
 use App\Http\Controllers\Admin\Vendor\SellerPackagePaymentController;
 use App\Http\Controllers\Admin\Vendor\SellerQuotaControlController;
+use App\Http\Controllers\Admin\Vendor\SellerBalanceDepositController;
+use App\Http\Controllers\Admin\Vendor\SellerBalanceFundingSettingsController;
+use App\Http\Controllers\Admin\Vendor\SellerFinancialCenterController;
 use App\Http\Controllers\Admin\EmailTemplatesController;
 use App\Http\Controllers\Admin\Product\ReviewController;
 use App\Http\Controllers\Admin\Settings\AddonController;
@@ -539,6 +542,23 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     Route::group(['prefix' => 'vendors', 'as' => 'vendors.', 'middleware' => ['module:people']], function () {
+        Route::controller(SellerBalanceFundingSettingsController::class)->prefix('balance-funding-settings')->name('balance-funding-settings.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'update')->name('update');
+        });
+        Route::controller(SellerBalanceDepositController::class)->prefix('balance-deposits')->name('balance-deposits.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('{id}/approve', 'approve')->name('approve');
+            Route::post('{id}/reject', 'reject')->name('reject');
+            Route::post('{id}/reverse', 'reverse')->name('reverse');
+        });
+        Route::controller(SellerFinancialCenterController::class)->prefix('financial-center')->name('financial-center.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('settlements/{id}/due-date', 'updateSettlementDueDate')->name('settlements.due-date');
+            Route::post('settlements/{id}/release', 'releaseSettlement')->name('settlements.release');
+            Route::post('settlements/{id}/dispute', 'disputeSettlement')->name('settlements.dispute');
+            Route::post('settlements/{id}/reverse', 'reverseSettlement')->name('settlements.reverse');
+        });
         Route::group(['prefix' => 'quota-control', 'as' => 'quota-control.'], function () {
             Route::controller(SellerQuotaControlController::class)->group(function () {
                 Route::get('/', 'index')->name('index');

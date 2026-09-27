@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\SellerInsurance;
+use App\Models\SellerBalanceDeposit;
 use App\Models\SellerOrderInsurance;
 use App\Models\SellerPackageSubscription;
 use App\Services\SellerInsuranceService;
+use App\Services\SellerBalanceDepositService;
 use App\Services\SellerOrderInsuranceService;
 use App\Services\PostPurchaseInvoiceService;
 use App\Services\SellerPackagePurchaseService;
@@ -23,6 +25,7 @@ class PaymentReviewController extends Controller
 {
     public function __construct(
         private readonly SellerPackagePurchaseService $packageService,
+        private readonly SellerBalanceDepositService $balanceDeposits,
         private readonly SellerInsuranceService $insuranceService,
         private readonly SellerOrderInsuranceService $sellerOrderInsuranceService,
         private readonly PostPurchaseInvoiceService $postPurchaseInvoices,
@@ -45,7 +48,10 @@ class PaymentReviewController extends Controller
     {
         $request->validate(['payment_reference' => 'nullable|string|max:191', 'review_note' => 'nullable|string|max:1000']);
         try {
-            if ($type === 'vendor_package') {
+            if ($type === 'vendor_balance_deposit') {
+                $deposit = SellerBalanceDeposit::query()->where('source', SellerBalanceDeposit::SOURCE_OFFLINE)->where('status', SellerBalanceDeposit::STATUS_PENDING)->findOrFail($id);
+                $this->balanceDeposits->markPaid($deposit, ['payment_method' => 'offline_payment', 'transaction_id' => $request->get('payment_reference') ?: 'seller-balance-offline-'.$deposit->id, 'payment_amount' => $deposit->amount, 'currency_code' => $deposit->currency_code], auth('admin')->id(), $request->get('review_note'));
+            } elseif ($type === 'vendor_package') {
                 $subscription = SellerPackageSubscription::query()->where('payment_method', 'offline_payment')->where('payment_status', 'unpaid')->where('status', SellerPackageSubscription::STATUS_PENDING_REVIEW)->findOrFail($id);
                 $result = $this->packageService->markPaid($subscription, ['payment_method' => 'offline_payment', 'transaction_id' => $request->get('payment_reference') ?: 'unified-review-'.$subscription->id, 'payment_amount' => (float) $subscription->paid_package_price, 'currency_code' => getCurrencyCode(type: 'default')], auth('admin')->id(), $request->get('review_note'));
                 if (($result['status'] ?? 0) !== 1) throw new DomainException($result['message'] ?? 'seller_package_approval_failed');
@@ -78,7 +84,10 @@ class PaymentReviewController extends Controller
     {
         $request->validate(['review_note' => 'required|string|max:1000']);
         try {
-            if ($type === 'vendor_package') {
+            if ($type === 'vendor_balance_deposit') {
+                $deposit = SellerBalanceDeposit::query()->where('source', SellerBalanceDeposit::SOURCE_OFFLINE)->where('status', SellerBalanceDeposit::STATUS_PENDING)->findOrFail($id);
+                $this->balanceDeposits->reject($deposit, auth('admin')->id(), $request->get('review_note'));
+            } elseif ($type === 'vendor_package') {
                 $subscription = SellerPackageSubscription::query()->where('payment_method', 'offline_payment')->where('payment_status', 'unpaid')->where('status', SellerPackageSubscription::STATUS_PENDING_REVIEW)->findOrFail($id);
                 $this->packageService->rejectOfflinePayment($subscription, auth('admin')->id(), $request->get('review_note'));
             } elseif ($type === 'vendor_insurance') {
@@ -113,6 +122,27 @@ class PaymentReviewController extends Controller
         $search = trim((string) $request->get('searchValue'));
 
         if (!$audience || $audience === 'vendor') {
+            if (!$kind || $kind === 'balance_deposit') {
+                SellerBalanceDeposit::query()->with(['seller:id,f_name,l_name,email,phone', 'offlinePaymentMethod:id,method_name'])
+                    ->where('source', SellerBalanceDeposit::SOURCE_OFFLINE)
+                    ->when($status === 'pending', fn ($q) => $q->where('status', SellerBalanceDeposit::STATUS_PENDING))
+                    ->when($status === 'approved', fn ($q) => $q->where('status', SellerBalanceDeposit::STATUS_PAID))
+                    ->when($status === 'rejected', fn ($q) => $q->where('status', SellerBalanceDeposit::STATUS_REJECTED))
+                    ->when(!$status, fn ($q) => $q->whereIn('status', [SellerBalanceDeposit::STATUS_PENDING, SellerBalanceDeposit::STATUS_PAID, SellerBalanceDeposit::STATUS_REJECTED]))
+                    ->latest('id')->get()->each(function (SellerBalanceDeposit $deposit) use (&$rows, $search) {
+                        $text = strtolower(implode(' ', [$deposit->id, $deposit->transaction_reference, $deposit->seller?->email, $deposit->seller?->phone]));
+                        if ($search !== '' && !str_contains($text, strtolower($search))) return;
+                        $target = data_get($deposit->metadata, 'wallet_target') === 'insurance' ? 'رصيد التأمين' : 'رصيد المشتريات';
+                        $rows->push([
+                            'id' => $deposit->id, 'type' => 'vendor_balance_deposit', 'kind' => 'balance_deposit', 'audience' => 'vendor',
+                            'status' => $deposit->status === SellerBalanceDeposit::STATUS_PENDING ? 'pending' : ($deposit->status === SellerBalanceDeposit::STATUS_PAID ? 'approved' : 'rejected'),
+                            'actor' => $deposit->seller, 'label' => $target, 'amount' => (float) $deposit->amount,
+                            'currency' => $deposit->currency_code, 'reference' => $deposit->transaction_reference ?: 'DEP-'.$deposit->id,
+                            'offline' => array_merge(['method_name' => $deposit->offlinePaymentMethod?->method_name], $deposit->offline_information ?: [], ['payment_proof' => $deposit->payment_proof, 'payment_note' => $deposit->payment_note]),
+                            'created_at' => $deposit->created_at,
+                        ]);
+                    });
+            }
             if (!$kind || $kind === 'package') {
                 SellerPackageSubscription::query()->with(['seller:id,f_name,l_name,email,phone', 'package:id,name'])->where('payment_method', 'offline_payment')->when($status === 'pending', fn ($q) => $q->where('status', SellerPackageSubscription::STATUS_PENDING_REVIEW))->when($status === 'approved', fn ($q) => $q->where('status', SellerPackageSubscription::STATUS_ACTIVE))->when($status === 'rejected', fn ($q) => $q->where('status', SellerPackageSubscription::STATUS_REJECTED))->when(!$status, fn ($q) => $q->whereIn('status', [SellerPackageSubscription::STATUS_PENDING_REVIEW, SellerPackageSubscription::STATUS_ACTIVE, SellerPackageSubscription::STATUS_REJECTED]))->latest('id')->get()->each(function ($subscription) use (&$rows, $search) {
                     $text = strtolower(implode(' ', [$subscription->package_name, $subscription->payment_reference, $subscription->seller?->email, $subscription->seller?->phone]));

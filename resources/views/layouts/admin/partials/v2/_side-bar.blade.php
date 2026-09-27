@@ -543,6 +543,14 @@
                             <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="seller-insurance" aria-label="Pin"></button></div>
                         </a>
                     @endif
+                    <a class="v2-nav-item {{ Request::is('admin/vendors/balance-deposits*') ? 'v2-is-active' : '' }}" data-item="vendor-balance-deposits" href="{{ route('admin.vendors.balance-deposits.index') }}">
+                        <span class="v2-nav-btn"><span class="v2-nav-label">طلبات إيداع رصيد التجار</span></span>
+                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-balance-deposits" aria-label="Pin"></button></div>
+                    </a>
+                    <a class="v2-nav-item {{ Request::is('admin/vendors/balance-funding-settings*') ? 'v2-is-active' : '' }}" data-item="vendor-balance-funding" href="{{ route('admin.vendors.balance-funding-settings.index') }}">
+                        <span class="v2-nav-btn"><span class="v2-nav-label">إعدادات إيداع رصيد التجار</span></span>
+                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-balance-funding" aria-label="Pin"></button></div>
+                    </a>
                     <a class="v2-nav-item {{ Request::is('admin/vendors/packages*') ? 'v2-is-active' : '' }}" data-item="vendor-packages" href="{{ route('admin.vendors.packages.index') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Vendor_Packages') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-packages" aria-label="Pin"></button></div>
