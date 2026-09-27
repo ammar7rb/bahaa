@@ -131,7 +131,7 @@ class OrderCommercePhaseZeroTest extends TestCase
         $this->assertIsString($view);
         foreach ([
             'admin.support-ticket.view',
-            'admin.vendors.activation-tickets.page',
+            'admin.activation-center.index',
             'admin.payment-reviews.index',
             'admin.banner.list',
             'admin.business-settings.priority-setup.index',

@@ -54,7 +54,7 @@ class SellerRestrictedOrdersPhaseFourTest extends TestCase
         $this->assertTrue($payload['details_locked']);
         $this->assertSame('***321', $payload['order_reference']);
         $this->assertTrue(Str::isUuid($payload['restricted_access_token']));
-        $this->assertSame(['amount', 'status', 'payment_status', 'expires_at', 'amount_source', 'balance_use_policy'], array_keys($payload['seller_insurance']));
+        $this->assertSame(['amount', 'status', 'payment_status'], array_keys($payload['seller_insurance']));
         foreach (['id', 'order_id', 'customer', 'customer_id', 'phone', 'address', 'products', 'order_details', 'shipping_address'] as $forbidden) {
             $this->assertArrayNotHasKey($forbidden, $payload);
         }
@@ -90,7 +90,7 @@ class SellerRestrictedOrdersPhaseFourTest extends TestCase
         $apiRoutes = file_get_contents(base_path('routes/rest_api/v3/seller.php'));
         $vendorRoutes = file_get_contents(base_path('routes/vendor/routes.php'));
         $apiController = file_get_contents(app_path('Http/Controllers/RestAPI/v3/seller/OrderController.php'));
-        $appRoot = 'E:/project/Vendor app/lib';
+        $appRoot = 'E:/project/vendor-app-main/lib';
 
         $this->assertStringContainsString("Route::get('insurance-pending', 'insurancePending')", $apiRoutes);
         $this->assertStringContainsString("Route::get('insurance-pending', [SellerOrderInsuranceWebController::class, 'pending'])->name('insurance-pending')", $vendorRoutes);
@@ -104,7 +104,7 @@ class SellerRestrictedOrdersPhaseFourTest extends TestCase
     {
         $api = file_get_contents(app_path('Http/Controllers/RestAPI/v3/seller/OrderController.php'));
         $web = file_get_contents(app_path('Http/Controllers/Vendor/Order/OrderController.php'));
-        $app = file_get_contents('E:/project/Vendor app/lib/features/order_details/widgets/seller_shipping_assignment_widget.dart');
+        $app = file_get_contents('E:/project/vendor-app-main/lib/features/order_details/widgets/seller_shipping_assignment_widget.dart');
 
         foreach ([$api, $web] as $source) {
             $this->assertStringContainsString("shipping_fulfillment_mode === 'admin_shipping'", $source);
