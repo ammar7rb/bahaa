@@ -1,12 +1,13 @@
-@php($sellerRegistrationFallback = dynamicAsset(path: 'public/assets/front-end/img/media/seller-registration.png'))
+@php($sellerRegistrationFallback = dynamicAsset(path: 'public/assets/front-end/img/media/sigma-medical-registration.webp'))
+@php($isArabic = in_array(app()->getLocale(), ['ar', 'sa']))
 <div class="col-lg-4">
     <div class="">
         <div class="d-flex justify-content-center">
             <div class="ext-center">
                 <h3 class="mb-2 text-capitalize">
-                    {{ $vendorRegistrationHeader?->title ?? translate('vendor_registration') }}
+                    {{ $isArabic ? 'تسجيل التاجر' : ($vendorRegistrationHeader?->title ?? 'Vendor Registration') }}
                 </h3>
-                <p>{{ $vendorRegistrationHeader?->sub_title ?? translate('create_your_own_store.').' '.translate('already_have_store').'?' }}
+                <p>{{ $isArabic ? 'أنشئ متجرك الآن. لديك متجر بالفعل؟' : ($vendorRegistrationHeader?->sub_title ?? 'Create your own store. Already have a store?') }}
                     <a class="text-primary fw-bold" href="{{ route('vendor.auth.login') }}">
                         {{ translate('login') }}
                     </a>
@@ -15,7 +16,7 @@
                     <img width="308"
                          src="{{ !empty($vendorRegistrationHeader?->image) ? getStorageImages(path:imagePathProcessing(imageData: $vendorRegistrationHeader?->image, path: 'vendor-registration-setting'),type: 'product') : $sellerRegistrationFallback }}"
                          onerror="this.onerror=null;this.src='{{ $sellerRegistrationFallback }}';"
-                         alt="{{ translate('vendor_registration') }}" class="dark-support">
+                         alt="{{ $isArabic ? 'مستلزمات طبية' : 'Medical supplies' }}" class="dark-support">
                 </div>
             </div>
         </div>
