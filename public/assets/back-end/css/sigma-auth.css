@@ -1,0 +1,35 @@
+.auth-wrapper-left.sigma-auth-panel {
+    align-items: flex-start;
+    padding: clamp(64px, 12vh, 144px) 32px 32px;
+    background-position: center bottom !important;
+}
+
+.sigma-auth-panel .auth-left-cont {
+    width: min(100%, 440px);
+    margin: 0 !important;
+    text-align: center;
+}
+
+.sigma-auth-panel .auth-left-cont a {
+    display: flex !important;
+    justify-content: center;
+    margin-bottom: 28px !important;
+}
+
+.sigma-auth-panel .auth-left-cont img.ba-platform-logo {
+    display: block;
+    width: min(100%, 330px);
+    max-width: 330px;
+    max-height: 100px;
+    margin: 0;
+    object-position: center;
+    filter: none !important;
+}
+
+.sigma-auth-panel .auth-left-cont .title {
+    color: #15345c;
+    font-size: clamp(25px, 2.5vw, 38px);
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 0;
+}

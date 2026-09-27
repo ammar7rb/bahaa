@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/theme.minc619.css?v=1.0') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/style.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-dark-mode.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-dark-mode.css')) }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/sigma-auth.css') }}">
     @include('layouts.vendor.partials._dark-mode-preference')
 
     @if ($web_config['primary_color'])
@@ -41,16 +42,15 @@
     @include('layouts.vendor.partials._dark-mode-toggle')
     <main id="content" role="main" class="main">
         <div class="auth-wrapper">
-            <div class="auth-wrapper-left"
-                style="background: url('{{ dynamicAsset(path: 'public/assets/back-end/img/login-bg.webp') }}') no-repeat center center / cover">
+            <div class="auth-wrapper-left sigma-auth-panel"
+                style="background: url('{{ dynamicAsset(path: 'public/assets/back-end/img/sigma-medical-auth.webp') }}') no-repeat center center / cover">
                 <div class="auth-left-cont">
                     @php($eCommerceLogo = getWebConfig(name: 'company_web_logo'))
                     <a class="d-inline-flex mb-5" href="{{ route('home') }}">
-                        <img width="310" src="{{ getStorageImages(path: $eCommerceLogo, type: 'backend-logo') }}"
-                            alt="Logo">
+                        <img class="ba-platform-logo" width="310" src="{{ getStorageImages(path: $eCommerceLogo, type: 'backend-logo') }}"
+                            alt="SIGMA Medical Supplies">
                     </a>
-                    <h2 class="title">{{ translate('Make Your Business') }} <span
-                            class="font-weight-bold c1 d-block text-capitalize">{{ translate('Profitable...') }}</span>
+                    <h2 class="title">{{ session('direction') === 'rtl' ? 'مستلزمات طبية تثق بها' : 'Medical supplies you can trust' }}
                     </h2>
                 </div>
             </div>

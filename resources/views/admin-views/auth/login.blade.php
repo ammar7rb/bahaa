@@ -27,6 +27,7 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/admin/css/style-extended.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/admin/css/custom.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-dark-mode.css') }}?v=20260910.4">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/sigma-auth.css') }}">
     <script>
         (function () {
             var storageKey = 'ba_admin_theme', storedTheme = null;
@@ -52,19 +53,16 @@
     <button class="admin-auth-theme-toggle" type="button" onclick="window.baToggleAdminTheme(); return false;" aria-label="{{ translate('dark_mode') }}"><span data-admin-theme-icon aria-hidden="true">&#9790;</span></button>
     <main id="content" role="main" class="main">
         <div class="auth-wrapper">
-            <div class="auth-wrapper-left"
-                style="background: url('{{ dynamicAsset('public/assets/back-end/img/login-bg.webp') }}') no-repeat center center / cover">
+            <div class="auth-wrapper-left sigma-auth-panel"
+                style="background: url('{{ dynamicAsset('public/assets/back-end/img/sigma-medical-auth.webp') }}') no-repeat center center / cover">
                 <div class="auth-left-cont user-select-none">
                     @php($eCommerceLogo = getWebConfig(name: 'company_web_logo'))
                     <a class="d-inline-flex mb-5" href="{{ route('home') }}">
                         <img class="ba-platform-logo" width="310" src="{{ getStorageImages(path: $eCommerceLogo, type: 'backend-logo') }}"
-                            alt="Logo">
+                            alt="SIGMA Medical Supplies">
                     </a>
                     <h2 class="title h1">
-                        {{ translate('Make Your Business') }}
-                        <span class="fw-bold text-primary d-block text-capitalize">
-                            {{ translate('Profitable...') }}
-                        </span>
+                        {{ session('direction') === 'rtl' ? 'مستلزمات طبية تثق بها' : 'Medical supplies you can trust' }}
                     </h2>
                 </div>
             </div>
