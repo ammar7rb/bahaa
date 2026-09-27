@@ -1,0 +1,42 @@
+.customer-balances-page { --wallet-accent:#1769c2; --wallet-soft:#eef5ff; --wallet-line:#e3eaf3; --wallet-muted:#64748b; }
+.customer-balances-page section { min-width:0; }
+.customer-balances-page .wallet-heading,.customer-balances-page .wallet-card-heading,.customer-balances-page .wallet-history-heading { display:flex; align-items:center; gap:12px; }
+.customer-balances-page .wallet-card-heading { justify-content:space-between; }
+.customer-balances-page .wallet-icon { flex-shrink:0; }
+.customer-balances-page .wallet-icon-tile { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:14px; background:var(--wallet-soft); color:var(--wallet-accent); flex-shrink:0; }
+.customer-balances-page .wallet-balance-card { border:1px solid var(--wallet-line); border-radius:18px; box-shadow:0 4px 18px #132d5010; overflow:hidden; }
+.customer-balances-page .wallet-balance-card .card-body { padding:24px; display:flex; flex-direction:column; }
+.customer-balances-page .wallet-balance-insurance .wallet-icon-tile { color:#128275; background:#eaf8f5; }
+.customer-balances-page .wallet-amount { font-size:clamp(25px,3vw,34px); font-weight:700; line-height:1.4; letter-spacing:-.5px; }
+.customer-balances-page .wallet-held-info { border-top:1px solid var(--wallet-line); padding-top:14px; margin-bottom:20px; font-size:13px; }
+.customer-balances-page .wallet-deposit { margin-top:auto; padding-top:8px; }
+.customer-balances-page .wallet-deposit > summary { display:flex; justify-content:center; align-items:center; gap:8px; padding:12px; border:1px solid #bfd8f7; background:var(--wallet-soft); border-radius:11px; color:var(--wallet-accent); font-weight:600; cursor:pointer; list-style:none; }
+.customer-balances-page .wallet-deposit > summary::-webkit-details-marker { display:none; }
+.customer-balances-page summary:focus-visible,.customer-balances-page .wallet-history-nav a:focus-visible { outline:3px solid #83b8ff; outline-offset:3px; }
+.customer-balances-page .wallet-deposit[open] > summary .wallet-icon { transform:rotate(45deg); }
+.customer-balances-page .wallet-deposit-content { padding-top:12px; }
+.customer-balances-page .wallet-deposit-content details { background:transparent; font-size:13px; }
+.customer-balances-page .wallet-notice { display:flex; align-items:flex-start; gap:12px; padding:16px 18px; border-radius:12px; background:var(--wallet-soft); color:#46617f; font-size:13px; line-height:1.9; margin:4px 0 28px; }
+.customer-balances-page .wallet-notice > svg { margin-top:3px; color:var(--wallet-accent); }
+.customer-balances-page .wallet-history-heading { margin-bottom:16px; }
+.customer-balances-page .wallet-history-heading > svg { color:var(--wallet-muted); }
+.customer-balances-page .wallet-history-nav { display:flex; gap:6px; overflow-x:auto; padding:5px; margin-bottom:16px; background:#f0f4f9; border-radius:12px; }
+.customer-balances-page .wallet-history-nav a { flex:1 0 auto; text-align:center; padding:11px 14px; color:#52647b; border-radius:9px; font-size:13px; font-weight:600; }
+.customer-balances-page .wallet-history-nav a[aria-current] { color:var(--wallet-accent); background:#fff; box-shadow:0 2px 5px #132d5010; }
+.customer-balances-page .wallet-history { border:1px solid var(--wallet-line); border-radius:16px; box-shadow:none; overflow:hidden; }
+.customer-balances-page .wallet-history[hidden] { display:none!important; }
+.customer-balances-page .wallet-history .card-body { padding:20px; }
+.customer-balances-page .wallet-history h2 { font-size:15px; margin-bottom:20px; }
+.customer-balances-page .table { font-size:13px; margin-bottom:0; }
+.customer-balances-page .table th { font-weight:600; white-space:nowrap; border-top:0; background:#f7f9fc; color:var(--wallet-muted); }
+.customer-balances-page .table td { vertical-align:middle; border-color:var(--wallet-line); padding-top:16px; padding-bottom:16px; }
+.customer-balances-page .table td[colspan] { padding:48px 16px; }
+:root[data-ba-storefront-theme="dark"] .customer-balances-page { --wallet-soft:#213553; --wallet-accent:#8dbfff; --wallet-line:#344665; --wallet-muted:#b6c4dc; }
+:root[data-ba-storefront-theme="dark"] .customer-balances-page .wallet-balance-insurance .wallet-icon-tile { background:#163d40; color:#74d8c5; }
+:root[data-ba-storefront-theme="dark"] .customer-balances-page .wallet-deposit > summary { background:var(--wallet-soft)!important; border-color:var(--wallet-line)!important; }
+:root[data-ba-storefront-theme="dark"] .customer-balances-page .wallet-notice { background:#152c43!important; color:#bdcee4!important; }
+:root[data-ba-storefront-theme="dark"] .customer-balances-page .wallet-notice p { color:inherit!important; }
+:root[data-ba-storefront-theme="dark"] .customer-balances-page .wallet-history-nav { background:#101a2d!important; }
+:root[data-ba-storefront-theme="dark"] .customer-balances-page .wallet-history-nav a { color:#b6c4dc!important; }
+:root[data-ba-storefront-theme="dark"] .customer-balances-page .wallet-history-nav a[aria-current] { background:#253653!important; color:#8dbfff!important; }
+@media(max-width:575px) { .customer-balances-page .wallet-heading { gap:8px; } .customer-balances-page .wallet-heading h1 { font-size:21px; } .customer-balances-page .wallet-balance-card .card-body { padding:20px; } .customer-balances-page .wallet-history .card-body { padding:14px; } .customer-balances-page .wallet-history-nav a { padding:10px; } }
