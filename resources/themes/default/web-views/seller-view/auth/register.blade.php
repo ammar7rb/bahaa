@@ -21,7 +21,7 @@
                 <section>
                     <div class="container">
                         <div class="create-an-account p-3 p-sm-4">
-                            <img src="{{ dynamicAsset(path: 'public/assets/front-end/img/media/form-bg.png') }}" alt=""
+                            <img src="{{ dynamicAsset(path: 'public/assets/front-end/img/media/sigma-medical-registration.webp') }}" alt=""
                                 class="create-an-account-bg-img">
                             <div class="row">
                                 @include('web-views.seller-view.auth.partial.header')
