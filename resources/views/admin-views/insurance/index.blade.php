@@ -116,6 +116,8 @@
         </form>
     </div></div>
 
+    @include('admin-views.insurance.partials.overview-tools')
+
     @if($subjectType === 'customer')
     <div class="row g-3 mb-3">
         <div class="col-md-3"><div class="card insurance-stat h-100"><div class="card-body"><small>{{ translate('Welcome_Insurance_Credit') }}</small><h3>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $report['welcome_credit'])) }}</h3><span>{{ $report['welcome_redemptions'] }} {{ translate('operations') }}</span></div></div></div>
@@ -191,7 +193,7 @@
         </div>
         <div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>الحساب</th><th>القرار</th><th>القيمة الخاصة</th><th>السبب</th><th>تاريخ الحفظ</th><th>إجراء</th></tr></thead><tbody>
             @forelse($subjectOverrides as $override)
-                <tr><td>{{ $override->subject_type === 'customer' ? 'عميل' : 'تاجر' }} #{{ $override->subject_id }}<div class="small text-muted"><bdi>{{ $selectedAccountEmails[$override->subject_type][$override->subject_id] ?? '—' }}</bdi></div></td><td>{{ match($override->mode) { 'included' => 'تطبيق القواعد العامة', 'exempt' => 'معفى من التأمين', default => 'تأمين بقيمة خاصة' } }}</td><td>@if($override->mode === 'required'){{ $override->calculation_type === 'percentage' ? $override->calculation_value.'%' : setCurrencySymbol(amount:usdToDefaultCurrency(amount:$override->calculation_value)) }}@else—@endif</td><td>{{ $override->reason }}</td><td>{{ $override->created_at?->format('Y-m-d H:i') }}</td><td><form method="post" action="{{ route('admin.insurance-center.subject-overrides.delete',$override) }}">@csrf @method('delete')<button class="btn btn-outline-danger btn-sm">حذف</button></form></td></tr>
+                <tr><td><a href="{{ route('admin.insurance-center.accounts.show', [$subjectType, $override->subject_id]) }}">{{ $override->subject_type === 'customer' ? 'عميل' : 'تاجر' }} #{{ $override->subject_id }}</a><div class="small text-muted"><bdi>{{ $selectedAccountEmails[$override->subject_type][$override->subject_id] ?? '—' }}</bdi></div></td><td>{{ match($override->mode) { 'included' => 'تطبيق القواعد العامة', 'exempt' => 'معفى من التأمين', default => 'تأمين بقيمة خاصة' } }}</td><td>@if($override->mode === 'required'){{ $override->calculation_type === 'percentage' ? $override->calculation_value.'%' : setCurrencySymbol(amount:usdToDefaultCurrency(amount:$override->calculation_value)) }}@else—@endif</td><td>{{ $override->reason }}</td><td>{{ $override->created_at?->format('Y-m-d H:i') }}</td><td><form method="post" action="{{ route('admin.insurance-center.subject-overrides.delete',$override) }}">@csrf @method('delete')<button class="btn btn-outline-danger btn-sm">حذف</button></form></td></tr>
             @empty
                 <tr><td colspan="6" class="text-center text-muted">لا توجد حسابات محددة حتى الآن.</td></tr>
             @endforelse
@@ -269,6 +271,14 @@
 
 @push('script')
 <script>
+    (function () {
+        var scope = document.getElementById('customer-insurance-scope') || document.getElementById('seller-insurance-scope');
+        var group = document.querySelector('[data-insurance-selected-group]');
+        if (!scope || !group) return;
+        function refresh() { group.style.display = scope.value === 'selected' ? '' : 'none'; }
+        scope.addEventListener('change', refresh);
+        refresh();
+    })();
     document.querySelectorAll('.js-insurance-override-mode').forEach(function (select) {
         var fields = select.closest('form').querySelectorAll('.js-insurance-override-value');
         var refresh = function () { fields.forEach(function (field) { field.classList.toggle('d-none', select.value !== 'required'); }); };

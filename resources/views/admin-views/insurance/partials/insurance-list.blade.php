@@ -32,7 +32,7 @@
             @forelse($insurances as $insurance)
                 @php($owner = $isCustomer ? $insurance->customer : $insurance->seller)
                 <tr>
-                    <td><strong>{{ trim(($owner?->f_name ?? '').' '.($owner?->l_name ?? '')) ?: ($owner?->email ?? translate('Unknown')) }}</strong><div class="small text-muted">{{ $isCustomer ? 'C' : 'V' }}{{ $owner?->id }} · #{{ $insurance->id }} @if($owner?->phone) · {{ $owner->phone }} @endif</div></td>
+                    <td>@if($owner)<a href="{{ route('admin.insurance-center.accounts.show', [$partyType, $owner->id]) }}"><strong>{{ trim(($owner->f_name ?? '').' '.($owner->l_name ?? '')) ?: $owner->email }}</strong></a>@else<strong>{{ translate('Unknown') }}</strong>@endif<div class="small text-muted">{{ $isCustomer ? 'C' : 'V' }}{{ $owner?->id }} · #{{ $insurance->id }} @if($owner?->phone) · {{ $owner->phone }} @endif</div></td>
                     <td><a href="{{ route('admin.orders.details',['id'=>$insurance->order_id]) }}">#{{ $insurance->order_id }}</a></td>
                     <td><strong>{{ setCurrencySymbol(amount:usdToDefaultCurrency(amount:$insurance->amount)) }}</strong>@if(($insurance->confiscated_amount ?? 0) > 0)<div class="small text-muted">{{ translate('Confiscated') }}: {{ setCurrencySymbol(amount:usdToDefaultCurrency(amount:$insurance->confiscated_amount)) }}</div>@endif</td>
                     <td><span class="badge badge-soft-{{ $insurance->payment_status === 'paid' ? 'success' : 'warning' }}">{{ translate($insurance->payment_status) }}</span><div class="small mt-1">{{ translate($insurance->status) }}</div></td>

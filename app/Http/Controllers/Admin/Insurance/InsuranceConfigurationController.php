@@ -50,7 +50,7 @@ class InsuranceConfigurationController extends Controller
         $insuranceStatuses = collect();
         $accountSearch = trim((string) $request->query('account_search', ''));
         $accountResults = collect();
-        if ($activeSection === 'exceptions' && mb_strlen($accountSearch) >= 2 && mb_strlen($accountSearch) <= 255) {
+        if (in_array($activeSection, ['overview', 'exceptions', 'balances'], true) && mb_strlen($accountSearch) >= 2 && mb_strlen($accountSearch) <= 255) {
             $model = $subjectType === 'customer' ? User::class : Seller::class;
             $accountResults = $model::query()->select(['id', 'f_name', 'l_name', 'email'])
                 ->where('email', 'like', '%' . addcslashes($accountSearch, '%_\\') . '%')
@@ -65,9 +65,11 @@ class InsuranceConfigurationController extends Controller
             $insuranceStatuses = SellerOrderInsurance::query()->whereNotNull('status')->distinct()->orderBy('status')->pluck('status');
         }
         $subjectOverrides = InsuranceSubjectOverride::query()->where('subject_type', $subjectType)->latest('id')->limit(100)->get();
+        $includedAccounts = InsuranceSubjectOverride::query()->where('subject_type', $subjectType)
+            ->where('is_active', true)->whereIn('mode', ['included', 'required'])->latest('id')->paginate(20, ['*'], 'members_page');
         $selectedAccountEmails = [
             $subjectType => ($subjectType === 'customer' ? User::query() : Seller::query())
-                ->whereIn('id', $subjectOverrides->pluck('subject_id'))->pluck('email', 'id'),
+                ->whereIn('id', $subjectOverrides->pluck('subject_id')->merge($includedAccounts->pluck('subject_id')))->pluck('email', 'id'),
         ];
 
         return view('admin-views.insurance.index', [
@@ -77,6 +79,7 @@ class InsuranceConfigurationController extends Controller
             'rules' => InsuranceRule::query()->where('subject_type', $subjectType)->orderBy('priority')->get(),
             'incentives' => $subjectType === 'customer' ? InsuranceIncentive::query()->orderBy('priority')->get() : collect(),
             'subjectOverrides' => $subjectOverrides,
+            'includedAccounts' => $includedAccounts,
             'selectedAccountEmails' => $selectedAccountEmails,
             'balanceActions' => InsuranceBalanceAction::query()->where('subject_type', $subjectType)->latest('id')->limit(50)->get(),
             'customerInsurances' => $customerInsurances,
@@ -92,6 +95,65 @@ class InsuranceConfigurationController extends Controller
                 'discount_redemptions' => InsuranceIncentiveRedemption::query()->where('redemption_type', 'premium_discount')->count(),
             ],
         ]);
+    }
+
+    public function accountDetails(string $subjectType, int $subjectId): View
+    {
+        abort_unless(in_array($subjectType, ['customer', 'seller'], true), 404);
+        $account = ($subjectType === 'customer' ? User::query() : Seller::query())->findOrFail($subjectId);
+        $query = $subjectType === 'customer'
+            ? OrderInsurance::query()->where('customer_id', $subjectId)
+            : SellerOrderInsurance::query()->where('seller_id', $subjectId);
+        $summary = $subjectType === 'customer'
+            ? $this->customerBalances->summary($subjectId)
+            : $this->sellerLedger->summary($subjectId);
+
+        return view('admin-views.insurance.account', [
+            'subjectType' => $subjectType,
+            'account' => $account,
+            'records' => (clone $query)->latest('id')->paginate(25),
+            'recordCount' => (clone $query)->count(),
+            'paidAmount' => (float) (clone $query)->where('payment_status', 'paid')->sum('amount'),
+            'confiscatedAmount' => (float) (clone $query)->sum('confiscated_amount'),
+            'availableBalance' => $subjectType === 'customer'
+                ? (float) ($summary['available_balance'] ?? 0)
+                : (float) ($summary[SellerLedgerService::ORDER_INSURANCE_CREDIT] ?? 0),
+            'heldBalance' => $this->governance->heldBalance($subjectType, $subjectId),
+            'actions' => InsuranceBalanceAction::query()->where('subject_type', $subjectType)
+                ->where('subject_id', $subjectId)->latest('id')->limit(50)->get(),
+            'override' => InsuranceSubjectOverride::query()->where('subject_type', $subjectType)
+                ->where('subject_id', $subjectId)->first(),
+        ]);
+    }
+
+    public function storeSelectedAccounts(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'subject_type' => ['required', Rule::in(['customer', 'seller'])],
+            'subject_ids' => 'required|array|min:1|max:50',
+            'subject_ids.*' => 'required|integer|min:1|distinct',
+        ]);
+        $ids = array_map('intval', $data['subject_ids']);
+        $model = $data['subject_type'] === 'customer' ? User::class : Seller::class;
+        if ($model::query()->whereIn('id', $ids)->count() !== count($ids)) {
+            throw ValidationException::withMessages(['subject_ids' => 'بعض الحسابات المحددة غير موجودة.']);
+        }
+        DB::transaction(function () use ($data, $ids) {
+            foreach ($ids as $id) {
+                $override = InsuranceSubjectOverride::query()->firstOrNew([
+                    'subject_type' => $data['subject_type'], 'subject_id' => $id,
+                ]);
+                if ($override->exists && $override->mode === 'required' && $override->is_active) continue;
+                $override->fill([
+                    'mode' => 'included', 'calculation_type' => null, 'calculation_value' => null,
+                    'reason' => 'إضافة إلى مجموعة الحسابات المشمولة بالتأمين',
+                    'is_active' => true, 'created_by_admin_id' => auth('admin')->id(),
+                ])->save();
+            }
+        });
+        return redirect()->route('admin.insurance-center.index', [
+            'tab' => $data['subject_type'] === 'customer' ? 'customers' : 'sellers',
+        ])->with('success', 'تمت إضافة الحسابات إلى مجموعة التأمين. يمكنك إضافة حسابات أخرى لاحقًا.');
     }
 
     public function customerInsuranceDetails(OrderInsurance $insurance): View

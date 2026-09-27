@@ -144,6 +144,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     Route::group(['prefix' => 'insurance-center', 'as' => 'insurance-center.', 'middleware' => ['module:reports']], function () {
         Route::controller(InsuranceConfigurationController::class)->group(function () {
             Route::get('/', 'index')->name('index');
+            Route::get('accounts/{subjectType}/{subjectId}', 'accountDetails')->whereIn('subjectType', ['customer', 'seller'])->whereNumber('subjectId')->name('accounts.show');
+            Route::post('selected-accounts', 'storeSelectedAccounts')->name('selected-accounts.store');
             Route::post('master', 'updateMaster')->name('master');
             Route::post('rules', 'storeRule')->name('rules.store');
             Route::post('rules/{rule}', 'updateRule')->name('rules.update');
