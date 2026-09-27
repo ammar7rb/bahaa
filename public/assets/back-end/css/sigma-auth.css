@@ -33,3 +33,16 @@
     line-height: 1.35;
     margin: 0;
 }
+
+:is(html[data-ba-admin-theme="dark"], html[data-vendor-theme="dark"]) .auth-wrapper-left.sigma-auth-panel {
+    background-color: #0d2342 !important;
+    background-blend-mode: multiply;
+}
+
+:is(html[data-ba-admin-theme="dark"], html[data-vendor-theme="dark"]) .sigma-auth-panel .auth-left-cont img.ba-platform-logo {
+    filter: brightness(0) invert(1) !important;
+}
+
+:is(html[data-ba-admin-theme="dark"], html[data-vendor-theme="dark"]) .sigma-auth-panel .auth-left-cont .title {
+    color: #fff !important;
+}

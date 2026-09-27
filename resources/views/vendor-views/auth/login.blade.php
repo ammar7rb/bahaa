@@ -2,7 +2,7 @@
     use App\Enums\DemoConstant;
 @endphp
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ session('direction') ?? 'ltr' }}">
 
 <head>
     <meta charset="utf-8">
@@ -50,7 +50,7 @@
                         <img class="ba-platform-logo" width="310" src="{{ getStorageImages(path: $eCommerceLogo, type: 'backend-logo') }}"
                             alt="SIGMA Medical Supplies">
                     </a>
-                    <h2 class="title">{{ session('direction') === 'rtl' ? 'مستلزمات طبية تثق بها' : 'Medical supplies you can trust' }}
+                    <h2 class="title">{{ in_array(app()->getLocale(), ['ar', 'sa']) ? 'مستلزمات طبية تثق بها' : 'Medical supplies you can trust' }}
                     </h2>
                 </div>
             </div>

@@ -62,7 +62,7 @@
                             alt="SIGMA Medical Supplies">
                     </a>
                     <h2 class="title h1">
-                        {{ session('direction') === 'rtl' ? 'مستلزمات طبية تثق بها' : 'Medical supplies you can trust' }}
+                        {{ in_array(app()->getLocale(), ['ar', 'sa']) ? 'مستلزمات طبية تثق بها' : 'Medical supplies you can trust' }}
                     </h2>
                 </div>
             </div>
