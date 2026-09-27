@@ -38,51 +38,51 @@ class InsuranceConfigurationController extends Controller
 
     public function index(Request $request): View
     {
-        $activeTab = in_array($request->get('tab'), ['rules', 'customers', 'sellers'], true)
-            ? $request->get('tab') : 'rules';
-        $activeSection = in_array($request->get('section'), ['overview', 'rules', 'exceptions', 'incentives', 'balances'], true)
+        $activeTab = in_array($request->get('tab'), ['customers', 'sellers'], true)
+            ? $request->get('tab') : 'customers';
+        $sections = ['overview', 'rules', 'exceptions', 'balances', 'records'];
+        if ($activeTab === 'customers') $sections[] = 'incentives';
+        $activeSection = in_array($request->get('section'), $sections, true)
             ? $request->get('section') : 'overview';
+        $subjectType = $activeTab === 'customers' ? 'customer' : 'seller';
         $customerInsurances = null;
         $sellerInsurances = null;
         $insuranceStatuses = collect();
         $accountSearch = trim((string) $request->query('account_search', ''));
-        $accountType = in_array($request->query('account_type'), ['customer', 'seller'], true)
-            ? $request->query('account_type') : 'customer';
         $accountResults = collect();
-        if ($activeTab === 'rules' && $activeSection === 'exceptions' && mb_strlen($accountSearch) >= 2 && mb_strlen($accountSearch) <= 255) {
-            $model = $accountType === 'customer' ? User::class : Seller::class;
+        if ($activeSection === 'exceptions' && mb_strlen($accountSearch) >= 2 && mb_strlen($accountSearch) <= 255) {
+            $model = $subjectType === 'customer' ? User::class : Seller::class;
             $accountResults = $model::query()->select(['id', 'f_name', 'l_name', 'email'])
                 ->where('email', 'like', '%' . addcslashes($accountSearch, '%_\\') . '%')
                 ->orderBy('email')->limit(20)->get();
         }
-        if ($activeTab === 'customers') {
+        if ($activeTab === 'customers' && $activeSection === 'records') {
             $customerInsurances = $this->customerInsuranceQuery($request)->paginate(25)->withQueryString();
             $insuranceStatuses = OrderInsurance::query()->whereNotNull('status')->distinct()->orderBy('status')->pluck('status');
         }
-        if ($activeTab === 'sellers') {
+        if ($activeTab === 'sellers' && $activeSection === 'records') {
             $sellerInsurances = $this->sellerInsuranceQuery($request)->paginate(25)->withQueryString();
             $insuranceStatuses = SellerOrderInsurance::query()->whereNotNull('status')->distinct()->orderBy('status')->pluck('status');
         }
-        $subjectOverrides = InsuranceSubjectOverride::query()->latest('id')->limit(100)->get();
+        $subjectOverrides = InsuranceSubjectOverride::query()->where('subject_type', $subjectType)->latest('id')->limit(100)->get();
         $selectedAccountEmails = [
-            'customer' => User::query()->whereIn('id', $subjectOverrides->where('subject_type', 'customer')->pluck('subject_id'))->pluck('email', 'id'),
-            'seller' => Seller::query()->whereIn('id', $subjectOverrides->where('subject_type', 'seller')->pluck('subject_id'))->pluck('email', 'id'),
+            $subjectType => ($subjectType === 'customer' ? User::query() : Seller::query())
+                ->whereIn('id', $subjectOverrides->pluck('subject_id'))->pluck('email', 'id'),
         ];
 
         return view('admin-views.insurance.index', [
             'activeTab' => $activeTab,
             'activeSection' => $activeSection,
-            'customerRules' => InsuranceRule::query()->where('subject_type', 'customer')->orderBy('priority')->get(),
-            'sellerRules' => InsuranceRule::query()->where('subject_type', 'seller')->orderBy('priority')->get(),
-            'incentives' => InsuranceIncentive::query()->orderBy('priority')->get(),
+            'subjectType' => $subjectType,
+            'rules' => InsuranceRule::query()->where('subject_type', $subjectType)->orderBy('priority')->get(),
+            'incentives' => $subjectType === 'customer' ? InsuranceIncentive::query()->orderBy('priority')->get() : collect(),
             'subjectOverrides' => $subjectOverrides,
             'selectedAccountEmails' => $selectedAccountEmails,
-            'balanceActions' => InsuranceBalanceAction::query()->latest('id')->limit(50)->get(),
+            'balanceActions' => InsuranceBalanceAction::query()->where('subject_type', $subjectType)->latest('id')->limit(50)->get(),
             'customerInsurances' => $customerInsurances,
             'sellerInsurances' => $sellerInsurances,
             'insuranceStatuses' => $insuranceStatuses,
             'accountSearch' => $accountSearch,
-            'accountType' => $accountType,
             'accountResults' => $accountResults,
             'insuranceStats' => $this->insuranceStats(),
             'report' => [
@@ -199,29 +199,41 @@ class InsuranceConfigurationController extends Controller
 
     public function updateMaster(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'customer_enabled' => 'nullable|in:1', 'customer_maturity_days' => 'required|integer|min:1|max:3650',
-            'customer_scope' => ['required', Rule::in(['selected', 'all'])],
-            'customer_payment_deadline_hours' => 'required|integer|min:1|max:720',
-            'customer_purchase_refund_delay_days' => 'required|integer|min:0|max:365',
-            'seller_enabled' => 'nullable|in:1', 'seller_pending_days' => 'required|integer|min:1|max:90',
-            'seller_scope' => ['required', Rule::in(['selected', 'all'])],
-            'seller_reuse_after_days' => 'required|integer|min:1|max:3650',
-        ]);
-        foreach ([
-            'customer_order_insurance_status' => $request->boolean('customer_enabled') ? 1 : 0,
-            'customer_order_insurance_scope' => $data['customer_scope'],
-            'customer_order_insurance_maturity_days' => $data['customer_maturity_days'],
-            'customer_order_insurance_payment_deadline_hours' => $data['customer_payment_deadline_hours'],
-            'customer_purchase_refund_delay_days' => $data['customer_purchase_refund_delay_days'],
-            'seller_order_insurance_status' => $request->boolean('seller_enabled') ? 1 : 0,
-            'seller_order_insurance_scope' => $data['seller_scope'],
-            'seller_order_insurance_pending_days' => $data['seller_pending_days'],
-            'seller_order_insurance_reuse_after_days' => $data['seller_reuse_after_days'],
-        ] as $type => $value) {
+        $subjectType = $request->validate(['subject_type' => ['required', Rule::in(['customer', 'seller'])]])['subject_type'];
+        if ($subjectType === 'customer') {
+            $data = $request->validate([
+                'customer_enabled' => 'nullable|in:1',
+                'customer_scope' => ['required', Rule::in(['selected', 'all'])],
+                'customer_maturity_days' => 'required|integer|min:1|max:3650',
+                'customer_payment_deadline_hours' => 'required|integer|min:1|max:720',
+                'customer_purchase_refund_delay_days' => 'required|integer|min:0|max:365',
+            ]);
+            $settings = [
+                'customer_order_insurance_status' => $request->boolean('customer_enabled') ? 1 : 0,
+                'customer_order_insurance_scope' => $data['customer_scope'],
+                'customer_order_insurance_maturity_days' => $data['customer_maturity_days'],
+                'customer_order_insurance_payment_deadline_hours' => $data['customer_payment_deadline_hours'],
+                'customer_purchase_refund_delay_days' => $data['customer_purchase_refund_delay_days'],
+            ];
+        } else {
+            $data = $request->validate([
+                'seller_enabled' => 'nullable|in:1',
+                'seller_scope' => ['required', Rule::in(['selected', 'all'])],
+                'seller_pending_days' => 'required|integer|min:1|max:90',
+                'seller_reuse_after_days' => 'required|integer|min:1|max:3650',
+            ]);
+            $settings = [
+                'seller_order_insurance_status' => $request->boolean('seller_enabled') ? 1 : 0,
+                'seller_order_insurance_scope' => $data['seller_scope'],
+                'seller_order_insurance_pending_days' => $data['seller_pending_days'],
+                'seller_order_insurance_reuse_after_days' => $data['seller_reuse_after_days'],
+            ];
+        }
+        foreach ($settings as $type => $value) {
             BusinessSetting::query()->updateOrCreate(['type' => $type], ['value' => $value]);
         }
-        return back()->with('success', translate('Updated_successfully'));
+        return redirect()->route('admin.insurance-center.index', ['tab' => $subjectType === 'customer' ? 'customers' : 'sellers'])
+            ->with('success', translate('Updated_successfully'));
     }
 
     public function storeRule(Request $request): RedirectResponse

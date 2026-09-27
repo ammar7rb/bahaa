@@ -243,7 +243,7 @@
                         <div class="d-flex flex-wrap justify-content-between gap-2 mt-3">
                             <p class="text-muted fs-12 mb-0">{{ translate('seller_order_insurance_details_hidden_notice') }}</p>
                             @if(Route::has('admin.insurance-center.index'))
-                                <a href="{{ route('admin.insurance-center.index') }}" class="btn btn-outline-primary btn-sm">{{ translate('Advanced_Insurance_Rules') }}</a>
+                                <a href="{{ route('admin.insurance-center.index', ['tab' => 'sellers', 'section' => 'rules']) }}" class="btn btn-outline-primary btn-sm">{{ translate('Advanced_Insurance_Rules') }}</a>
                             @endif
                         </div>
                     </div>

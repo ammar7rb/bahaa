@@ -1,10 +1,10 @@
 @extends('layouts.admin.app')
 
-@section('title', translate('Insurance_Rule_Center'))
+@section('title', translate($activeTab === 'customers' ? 'Customer_Insurances' : 'Seller_Insurances'))
 
 @push('css_or_js')
 <style>
-    .insurance-center { --insurance-ink:#173153; --insurance-muted:#64748b; --insurance-border:#e2e8f0; }
+    .insurance-center { --insurance-ink:#173153; --insurance-muted:#64748b; --insurance-border:#e2e8f0; min-width:0; overflow-x:hidden; }
     .insurance-center .insurance-hero { padding:24px 28px; border-radius:20px; background:linear-gradient(120deg,#123d83,#2563a9); color:#fff; }
     .insurance-center .insurance-hero h1,.insurance-center .insurance-hero p { color:#fff; }
     .insurance-center .insurance-hero p { opacity:.85; }
@@ -20,6 +20,9 @@
     .insurance-center .insurance-stat .card-body { padding:18px 20px; }
     .insurance-center .insurance-stat small { color:var(--insurance-muted); font-weight:600; }
     .insurance-center .insurance-stat h2,.insurance-center .insurance-stat h3 { margin:8px 0 0; color:var(--insurance-ink); }
+    .insurance-center .insurance-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+    .insurance-center .insurance-metrics > * { min-width:0; }
+    .insurance-center .insurance-metrics h2 { overflow-wrap:anywhere; }
     .insurance-center .insurance-guidance { border:1px solid var(--insurance-border); border-radius:14px; background:#f8fbff; }
     .insurance-center .insurance-guidance summary { cursor:pointer; padding:15px 18px; font-weight:700; color:var(--insurance-ink); }
     .insurance-center .insurance-guidance ul { padding:0 35px 15px; margin:0; color:var(--insurance-muted); }
@@ -36,51 +39,53 @@
     [data-ba-admin-theme="dark"] .insurance-center .insurance-guidance,[data-ba-admin-theme="dark"] .insurance-center .table th { background:#20334f; color:#e6eefb; }
     @media(min-width:768px) { .insurance-center .insurance-form-grid > [class*="col-"] { flex:0 0 50%; max-width:50%; } }
     @media(min-width:1200px) { .insurance-center .insurance-form-grid > [class*="col-"] { flex:0 0 25%; max-width:25%; } }
+    @media(max-width:1199px) { .insurance-center .insurance-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media(max-width:575px) { .insurance-center .insurance-metrics { grid-template-columns:1fr; } }
     @media(max-width:767px) { .insurance-center .insurance-hero { padding:20px; } .insurance-center .insurance-primary-nav a,.insurance-center .insurance-section-nav a { flex:1 1 100%; justify-content:space-between; } }
 </style>
 @endpush
 
 @section('content')
 <div class="content container-fluid insurance-center">
-    <header class="insurance-hero mb-4"><h1 class="mb-2">{{ translate('Insurance_Rule_Center') }}</h1><p class="mb-0">{{ translate('customer_and_seller_insurance_rules_are_independent') }}</p></header>
+    <header class="insurance-hero mb-4"><h1 class="mb-2">{{ translate($activeTab === 'customers' ? 'Customer_Insurances' : 'Seller_Insurances') }}</h1><p class="mb-0">{{ $activeTab === 'customers' ? 'إعدادات وقواعد وسجلات تأمين العملاء في مكان واحد.' : 'إعدادات وقواعد وسجلات تأمين التجار في مكان واحد.' }}</p></header>
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
     @if($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
     <nav class="insurance-primary-nav mb-3" aria-label="{{ translate('Insurance_Rule_Center') }}">
-        <a class="{{ $activeTab === 'rules' ? 'active' : '' }}" href="{{ route('admin.insurance-center.index',['tab'=>'rules']) }}" @if($activeTab === 'rules') aria-current="page" @endif><i class="fi fi-sr-settings-sliders"></i>{{ translate('Insurance_Rules_And_Settings') }}</a>
         <a class="{{ $activeTab === 'customers' ? 'active' : '' }}" href="{{ route('admin.insurance-center.index',['tab'=>'customers']) }}" @if($activeTab === 'customers') aria-current="page" @endif><i class="fi fi-sr-user"></i>{{ translate('Customer_Insurances') }} <span class="badge">{{ $insuranceStats['customer_total'] }}</span></a>
         <a class="{{ $activeTab === 'sellers' ? 'active' : '' }}" href="{{ route('admin.insurance-center.index',['tab'=>'sellers']) }}" @if($activeTab === 'sellers') aria-current="page" @endif><i class="fi fi-sr-store-alt"></i>{{ translate('Seller_Insurances') }} <span class="badge">{{ $insuranceStats['seller_total'] }}</span></a>
     </nav>
 
-    @if($activeTab === 'rules')
-    <nav class="insurance-section-nav mb-4" aria-label="{{ translate('Insurance_Rules_And_Settings') }}">
+    <nav class="insurance-section-nav mb-4" aria-label="{{ translate($activeTab === 'customers' ? 'Customer_Insurances' : 'Seller_Insurances') }}">
         @foreach([
             'overview' => ['Insurance_Overview', 'fi fi-sr-home'],
             'rules' => ['Advanced_Insurance_Rules', 'fi fi-sr-list-check'],
             'exceptions' => ['Insurance_Selected_Accounts', 'fi fi-sr-user-pen'],
-            'incentives' => ['Insurance_Incentives', 'fi fi-sr-gift'],
+            'records' => ['All_Insurance_Records', 'fi fi-sr-document'],
+            ...($activeTab === 'customers' ? ['incentives' => ['Insurance_Incentives', 'fi fi-sr-gift']] : []),
             'balances' => ['Insurance_Balance_Governance', 'fi fi-sr-wallet'],
         ] as $section => [$label, $icon])
-            <a class="{{ $activeSection === $section ? 'active' : '' }}" href="{{ route('admin.insurance-center.index',['tab'=>'rules','section'=>$section]) }}" @if($activeSection === $section) aria-current="page" @endif><i class="{{ $icon }}"></i>{{ translate($label) }}</a>
+            <a class="{{ $activeSection === $section ? 'active' : '' }}" href="{{ route('admin.insurance-center.index',['tab'=>$activeTab,'section'=>$section]) }}" @if($activeSection === $section) aria-current="page" @endif><i class="{{ $icon }}"></i>{{ translate($label) }}</a>
         @endforeach
     </nav>
     @if($activeSection === 'overview')
-    <div class="row g-3 mb-3">
+    @php($prefix = $subjectType)
+    <div class="insurance-metrics mb-3">
         @foreach([
-            ['Customer_Insurances',$insuranceStats['customer_total'],'primary'],
-            ['Paid_Customer_Insurances',$insuranceStats['customer_paid'],'success'],
-            ['Seller_Insurances',$insuranceStats['seller_total'],'info'],
-            ['Paid_Seller_Insurances',$insuranceStats['seller_paid'],'success'],
+            ['All_Insurance_Records',$insuranceStats[$prefix.'_total'],'primary'],
+            ['Paid_Insurances',$insuranceStats[$prefix.'_paid'],'success'],
+            ['Paid_Insurance_Amount',setCurrencySymbol(amount:usdToDefaultCurrency(amount:$insuranceStats[$prefix.'_paid_amount'])),'info'],
+            ['Confiscated_Insurance_Amount',setCurrencySymbol(amount:usdToDefaultCurrency(amount:$insuranceStats[$prefix.'_confiscated'])),'warning'],
         ] as [$label,$value,$color])
-            <div class="col-md-3"><div class="card insurance-stat h-100 border-start border-{{ $color }} border-3"><div class="card-body"><small>{{ translate($label) }}</small><h2>{{ $value }}</h2></div></div></div>
+            <div class="card insurance-stat h-100 border-start border-{{ $color }} border-3"><div class="card-body"><small>{{ translate($label) }}</small><h2>{{ $value }}</h2></div></div>
         @endforeach
     </div>
 
     <details class="insurance-guidance mb-3">
         <summary>{{ translate('how_insurance_rule_center_works') }}</summary>
         <ul class="mb-0 ps-3">
-            <li>{{ translate('customer_and_seller_insurance_are_calculated_by_separate_rule_sets') }}</li>
+            <li>{{ $activeTab === 'customers' ? 'إعدادات العملاء لا تغيّر تأمين التجار.' : 'إعدادات التجار لا تغيّر تأمين العملاء.' }}</li>
             <li>{{ translate('insurance_rule_type_help') }}</li>
             <li>{{ translate('insurance_account_age_help') }}</li>
             <li>{{ translate('insurance_priority_help') }}</li>
@@ -90,35 +95,41 @@
 
     <div class="card insurance-panel mb-3"><div class="card-header"><h3 class="mb-1">{{ translate('Insurance_Master_Settings') }}</h3><p class="text-muted mb-0">حدد من يشمله التأمين. الحساب الجديد لا يُؤمَّن بمجرد التسجيل؛ يبدأ تطبيق التأمين على الطلبات الجديدة فقط حسب النطاق الذي تختاره.</p></div><div class="card-body">
         <form method="post" action="{{ route('admin.insurance-center.master') }}">@csrf
+            <input type="hidden" name="subject_type" value="{{ $subjectType }}">
             <div class="row g-3 align-items-end insurance-form-grid">
+                @if($subjectType === 'customer')
                 <div class="col-12 insurance-form-heading"><h4 class="h6 mb-0">تأمين العملاء</h4></div>
                 <div class="col-md-2"><label class="form-label">{{ translate('Customer_Insurance') }}</label><div><input type="checkbox" name="customer_enabled" value="1" @checked((int)getWebConfig(name:'customer_order_insurance_status')===1)> {{ translate('Active') }}</div></div>
                 <div class="col-md-2"><label class="form-label" for="customer-insurance-scope">نطاق العملاء</label><select class="form-select" id="customer-insurance-scope" name="customer_scope" required><option value="selected" @selected((getWebConfig(name:'customer_order_insurance_scope') ?: 'selected') === 'selected')>حسابات أحددها فقط</option><option value="all" @selected(getWebConfig(name:'customer_order_insurance_scope') === 'all')>كل العملاء</option></select></div>
                 <div class="col-md-2"><label class="form-label">{{ translate('Insurance_Recovery_Days') }}</label><input class="form-control" type="number" name="customer_maturity_days" min="1" max="3650" value="{{ getWebConfig(name:'customer_order_insurance_maturity_days') ?? 90 }}" required></div>
                 <div class="col-md-2"><label class="form-label">{{ translate('Customer_Insurance_Payment_Deadline_Hours') }}</label><input class="form-control" type="number" name="customer_payment_deadline_hours" min="1" max="720" value="{{ getWebConfig(name:'customer_order_insurance_payment_deadline_hours') ?? 72 }}" required><small class="text-muted">{{ translate('deadline_starts_after_purchase_payment') }}</small></div>
                 <div class="col-md-2"><label class="form-label">{{ translate('Purchase_Refund_Delay_Days') }}</label><input class="form-control" type="number" name="customer_purchase_refund_delay_days" min="0" max="365" value="{{ getWebConfig(name:'customer_purchase_refund_delay_days') ?? 7 }}" required><small class="text-muted">{{ translate('refund_goes_to_purchase_wallet_only') }}</small></div>
+                @else
                 <div class="col-12 insurance-form-heading"><h4 class="h6 mb-0">تأمين التجار</h4></div>
                 <div class="col-md-2"><label class="form-label">{{ translate('Seller_Order_Insurance') }}</label><div><input type="checkbox" name="seller_enabled" value="1" @checked((int)getWebConfig(name:'seller_order_insurance_status')===1)> {{ translate('Active') }}</div></div>
                 <div class="col-md-2"><label class="form-label" for="seller-insurance-scope">نطاق التجار</label><select class="form-select" id="seller-insurance-scope" name="seller_scope" required><option value="selected" @selected((getWebConfig(name:'seller_order_insurance_scope') ?: 'selected') === 'selected')>حسابات أحددها فقط</option><option value="all" @selected(getWebConfig(name:'seller_order_insurance_scope') === 'all')>كل التجار</option></select></div>
                 <div class="col-md-2"><label class="form-label">{{ translate('Payment_Deadline_Days') }}</label><input class="form-control" type="number" name="seller_pending_days" min="1" max="90" value="{{ getWebConfig(name:'seller_order_insurance_pending_days') ?? 3 }}" required></div>
                 <div class="col-md-2"><label class="form-label">{{ translate('Reusable_After_Days') }}</label><input class="form-control" type="number" name="seller_reuse_after_days" min="1" max="3650" value="{{ getWebConfig(name:'seller_order_insurance_reuse_after_days') ?? 90 }}" required></div>
+                @endif
                 <div class="col-md-2"><button class="btn btn-primary w-100">{{ translate('save_changes') }}</button></div>
             </div>
         </form>
     </div></div>
 
+    @if($subjectType === 'customer')
     <div class="row g-3 mb-3">
         <div class="col-md-3"><div class="card insurance-stat h-100"><div class="card-body"><small>{{ translate('Welcome_Insurance_Credit') }}</small><h3>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $report['welcome_credit'])) }}</h3><span>{{ $report['welcome_redemptions'] }} {{ translate('operations') }}</span></div></div></div>
         <div class="col-md-3"><div class="card insurance-stat h-100"><div class="card-body"><small>{{ translate('Promotional_Insurance_Discounts') }}</small><h3>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $report['premium_discount'])) }}</h3><span>{{ $report['discount_redemptions'] }} {{ translate('operations') }}</span></div></div></div>
         <div class="col-md-6"><div class="alert alert-info h-100 mb-0">{{ translate('welcome_credit_and_premium_discount_are_separate_non_withdrawable_financial_movements') }}</div></div>
     </div>
+    @endif
 
     @endif
     @if($activeSection === 'rules')
     <div class="card insurance-panel mb-3"><div class="card-header"><h3 class="mb-1">{{ translate('Add_Insurance_Rule') }}</h3><p class="text-muted mb-0">{{ translate('add_insurance_rule_section_help') }}</p></div><div class="card-body">
         <form method="post" action="{{ route('admin.insurance-center.rules.store') }}">@csrf
+            <input type="hidden" name="subject_type" value="{{ $subjectType }}">
             <div class="row g-3 insurance-form-grid">
-                <div class="col-md-2"><label class="form-label">{{ translate('Applies_To') }}</label><select class="form-select" name="subject_type"><option value="customer">{{ translate('Customer') }}</option><option value="seller">{{ translate('Seller') }}</option></select><small class="text-muted">{{ translate('customer_and_seller_rules_never_share_rates') }}</small></div>
                 <div class="col-md-3"><label class="form-label">{{ translate('Name') }}</label><input class="form-control" name="name" required></div>
                 <div class="col-md-2"><label class="form-label">{{ translate('Code') }}</label><input class="form-control" name="code"></div>
                 <div class="col-md-2"><label class="form-label">{{ translate('Rule_Type') }}</label><select class="form-select" name="rule_type"><option value="tier">{{ translate('Amount_Tier') }}</option><option value="account_age">{{ translate('Account_Age') }}</option><option value="default">{{ translate('Default') }}</option></select><small class="text-muted">{{ translate('rule_type_is_for_admin_classification_and_conditions_control_matching') }}</small></div>
@@ -137,29 +148,26 @@
         </form>
     </div></div>
 
-    @foreach(['customer' => $customerRules, 'seller' => $sellerRules] as $subject => $rules)
-        <div class="card insurance-panel mb-3"><div class="card-header"><h3 class="mb-0">{{ translate(ucfirst($subject).'_Insurance_Rules') }}</h3></div><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>{{ translate('Priority') }}</th><th>{{ translate('Name') }}</th><th>{{ translate('Rule_Type') }}</th><th>{{ translate('Order_Range') }}</th><th>{{ translate('Account_Age') }}</th><th>{{ translate('Calculation') }}</th><th>{{ translate('Status') }}</th><th>{{ translate('Action') }}</th></tr></thead><tbody>
+        <div class="card insurance-panel mb-3"><div class="card-header"><h3 class="mb-0">{{ translate(ucfirst($subjectType).'_Insurance_Rules') }}</h3></div><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>{{ translate('Priority') }}</th><th>{{ translate('Name') }}</th><th>{{ translate('Rule_Type') }}</th><th>{{ translate('Order_Range') }}</th><th>{{ translate('Account_Age') }}</th><th>{{ translate('Calculation') }}</th><th>{{ translate('Status') }}</th><th>{{ translate('Action') }}</th></tr></thead><tbody>
         @forelse($rules as $rule)<tr><td>{{ $rule->priority }}</td><td>{{ $rule->name }}<div class="small text-muted">{{ $rule->code }}</div></td><td>{{ translate($rule->rule_type) }}</td><td>{{ usdToDefaultCurrency(amount:$rule->minimum_order_amount) }} – {{ $rule->maximum_order_amount === null ? '∞' : usdToDefaultCurrency(amount:$rule->maximum_order_amount) }}</td><td>{{ $rule->minimum_account_age_days }} – {{ $rule->maximum_account_age_days ?? '∞' }}</td><td>{{ $rule->calculation_type === 'percentage' ? $rule->calculation_value.'%' : setCurrencySymbol(amount:usdToDefaultCurrency(amount:$rule->calculation_value)) }}</td><td><span class="badge badge-soft-{{ $rule->is_active ? 'success':'danger' }}">{{ translate($rule->is_active ? 'Active':'Inactive') }}</span></td><td>@if($rule->rule_type !== 'default')<div class="d-flex gap-2"><form method="post" action="{{ route('admin.insurance-center.rules.toggle',$rule) }}">@csrf<button class="btn btn-outline-primary btn-sm">{{ translate($rule->is_active?'Deactivate':'Activate') }}</button></form><form method="post" action="{{ route('admin.insurance-center.rules.delete',$rule) }}">@csrf @method('delete')<button class="btn btn-outline-danger btn-sm">{{ translate('Delete') }}</button></form></div>@else<span class="text-muted small">{{ translate('Managed_From_Default_Settings') }}</span>@endif</td></tr>
         @empty<tr><td colspan="8" class="text-center text-muted">{{ translate('no_data_found') }}</td></tr>@endforelse
         </tbody></table></div></div>
-    @endforeach
 
     @endif
     @if($activeSection === 'exceptions')
     <div class="card insurance-panel mb-3" id="insurance-subject-overrides">
         <div class="card-header">
-            <h3 class="mb-1">تحديد العملاء والتجار المشمولين بالتأمين</h3>
+            <h3 class="mb-1">{{ $subjectType === 'customer' ? 'تحديد العملاء المشمولين بالتأمين' : 'تحديد التجار المشمولين بالتأمين' }}</h3>
             <p class="text-muted mb-0">ابحث بالبريد الإلكتروني، واختر الحساب، ثم طبق القاعدة العامة أو قيمة خاصة أو إعفاء. التغيير يسري على الطلبات الجديدة فقط.</p>
         </div>
         <div class="card-body border-bottom">
             <form method="get" action="{{ route('admin.insurance-center.index') }}" class="row g-3 align-items-end mb-4">
-                <input type="hidden" name="tab" value="rules"><input type="hidden" name="section" value="exceptions">
-                <div class="col-md-3"><label class="form-label" for="insurance-account-type">نوع الحساب</label><select class="form-select" id="insurance-account-type" name="account_type"><option value="customer" @selected($accountType === 'customer')>عميل</option><option value="seller" @selected($accountType === 'seller')>تاجر</option></select></div>
-                <div class="col-md-6"><label class="form-label" for="insurance-account-search">البحث بالبريد الإلكتروني</label><input class="form-control" id="insurance-account-search" type="search" name="account_search" minlength="2" maxlength="255" value="{{ $accountSearch }}" placeholder="اكتب حرفين على الأقل من البريد الإلكتروني" required></div>
+                <input type="hidden" name="tab" value="{{ $activeTab }}"><input type="hidden" name="section" value="exceptions">
+                <div class="col-md-9"><label class="form-label" for="insurance-account-search">البحث بالبريد الإلكتروني</label><input class="form-control" id="insurance-account-search" type="search" name="account_search" minlength="2" maxlength="255" value="{{ $accountSearch }}" placeholder="اكتب حرفين على الأقل من البريد الإلكتروني" required></div>
                 <div class="col-md-3"><button class="btn btn-outline-primary w-100">بحث عن الحساب</button></div>
             </form>
             <form method="post" action="{{ route('admin.insurance-center.subject-overrides.store') }}">@csrf
-                <input type="hidden" name="subject_type" value="{{ $accountType }}">
+                <input type="hidden" name="subject_type" value="{{ $subjectType }}">
                 @if(mb_strlen($accountSearch) >= 2)
                     <fieldset class="mb-3"><legend class="h6">نتائج البحث — اختر حسابًا</legend>
                         <div class="list-group insurance-account-results">
@@ -218,8 +226,8 @@
         <div class="card-body border-bottom">
             <form method="post" action="{{ route('admin.insurance-center.balance-actions.store') }}">@csrf
                 <input type="hidden" name="request_token" value="{{ (string) \Illuminate\Support\Str::uuid() }}">
+                <input type="hidden" name="subject_type" value="{{ $subjectType }}">
                 <div class="row g-3 align-items-end insurance-form-grid">
-                    <div class="col-md-2"><label class="form-label">{{ translate('Account_Type') }}</label><select class="form-select" name="subject_type" required><option value="customer">{{ translate('Customer') }}</option><option value="seller">{{ translate('Seller') }}</option></select></div>
                     <div class="col-md-2"><label class="form-label">{{ translate('Account_ID') }}</label><input class="form-control" type="number" min="1" name="subject_id" required></div>
                     <div class="col-md-2"><label class="form-label">{{ translate('Action') }}</label><select class="form-select" name="action" required><option value="hold">{{ translate('Temporary_Hold') }}</option><option value="confiscate">{{ translate('Final_Insurance_Confiscation') }}</option></select></div>
                     <div class="col-md-2"><label class="form-label">{{ translate('Amount') }}</label><input class="form-control" type="number" min="0.01" step="0.01" name="amount" required></div>
@@ -253,10 +261,8 @@
         </div>
     </div>
     @endif
-    @elseif($activeTab === 'customers')
-        @include('admin-views.insurance.partials.insurance-list', ['partyType' => 'customer', 'insurances' => $customerInsurances])
-    @elseif($activeTab === 'sellers')
-        @include('admin-views.insurance.partials.insurance-list', ['partyType' => 'seller', 'insurances' => $sellerInsurances])
+    @if($activeSection === 'records')
+        @include('admin-views.insurance.partials.insurance-list', ['partyType' => $subjectType, 'insurances' => $subjectType === 'customer' ? $customerInsurances : $sellerInsurances])
     @endif
 </div>
 @endsection

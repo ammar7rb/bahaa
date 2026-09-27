@@ -474,6 +474,12 @@
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('customer_List') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="customers" aria-label="Pin"></button></div>
                     </a>
+                    @if (auth('admin')->user()->admin_role_id == 1 || Helpers::module_permission_check('reports'))
+                        <a class="v2-nav-item {{ Request::is('admin/insurance-center*') && request('tab', 'customers') === 'customers' && !request()->routeIs('admin.insurance-center.sellers.*') ? 'v2-is-active' : '' }}" data-item="customer-insurance" href="{{ route('admin.insurance-center.index', ['tab' => 'customers']) }}">
+                            <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Customer_Insurances') }}</span></span>
+                            <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="customer-insurance" aria-label="Pin"></button></div>
+                        </a>
+                    @endif
                     <a class="v2-nav-item {{ Request::is('admin/reviews*') ? 'v2-is-active' : '' }}" data-item="reviews" href="{{ route('admin.reviews.list') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('customer_Reviews') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="reviews" aria-label="Pin"></button></div>
@@ -532,9 +538,9 @@
                         </a>
                     @endif
                     @if (auth('admin')->user()->admin_role_id == 1 || Helpers::module_permission_check('reports'))
-                        <a class="v2-nav-item {{ Request::is('admin/insurance-center*') ? 'v2-is-active' : '' }}" data-item="insurance-center" href="{{ route('admin.insurance-center.index') }}">
-                            <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Insurance_Rule_Center') }}</span></span>
-                            <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="insurance-center" aria-label="Pin"></button></div>
+                        <a class="v2-nav-item {{ Request::is('admin/insurance-center*') && (request('tab') === 'sellers' || request()->routeIs('admin.insurance-center.sellers.*')) ? 'v2-is-active' : '' }}" data-item="seller-insurance" href="{{ route('admin.insurance-center.index', ['tab' => 'sellers']) }}">
+                            <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Seller_Insurances') }}</span></span>
+                            <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="seller-insurance" aria-label="Pin"></button></div>
                         </a>
                     @endif
                     <a class="v2-nav-item {{ Request::is('admin/vendors/packages*') ? 'v2-is-active' : '' }}" data-item="vendor-packages" href="{{ route('admin.vendors.packages.index') }}">

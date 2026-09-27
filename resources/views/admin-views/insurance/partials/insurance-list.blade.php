@@ -1,6 +1,5 @@
 @php
     $isCustomer = $partyType === 'customer';
-    $prefix = $isCustomer ? 'customer' : 'seller';
     $tab = $isCustomer ? 'customers' : 'sellers';
 @endphp
 
@@ -9,26 +8,16 @@
     <p class="text-muted mb-0">{{ translate($isCustomer ? 'customer_insurance_tab_help' : 'seller_insurance_tab_help') }}</p>
 </div>
 
-<div class="row g-3 mb-4">
-    @foreach([
-        ['All_Insurance_Records', $insuranceStats[$prefix.'_total']],
-        ['Paid_Insurances', $insuranceStats[$prefix.'_paid']],
-        ['Paid_Insurance_Amount', setCurrencySymbol(amount:usdToDefaultCurrency(amount:$insuranceStats[$prefix.'_paid_amount']))],
-        ['Confiscated_Insurance_Amount', setCurrencySymbol(amount:usdToDefaultCurrency(amount:$insuranceStats[$prefix.'_confiscated']))],
-    ] as [$label, $value])
-        <div class="col-sm-6 col-xl-3"><div class="card insurance-stat h-100"><div class="card-body"><small>{{ translate($label) }}</small><h3>{{ $value }}</h3></div></div></div>
-    @endforeach
-</div>
-
 <div class="card insurance-panel mb-3">
     <div class="card-body">
         <form method="get" action="{{ route('admin.insurance-center.index') }}">
             <input type="hidden" name="tab" value="{{ $tab }}">
+            <input type="hidden" name="section" value="records">
             <div class="row g-3 align-items-end">
                 <div class="col-lg-5"><label class="form-label" for="insurance-search">{{ translate('Search') }}</label><input id="insurance-search" class="form-control" name="search" value="{{ request('search') }}" placeholder="{{ translate('insurance_search_placeholder') }}"></div>
                 <div class="col-sm-6 col-lg-2"><label class="form-label" for="insurance-payment-status">{{ translate('Payment_Status') }}</label><select id="insurance-payment-status" class="form-select" name="payment_status"><option value="">{{ translate('All') }}</option>@foreach(['paid','unpaid'] as $status)<option value="{{ $status }}" @selected(request('payment_status')===$status)>{{ translate($status) }}</option>@endforeach</select></div>
                 <div class="col-sm-6 col-lg-3"><label class="form-label" for="insurance-record-status">{{ translate('Insurance_Status') }}</label><select id="insurance-record-status" class="form-select" name="status"><option value="">{{ translate('All') }}</option>@foreach($insuranceStatuses as $status)<option value="{{ $status }}" @selected(request('status')===$status)>{{ translate($status) }}</option>@endforeach</select></div>
-                <div class="col-lg-2 d-flex gap-2"><button class="btn btn-primary flex-grow-1">{{ translate('Filter') }}</button><a class="btn btn-outline-secondary" href="{{ route('admin.insurance-center.index',['tab'=>$tab]) }}">{{ translate('Reset') }}</a></div>
+                <div class="col-lg-2 d-flex gap-2"><button class="btn btn-primary flex-grow-1">{{ translate('Filter') }}</button><a class="btn btn-outline-secondary" href="{{ route('admin.insurance-center.index',['tab'=>$tab,'section'=>'records']) }}">{{ translate('Reset') }}</a></div>
             </div>
         </form>
     </div>

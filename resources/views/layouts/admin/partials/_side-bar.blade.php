@@ -830,8 +830,8 @@
                     <small class="nav-subtitle" title="">{{ translate('user_management') }}</small>
                 </li>
 
-                <li class="{{ (Request::is('admin/customer/wallet*') || Request::is('admin/customer/purchase-package*') || Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/reviews*') || Request::is('admin/customer/loyalty/report')) ? 'sub-menu-opened' : '' }}">
-                    <a class="nav-link nav-link-toggle {{ (Request::is('admin/customer/wallet*') || Request::is('admin/customer/purchase-package*') || Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/reviews*') || Request::is('admin/customer/loyalty/report')) ? 'active' : '' }}"
+                <li class="{{ (Request::is('admin/customer/wallet*') || Request::is('admin/customer/purchase-package*') || Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/reviews*') || Request::is('admin/customer/loyalty/report') || (Request::is('admin/insurance-center*') && request('tab', 'customers') === 'customers' && !request()->routeIs('admin.insurance-center.sellers.*'))) ? 'sub-menu-opened' : '' }}">
+                    <a class="nav-link nav-link-toggle {{ (Request::is('admin/customer/wallet*') || Request::is('admin/customer/purchase-package*') || Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/reviews*') || Request::is('admin/customer/loyalty/report') || (Request::is('admin/insurance-center*') && request('tab', 'customers') === 'customers' && !request()->routeIs('admin.insurance-center.sellers.*'))) ? 'active' : '' }}"
                        href="javascript:" title="{{ translate('customers') }}">
                         <i class="fi fi-sr-user"></i>
                         <span
@@ -850,6 +850,9 @@
                                 <span class="text-truncate">{{ translate('customer_List') }} </span>
                             </a>
                         </li>
+                        @if (auth('admin')->user()->admin_role_id == 1 || Helpers::module_permission_check('reports'))
+                        <li class="nav-item"><a class="nav-link {{ Request::is('admin/insurance-center*') && request('tab', 'customers') === 'customers' && !request()->routeIs('admin.insurance-center.sellers.*') ? 'active' : '' }}" href="{{ route('admin.insurance-center.index', ['tab' => 'customers']) }}" title="{{ translate('Customer_Insurances') }}"><span class="text-truncate">{{ translate('Customer_Insurances') }}</span></a></li>
+                        @endif
                         <li class="nav-item">
                             <a class="nav-link {{ Request::is('admin/reviews*') ? 'active' : '' }}"
                                href="{{ route('admin.reviews.list') }}" title="{{ translate('customer_Reviews') }}">
@@ -913,8 +916,8 @@
                     </ul>
                 </li>
 
-                <li class="{{ Request::is('admin/vendors*') || Request::is('admin/vendors/withdraw-method/*') || (Request::is('admin/orders/details/*') && request()->has('vendor-order-list')) ? 'sub-menu-opened' : '' }}">
-                    <a class="nav-link nav-link-toggle {{ Request::is('admin/vendors*') || Request::is('admin/vendors/withdraw-method/*') || (Request::is('admin/orders/details/*') && request()->has('vendor-order-list')) ? 'active' : '' }}"
+                <li class="{{ Request::is('admin/vendors*') || Request::is('admin/vendors/withdraw-method/*') || (Request::is('admin/insurance-center*') && (request('tab') === 'sellers' || request()->routeIs('admin.insurance-center.sellers.*'))) || (Request::is('admin/orders/details/*') && request()->has('vendor-order-list')) ? 'sub-menu-opened' : '' }}">
+                    <a class="nav-link nav-link-toggle {{ Request::is('admin/vendors*') || Request::is('admin/vendors/withdraw-method/*') || (Request::is('admin/insurance-center*') && (request('tab') === 'sellers' || request()->routeIs('admin.insurance-center.sellers.*'))) || (Request::is('admin/orders/details/*') && request()->has('vendor-order-list')) ? 'active' : '' }}"
                        href="javascript:" title="{{ translate('vendors') }}">
                         <i class="fi fi-sr-seller"></i>
                         <span
@@ -960,10 +963,10 @@
                         @endif
                         @if (auth('admin')->user()->admin_role_id == 1 || Helpers::module_permission_check('reports'))
                             <li class="nav-item">
-                                <a class="nav-link {{ Request::is('admin/insurance-center*') ? 'active' : '' }}"
-                                   title="{{ translate('Insurance_Rule_Center') }}"
-                                   href="{{ route('admin.insurance-center.index') }}">
-                                    <span class="text-truncate">{{ translate('Insurance_Rule_Center') }}</span>
+                                <a class="nav-link {{ Request::is('admin/insurance-center*') && (request('tab') === 'sellers' || request()->routeIs('admin.insurance-center.sellers.*')) ? 'active' : '' }}"
+                                   title="{{ translate('Seller_Insurances') }}"
+                                   href="{{ route('admin.insurance-center.index', ['tab' => 'sellers']) }}">
+                                    <span class="text-truncate">{{ translate('Seller_Insurances') }}</span>
                                 </a>
                             </li>
                         @endif

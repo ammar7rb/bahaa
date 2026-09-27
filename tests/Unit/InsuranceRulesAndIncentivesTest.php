@@ -191,6 +191,30 @@ class InsuranceRulesAndIncentivesTest extends TestCase
         $this->assertSame(75.0, $service->calculate(2000, $customerId)['amount']);
     }
 
+    public function test_saving_one_insurance_menu_does_not_change_the_other(): void
+    {
+        session(['local' => 'en']);
+        DB::table('business_settings')->insert([
+            'type' => 'seller_order_insurance_status', 'value' => '1',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $controller = app(\App\Http\Controllers\Admin\Insurance\InsuranceConfigurationController::class);
+        $controller->updateMaster(\Illuminate\Http\Request::create('/', 'POST', [
+            'subject_type' => 'customer', 'customer_scope' => 'selected',
+            'customer_maturity_days' => 90, 'customer_payment_deadline_hours' => 72,
+            'customer_purchase_refund_delay_days' => 7,
+        ]));
+        $this->assertDatabaseHas('business_settings', ['type' => 'seller_order_insurance_status', 'value' => '1']);
+
+        $controller->updateMaster(\Illuminate\Http\Request::create('/', 'POST', [
+            'subject_type' => 'seller', 'seller_scope' => 'selected',
+            'seller_pending_days' => 3, 'seller_reuse_after_days' => 90,
+        ]));
+        $this->assertDatabaseHas('business_settings', ['type' => 'customer_order_insurance_scope', 'value' => 'selected']);
+        $this->assertDatabaseHas('business_settings', ['type' => 'customer_order_insurance_status', 'value' => '0']);
+    }
+
     public function test_created_order_keeps_rule_and_discount_snapshots_after_admin_changes(): void
     {
         $customerId = DB::table('users')->insertGetId(['name' => 'Customer', 'created_at' => now()->subDays(90), 'updated_at' => now()]);

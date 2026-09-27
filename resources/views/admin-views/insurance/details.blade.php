@@ -12,7 +12,7 @@
 <div class="content container-fluid">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div><h1 class="mb-1">{{ translate($isCustomer ? 'Customer_Insurance_Details' : 'Seller_Insurance_Details') }} #{{ $insurance->id }}</h1><p class="text-muted mb-0">{{ translate('insurance_details_help') }}</p></div>
-        <a class="btn btn-outline-primary" href="{{ route('admin.insurance-center.index',['tab'=>$isCustomer?'customers':'sellers']) }}">{{ translate('Back_To_Insurance_List') }}</a>
+        <a class="btn btn-outline-primary" href="{{ route('admin.insurance-center.index',['tab'=>$isCustomer?'customers':'sellers','section'=>'records']) }}">{{ translate('Back_To_Insurance_List') }}</a>
     </div>
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
