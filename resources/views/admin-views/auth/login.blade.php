@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/admin/css/style-extended.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/admin/css/custom.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-dark-mode.css') }}?v=20260910.4">
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/sigma-auth.css') }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/sigma-auth.css') }}?v={{ filemtime(public_path('assets/back-end/css/sigma-auth.css')) }}">
     <script>
         (function () {
             var storageKey = 'ba_admin_theme', storedTheme = null;

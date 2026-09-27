@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/theme.minc619.css?v=1.0') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/style.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-dark-mode.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-dark-mode.css')) }}">
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/sigma-auth.css') }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/sigma-auth.css') }}?v={{ filemtime(public_path('assets/back-end/css/sigma-auth.css')) }}">
     @include('layouts.vendor.partials._dark-mode-preference')
 
     @if ($web_config['primary_color'])
