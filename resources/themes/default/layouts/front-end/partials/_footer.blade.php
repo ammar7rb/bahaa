@@ -172,10 +172,10 @@
                                 </div>
                                 <div>
                                     <a class="widget-list-link"
-                                       href="{{ 'mailto:'.getWebConfig(name: 'company_email') }}">
+                                       href="mailto:ammvr.rady@gmail.com">
                                         <span>
                                             <i class="fa fa-envelope  me-2 mt-2 mb-2"></i>
-                                            {{ getWebConfig(name: 'company_email') }}
+                                            ammvr.rady@gmail.com
                                         </span>
                                     </a>
                                 </div>
