@@ -156,7 +156,7 @@
                                         <li>{{translate('add_a_label_(Ex:_abc_company)')}}</li>
                                         <li>{{translate('select_reCAPTCHA_v3_as_ReCAPTCHA_Type')}}</li>
                                         <li>{{translate('select_sub_type').':'.translate('im_not_a_robot_checkbox')}}</li>
-                                        <li>{{translate('add_Domain_(For_ex:_demo.6amtech.com)')}}</li>
+                                        <li>أضف نطاق الموقع: sigma-eg.net</li>
                                         <li>{{translate('check_in_Accept_the_reCAPTCHA_Terms_of_Service')}}</li>
                                         <li>{{translate('press_Submit')}}</li>
                                         <li>{{translate('copy_Site_Key_and_Secret_Key,_Paste_in_the_input_filed_below_and_Save').'.'}}</li>

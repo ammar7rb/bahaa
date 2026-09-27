@@ -18,11 +18,6 @@
                     <h4 class="title m-0">{{translate('Robots_Meta_Content_&_OG_Meta_Content')}}</h4>
                     <p class="m-0">
                         {{ translate("optimize_your_Websites_performance_indexing_status_and_search_visibility") }}
-                        <a href="{{ 'https://6amtech.com/blog/robots-meta-content-and-og-content/' }}"
-                           target="_blank"
-                           class="text-primary text-decoration-underline fw-semibold">
-                            {{ translate('Learn_more') }}
-                        </a>
                     </p>
                 </div>
                 <div>
@@ -111,16 +106,6 @@
                                     <div class="col-md-8 col-xl-8">
                                         <input type="url" placeholder="{{ translate('enter_url') }}..."
                                                class="form-control" name="canonicals_url" value="{{ $pageData['canonicals_url'] ?? '' }}">
-                                        <div class="mt-2 fs-12">
-                                            <div>
-                                                {{translate('Learn how to get it.')}}
-                                                <a href="{{ 'https://6amtech.com/blog/canonical-urls/' }}"
-                                                   target="_blank"
-                                                   class="text-primary text-decoration-underline fw-semibold">
-                                                    {{ translate('learn_more') }}
-                                                </a>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>

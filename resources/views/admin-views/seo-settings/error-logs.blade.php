@@ -17,9 +17,6 @@
                     <h3 class="">{{translate('404_Logs')}}</h3>
                     <p class="m-0">
                         {{ translate('track_instances_of_page_not_found_errors_faced_by_users_on_your_website') }}
-                        <a href="{{ 'https://6amtech.com/blog/404-logs/' }}" target="_blank" class="text-primary text-decoration-underline fw-semibold text-nowrap">
-                            {{translate('Learn_more')}}
-                        </a>
                     </p>
                 </div>
                 <div>
