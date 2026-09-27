@@ -5,7 +5,7 @@
         <div class="d-flex justify-content-center">
             <div class="ext-center">
                 <h3 class="mb-2 text-capitalize">{{ $isArabic ? 'تسجيل التاجر' : ($vendorRegistrationHeader?->title ?? 'Vendor Registration') }}</h3>
-                <p>{{ $isArabic ? 'أنشئ متجرك الآن. لديك متجر بالفعل؟' : ($vendorRegistrationHeader?->sub_title ?? 'Create your own store. Already have a store?') }}
+                <p>{{ $isArabic ? 'أنشئ متجرك الآن. لديك متجر بالفعل؟' : 'Create your own store. Already have a store?' }}
                     <a class="text-primary fw-bold" href="{{route('vendor.auth.login')}}">{{translate('login')}}</a>
                 </p>
                 <div class="my-4 text-center">
