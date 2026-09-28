@@ -11,6 +11,12 @@ if ($LASTEXITCODE -ne 0 -or $remote -ne $expectedRemote) {
     throw 'The vps Git remote is missing or points to a different server.'
 }
 
+$sshKey = Join-Path $env:USERPROFILE '.ssh\sigma_site_git_push'
+if (-not (Test-Path -LiteralPath $sshKey)) {
+    throw "The site deployment SSH key was not found at $sshKey"
+}
+$env:GIT_SSH_COMMAND = "ssh -i `"$sshKey`" -o IdentitiesOnly=yes -o BatchMode=yes"
+
 & git add -A
 if ($LASTEXITCODE -ne 0) { throw 'Could not stage the site files.' }
 
@@ -38,7 +44,7 @@ $revision = (& git rev-parse HEAD).Trim()
 & git push vps HEAD:refs/heads/main
 if ($LASTEXITCODE -ne 0) { throw 'Git transfer to the VPS failed.' }
 
-$deployed = (& ssh -o BatchMode=yes sigma-eg@187.77.66.167 'cat /home/sigma-eg/htdocs/sigma-eg.net/.deploy-current').Trim()
+$deployed = (& ssh -i $sshKey -o IdentitiesOnly=yes -o BatchMode=yes sigma-eg@187.77.66.167 'cat /home/sigma-eg/htdocs/sigma-eg.net/.deploy-current').Trim()
 if ($LASTEXITCODE -ne 0 -or $deployed -ne $revision) {
     throw 'The VPS received the commit but the deployment did not finish. Check the server deployment log.'
 }
