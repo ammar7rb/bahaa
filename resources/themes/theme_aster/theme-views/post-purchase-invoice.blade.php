@@ -17,6 +17,10 @@
                 <div class="d-flex justify-content-between py-3"><span>{{ translate('total_due') }}</span><strong>{{ webCurrencyConverter($summary['external_amount_due']) }}</strong></div>
                 @if($invoice->status === \App\Models\PostPurchaseInvoice::STATUS_PAID)
                     <div class="alert alert-success mb-0">{{ translate('payment_received_order_waiting_for_admin_review') }}</div>
+                @elseif($invoice->status === \App\Models\PostPurchaseInvoice::STATUS_AWAITING_REVIEW)
+                    <div class="alert alert-info mb-0">{{ translate('offline_payment_is_waiting_for_admin_review') }}</div>
+                @elseif(!$invoice->isPayable())
+                    <div class="alert alert-info mb-0">الفاتورة الثانية جاهزة، ويمكن سدادها فور اعتماد الدفعة الأولى.</div>
                 @else
                     @if(($summary['insurance_amount'] ?? 0) > ($summary['insurance_balance_paid'] ?? 0))
                         @php($insuranceStillDue = max(0, $summary['insurance_amount'] - $summary['insurance_balance_paid']))

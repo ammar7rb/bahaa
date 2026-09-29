@@ -52,6 +52,7 @@ class PostPurchaseInvoice extends Model
         // It must not be possible to add a digital or insurance-wallet
         // payment on top of that proof.
         return $this->status === self::STATUS_PENDING
+            && $this->order?->payment_status === 'paid'
             && (float) $this->total_amount > (float) $this->paid_amount;
     }
 }

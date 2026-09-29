@@ -107,6 +107,9 @@ class PostPurchaseInvoiceController extends Controller
             }
 
             $summary = $this->invoices->paymentSummary($invoice);
+            if (! $invoice->isPayable()) {
+                throw new DomainException('post_purchase_invoice_is_not_payable');
+            }
             $amount = (float) $summary['external_amount_due'];
             $gateway = collect(payment_gateways())->firstWhere('key_name', $request->payment_method);
             if ($amount <= 0 || ! $gateway || ! (getWebConfig(name: 'digital_payment')['status'] ?? 0)) {
@@ -275,6 +278,9 @@ class PostPurchaseInvoiceController extends Controller
             PostPurchaseInvoice::STATUS_EXPIRED => 'expired',
             default => 'pending_payment',
         };
+        if ($invoice->order?->payment_status !== 'paid' && $invoice->status === PostPurchaseInvoice::STATUS_PENDING) {
+            $claimStatus = 'awaiting_first_payment';
+        }
         $customer = $invoice->customer;
         $balance = $this->invoices->customerInsuranceBalanceSummary($invoice->customer_id);
 
@@ -284,6 +290,7 @@ class PostPurchaseInvoiceController extends Controller
                 'flow_status' => $invoice->order?->post_purchase_status,
                 'order_reference' => '#'.$invoice->order_id,
                 'purchase_amount' => (float) ($invoice->metadata['first_payment_amount'] ?? $invoice->order?->order_amount ?? 0),
+                'first_payment_status' => $invoice->order?->payment_status,
                 'tax' => ['amount' => (float) $invoice->tax_amount],
                 'insurance' => ['amount' => (float) $invoice->insurance_amount, 'payment_status' => $invoice->status === PostPurchaseInvoice::STATUS_PAID ? 'paid' : 'unpaid', 'status' => $claimStatus, 'payment_due_at' => $invoice->payment_due_at?->toIso8601String(), 'balance_use_policy' => 'insurance_only'],
                 'total_amount' => (float) $invoice->total_amount,

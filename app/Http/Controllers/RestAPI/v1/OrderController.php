@@ -494,7 +494,7 @@ class OrderController extends Controller
         ]);
 
         $secondStageInvoices = app(\App\Services\PostPurchaseInvoiceService::class)
-            ->createForPaidOrderGroup($orderIds);
+            ->createForPaidOrderGroup($orderIds, includeSubmittedOffline: true);
         $activationInvoice = ! app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled() && $activationRequired && $user != 'offline'
             ? $this->activationInvoiceService->createForPaidOrderGroup($orderIds)
             : null;
@@ -509,6 +509,7 @@ class OrderController extends Controller
             'offline_payment_pending_review' => true,
             'activation_required' => (bool) $activationInvoice,
             'next_action' => $secondStageInvoices ? 'open_post_purchase_invoice' : ($activationInvoice ? 'open_activation_invoice' : 'order_review'),
+            'post_purchase_invoices' => collect($secondStageInvoices)->map(fn ($invoice) => app(\App\Services\PostPurchaseInvoiceService::class)->paymentSummary($invoice))->values(),
             'activation_invoice' => $this->formatActivationInvoiceForApi($activationInvoice),
         ], 200);
     }

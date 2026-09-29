@@ -84,6 +84,11 @@ class PostPurchaseInvoiceController extends Controller
             abort(404);
         }
 
+        if (! $invoice->isPayable()) {
+            Toastr::error(translate('post_purchase_invoice_is_not_payable'));
+            return back();
+        }
+
         $validator = Validator::make($request->all(), [
             'payment_method' => 'required|string|max:100',
             'current_currency_code' => 'nullable|string|max:10',

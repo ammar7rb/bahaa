@@ -39,6 +39,8 @@
                             <div class="alert alert-info mb-0">{{ translate('offline_payment_is_waiting_for_admin_review') }}</div>
                         @elseif($invoice->status === \App\Models\PostPurchaseInvoice::STATUS_EXPIRED)
                             <div class="alert alert-danger mb-0">{{ translate('payment_window_has_expired_contact_support') }}</div>
+                        @elseif(!$invoice->isPayable())
+                            <div class="alert alert-info mb-0">الفاتورة الثانية جاهزة، ويمكن سدادها فور اعتماد الدفعة الأولى.</div>
                         @else
                             <div class="d-flex flex-column gap-3">
                                 @if(($summary['insurance_amount'] ?? 0) > ($summary['insurance_balance_paid'] ?? 0))
