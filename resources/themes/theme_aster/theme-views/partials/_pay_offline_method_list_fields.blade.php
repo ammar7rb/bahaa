@@ -1,7 +1,8 @@
 @if ($method)
     <div class="payment-list-area p-0">
         <div class="p-3 my-3 rounded --bg-light-sky-blue">
-            <h6 class="pb-2" style="color: {{$web_config['primary_color']}};">{{ offlinePaymentMethodDisplayName($method) }}</h6>
+            <h6 class="pb-2" style="color: {{$web_config['primary_color']}};">بيانات التحويل عبر {{ offlinePaymentMethodDisplayName($method) }}</h6>
+            <p class="small text-muted">حوّل مبلغ الفاتورة الأولى إلى الحساب الموضح، ثم أدخل بيانات المرسل وارفع إثبات الدفع.</p>
             <input type="hidden" value="offline_payment" name="payment_method">
             <input type="hidden" value="{{ $method['id'] }}" name="method_id">
 
@@ -9,15 +10,17 @@
                 @foreach ($method['method_fields'] as $method_field)
                     <div class="col-6 pb-2">
                         <span>{{ translatePaymentText($method_field['input_name']).' '.':'}}</span>
-                        <span>{{ translatePaymentText($method_field['input_data']) }}</span>
+                        <bdi dir="auto" class="fw-semibold">{{ translatePaymentText($method_field['input_data']) }}</bdi>
                     </div>
                 @endforeach
             </div>
         </div>
 
-        <h4 class="text-center py-3 fw-6 font-weight--600">
-            {{ translate('amount').' '.':' }} {{ webCurrencyConverter($totalOfflineAmount) }}
-        </h4>
+        <div class="border rounded p-3 my-3 d-flex justify-content-between align-items-center gap-2">
+            <span class="fw-semibold">المبلغ المطلوب تحويله للفاتورة الأولى</span>
+            <strong class="text-primary">{{ webCurrencyConverter($totalOfflineAmount) }}</strong>
+        </div>
+        <p class="small text-muted">تظهر الضريبة والتأمين في الفاتورة الثانية، وتُسدد بعد اعتماد الدفعة الأولى.</p>
 
         <div class="row">
             @foreach ($method['method_informations'] as $information)

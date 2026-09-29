@@ -2,21 +2,24 @@
     <div class="payment-list-area">
         <div class="mx-xl-5">
             <div class="bg-primary-light rounded p-4 mt-4 offline-transfer-info">
-                <h6 class="text-capitalize">{{ offlinePaymentMethodDisplayName($method) }} {{translate('info')}}</h6>
+                <h6 class="text-capitalize mb-2">بيانات التحويل عبر {{ offlinePaymentMethodDisplayName($method) }}</h6>
+                <p class="small text-muted mb-3">حوّل مبلغ الفاتورة الأولى إلى الحساب الموضح، ثم أدخل بيانات المرسل وارفع إثبات الدفع.</p>
                 <div class="row g-2 fs-12">
                     @foreach ($method['method_fields'] as $methodField)
                         <div class="col-xl-5 col-sm-6">
                             <div class="d-flex gap-2">
                                 <span class="text-muted text-capitalize">{{ translatePaymentText($methodField['input_name']) }}</span>
-                                : <span class="text-dark">{{ translatePaymentText($methodField['input_data']) }}</span>
+                                : <bdi dir="auto" class="text-dark fw-semibold">{{ translatePaymentText($methodField['input_data']) }}</bdi>
                             </div>
                         </div>
                     @endforeach
                 </div>
             </div>
-            <h4 class="mt-4 font-weight-bold text-center">
-                {{translate('amount')}} : {{ webCurrencyConverter(amount: $totalOfflineAmount) }}
-            </h4>
+            <div class="border rounded p-3 mt-3 mb-4 d-flex justify-content-between align-items-center gap-2">
+                <span class="fw-semibold">المبلغ المطلوب تحويله للفاتورة الأولى</span>
+                <strong class="text-primary">{{ webCurrencyConverter(amount: $totalOfflineAmount) }}</strong>
+            </div>
+            <p class="small text-muted mb-3">تظهر الضريبة والتأمين في الفاتورة الثانية، وتُسدد بعد اعتماد الدفعة الأولى.</p>
 
             <div class="row">
                 <input type="hidden" value="offline_payment" name="payment_method">
