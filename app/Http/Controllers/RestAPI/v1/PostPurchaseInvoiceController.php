@@ -278,9 +278,6 @@ class PostPurchaseInvoiceController extends Controller
             PostPurchaseInvoice::STATUS_EXPIRED => 'expired',
             default => 'pending_payment',
         };
-        if ($invoice->order?->payment_status !== 'paid' && $invoice->status === PostPurchaseInvoice::STATUS_PENDING) {
-            $claimStatus = 'awaiting_first_payment';
-        }
         $customer = $invoice->customer;
         $balance = $this->invoices->customerInsuranceBalanceSummary($invoice->customer_id);
 

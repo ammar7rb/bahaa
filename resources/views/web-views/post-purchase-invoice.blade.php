@@ -13,7 +13,7 @@
                             <div class="alert alert-success">{{ translate('checkout_request_received_pending') }}</div>
                         @endif
                         <h4 class="mb-2">الفاتورة الثانية للطلب #{{ $invoice->order_id }}</h4>
-                        <p class="text-muted mb-4">تضم هذه الفاتورة ضريبة المنتجات وتأمين الطلب حسب الإعدادات المفعّلة. اختر طريقة السداد بعد اعتماد الدفعة الأولى.</p>
+                        <p class="text-muted mb-4">تضم هذه الفاتورة ضريبة المنتجات وتأمين الطلب حسب الإعدادات المفعّلة. يمكنك اختيار طريقة السداد الآن.</p>
 
                         <div class="alert alert-warning" @if($summary['insurance_amount'] <= 0) hidden @endif>
                             رصيد التأمين يُستخدم لسداد التأمين فقط. تُسدد الضريبة بإنستا باي أو محفظة إلكترونية.
@@ -38,7 +38,7 @@
                         @elseif($invoice->status === \App\Models\PostPurchaseInvoice::STATUS_EXPIRED)
                             <div class="alert alert-danger mb-0">{{ translate('payment_window_has_expired_contact_support') }}</div>
                         @elseif(!$invoice->isPayable())
-                            <div class="alert alert-info mb-0">الفاتورة الثانية جاهزة بالمبالغ أعلاه. بعد اعتماد الدفعة الأولى ستختار سداد التأمين من رصيده المستحق، أو سداد الفاتورة بإنستا باي أو محفظة إلكترونية.</div>
+                            <div class="alert alert-info mb-0">الفاتورة الثانية غير متاحة للسداد مؤقتًا. حدّث الصفحة أو تواصل مع الدعم إذا استمرت المشكلة.</div>
                         @else
                             <div class="d-flex flex-column gap-3">
                                 <h5 class="mb-0">اختر طريقة سداد الفاتورة الثانية</h5>

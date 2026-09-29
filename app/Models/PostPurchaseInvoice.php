@@ -48,11 +48,10 @@ class PostPurchaseInvoice extends Model
 
     public function isPayable(): bool
     {
-        // An offline proof is locked while the administrator reviews it.
-        // It must not be possible to add a digital or insurance-wallet
-        // payment on top of that proof.
+        // Only invoices created after a paid first stage or submitted offline
+        // proof receive a due date. A second-stage proof under review stays locked.
         return $this->status === self::STATUS_PENDING
-            && $this->order?->payment_status === 'paid'
+            && $this->payment_due_at !== null
             && (float) $this->total_amount > (float) $this->paid_amount;
     }
 }

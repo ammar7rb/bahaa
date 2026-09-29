@@ -20,7 +20,7 @@
             <span class="fw-semibold">المبلغ المطلوب تحويله للفاتورة الأولى</span>
             <strong class="text-primary">{{ webCurrencyConverter($totalOfflineAmount) }}</strong>
         </div>
-        <p class="small text-muted">تظهر الضريبة والتأمين في الفاتورة الثانية، وتُسدد بعد اعتماد الدفعة الأولى.</p>
+        <p class="small text-muted">تظهر الضريبة والتأمين في الفاتورة الثانية فور إرسال إثبات الدفع، ويمكن سدادها مباشرة.</p>
 
         <div class="row">
             @foreach ($method['method_informations'] as $information)

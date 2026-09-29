@@ -40,6 +40,7 @@ class OfflineSecondStageTest extends TestCase
         Schema::create('post_purchase_invoices', function (Blueprint $t) {
             $t->id(); $t->integer('order_id')->unique(); $t->integer('customer_id');
             foreach (['contract_version','status','tax_snapshot','insurance_snapshot','metadata'] as $key) $t->text($key)->nullable();
+            $t->string('payment_method')->nullable(); $t->string('payment_reference')->nullable();
             foreach (['taxable_amount','tax_rate','tax_amount','insurance_amount','total_amount','paid_amount'] as $key) $t->decimal($key,18,4)->default(0);
             $t->timestamp('payment_due_at')->nullable(); $t->timestamp('paid_at')->nullable(); $t->timestamps();
         });
@@ -53,6 +54,8 @@ class OfflineSecondStageTest extends TestCase
             $this->assertCount(1,$invoices);
             $this->assertEquals(64,$invoices[0]->total_amount);
             $this->assertSame('unpaid',Order::find($id)->payment_status);
+            $this->assertNotNull($invoices[0]->payment_due_at);
+            $this->assertTrue($invoices[0]->isPayable());
             $service->createForPaidOrderGroup([$id], true);
             $this->assertSame(1,PostPurchaseInvoice::count());
             DB::table('business_settings')->where('type', 'customer_order_insurance_scope')->update(['value' => 'selected']);
@@ -103,7 +106,9 @@ class OfflineSecondStageTest extends TestCase
             }
             $this->assertEquals(10, DB::table('customer_insurance_balances')->where('customer_id', 3)->value('available_amount'));
             $this->assertEquals(0, PostPurchaseInvoice::find($insuranceOnly[0]->id)->paid_amount);
-            $invoices[0]->update(['status'=>'paid','paid_amount'=>64]);
+            $paidSecondInvoice = $service->markExternalPaymentPaid($invoices[0], 64, 'instapay', 'proof-approved');
+            $this->assertSame('paid', $paidSecondInvoice->status);
+            $this->assertSame('unpaid', Order::find($id)->payment_status);
             $this->expectException(\DomainException::class);
             $service->releaseToSeller($invoices[0],1);
         } finally {

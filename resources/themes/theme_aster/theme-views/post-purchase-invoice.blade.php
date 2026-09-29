@@ -7,7 +7,7 @@
         <div class="container"><div class="row justify-content-center"><div class="col-lg-8">
             <div class="card"><div class="card-body p-3 p-md-4">
                 <h4>الفاتورة الثانية للطلب #{{ $invoice->order_id }}</h4>
-                <p class="text-muted">تضم ضريبة المنتجات وتأمين الطلب حسب الإعدادات المفعّلة. اختر طريقة السداد بعد اعتماد الدفعة الأولى.</p>
+                <p class="text-muted">تضم ضريبة المنتجات وتأمين الطلب حسب الإعدادات المفعّلة. يمكنك اختيار طريقة السداد الآن.</p>
                 @if($summary['insurance_amount'] > 0)<div class="alert alert-warning">رصيد التأمين يُستخدم لسداد التأمين فقط. تُسدد الضريبة بإنستا باي أو محفظة إلكترونية.</div>@endif
                 <div class="d-flex justify-content-between border-bottom py-2"><span>{{ translate('order') }}</span><strong>#{{ $invoice->order_id }}</strong></div>
                 <div class="d-flex justify-content-between border-bottom py-2"><span>مبلغ المشتريات والشحن في الفاتورة الأولى</span><strong>{{ webCurrencyConverter($summary['first_payment_amount'] ?? 0) }}</strong></div>
@@ -21,7 +21,7 @@
                 @elseif($invoice->status === \App\Models\PostPurchaseInvoice::STATUS_AWAITING_REVIEW)
                     <div class="alert alert-info mb-0">{{ translate('offline_payment_is_waiting_for_admin_review') }}</div>
                 @elseif(!$invoice->isPayable())
-                    <div class="alert alert-info mb-0">الفاتورة الثانية جاهزة بالمبالغ أعلاه. بعد اعتماد الدفعة الأولى ستختار سداد التأمين من رصيده المستحق، أو سداد الفاتورة بإنستا باي أو محفظة إلكترونية.</div>
+                    <div class="alert alert-info mb-0">الفاتورة الثانية غير متاحة للسداد مؤقتًا. حدّث الصفحة أو تواصل مع الدعم إذا استمرت المشكلة.</div>
                 @else
                     <h5 class="mt-3">اختر طريقة سداد الفاتورة الثانية</h5>
                     @if(($summary['insurance_amount'] ?? 0) > ($summary['insurance_balance_paid'] ?? 0))

@@ -19,7 +19,7 @@
                 <span class="fw-semibold">المبلغ المطلوب تحويله للفاتورة الأولى</span>
                 <strong class="text-primary">{{ webCurrencyConverter(amount: $totalOfflineAmount) }}</strong>
             </div>
-            <p class="small text-muted mb-3">تظهر الضريبة والتأمين في الفاتورة الثانية، وتُسدد بعد اعتماد الدفعة الأولى.</p>
+            <p class="small text-muted mb-3">تظهر الضريبة والتأمين في الفاتورة الثانية فور إرسال إثبات الدفع، ويمكن سدادها مباشرة.</p>
 
             <div class="row">
                 <input type="hidden" value="offline_payment" name="payment_method">

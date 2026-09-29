@@ -38,7 +38,7 @@ class PostPurchaseInvoiceService
 
     /**
      * Snapshots tax/insurance after the first payment or an offline proof.
-     * An offline preview remains locked until that payment is approved.
+     * The customer may pay the second invoice immediately after submission.
      *
      * @return array<int, PostPurchaseInvoice>
      */
@@ -61,10 +61,10 @@ class PostPurchaseInvoiceService
 
                 $existing = PostPurchaseInvoice::query()->where('order_id', $order->id)->lockForUpdate()->first();
                 if ($existing) {
-                    if ($order->payment_status === 'paid' && $existing->status === PostPurchaseInvoice::STATUS_PENDING
+                    if ($existing->status === PostPurchaseInvoice::STATUS_PENDING
                         && $existing->payment_due_at === null) {
                         $metadata = $existing->metadata ?: [];
-                        $metadata['first_payment_status'] = 'paid';
+                        $metadata['first_payment_status'] = $order->payment_status;
                         $existing->update(['payment_due_at' => now()->addDays($this->paymentDueDays()), 'metadata' => $metadata]);
                         $this->markOrderAwaitingSecondPayment($order);
                     }
@@ -109,7 +109,7 @@ class PostPurchaseInvoiceService
                     'insurance_amount' => $insurance['amount'],
                     'total_amount' => $total,
                     'paid_amount' => 0,
-                    'payment_due_at' => $order->payment_status === 'paid' ? now()->addDays($this->paymentDueDays()) : null,
+                    'payment_due_at' => now()->addDays($this->paymentDueDays()),
                     'paid_at' => null,
                     'tax_snapshot' => $tax,
                     'insurance_snapshot' => $insurance,
@@ -122,9 +122,7 @@ class PostPurchaseInvoiceService
                     ],
                 ]);
 
-                if ($order->payment_status === 'paid') {
-                    $this->markOrderAwaitingSecondPayment($order);
-                }
+                $this->markOrderAwaitingSecondPayment($order);
 
                 $invoices[] = $invoice;
             }
@@ -252,9 +250,6 @@ class PostPurchaseInvoiceService
     ): PostPurchaseInvoice {
         return DB::transaction(function () use ($invoice, $amount, $paymentMethod, $reference) {
             $invoice = PostPurchaseInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
-            if ($invoice->order?->payment_status !== 'paid') {
-                throw new DomainException('first_payment_must_be_approved');
-            }
             $isApprovedOfflineReview = $invoice->status === PostPurchaseInvoice::STATUS_AWAITING_REVIEW
                 && str_starts_with($paymentMethod, 'offline_');
             if (! $isApprovedOfflineReview) {
@@ -376,10 +371,12 @@ class PostPurchaseInvoiceService
             return $invoice;
         }
 
-        $invoice->update([
-            'status' => PostPurchaseInvoice::STATUS_PAID,
-            'paid_at' => now(),
-        ]);
+        if ($invoice->status !== PostPurchaseInvoice::STATUS_PAID || $invoice->paid_at === null) {
+            $invoice->update([
+                'status' => PostPurchaseInvoice::STATUS_PAID,
+                'paid_at' => $invoice->paid_at ?? now(),
+            ]);
+        }
 
         if (Order::whereKey($invoice->order_id)->value('payment_status') !== 'paid') {
             return $invoice->fresh();

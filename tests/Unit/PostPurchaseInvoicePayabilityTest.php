@@ -4,11 +4,11 @@ namespace Tests\Unit;
 
 use App\Models\Order;
 use App\Models\PostPurchaseInvoice;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class PostPurchaseInvoicePayabilityTest extends TestCase
 {
-    public function test_second_invoice_waits_for_first_payment_approval(): void
+    public function test_second_invoice_is_payable_after_first_payment_proof_is_submitted(): void
     {
         $order = new Order(['payment_status' => 'unpaid']);
         $invoice = new PostPurchaseInvoice([
@@ -20,7 +20,7 @@ class PostPurchaseInvoicePayabilityTest extends TestCase
 
         self::assertFalse($invoice->isPayable());
 
-        $order->payment_status = 'paid';
+        $invoice->payment_due_at = \Carbon\Carbon::now()->addDays(2);
         self::assertTrue($invoice->isPayable());
 
         $invoice->status = PostPurchaseInvoice::STATUS_AWAITING_REVIEW;
