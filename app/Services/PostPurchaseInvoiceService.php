@@ -339,6 +339,7 @@ class PostPurchaseInvoiceService
         return [
             'invoice_id' => $invoice->id,
             'first_payment_amount' => (float) ($metadata['first_payment_amount'] ?? 0),
+            'first_payment_status' => $invoice->order?->payment_status,
             'order_id' => $invoice->order_id,
             'status' => $invoice->status,
             'tax_amount' => (float) $invoice->tax_amount,

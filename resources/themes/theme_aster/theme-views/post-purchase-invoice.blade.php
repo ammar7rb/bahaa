@@ -1,27 +1,29 @@
 @extends('theme-views.layouts.app')
 
-@section('title', translate('complete_order_requirements'))
+@section('title', 'الفاتورة الثانية للطلب')
 
 @section('content')
     <main class="main-content py-4 mb-4">
         <div class="container"><div class="row justify-content-center"><div class="col-lg-8">
             <div class="card"><div class="card-body p-3 p-md-4">
-                <h4>{{ translate('complete_order_requirements') }}</h4>
-                <p class="text-muted">{{ translate('your_merchandise_payment_has_been_received_the_order_is_waiting_for_tax_and_insurance_payment') }}</p>
-                @if($summary['insurance_amount'] > 0)<div class="alert alert-warning">{{ translate('insurance_balance_can_only_be_used_for_the_insurance_part_and_never_for_tax') }}</div>@endif
+                <h4>الفاتورة الثانية للطلب #{{ $invoice->order_id }}</h4>
+                <p class="text-muted">تضم ضريبة المنتجات وتأمين الطلب حسب الإعدادات المفعّلة. اختر طريقة السداد بعد اعتماد الدفعة الأولى.</p>
+                @if($summary['insurance_amount'] > 0)<div class="alert alert-warning">رصيد التأمين يُستخدم لسداد التأمين فقط. تُسدد الضريبة بإنستا باي أو محفظة إلكترونية.</div>@endif
                 <div class="d-flex justify-content-between border-bottom py-2"><span>{{ translate('order') }}</span><strong>#{{ $invoice->order_id }}</strong></div>
-                <div class="d-flex justify-content-between border-bottom py-2"><span>{{ translate('merchandise_payment') }}</span><strong>{{ webCurrencyConverter($summary['first_payment_amount'] ?? 0) }}</strong></div>
+                <div class="d-flex justify-content-between border-bottom py-2"><span>مبلغ المشتريات والشحن في الفاتورة الأولى</span><strong>{{ webCurrencyConverter($summary['first_payment_amount'] ?? 0) }}</strong></div>
                 <div class="d-flex justify-content-between border-bottom py-2"><span>{{ translate('tax') }}</span><strong>{{ webCurrencyConverter($summary['tax_amount']) }}</strong></div>
                 <div class="d-flex justify-content-between border-bottom py-2"><span>{{ translate('order_insurance') }}</span><strong>{{ webCurrencyConverter($summary['insurance_amount']) }}</strong></div>
                 <div class="d-flex justify-content-between border-bottom py-2"><span>إجمالي الفاتورة الثانية</span><strong>{{ webCurrencyConverter($summary['total_amount']) }}</strong></div>
-                <div class="d-flex justify-content-between py-3"><span>{{ translate('total_due') }}</span><strong>{{ webCurrencyConverter($summary['external_amount_due']) }}</strong></div>
+                <div class="d-flex justify-content-between py-3"><span>المتبقي للسداد</span><strong>{{ webCurrencyConverter($summary['external_amount_due']) }}</strong></div>
+                @if($invoice->payment_due_at)<div class="d-flex justify-content-between py-2"><span>آخر موعد للسداد</span><strong>{{ $invoice->payment_due_at->format('d M Y, h:i A') }}</strong></div>@endif
                 @if($invoice->status === \App\Models\PostPurchaseInvoice::STATUS_PAID)
                     <div class="alert alert-success mb-0">{{ translate('payment_received_order_waiting_for_admin_review') }}</div>
                 @elseif($invoice->status === \App\Models\PostPurchaseInvoice::STATUS_AWAITING_REVIEW)
                     <div class="alert alert-info mb-0">{{ translate('offline_payment_is_waiting_for_admin_review') }}</div>
                 @elseif(!$invoice->isPayable())
-                    <div class="alert alert-info mb-0">الفاتورة الثانية جاهزة، ويمكن سدادها فور اعتماد الدفعة الأولى.</div>
+                    <div class="alert alert-info mb-0">الفاتورة الثانية جاهزة بالمبالغ أعلاه. بعد اعتماد الدفعة الأولى ستختار سداد التأمين من رصيده المستحق، أو سداد الفاتورة بإنستا باي أو محفظة إلكترونية.</div>
                 @else
+                    <h5 class="mt-3">اختر طريقة سداد الفاتورة الثانية</h5>
                     @if(($summary['insurance_amount'] ?? 0) > ($summary['insurance_balance_paid'] ?? 0))
                         @php($insuranceStillDue = max(0, $summary['insurance_amount'] - $summary['insurance_balance_paid']))
                         <p>رصيد التأمين المستحق المتاح: {{ webCurrencyConverter($insuranceBalance['available_balance'] ?? 0) }}</p>

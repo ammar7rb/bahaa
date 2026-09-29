@@ -272,6 +272,15 @@
                                                                  <textarea name="address" id="address" class="form-control" rows="3" placeholder="اكتب أي تفاصيل تساعد المندوب في الوصول" required></textarea>
                                                              </div>
                                                          </div>
+                                                        @if($physical_product_view)
+                                                            <div class="col-12 mb-3">
+                                                                <strong class="d-block mb-2">اختر طريقة الشحن لهذا العنوان</strong>
+                                                                <div class="d-flex flex-wrap gap-2">
+                                                                    <label class="border rounded p-3 flex-fill cursor-pointer"><input type="radio" name="preferred_shipping_option" value="normal"> شحن عادي</label>
+                                                                    <label class="border rounded p-3 flex-fill cursor-pointer"><input type="radio" name="preferred_shipping_option" value="sigma"> شحن سيجما <small class="d-block text-primary">موثّق وموصى به من سيجما، ويُضاف تلقائيًا إلى الفاتورة.</small></label>
+                                                                </div>
+                                                            </div>
+                                                        @endif
 
                                                         <div class="col-sm-12">
                                                             <label class="custom-checkbox align-items-center fw-bold"
@@ -646,18 +655,20 @@
                     <div class="card mt-3" id="automatic-shipping-options">
                         <div class="card-body">
                             <h5 class="mb-1">اختر طريقة الشحن</h5>
-                            <p class="text-muted mb-3">تم احتساب السعر من موقع عنوانك. اختر طريقة واحدة لإضافتها إلى إجمالي الطلب.</p>
+                            <p class="text-muted mb-3">اختر الشحن المناسب لعنوانك. تُضاف تكلفة الشحن تلقائيًا إلى الفاتورة.</p>
                             <div class="row g-3">
                                 @foreach(['normal', 'sigma'] as $shippingOptionKey)
                                     @php($shippingOption = $shipping_quote_options[$shippingOptionKey] ?? null)
                                     @if($shippingOption)
                                         <div class="col-md-6">
                                             <button type="button" class="btn btn-outline-primary w-100 text-start p-3 select-automatic-shipping"
-                                                    data-method-id="{{ $shippingOption['method_id'] }}" data-address-id="{{ $selected_shipping_address_id }}">
+                                                    data-method-id="{{ $shippingOption['method_id'] }}" data-address-id="{{ $selected_shipping_address_id }}" data-shipping-option="{{ $shippingOptionKey }}">
                                                 <div class="d-flex justify-content-between align-items-center gap-2">
                                                     <strong>{{ $shippingOptionKey === 'sigma' ? 'شحن سيجما' : 'شحن عادي' }}</strong>
-                                                    <strong>{{ webCurrencyConverter($shippingOption['shipping_cost']) }}</strong>
                                                 </div>
+                                                @if($shippingOptionKey === 'sigma')
+                                                    <div class="small text-primary mt-2">شحن موثّق وموصى به من سيجما، ويُضاف تلقائيًا إلى الفاتورة.</div>
+                                                @endif
                                                 <div class="small text-muted mt-2">
                                                     مدة التوصيل:
                                                     @if($shippingOption['minimum_business_days'] === $shippingOption['maximum_business_days'])
@@ -704,6 +715,11 @@
                 else button.disabled = false;
             });
         });
+        const preferredShipping = sessionStorage.getItem('sigma_preferred_shipping');
+        if (preferredShipping) {
+            sessionStorage.removeItem('sigma_preferred_shipping');
+            document.querySelector(`.select-automatic-shipping[data-shipping-option="${preferredShipping}"]`)?.click();
+        }
     </script>
 
 @endpush

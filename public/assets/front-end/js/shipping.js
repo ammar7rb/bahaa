@@ -396,6 +396,8 @@ function checkoutFromShipping() {
             } else {
                 // Save the address first, then remain on this page so the
                 // customer can review the distance quote and choose a method.
+                const preferredShipping = $('#address-form input[name="preferred_shipping_option"]:checked').val();
+                if (preferredShipping) sessionStorage.setItem('sigma_preferred_shipping', preferredShipping);
                 window.location.hash = 'automatic-shipping-options';
                 location.reload();
             }

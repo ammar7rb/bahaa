@@ -1,6 +1,6 @@
 @extends('layouts.front-end.app')
 
-@section('title', translate('complete_order_requirements'))
+@section('title', 'الفاتورة الثانية للطلب')
 
 @section('content')
     <div class="container py-4 py-md-5 second-stage-page text-align-direction">
@@ -12,24 +12,22 @@
                         @if(session('checkout_pending_notice'))
                             <div class="alert alert-success">{{ translate('checkout_request_received_pending') }}</div>
                         @endif
-                        <h4 class="mb-2">{{ translate('complete_order_requirements') }}</h4>
-                        <p class="text-muted mb-4">
-                            {{ translate('checkout_second_stage_notice') }}
-                        </p>
+                        <h4 class="mb-2">الفاتورة الثانية للطلب #{{ $invoice->order_id }}</h4>
+                        <p class="text-muted mb-4">تضم هذه الفاتورة ضريبة المنتجات وتأمين الطلب حسب الإعدادات المفعّلة. اختر طريقة السداد بعد اعتماد الدفعة الأولى.</p>
 
                         <div class="alert alert-warning" @if($summary['insurance_amount'] <= 0) hidden @endif>
-                            {{ translate('insurance_balance_can_only_be_used_for_the_insurance_part_and_never_for_tax') }}
+                            رصيد التأمين يُستخدم لسداد التأمين فقط. تُسدد الضريبة بإنستا باي أو محفظة إلكترونية.
                         </div>
 
                         <div class="table-responsive mb-3">
                             <table class="table table-borderless align-middle mb-0">
                                 <tr><th>{{ translate('balance_order_number') }}</th><td>#{{ $invoice->order_id }}</td></tr>
-                                <tr><th>{{ translate('merchandise_payment') }}</th><td>{{ webCurrencyConverter($summary['first_payment_amount'] ?? 0) }}</td></tr>
+                                <tr><th>مبلغ المشتريات والشحن في الفاتورة الأولى</th><td>{{ webCurrencyConverter($summary['first_payment_amount'] ?? 0) }}</td></tr>
                                 <tr><th>{{ translate('tax') }}</th><td>{{ webCurrencyConverter($summary['tax_amount']) }}</td></tr>
                                 <tr><th>{{ translate('order_insurance') }}</th><td>{{ webCurrencyConverter($summary['insurance_amount']) }}</td></tr>
                                 <tr><th>إجمالي الفاتورة الثانية</th><td class="fw-bold">{{ webCurrencyConverter($summary['total_amount']) }}</td></tr>
-                                <tr><th>{{ translate('total_due') }}</th><td class="fw-bold">{{ webCurrencyConverter($summary['external_amount_due']) }}</td></tr>
-                                <tr><th>{{ translate('payment_due_date') }}</th><td>{{ $invoice->payment_due_at?->format('d M Y, h:i A') ?? '-' }}</td></tr>
+                                <tr><th>المتبقي للسداد</th><td class="fw-bold">{{ webCurrencyConverter($summary['external_amount_due']) }}</td></tr>
+                                @if($invoice->payment_due_at)<tr><th>آخر موعد للسداد</th><td>{{ $invoice->payment_due_at->format('d M Y, h:i A') }}</td></tr>@endif
                             </table>
                         </div>
 
@@ -40,9 +38,10 @@
                         @elseif($invoice->status === \App\Models\PostPurchaseInvoice::STATUS_EXPIRED)
                             <div class="alert alert-danger mb-0">{{ translate('payment_window_has_expired_contact_support') }}</div>
                         @elseif(!$invoice->isPayable())
-                            <div class="alert alert-info mb-0">الفاتورة الثانية جاهزة، ويمكن سدادها فور اعتماد الدفعة الأولى.</div>
+                            <div class="alert alert-info mb-0">الفاتورة الثانية جاهزة بالمبالغ أعلاه. بعد اعتماد الدفعة الأولى ستختار سداد التأمين من رصيده المستحق، أو سداد الفاتورة بإنستا باي أو محفظة إلكترونية.</div>
                         @else
                             <div class="d-flex flex-column gap-3">
+                                <h5 class="mb-0">اختر طريقة سداد الفاتورة الثانية</h5>
                                 @if(($summary['insurance_amount'] ?? 0) > ($summary['insurance_balance_paid'] ?? 0))
                                     @php($insuranceStillDue = max(0, $summary['insurance_amount'] - $summary['insurance_balance_paid']))
                                     <p class="mb-1">رصيد التأمين المستحق المتاح: {{ webCurrencyConverter($insuranceBalance['available_balance'] ?? 0) }}</p>
@@ -72,7 +71,7 @@
 
                                 @if($summary['external_amount_due'] > 0 && $offlinePaymentAvailable && $offlinePaymentMethods->isNotEmpty())
                                     <details class="border rounded p-3">
-                                        <summary class="cursor-pointer">الدفع بإنستا باي أو محفظة إلكترونية</summary>
+                                        <summary class="cursor-pointer fw-semibold">إنستا باي أو محفظة إلكترونية — اختر طريقة التحويل وارفع إثبات الدفع</summary>
                                         @foreach($offlinePaymentMethods as $method)
                                             <details class="border rounded p-3 mt-3">
                                                 <summary>{{ $method->payment_channel === 'instapay' ? 'إنستا باي' : 'محفظة إلكترونية' }} — {{ translatePaymentText($method->method_name) }}</summary>

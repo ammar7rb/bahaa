@@ -376,6 +376,8 @@ $('#proceed-to-next-action').on('click', function () {
                 }
             } else {
                 // Address first, shipping quote second, payment last.
+                const preferredShipping = $('#address-form input[name="preferred_shipping_option"]:checked').val();
+                if (preferredShipping) sessionStorage.setItem('sigma_preferred_shipping', preferredShipping);
                 window.location.hash = 'automatic-shipping-options';
                 location.reload();
             }

@@ -748,6 +748,10 @@
 }
 :root[data-ba-storefront-theme="dark"] .home-trust-icon {
     background: color-mix(in srgb, var(--trust-accent) 18%, #152137);
+    color: #b9d6ff !important;
+}
+:root[data-ba-storefront-theme="dark"] .home-trust-icon svg {
+    stroke: #b9d6ff !important;
 }
 :root[data-ba-storefront-theme="dark"] .home-support-card {
     color: #edf3ff;

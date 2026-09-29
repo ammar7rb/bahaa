@@ -156,22 +156,8 @@
 
                                     @endif
 
+                                    @if ($digital_payment['status'] == 1 && count($payment_gateways_list) > 0)
                                     <div class="bg-primary-light rounded p-4 mb-20">
-                                        @if (($digital_payment['status'] == 1 && count($payment_gateways_list) > 0) ||
-                                                    (isset($offline_payment) && $offline_payment['status'] && count($offline_payment_methods) > 0))
-                                            <div class="gap-2 mb-4">
-                                                <div class="d-flex justify-content-between">
-                                                    <div class="d-flex align-items-end gap-2">
-                                                        <h5 class="mb-0 text-nowrap">
-                                                            {{ translate('bank_transfer_methods') }}
-                                                        </h5>
-                                                        <span class="fs-10 text-capitalize mt-1">({{ translate('transfer_is_reviewed_by_the_administration') }})</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @endif
-
-                                        @if ($digital_payment['status'] == 1)
                                             <div class="row gx-4">
                                                 @foreach ($payment_gateways_list as $payment_gateway)
                                                     @php($additionalData = $payment_gateway['additional_data'] != null ? json_decode($payment_gateway['additional_data']) : [])
@@ -228,8 +214,8 @@
                                                     </div>
                                                 @endforeach
                                             </div>
-                                        @endif
                                     </div>
+                                    @endif
 
                                     @if (isset($offline_payment) && $offline_payment['status'] && count($offline_payment_methods) > 0)
                                         <div class="row g-3">
