@@ -109,8 +109,16 @@ class OfflineSecondStageTest extends TestCase
             $paidSecondInvoice = $service->markExternalPaymentPaid($invoices[0], 64, 'instapay', 'proof-approved');
             $this->assertSame('paid', $paidSecondInvoice->status);
             $this->assertSame('unpaid', Order::find($id)->payment_status);
-            $this->expectException(\DomainException::class);
-            $service->releaseToSeller($invoices[0],1);
+            try {
+                $service->releaseToSeller($invoices[0], 1);
+                $this->fail('The seller must stay blocked until the first payment is approved.');
+            } catch (\DomainException $exception) {
+                $this->assertSame('first_payment_must_be_approved', $exception->getMessage());
+            }
+            Order::whereKey($id)->update(['payment_status' => 'paid']);
+            $service->createForPaidOrderGroup([$id]);
+            $this->assertSame(PostPurchaseInvoiceService::ORDER_STATUS_AWAITING_ADMIN,
+                Order::find($id)->post_purchase_status);
         } finally {
             foreach (['customer_insurance_balances','users','post_purchase_invoices','offline_payments','orders','business_settings'] as $table) Schema::dropIfExists($table);
         }
