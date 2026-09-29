@@ -110,7 +110,7 @@
     </style>
 
     <link rel="stylesheet" href="{{theme_asset(path: 'public/assets/front-end/css/custom.css')}}">
-    <link rel="stylesheet" href="{{theme_asset(path: 'public/assets/front-end/css/customer-dark-mode.css')}}?v=20260910.8">
+    <link rel="stylesheet" href="{{theme_asset(path: 'public/assets/front-end/css/customer-dark-mode.css')}}?v=20260929.1">
     @include('layouts.partials._unified-print-styles')
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}

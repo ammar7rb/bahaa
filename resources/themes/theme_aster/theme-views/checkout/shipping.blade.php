@@ -702,7 +702,7 @@
     <span id="automatic-shipping-selected" data-value="{{ $automatic_shipping_selected ? 1 : 0 }}"></span>
 @endsection
 @push('script')
-    <script src="{{ theme_asset('assets/js/shipping-page.js') }}?v=shipping-flow-20260827"></script>
+    <script src="{{ theme_asset('assets/js/shipping-page.js') }}?v=shipping-flow-20260929"></script>
     <script>
         document.querySelectorAll('.select-automatic-shipping').forEach((button) => {
             button.addEventListener('click', async () => {

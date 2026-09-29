@@ -640,7 +640,7 @@
     </script>
 
     <script src="{{ theme_asset(path: 'public/assets/front-end/js/bootstrap-select.min.js') }}"></script>
-    <script src="{{ theme_asset(path: 'public/assets/front-end/js/shipping.js') }}?v=shipping-flow-20260827"></script>
+    <script src="{{ theme_asset(path: 'public/assets/front-end/js/shipping.js') }}?v=shipping-flow-20260929"></script>
 
     {{-- Customer maps are intentionally disabled; address resolution runs on the server. --}}
     @if(false)
