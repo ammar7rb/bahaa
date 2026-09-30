@@ -25,5 +25,10 @@ class PostPurchaseInvoicePayabilityTest extends TestCase
 
         $invoice->status = PostPurchaseInvoice::STATUS_AWAITING_REVIEW;
         self::assertFalse($invoice->isPayable());
+        $invoice->status = PostPurchaseInvoice::STATUS_CANCELLED;
+        self::assertFalse($invoice->isPayable());
+        $invoice->status = PostPurchaseInvoice::STATUS_PENDING;
+        $invoice->payment_due_at = \Carbon\Carbon::now()->subMinute();
+        self::assertFalse($invoice->isPayable());
     }
 }

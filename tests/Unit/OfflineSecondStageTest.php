@@ -119,8 +119,30 @@ class OfflineSecondStageTest extends TestCase
             $service->createForPaidOrderGroup([$id]);
             $this->assertSame(PostPurchaseInvoiceService::ORDER_STATUS_AWAITING_ADMIN,
                 Order::find($id)->post_purchase_status);
+            // Turning tax off updates open invoices and their payable totals,
+            // while submitted transfers and settled invoices keep their receipt.
+            $taxOnly[0]->update(['status' => PostPurchaseInvoice::STATUS_AWAITING_REVIEW]);
+            $insuranceOnly[0]->update(['tax_amount' => 14, 'tax_rate' => 14, 'total_amount' => 64,
+                'paid_amount' => 50, 'metadata' => ['insurance_balance_paid' => 50]]);
+            Schema::create('payment_requests', function (Blueprint $t) {
+                $t->id(); $t->string('attribute'); $t->string('attribute_id'); $t->boolean('is_paid')->default(false);
+            });
+            $onlineInvoice = PostPurchaseInvoice::create(['order_id' => 999, 'customer_id' => 1,
+                'status' => PostPurchaseInvoice::STATUS_PENDING, 'tax_amount' => 14, 'total_amount' => 14]);
+            DB::table('payment_requests')->insert(['attribute' => 'post_purchase_invoice', 'attribute_id' => (string) $onlineInvoice->id]);
+            $this->assertSame(2, $service->removeTaxFromPendingInvoices());
+            $waived = $insuranceOnly[0]->fresh();
+            $this->assertEquals(0, $waived->tax_amount);
+            $this->assertEquals(50, $waived->total_amount);
+            $this->assertSame(PostPurchaseInvoice::STATUS_PAID, $waived->status);
+            $this->assertEquals(0, $service->paymentSummary($waived)['external_amount_due']);
+            $this->assertEquals(14, $waived->metadata['tax_waiver']['previous_amount']);
+            $this->assertEquals(14, $taxOnly[0]->fresh()->tax_amount);
+            $this->assertEquals(14, $paidSecondInvoice->fresh()->tax_amount);
+            $this->assertEquals(14, $onlineInvoice->fresh()->tax_amount);
+            $this->assertSame(0, $service->removeTaxFromPendingInvoices());
         } finally {
-            foreach (['customer_insurance_balances','users','post_purchase_invoices','offline_payments','orders','business_settings'] as $table) Schema::dropIfExists($table);
+            foreach (['payment_requests','customer_insurance_balances','users','post_purchase_invoices','offline_payments','orders','business_settings'] as $table) Schema::dropIfExists($table);
         }
     }
 }

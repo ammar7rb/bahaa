@@ -21,6 +21,10 @@ if (! function_exists('translate')) {
     {
         try {
             $translatedMessagesArray = include base_path('resources/lang/'.$local.'/messages.php');
+            if (in_array($local, ['ar', 'sa', 'en'], true)) {
+                $translatedMessagesArray = array_replace($translatedMessagesArray,
+                    require base_path('resources/lang/'.($local === 'sa' ? 'ar' : $local).'/second-invoice.php'));
+            }
             $newMessagesArray = include base_path('resources/lang/'.$local.'/new-messages.php');
             $originalKey = str_replace('"', '', $key);
             $key = $originalKey;

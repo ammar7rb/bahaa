@@ -268,7 +268,7 @@
     }
 </script>
 @stack('script')
-<script src="{{ theme_asset('assets/js/customer-dark-mode.js') }}?v=20260822.2"></script>
+<script src="{{ theme_asset('assets/js/customer-dark-mode.js') }}?v=20260930.1"></script>
 
 </body>
 </html>

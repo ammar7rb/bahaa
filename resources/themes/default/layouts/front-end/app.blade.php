@@ -311,7 +311,7 @@
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/custom.js') }}?v=20260906.3"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/seller-filter.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/account-order-details.js') }}"></script>
-<script src="{{ theme_asset(path: 'public/assets/front-end/js/customer-dark-mode.js') }}?v=20260822.2"></script>
+<script src="{{ theme_asset(path: 'public/assets/front-end/js/customer-dark-mode.js') }}?v=20260930.1"></script>
 @if (!request()->routeIs('vendor.auth.registration.*'))
     <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInput.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/utils.js') }}"></script>

@@ -51,6 +51,10 @@
     window.baToggleStorefrontTheme = function () {
         applyTheme(getTheme() === 'dark' ? 'light' : 'dark', true);
     };
+    window.addEventListener('storage', function (event) {
+        if (event.key === storageKey || event.key === null) applyTheme(getTheme(), false);
+    });
+    window.addEventListener('pageshow', function () { applyTheme(getTheme(), false); });
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initialize, { once: true });

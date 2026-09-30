@@ -246,6 +246,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::group(['prefix' => 'post-purchase-invoices', 'as' => 'post-purchase-invoices.', 'middleware' => 'customer'], function () {
         Route::get('/', [PostPurchaseInvoiceController::class, 'index'])->name('index');
         Route::get('{invoice}', [PostPurchaseInvoiceController::class, 'show'])->name('show');
+        Route::get('{invoice}/state', [PostPurchaseInvoiceController::class, 'state'])->name('state');
         Route::post('{invoice}/pay-digital', [PostPurchaseInvoiceController::class, 'payDigitally'])->name('pay-digital');
         Route::post('{invoice}/use-insurance-balance', [PostPurchaseInvoiceController::class, 'useInsuranceBalance'])->name('use-insurance-balance');
         Route::post('{invoice}/offline-payment', [PostPurchaseInvoiceController::class, 'submitOffline'])->name('offline-payment');

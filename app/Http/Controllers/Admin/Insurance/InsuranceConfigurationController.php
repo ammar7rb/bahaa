@@ -298,6 +298,9 @@ class InsuranceConfigurationController extends Controller
         foreach ($settings as $type => $value) {
             BusinessSetting::query()->updateOrCreate(['type' => $type], ['value' => $value]);
         }
+        if ($subjectType === 'customer' && !$request->boolean('customer_tax_enabled')) {
+            app(\App\Services\PostPurchaseInvoiceService::class)->removeTaxFromPendingInvoices();
+        }
         return redirect()->route('admin.insurance-center.index', ['tab' => $subjectType === 'customer' ? 'customers' : 'sellers'])
             ->with('success', translate('Updated_successfully'));
     }

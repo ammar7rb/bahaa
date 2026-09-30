@@ -74,7 +74,28 @@ class PostPurchaseInvoiceController extends Controller
             'paymentGatewayList' => payment_gateways(),
             'offlinePaymentMethods' => OfflinePaymentMethod::query()->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])->get(),
             'offlinePaymentAvailable' => (bool) (getWebConfig(name: 'offline_payment')['status'] ?? 0),
+            'invoiceRevision' => $this->revision($invoice),
         ]);
+    }
+
+    public function state(int $invoiceId): \Illuminate\Http\JsonResponse
+    {
+        $invoice = $this->customerInvoice($invoiceId);
+        abort_unless($invoice, 404);
+        return response()->json(['revision' => $this->revision($invoice)])
+            ->header('Cache-Control', 'no-store');
+    }
+
+    private function revision(PostPurchaseInvoice $invoice): string
+    {
+        return hash('sha256', json_encode([
+            $this->invoices->paymentSummary($invoice),
+            $this->invoices->customerInsuranceBalanceSummary((int) $invoice->customer_id),
+            getWebConfig(name: 'offline_payment'), getWebConfig(name: 'digital_payment'),
+            collect(payment_gateways())->pluck('key_name')->all(),
+            OfflinePaymentMethod::query()->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])
+                ->get(['id', 'method_name', 'payment_channel', 'method_fields'])->toArray(),
+        ]));
     }
 
     public function payDigitally(Request $request, int $invoiceId): RedirectResponse

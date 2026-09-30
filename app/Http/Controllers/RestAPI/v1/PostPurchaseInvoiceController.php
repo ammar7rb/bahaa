@@ -35,6 +35,7 @@ class PostPurchaseInvoiceController extends Controller
         $invoices = PostPurchaseInvoice::query()
             ->with('order:id,order_group_id,order_amount,post_purchase_status')
             ->where('customer_id', $customer->id)
+            ->when($request->boolean('pending_only'), fn ($query) => $query->whereIn('status', [PostPurchaseInvoice::STATUS_PENDING, PostPurchaseInvoice::STATUS_AWAITING_REVIEW]))
             ->latest('id')
             ->paginate((int) min(50, max(1, $request->integer('limit', 20))));
 
@@ -276,6 +277,7 @@ class PostPurchaseInvoiceController extends Controller
             PostPurchaseInvoice::STATUS_AWAITING_REVIEW => 'pending_review',
             PostPurchaseInvoice::STATUS_PAID => 'paid',
             PostPurchaseInvoice::STATUS_EXPIRED => 'expired',
+            PostPurchaseInvoice::STATUS_CANCELLED => 'cancelled',
             default => 'pending_payment',
         };
         $customer = $invoice->customer;
@@ -295,12 +297,14 @@ class PostPurchaseInvoiceController extends Controller
                 'support_available' => true,
                 'purchase_refund' => ($invoice->metadata['purchase_refund'] ?? ['status' => 'not_requested', 'due_at' => null]),
                 'external_amount_due' => $summary['external_amount_due'],
+                'can_pay' => $invoice->isPayable(),
+                'insurance_balance_paid' => (float) $summary['insurance_balance_paid'],
             ],
             'insurance_balance' => $balance,
             'payment_options' => [
                 // Keep the choice visible even when the balance is zero so the
                 // app can explain the shortfall and offer a deposit action.
-                'insurance_balance' => (float) $invoice->insurance_amount > (float) $summary['insurance_balance_paid'],
+                'insurance_balance' => $invoice->isPayable() && (float) $invoice->insurance_amount > (float) $summary['insurance_balance_paid'],
                 'digital_payment' => (bool) (getWebConfig(name: 'digital_payment')['status'] ?? 0),
                 'offline_payment' => (bool) (getWebConfig(name: 'offline_payment')['status'] ?? 0),
                 'gateways' => collect(payment_gateways())->map(fn ($gateway) => ['key' => $gateway['key_name'], 'title' => $gateway['key_name']])->values(),

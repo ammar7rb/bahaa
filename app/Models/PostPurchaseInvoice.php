@@ -52,6 +52,7 @@ class PostPurchaseInvoice extends Model
         // proof receive a due date. A second-stage proof under review stays locked.
         return $this->status === self::STATUS_PENDING
             && $this->payment_due_at !== null
+            && $this->payment_due_at->isFuture()
             && (float) $this->total_amount > (float) $this->paid_amount;
     }
 }

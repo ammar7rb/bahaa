@@ -36,6 +36,42 @@ class PostPurchaseInvoiceService
         return $order->commerce_flow_version === self::CONTRACT_VERSION;
     }
 
+    /** Apply the administrator's tax waiver to invoices awaiting payment. */
+    public function removeTaxFromPendingInvoices(): int
+    {
+        $updated = 0;
+        PostPurchaseInvoice::query()->where('status', PostPurchaseInvoice::STATUS_PENDING)
+            ->where('tax_amount', '>', 0)->chunkById(100, function ($invoices) use (&$updated) {
+                foreach ($invoices as $invoice) {
+                    DB::transaction(function () use ($invoice, &$updated) {
+                        $invoice = PostPurchaseInvoice::query()->lockForUpdate()->find($invoice->id);
+                        if (!$invoice || $invoice->status !== PostPurchaseInvoice::STATUS_PENDING || $invoice->tax_amount <= 0) return;
+                        // A gateway may already be collecting this exact amount.
+                        // Keep that payment contract intact until it is resolved.
+                        if (\Illuminate\Support\Facades\Schema::hasTable('payment_requests')
+                            && DB::table('payment_requests')->where('attribute', 'post_purchase_invoice')
+                                ->where('attribute_id', (string) $invoice->id)->where('is_paid', 0)->exists()) return;
+                        $metadata = $invoice->metadata ?: [];
+                        $metadata['tax_waiver'] = [
+                            'previous_amount' => (float) $invoice->tax_amount,
+                            'previous_rate' => (float) $invoice->tax_rate,
+                            'reason' => 'customer_tax_disabled_by_admin',
+                            'waived_at' => now()->toIso8601String(),
+                        ];
+                        $invoice->update([
+                            'tax_amount' => 0, 'tax_rate' => 0,
+                            'total_amount' => round((float) $invoice->insurance_amount, 4),
+                            'tax_snapshot' => array_merge($invoice->tax_snapshot ?: [], ['amount' => 0, 'rate' => 0, 'enabled' => false]),
+                            'metadata' => $metadata,
+                        ]);
+                        $this->completeIfFullyPaid($invoice->fresh());
+                        $updated++;
+                    });
+                }
+            });
+        return $updated;
+    }
+
     /**
      * Snapshots tax/insurance after the first payment or an offline proof.
      * The customer may pay the second invoice immediately after submission.
@@ -412,7 +448,8 @@ class PostPurchaseInvoiceService
 
     private function taxSnapshot(Order $order): array
     {
-        $enabled = $order->tax_type === 'customer_product_14';
+        $enabled = $this->settingBool('customer_second_invoice_tax_enabled', false)
+            && $order->tax_type === 'customer_product_14';
         $rate = $enabled ? 14.0 : 0.0;
         $amount = $enabled ? max(0, round((float) $order->total_tax_amount, 4)) : 0.0;
         $taxableAmount = $rate > 0 ? round($amount * 100 / $rate, 4) : 0.0;
