@@ -705,6 +705,15 @@ class OrderController extends BaseController
                 $request->input('workflow_reason'),
             );
         } catch (\DomainException $exception) {
+            if ($exception->getMessage() === 'admin_order_release_required_before_confirmation') {
+                $paymentSummary = app(\App\Services\OrderPaymentSummaryService::class)->forOrder($order);
+                if ($paymentSummary['incomplete']) {
+                    $unpaidStages = array_filter($paymentSummary['lines'], fn ($line) => $line['status']
+                        && ! in_array($line['status'], ['payment_stage_paid', 'payment_stage_not_required'], true));
+                    $details = array_map(fn ($line) => translate($line['label']).': '.translate($line['status']), $unpaidStages);
+                    return response()->json(['status' => 0, 'message' => translate('order_payments_incomplete').' — '.implode('؛ ', $details), 'payment_summary' => $paymentSummary], 422);
+                }
+            }
             return response()->json(['status' => 0, 'message' => translate($exception->getMessage())], 422);
         }
         $this->orderRepo->updateStockOnOrderStatusChange($request['id'], $request['order_status']);
