@@ -314,13 +314,7 @@
                                             {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $orderTotalPriceSummary['totalAmount']), currencyCode: getCurrencyCode()) }}
                                         </div>
 
-                                        @if ($order->payment_status == 'paid')
-                                            <span
-                                                class="fs-12 fw-medium text-success">{{ translate('paid') }}</span>
-                                        @else
-                                            <span
-                                                class="fs-12 fw-medium text-danger">{{ translate('unpaid') }}</span>
-                                        @endif
+                                        @include('partials.order-payment-summary', ['order' => $order])
                                     </td>
                                     @if ($status == 'all')
                                         <td class="text-center text-capitalize">

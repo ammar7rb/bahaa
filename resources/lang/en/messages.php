@@ -1,6 +1,19 @@
 <?php
 
 return [
+    "purchase_and_shipping_payment" => "Products and shipping invoice",
+    "customer_order_insurance_payment" => "Customer insurance",
+    "second_invoice_tax_payment" => "Second invoice tax",
+    "second_invoice_payment_total" => "Second invoice total",
+    "second_invoice_remaining_payment" => "Second invoice remaining balance",
+    "payment_stage_paid" => "Paid",
+    "payment_stage_unpaid" => "Unpaid",
+    "payment_stage_under_review" => "Payment proof awaiting approval",
+    "payment_stage_expired" => "Payment deadline expired",
+    "payment_stage_cancelled" => "Cancelled",
+    "payment_stage_not_required" => "Not due for this order",
+    "second_invoice_calculated_after_purchase_payment" => "Calculated after purchase payment approval; insurance and tax are not approved yet",
+    "order_payments_incomplete" => "Order payments are incomplete",
     "admin_order_release_required_before_confirmation" => "Complete the customer payments and shipping and insurance decisions, then use Approve and send to seller before confirming this order.",
     'new_customer_registration' => 'New customer registration',
     'new_seller_registration' => 'New seller registration',

@@ -201,7 +201,7 @@ class OrderController extends BaseController
             searchValue: $searchValue,
             filters: $filters,
             whereIn: $filterWhereIn,
-            relations: ['details', 'customer', 'seller.shop', 'orderEditHistory'],
+            relations: ['details', 'customer', 'seller.shop', 'orderEditHistory', 'postPurchaseInvoice', 'insurance'],
             dataLimit: getWebConfig(name: WebConfigKey::PAGINATION_LIMIT)
         );
 

@@ -125,7 +125,7 @@ class OrderController extends BaseController
         $paymentPaidStatus = $request['payment_status'] ?? [];
         $orderStatus = $request['order_current_status'] ?? [];
 
-        $relation = ['customer', 'shipping', 'shippingAddress', 'deliveryMan', 'billingAddress'];
+        $relation = ['customer', 'shipping', 'shippingAddress', 'deliveryMan', 'billingAddress', 'postPurchaseInvoice', 'insurance'];
         $filters = [
             'order_status' => $status == 'all' ? $orderStatus : $status,
             'order_type' => $request['filter'],

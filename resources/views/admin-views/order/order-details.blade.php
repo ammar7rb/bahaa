@@ -1140,7 +1140,7 @@
                         <div
                             class="d-flex justify-content-between align-items-center gap-10 form-control py-10 h-auto flex-wrap  text-capitalize">
                             <span class="text-dark">
-                                {{translate('payment_status')}}
+                                {{translate('purchase_and_shipping_payment')}}
                             </span>
                             <div class="d-flex justify-content-end align-items-center gap-2">
                                 <span
@@ -1156,6 +1156,7 @@
                                 </label>
                             </div>
                         </div>
+                        @include('partials.order-payment-summary', ['order' => $order])
                         <?php $disableDeliveryType = !$physicalProduct && $shippingAddress; ?>
                         @if($physicalProduct || $shippingAddress)
                             <ul class="list-unstyled list-unstyled-py-4 d-flex flex-column gap-4 mb-0 pe-0">

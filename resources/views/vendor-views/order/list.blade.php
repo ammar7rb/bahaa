@@ -361,11 +361,7 @@
                                         @endif
                                     </div>
 
-                                    @if($order->payment_status=='paid')
-                                        <span class="badge badge-soft-success">{{translate('paid')}}</span>
-                                    @else
-                                        <span class="badge badge-soft-danger">{{translate('unpaid')}}</span>
-                                    @endif
+                                    @include('partials.order-payment-summary', ['order' => $order])
                                 </td>
                                 @if($status == 'all')
                                     <td class="text-capitalize d-flex justify-content-center align-items-center">

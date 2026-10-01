@@ -1,6 +1,19 @@
 <?php
 
 return [
+    "purchase_and_shipping_payment" => "فاتورة المنتجات والشحن",
+    "customer_order_insurance_payment" => "تأمين العميل",
+    "second_invoice_tax_payment" => "ضريبة الفاتورة الثانية",
+    "second_invoice_payment_total" => "إجمالي الفاتورة الثانية",
+    "second_invoice_remaining_payment" => "المتبقي من الفاتورة الثانية",
+    "payment_stage_paid" => "مدفوع",
+    "payment_stage_unpaid" => "غير مدفوع",
+    "payment_stage_under_review" => "إثبات الدفع قيد المراجعة ولم يُعتمد بعد",
+    "payment_stage_expired" => "انتهت مهلة الدفع",
+    "payment_stage_cancelled" => "ملغي",
+    "payment_stage_not_required" => "غير مستحق لهذا الطلب",
+    "second_invoice_calculated_after_purchase_payment" => "تُحسب بعد اعتماد دفع المنتجات؛ التأمين والضريبة لم يُعتمدا بعد",
+    "order_payments_incomplete" => "مدفوعات الطلب غير مكتملة",
     "admin_order_release_required_before_confirmation" => "لا يمكن تأكيد الطلب قبل استكمال مدفوعات العميل وقرار الشحن والتأمين، ثم اختيار «اعتماد وإرسال الطلب للتاجر» من مراجعة الإدارة.",
     'Post-payment_stock-out_refund' => 'استرداد المدفوعات عند نفاد المخزون',
     'Refund_already_recorded' => 'تم تسجيل الاسترداد بالفعل',

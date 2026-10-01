@@ -26,12 +26,15 @@ class ConfigServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $timezone = config('app.timezone', 'Africa/Cairo');
         try {
-            $timezone = BusinessSetting::where(['type' => 'timezone'])->first();
-            if ($timezone) {
-                Config::set('timezone', $timezone->value);
-                date_default_timezone_set($timezone->value);
+            $setting = BusinessSetting::where(['type' => 'timezone'])->value('value');
+            if (is_string($setting) && in_array($setting, \DateTimeZone::listIdentifiers(), true)) {
+                $timezone = $setting;
             }
         } catch (Exception $ex) {}
+        Config::set('app.timezone', $timezone);
+        Config::set('timezone', $timezone);
+        date_default_timezone_set($timezone);
     }
 }
