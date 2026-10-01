@@ -82,7 +82,7 @@
                                             {{ translate('all') }}
                                             <span
                                                 class="badge badge-soft-info badge-pill {{Session::get('direction') === "rtl" ? 'mr-1' : 'ml-1'}}">
-                                                {{ Order::where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->count() }}
+                                                {{ Order::sellerAccessible()->where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->count() }}
                                             </span>
                                         </span>
                                     </a>
@@ -94,7 +94,7 @@
                                             {{ translate('pending') }}
                                             <span
                                                 class="badge badge-soft-info badge-pill {{Session::get('direction') === "rtl" ? 'mr-1' : 'ml-1'}}">
-                                                {{ Order::where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'pending'])->count() }}
+                                                {{ Order::sellerAccessible()->where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'pending'])->count() }}
                                             </span>
                                         </span>
                                     </a>
@@ -106,7 +106,7 @@
                                             {{ translate('confirmed') }}
                                             <span
                                                 class="badge badge-soft-info badge-pill {{Session::get('direction') === "rtl" ? 'mr-1' : 'ml-1'}}">
-                                                {{ Order::where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'confirmed'])->count() }}
+                                                {{ Order::sellerAccessible()->where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'confirmed'])->count() }}
                                             </span>
                                         </span>
                                     </a>
@@ -119,7 +119,7 @@
                                             {{ translate('packaging') }}
                                             <span
                                                 class="badge badge-soft-warning badge-pill {{Session::get('direction') === "rtl" ? 'mr-1' : 'ml-1'}}">
-                                                {{ Order::where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'processing'])->count() }}
+                                                {{ Order::sellerAccessible()->where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'processing'])->count() }}
                                             </span>
                                         </span>
                                     </a>
@@ -133,7 +133,7 @@
                                             {{ translate('out_for_delivery') }}
                                             <span
                                                 class="badge badge-soft-warning badge-pill {{Session::get('direction') === "rtl" ? 'mr-1' : 'ml-1'}}">
-                                                {{ Order::where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'out_for_delivery'])->count() }}
+                                                {{ Order::sellerAccessible()->where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'out_for_delivery'])->count() }}
                                             </span>
                                         </span>
                                     </a>
@@ -145,7 +145,7 @@
                                             {{ translate('delivered') }}
                                             <span
                                                 class="badge badge-soft-success badge-pill {{Session::get('direction') === "rtl" ? 'mr-1' : 'ml-1'}}">
-                                                {{ Order::where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'delivered'])->count() }}
+                                                {{ Order::sellerAccessible()->where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'delivered'])->count() }}
                                             </span>
                                         </span>
                                     </a>
@@ -157,7 +157,7 @@
                                             {{ translate('returned') }}
                                             <span
                                                 class="badge badge-soft-danger badge-pill {{Session::get('direction') === "rtl" ? 'mr-1' : 'ml-1'}}">
-                                                {{ Order::where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'returned'])->count() }}
+                                                {{ Order::sellerAccessible()->where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'returned'])->count() }}
                                             </span>
                                         </span>
                                     </a>
@@ -169,7 +169,7 @@
                                             {{ translate('failed To Deliver') }}
                                             <span
                                                 class="badge badge-soft-danger badge-pill {{Session::get('direction') === "rtl" ? 'mr-1' : 'ml-1'}}">
-                                                {{ Order::where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'failed'])->count() }}
+                                                {{ Order::sellerAccessible()->where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'failed'])->count() }}
                                             </span>
                                         </span>
                                     </a>
@@ -181,7 +181,7 @@
                                             {{ translate('canceled') }}
                                             <span
                                                 class="badge badge-soft-danger badge-pill {{Session::get('direction') === "rtl" ? 'mr-1' : 'ml-1'}}">
-                                                {{ Order::where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'canceled'])->count() }}
+                                                {{ Order::sellerAccessible()->where(['seller_is'=>'seller'])->where(['seller_id'=>$sellerId])->where(['order_status'=>'canceled'])->count() }}
                                             </span>
                                         </span>
                                     </a>

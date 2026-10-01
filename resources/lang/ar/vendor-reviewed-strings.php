@@ -108,7 +108,7 @@ return [
     'Shopping Cart' => 'سلة التسوق',
     'Show Older First' => 'عرض الأقدم أولًا',
     'sir' => 'سيدي',
-    'sl' => 'م',
+    'sl' => 'الرقم التسلسلي',
     'something_went_wrong' => 'حدث خطأ ما',
     'start date' => 'تاريخ البدء',
     'Tax_: _Inc.' => 'الضريبة: شاملة',

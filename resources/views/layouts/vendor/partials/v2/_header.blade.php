@@ -162,17 +162,11 @@
              popup design. The +N thumbnail chip and view-eye action mirror
              the admin v2 header so both panels share the same visual. --}}
         @php
-            $v2VendorPendingBase = \App\Models\Order::where([
+            $v2VendorPendingBase = \App\Models\Order::sellerAccessible()->where([
                 'seller_is'    => 'seller',
                 'seller_id'    => auth('seller')->id(),
                 'order_status' => 'pending',
-            ])->where(function ($query) {
-                $query->whereNull('admin_order_review_status')
-                    ->orWhereNotIn('admin_order_review_status', ['pending_admin_review', 'assignment_in_progress', 'waiting_customer_post_purchase_payment']);
-            })->where(function ($query) {
-                $query->where('commerce_flow_version', config('order_commerce.legacy_flow_version', 'legacy-v1'))
-                    ->orWhereIn('commerce_flow_status', ['seller_insurance_pending', 'seller_insurance_under_review', 'released_to_seller', 'fulfillment_in_progress']);
-            });
+            ]);
             $v2VendorPendingCount = (clone $v2VendorPendingBase)->count();
             $v2VendorPendingOrders = (clone $v2VendorPendingBase)
                 ->with(['sellerOrderInsurance', 'details.productAllStatus'])

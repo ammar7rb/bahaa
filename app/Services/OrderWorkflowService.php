@@ -40,6 +40,23 @@ class OrderWorkflowService
         throw new DomainException('order_status_transition_not_allowed');
     }
 
+    public function assertAdminOrderCanAdvance(Order $order, string $to): void
+    {
+        if ($order->seller_is !== 'seller'
+            || ! in_array($to, ['confirmed', 'processing', 'out_for_delivery', 'delivered', 'returned', 'failed'], true)) {
+            return;
+        }
+
+        $visibility = app(SellerOrderVisibilityService::class);
+        if (! $visibility->canSellerAccess($order)) {
+            throw new DomainException('admin_order_release_required_before_confirmation');
+        }
+
+        if ($to !== 'confirmed' && ! $visibility->canSellerView($order)) {
+            throw new DomainException('seller_order_insurance_payment_required_before_order_details');
+        }
+    }
+
     public function refreshSellerQueue(int $sellerId): void
     {
         $ordersQuery = Order::query()

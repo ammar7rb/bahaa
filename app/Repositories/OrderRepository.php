@@ -60,6 +60,7 @@ class OrderRepository implements OrderRepositoryInterface
     public function getListWhere(array $orderBy = [], ?string $searchValue = null, array $filters = [], array $relations = [], int|string $dataLimit = DEFAULT_DATA_LIMIT, ?int $offset = null): Collection|LengthAwarePaginator
     {
         $query = $this->order->with($relations)
+            ->when(!empty($filters['seller_visible_only']), fn ($query) => $query->sellerAccessible())
             ->when(isset($filters['seller_is']) && $filters['seller_is'] != 'all', function ($query) use ($filters) {
                 return $query->where('seller_is', $filters['seller_is']);
             })
@@ -209,16 +210,7 @@ class OrderRepository implements OrderRepositoryInterface
                     $query->where('seller_id', $filters['seller_id']);
                 }
             )->when(!empty($filters['seller_visible_only']), function ($query) {
-                    $query->where(fn ($gate) => $gate->whereNull('admin_order_review_status')->orWhereNotIn('admin_order_review_status', ['pending_admin_review', 'assignment_in_progress', 'waiting_customer_post_purchase_payment']));
-                    $query->where(function ($visible) {
-                        $visible->where('commerce_flow_version', config('order_commerce.legacy_flow_version', 'legacy-v1'))
-                            ->orWhereIn('commerce_flow_status', [
-                                'seller_insurance_pending', 'seller_insurance_under_review', 'released_to_seller',
-                                'fulfillment_in_progress', 'completed', 'cancelled',
-                                'seller_insurance_paid', 'seller_released', 'seller_processing',
-                                'shipping_in_progress', 'delivered', 'returned', 'canceled',
-                            ]);
-                    });
+                    $query->sellerAccessible();
                 }
             )->when(!empty($filters['exclude_seller_insurance_pending']), function ($query) {
                     $query->where(fn ($flow) => $flow->whereNull('commerce_flow_status')->orWhereNotIn('commerce_flow_status', ['seller_insurance_pending', 'seller_insurance_under_review']));
@@ -397,16 +389,7 @@ class OrderRepository implements OrderRepositoryInterface
                     $query->where('seller_id', $filters['seller_id']);
                 }
             )->when(!empty($filters['seller_visible_only']), function ($query) {
-                    $query->where(fn ($gate) => $gate->whereNull('admin_order_review_status')->orWhereNotIn('admin_order_review_status', ['pending_admin_review', 'assignment_in_progress', 'waiting_customer_post_purchase_payment']));
-                    $query->where(function ($visible) {
-                        $visible->where('commerce_flow_version', config('order_commerce.legacy_flow_version', 'legacy-v1'))
-                            ->orWhereIn('commerce_flow_status', [
-                                'seller_insurance_pending', 'seller_insurance_under_review', 'released_to_seller',
-                                'fulfillment_in_progress', 'completed', 'cancelled',
-                                'seller_insurance_paid', 'seller_released', 'seller_processing',
-                                'shipping_in_progress', 'delivered', 'returned', 'canceled',
-                            ]);
-                    });
+                    $query->sellerAccessible();
                 }
             )->when(!empty($filters['exclude_seller_insurance_pending']), function ($query) {
                     $query->where(fn ($flow) => $flow->whereNull('commerce_flow_status')->orWhereNotIn('commerce_flow_status', ['seller_insurance_pending', 'seller_insurance_under_review']));

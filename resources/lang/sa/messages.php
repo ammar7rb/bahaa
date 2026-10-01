@@ -1,6 +1,7 @@
 <?php
 
 return [
+    "admin_order_release_required_before_confirmation" => "لا يمكن تأكيد الطلب قبل استكمال مدفوعات العميل وقرار الشحن والتأمين، ثم اختيار «اعتماد وإرسال الطلب للتاجر» من مراجعة الإدارة.",
     'Post-payment_stock-out_refund' => 'استرداد المدفوعات عند نفاد المخزون',
     'Refund_already_recorded' => 'تم تسجيل الاسترداد بالفعل',
     'customer_delivery_window' => 'الفترة المتوقعة لتوصيل الطلب',
@@ -1526,7 +1527,7 @@ return [
 	"S3_Credential" => "بيانات الاعتماد S3",
 	"SEO_Settings" => "إعدادات تحسين محركات البحث",
 	"SKU" => "رمز التخزين التعريفي",
-	"SL" => "إس إل",
+	"SL" => "الرقم التسلسلي",
 	"SMS_Configuration" => "تكوين الرسائل القصيرة",
 	"SMS_Module_Setup" => "إعداد وحدة الرسائل القصيرة",
 	"SMS_configuration" => "تكوين الرسائل القصيرة",
@@ -1710,7 +1711,7 @@ return [
 	"Site_Map" => "خريطة الموقع",
 	"Sitemap" => "خريطة الموقع",
 	"Skip_for_Now" => "تخطي الآن",
-	"Sl" => "س",
+	"Sl" => "الرقم التسلسلي",
 	"Snap_Pixel_ID" => "معرف Snap Pixel",
 	"Snapchat_Pixel" => "سناب شات بيكسل",
 	"Social_Media" => "وسائل التواصل الاجتماعي",
@@ -5918,7 +5919,7 @@ return [
 	"skip" => "تخطي",
 	"sku_code_is_required" => "مطلوب رمز SKU",
 	"sku_field_is_required" => "حقل SKU مطلوب",
-	"sl" => "sl",
+	"sl" => "الرقم التسلسلي",
 	"small" => "صغير",
 	"sms_configuration_refers_to_the_process_of_setting_up_and_managing_the_parameters_required_for_a_system,_application,_or_device_to_send_and_often_receive_messages." => "يشير تكوين الرسائل القصيرة إلى عملية إعداد وإدارة المعلمات المطلوبة لنظام أو تطبيق أو جهاز لإرسال الرسائل واستلامها غالبًا.",
 	"sms_setup" => "إعداد الرسائل القصيرة",

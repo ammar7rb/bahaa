@@ -37,6 +37,7 @@ class SellerOrderInsuranceWebController extends Controller
         $seller = auth('seller')->user();
         $search = trim((string) $request->input('q', ''));
         $orders = Order::query()
+            ->sellerAccessible()
             ->with('sellerOrderInsurance')
             ->where(['seller_id' => $seller->id, 'seller_is' => 'seller'])
             ->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), PostPurchaseInvoiceService::CONTRACT_VERSION])

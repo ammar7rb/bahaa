@@ -145,7 +145,7 @@
                                title="{{translate('pending_Orders')}}" data-toggle="tooltip"
                                data-custom-class="header-icon-title">
                                 <i class="fi fi-sr-shopping-cart fs-18"></i>
-                                @php($order=\App\Models\Order::where(['seller_is'=>'seller','seller_id'=>auth('seller')->id(), 'order_status'=>'pending'])->count())
+                                @php($order=\App\Models\Order::sellerAccessible()->where(['seller_is'=>'seller','seller_id'=>auth('seller')->id(), 'order_status'=>'pending'])->count())
                                 @if($order!=0)
                                     <span class="btn-status btn-sm-status btn-status-danger">{{ $order }}</span>
                                 @endif

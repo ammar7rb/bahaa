@@ -117,7 +117,9 @@ class OrderController extends BaseController
         $to = $request['to'];
         $status = $request['status'];
         $deliveryManId = $request['delivery_man_id'];
-        $this->orderRepo->updateWhere(params: ['seller_id' => $vendorId, 'checked' => 0], data: ['checked' => 1]);
+        \App\Models\Order::sellerAccessible()
+            ->where(['seller_id' => $vendorId, 'seller_is' => 'seller', 'checked' => 0])
+            ->update(['checked' => 1]);
         $sellerPos = getWebConfig(name: 'seller_pos');
 
         $paymentPaidStatus = $request['payment_status'] ?? [];

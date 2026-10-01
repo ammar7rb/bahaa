@@ -1107,6 +1107,7 @@
                                 </button>
                             </div>
                         @endif
+                        @php($adminOrderAwaitingRelease = $order->seller_is === 'seller' && !app(\App\Services\SellerOrderVisibilityService::class)->canSellerAccess($order))
                         <div class="text-capitalize">
                             <label
                                 class="form-label fw-bold mb-2">{{translate('change_order_status')}}</label>
@@ -1117,21 +1118,24 @@
                                     <option
                                         value="pending" {{$order->order_status == 'pending'?'selected':''}} > {{translate('pending')}}</option>
                                     <option
-                                        value="confirmed" {{$order->order_status == 'confirmed'?'selected':''}} > {{translate('confirmed')}}</option>
+                                        value="confirmed" {{$order->order_status == 'confirmed'?'selected':''}} @disabled($adminOrderAwaitingRelease)> {{translate('confirmed')}}</option>
                                     <option
-                                        value="processing" {{$order->order_status == 'processing'?'selected':''}} >{{translate('packaging')}} </option>
+                                        value="processing" {{$order->order_status == 'processing'?'selected':''}} @disabled($adminOrderAwaitingRelease)>{{translate('packaging')}} </option>
                                     <option class="text-capitalize"
-                                            value="out_for_delivery" {{$order->order_status == 'out_for_delivery'?'selected':''}} >{{translate('out_for_delivery')}} </option>
+                                            value="out_for_delivery" {{$order->order_status == 'out_for_delivery'?'selected':''}} @disabled($adminOrderAwaitingRelease)>{{translate('out_for_delivery')}} </option>
                                     <option
-                                        value="delivered" {{$order->order_status == 'delivered'?'selected':''}} >{{translate('delivered')}} </option>
+                                        value="delivered" {{$order->order_status == 'delivered'?'selected':''}} @disabled($adminOrderAwaitingRelease)>{{translate('delivered')}} </option>
                                     <option
-                                        value="returned" {{$order->order_status == 'returned'?'selected':''}} > {{translate('returned')}}</option>
+                                        value="returned" {{$order->order_status == 'returned'?'selected':''}} @disabled($adminOrderAwaitingRelease)> {{translate('returned')}}</option>
                                     <option
-                                        value="failed" {{$order->order_status == 'failed'?'selected':''}} >{{translate('failed_to_Deliver')}} </option>
+                                        value="failed" {{$order->order_status == 'failed'?'selected':''}} @disabled($adminOrderAwaitingRelease)>{{translate('failed_to_Deliver')}} </option>
                                     <option
                                         value="canceled" {{$order->order_status == 'canceled'?'selected':''}} >{{translate('canceled')}} </option>
                                 </select>
                             </div>
+                            @if($adminOrderAwaitingRelease)
+                                <p class="small text-warning mt-2 mb-0">{{ translate('admin_order_release_required_before_confirmation') }}</p>
+                            @endif
                         </div>
                         <div
                             class="d-flex justify-content-between align-items-center gap-10 form-control py-10 h-auto flex-wrap  text-capitalize">

@@ -1,6 +1,7 @@
 <?php
 
 return [
+    "admin_order_release_required_before_confirmation" => "Complete the customer payments and shipping and insurance decisions, then use Approve and send to seller before confirming this order.",
     'new_customer_registration' => 'New customer registration',
     'new_seller_registration' => 'New seller registration',
     'new_order_received' => 'New order received',

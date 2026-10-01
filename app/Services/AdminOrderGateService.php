@@ -123,6 +123,7 @@ class AdminOrderGateService
                 : OrderCommerceState::SELLER_INSURANCE_PENDING;
             $locked->forceFill([
                 'commerce_flow_status' => $after, 'commerce_flow_status_updated_at' => now(),
+                'checked' => 0,
                 'admin_order_review_status' => 'approved', 'admin_order_reviewed_by' => $adminId,
                 'admin_order_reviewed_at' => now(), 'admin_order_review_note' => $note,
                 'operational_blocked_by' => $after === OrderCommerceState::SELLER_INSURANCE_PENDING ? 'seller_insurance' : null,

@@ -46,6 +46,7 @@ return array_replace(
     require __DIR__.'/vendor-reviewed-strings.php',
     [
         'Language' => 'اللغة',
+        'admin_order_release_required_before_confirmation' => 'لا يمكن تأكيد الطلب قبل استكمال مدفوعات العميل وقرار الشحن والتأمين، ثم اختيار «اعتماد وإرسال الطلب للتاجر» من مراجعة الإدارة.',
         'dark_mode' => 'الوضع الداكن',
         'light_mode' => 'الوضع الفاتح',
         'Breadcrumb' => 'مسار التنقل',

@@ -35,7 +35,7 @@ class AdminOrderGatePhaseThreeTest extends TestCase
         Schema::create('sellers', fn (Blueprint $t) => [$t->id(), $t->string('status')->default('approved'), $t->timestamps()]);
         Schema::create('orders', function (Blueprint $t): void {
             $t->id(); $t->unsignedBigInteger('customer_id')->nullable(); $t->unsignedBigInteger('seller_id'); $t->string('seller_is')->default('seller');
-            $t->string('payment_status')->default('paid'); $t->decimal('order_amount', 24, 3); $t->string('order_status')->default('pending');
+            $t->string('payment_status')->default('paid'); $t->decimal('order_amount', 24, 3); $t->string('order_status')->default('pending'); $t->boolean('checked')->default(false);
             $t->string('commerce_flow_version')->default('admin-gated-v2'); $t->string('commerce_flow_status')->nullable(); $t->timestamp('commerce_flow_status_updated_at')->nullable();
             $t->string('admin_order_review_status')->default('pending'); $t->unsignedBigInteger('admin_order_reviewed_by')->nullable(); $t->timestamp('admin_order_reviewed_at')->nullable(); $t->text('admin_order_review_note')->nullable();
             $t->string('operational_blocked_by')->nullable(); $t->text('operational_block_reason')->nullable();
@@ -114,12 +114,13 @@ class AdminOrderGatePhaseThreeTest extends TestCase
         $order = $this->order();
         SellerOrderInsurance::query()->create(['order_id'=>$order->id,'seller_id'=>$order->seller_id,'amount'=>100,'order_amount'=>2500,'status'=>'pending_payment','payment_status'=>'unpaid']);
         OrderShippingDecision::query()->create(['order_id'=>$order->id,'mode'=>'seller_shipping','assignment_status'=>'assigned']);
-        $order->update(['commerce_flow_status'=>OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS,'shipping_assignment_status'=>'assigned']);
+        $order->update(['commerce_flow_status'=>OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS,'shipping_assignment_status'=>'assigned','checked'=>1]);
 
         $decision = $service->releaseToSeller($order->fresh(), 'Verified and assigned', 9);
 
         $this->assertSame(OrderCommerceState::SELLER_INSURANCE_PENDING, $order->fresh()->commerce_flow_status);
         $this->assertSame('approved', $order->fresh()->admin_order_review_status);
+        $this->assertSame(0, (int) $order->fresh()->checked);
         $this->assertSame('released_to_seller', $decision->action);
         Event::assertDispatched(OrderStatusEvent::class);
     }

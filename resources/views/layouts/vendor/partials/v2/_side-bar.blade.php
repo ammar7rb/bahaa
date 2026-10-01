@@ -14,7 +14,7 @@
     $v2TaxReportRoutes = $v2Tax ? include(base_path('Modules/TaxModule/Addon/vendor_tax_report_routes.php')) : [];
 
     // Pre-compute all order + refund counts once per render.
-    $v2OrderBase = Order::where(['seller_is' => 'seller'])->where(['seller_id' => $v2SellerId]);
+    $v2OrderBase = Order::sellerAccessible()->where(['seller_is' => 'seller'])->where(['seller_id' => $v2SellerId]);
     $v2OrderCountAll        = (clone $v2OrderBase)->count();
     $v2OrderCountPending    = (clone $v2OrderBase)->where(['order_status' => 'pending'])->count();
     $v2OrderCountConfirmed  = (clone $v2OrderBase)->where(['order_status' => 'confirmed'])->count();

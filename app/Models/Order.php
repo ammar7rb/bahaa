@@ -71,6 +71,11 @@ class Order extends Model
 {
     use DemoMaskingTrait;
 
+    public function scopeSellerAccessible(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return app(\App\Services\SellerOrderVisibilityService::class)->applyAccessRules($query);
+    }
+
     protected $fillable = [
         'id',
         'customer_id',

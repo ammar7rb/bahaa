@@ -696,6 +696,7 @@ class OrderController extends BaseController
             }
         }
         try {
+            app(OrderWorkflowService::class)->assertAdminOrderCanAdvance($order, (string) $request['order_status']);
             app(OrderWorkflowService::class)->assertTransition(
                 (string) $order['order_status'],
                 (string) $request['order_status'],
@@ -703,8 +704,8 @@ class OrderController extends BaseController
                 $request->boolean('workflow_override'),
                 $request->input('workflow_reason'),
             );
-        } catch (\DomainException) {
-            return response()->json(['status' => 0, 'message' => translate('order_status_transition_not_allowed')], 422);
+        } catch (\DomainException $exception) {
+            return response()->json(['status' => 0, 'message' => translate($exception->getMessage())], 422);
         }
         $this->orderRepo->updateStockOnOrderStatusChange($request['id'], $request['order_status']);
         $this->orderRepo->update(id: $request['id'], data: ['order_status' => $request['order_status']]);

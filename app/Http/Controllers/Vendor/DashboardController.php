@@ -346,7 +346,7 @@ class DashboardController extends BaseController
     public function getRealTimeActivities(): JsonResponse
     {
         $newOrder = $this->orderRepo->getListWhere(
-            filters: ['seller_is' => 'seller', 'seller_id' => auth('seller')->id(), 'checked' => 0],
+            filters: ['seller_is' => 'seller', 'seller_id' => auth('seller')->id(), 'checked' => 0, 'seller_visible_only' => true],
             dataLimit: 'all'
         )->count();
         $restockProductList = $this->restockProductRepo->getListWhere(filters: ['added_by' => 'seller', 'seller_id' => auth('seller')->id()], dataLimit: 'all')->groupBy('product_id');
