@@ -48,6 +48,19 @@ $(document).ready(function () {
         });
 
         // Update hidden textarea on text change
+        quillEditor.root.setAttribute('dir', this.dataset.direction || 'ltr');
+        quillEditor.root.style.textAlign = this.dataset.direction === 'rtl' ? 'right' : 'left';
+        quillEditor.root.setAttribute('aria-labelledby', this.dataset.label || '');
+        quillEditor.root.setAttribute('aria-required', 'true');
+        quillEditor.root.setAttribute('role', 'textbox');
+        quillEditor.root.setAttribute('aria-multiline', 'true');
+        const originalContent = associatedTextarea.val();
+        $(this).closest('form').on('reset', function () {
+            setTimeout(function () {
+                quillEditor.clipboard.dangerouslyPasteHTML(originalContent || '');
+                associatedTextarea.val(originalContent);
+            }, 0);
+        });
         quillEditor.on('text-change', function () {
             associatedTextarea.val(quillEditor.root.innerHTML);
         });

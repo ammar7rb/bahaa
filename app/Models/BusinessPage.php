@@ -29,6 +29,7 @@ class BusinessPage extends Model
         'title',
         'slug',
         'description',
+        'translations',
         'status',
         'default_status',
         'created_at',
@@ -40,6 +41,7 @@ class BusinessPage extends Model
         'title' => 'string',
         'slug' => 'string',
         'description' => 'string',
+        'translations' => 'array',
         'status' => 'integer',
         'default_status' => 'integer',
         'created_at' => 'datetime',
@@ -47,6 +49,23 @@ class BusinessPage extends Model
     ];
 
     protected $appends = ['banner_full_url'];
+
+    public function translatedContent(string $field, ?string $locale = null): string
+    {
+        $locale = strtolower(str_replace('_', '-', $locale ?? app()->getLocale()));
+        $language = in_array(explode('-', $locale)[0], ['ar', 'sa']) ? 'ar' : 'en';
+        return $this->translations[$language][$field] ?? $this->attributes[$field] ?? '';
+    }
+
+    public function getTitleAttribute($value): string
+    {
+        return $this->translatedContent('title');
+    }
+
+    public function getDescriptionAttribute($value): string
+    {
+        return $this->translatedContent('description');
+    }
 
     public function banner(): MorphOne
     {
