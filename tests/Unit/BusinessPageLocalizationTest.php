@@ -44,6 +44,25 @@ class BusinessPageLocalizationTest extends TestCase
         $this->assertSame('<p>Existing text</p>', $page->description);
     }
 
+    public function test_web_content_uses_the_selected_session_language_before_layout_translation(): void
+    {
+        $page = new BusinessPage(['title' => 'About Us', 'description' => 'Legacy', 'translations' => $this->content()]);
+        $session = app('session')->driver();
+        $request = Request::create('/business-page/about-us');
+        $request->setLaravelSession($session);
+        foreach (['ar', 'en'] as $language) {
+            // Reproduce a stale locale key and an app locale from the previous request.
+            $session->put('locale', $language === 'ar' ? 'en' : 'ar');
+            $session->put('local', $language);
+            app()->setLocale($language === 'ar' ? 'en' : 'ar');
+            (new \App\Http\Middleware\Localization)->handle($request, function () use ($page, $language) {
+                $this->assertSame($this->content()[$language]['title'], $page->title);
+                $this->assertSame($this->content()[$language]['description'], $page->description);
+                return response('ok');
+            });
+        }
+    }
+
     public function test_public_api_returns_the_requested_language_from_the_same_cache(): void
     {
         $page = new BusinessPage(['id' => 1, 'title' => 'About Us', 'description' => 'Legacy', 'slug' => 'about-us', 'default_status' => 1, 'translations' => $this->content()]);
