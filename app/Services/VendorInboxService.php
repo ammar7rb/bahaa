@@ -6,7 +6,8 @@ use App\Models\Notification;
 use App\Models\NotificationSeen;
 use App\Models\Order;
 use App\Models\Seller;
-use App\Models\SellerActivationTicketMessage;
+use App\Models\VendorSupportMessage;
+use App\Models\VendorSupportThread;
 use Illuminate\Support\Facades\DB;
 
 /** Reading an alert never mutates the order's operational/payment status. */
@@ -33,8 +34,9 @@ class VendorInboxService
 
     public function messages(Seller $seller)
     {
-        return SellerActivationTicketMessage::query()->where('sender_type', 'admin')
-            ->whereHas('ticket', fn ($q) => $q->where('seller_id', $seller->id));
+        // Support is its own channel. Activation tickets never enter this inbox.
+        return VendorSupportMessage::query()
+            ->whereHas('thread', fn ($q) => $q->where('seller_id', $seller->id));
     }
 
     public function orders(Seller $seller)
@@ -45,7 +47,7 @@ class VendorInboxService
     public function snapshot(Seller $seller): array
     {
         $reads = DB::table('vendor_inbox_reads')->where('seller_id', $seller->id)->get();
-        $readMessages = $reads->where('kind', 'message')->pluck('record_id')->all();
+        $readMessages = $reads->where('kind', 'support_message')->pluck('record_id')->all();
         $readOrders = $reads->where('kind', 'order_alert')->pluck('record_id')->all();
         $seenNotifications = NotificationSeen::where('seller_id', $seller->id)->pluck('notification_id')->all();
         $orders = $this->orders($seller)->with('sellerOrderInsurance')->select(['id', 'order_status', 'order_amount', 'seller_restricted_access_token', 'created_at', 'seller_id', 'commerce_flow_version', 'commerce_flow_status', 'admin_order_review_status', 'post_purchase_status'])->latest('id')->get();
@@ -77,17 +79,25 @@ class VendorInboxService
                 'created_at' => $order->created_at?->toIso8601String(), 'unread' => $unread,
                 'action_url' => route('vendor.orders.details', $reference)];
         }
-        $messages = $this->messages($seller)->latest('id')->get()->map(fn ($m) => [
-            'kind' => 'message', 'id' => $m->id, 'title' => translate('administration_message'), 'body' => $m->body,
-            'attachments' => $m->attachment_full_url, 'created_at' => $m->created_at?->toIso8601String(),
+        $messages = $this->messages($seller)->with('thread')->latest('id')->get()->map(fn ($m) => [
+            'kind' => 'message', 'id' => $m->id, 'thread_id' => $m->vendor_support_thread_id,
+            'title' => $m->thread->subject, 'body' => $m->body, 'status' => $m->thread->status,
+            'attachments' => [], 'created_at' => $m->created_at?->toIso8601String(),
             'unread' => !in_array($m->id, $readMessages, true),
         ])->values()->all();
+        $threads = collect($messages)->groupBy('thread_id')->map(function ($items) {
+            $latest = $items->first();
+            return ['id' => $latest['thread_id'], 'title' => $latest['title'],
+                'body' => $latest['body'], 'status' => $latest['status'], 'created_at' => $latest['created_at'],
+                'unread_count' => $items->where('unread', true)->count(), 'message_count' => $items->count(),
+                'action_url' => route('vendor.messages.thread', $latest['thread_id'])];
+        })->values()->all();
         $general = collect($general)->sortByDesc('created_at')->values()->all();
         return ['counts' => [
             'orders' => $orders->filter(fn ($o) => $o->order_status === 'pending' || in_array($o->commerce_flow_status, ['seller_insurance_pending', 'seller_insurance_under_review'], true))->count(),
             'notifications' => collect($general)->where('unread', true)->count(),
             'messages' => collect($messages)->where('unread', true)->count(),
-        ], 'notifications' => $general, 'messages' => $messages];
+        ], 'notifications' => $general, 'messages' => $messages, 'threads' => $threads];
     }
 
     public function read(Seller $seller, string $kind, string $id): void
@@ -99,6 +109,7 @@ class VendorInboxService
         }
         if ($kind === 'message') {
             $recordId = $this->messages($seller)->whereKey($id)->firstOrFail()->id;
+            $kind = 'support_message';
         } else {
             abort_unless($kind === 'order_alert', 404);
             $order = $this->orders($seller)->where(fn ($q) => ctype_digit($id) ? $q->whereKey($id) : $q->where('seller_restricted_access_token', $id))->firstOrFail();
@@ -110,5 +121,15 @@ class VendorInboxService
             }
         }
         DB::table('vendor_inbox_reads')->updateOrInsert(['seller_id' => $seller->id, 'kind' => $kind, 'record_id' => $recordId], ['created_at' => now(), 'updated_at' => now()]);
+    }
+
+    public function thread(Seller $seller, int $id): array
+    {
+        $thread = VendorSupportThread::where('seller_id', $seller->id)->with('messages')->findOrFail($id);
+        $reads = DB::table('vendor_inbox_reads')->where('seller_id', $seller->id)->where('kind', 'support_message')->pluck('record_id')->all();
+        return ['id' => $thread->id, 'subject' => $thread->subject, 'status' => $thread->status,
+            'messages' => $thread->messages->map(fn ($m) => ['kind' => 'message', 'id' => $m->id,
+                'body' => $m->body, 'created_at' => $m->created_at?->toIso8601String(),
+                'unread' => !in_array($m->id, $reads, true)])->all()];
     }
 }

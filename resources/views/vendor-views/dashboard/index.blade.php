@@ -5,20 +5,10 @@
 @endpush
 
 @section('content')
-    <div class="content container-fluid">
-        <div class="page-header pb-0 border-0 mb-3">
-            <div class="flex-between row align-items-center mx-1">
-                <div>
-                    <h1 class="page-header-title text-capitalize">{{translate('welcome').' '.auth('seller')->user()->f_name.' '.auth('seller')->user()->l_name}}</h1>
-                    <p class="mb-0">{{ translate('monitor_your_business_analytics_and_statistics').'.'}}</p>
-                </div>
-
-                <div>
-                    <a class="btn btn--primary" href="{{route('vendor.products.list',['type'=>'all'])}}">
-                        <i class="tio-premium-outlined mr-1"></i> {{translate('products')}}
-                    </a>
-                </div>
-            </div>
+    <div class="content container-fluid vendor-dashboard">
+        <div class="vendor-dashboard-welcome">
+            <div><h1>{{ translate('welcome') }}، {{ auth('seller')->user()->f_name }}</h1><p>{{ translate('vendor_workspace_intro') }}</p></div>
+            <div class="vendor-dashboard-actions"><a class="btn btn-outline-primary" href="{{ route('vendor.orders.list', 'all') }}">{{ translate('review_orders_and_due_dates') }}</a><a class="btn btn--primary" href="{{ route('vendor.products.list', ['type'=>'all']) }}">{{ translate('products') }}</a></div>
         </div>
         @if(($sellerSetup['registration']['activation_status'] ?? '') !== 'active')
             @include('vendor-views.dashboard.partials.seller-setup-status', ['setup' => $sellerSetup])
@@ -81,7 +71,7 @@
                         </h4>
                     </div>
                 </div>
-                <div class="row g-2" id="order_stats">
+                <div class="row g-2" id="wallet_stats">
                     @include('vendor-views.partials._dashboard-wallet-status',['dashboardData' => $dashboardData])
                 </div>
             </div>

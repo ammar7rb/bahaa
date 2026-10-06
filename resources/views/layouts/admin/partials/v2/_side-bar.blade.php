@@ -587,6 +587,9 @@
                             <button class="v2-pin-btn" type="button" data-pin="support-ticket" aria-label="Pin"></button>
                         </div>
                     </a>
+                    <a class="v2-nav-item {{ Request::is('admin/vendor-support*') ? 'v2-is-active' : '' }}" data-item="vendor-support" href="{{ route('admin.vendor-support.index') }}">
+                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('vendor_support_conversations') }}</span></span>
+                    </a>
                     <a class="v2-nav-item {{ Request::is('admin/activation-center*') ? 'v2-is-active' : '' }}" data-item="activation-center" href="{{ route('admin.activation-center.index') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('account_activation_center') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="activation-center" aria-label="Pin"></button></div>

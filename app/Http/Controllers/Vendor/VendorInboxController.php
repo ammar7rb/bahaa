@@ -10,7 +10,12 @@ class VendorInboxController extends Controller
 {
     public function counts(Request $request, VendorInboxService $service)
     {
-        return response()->json($service->snapshot(auth('seller')->user())['counts'])->header('Cache-Control', 'private, no-store');
+        $vendorInbox = $service->snapshot(auth('seller')->user());
+        $result = $vendorInbox['counts'];
+        foreach (['messages', 'notifications'] as $channel) {
+            $result['previews'][$channel] = view('layouts.vendor.partials.v2._inbox-previews', compact('vendorInbox', 'channel'))->render();
+        }
+        return response()->json($result)->header('Cache-Control', 'private, no-store');
     }
     public function index(Request $request, VendorInboxService $service)
     {
@@ -29,5 +34,14 @@ class VendorInboxController extends Controller
         abort_unless($seller, 401);
         $service->read($seller, $input['kind'], $input['id']);
         return $request->is('api/*') ? response()->json(['counts' => $service->snapshot($seller)['counts']]) : back();
+    }
+
+    public function thread(Request $request, int $thread, VendorInboxService $service)
+    {
+        $seller = $request->seller ?? auth('seller')->user();
+        abort_unless($seller, 401);
+        $data = $service->thread($seller, $thread);
+        return $request->is('api/*') ? response()->json($data)->header('Cache-Control', 'private, no-store')
+            : view('vendor-views.account.thread', compact('data'));
     }
 }

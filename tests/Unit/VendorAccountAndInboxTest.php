@@ -44,6 +44,7 @@ class VendorAccountAndInboxTest extends TestCase
         Schema::create('seller_activation_ticket_messages', function (Blueprint $t) { $t->id(); $t->unsignedBigInteger('seller_activation_ticket_id'); $t->string('sender_type'); $t->text('body'); $t->json('attachments')->nullable(); $t->timestamps(); });
         Schema::create('payment_requests', function (Blueprint $t) { $t->uuid('id')->primary(); $t->string('attribute'); $t->unsignedBigInteger('attribute_id'); $t->unsignedBigInteger('payer_id'); $t->boolean('is_paid'); $t->decimal('payment_amount', 24, 3); $t->string('currency_code'); $t->string('payment_method'); $t->string('transaction_id')->nullable(); $t->timestamps(); });
         (require database_path('migrations/2026_10_06_120000_create_vendor_account_profiles_and_inbox_reads.php'))->up();
+        (require database_path('migrations/2026_10_07_120000_create_vendor_support_threads.php'))->up();
         DB::table('sellers')->insert(['id' => 8, 'f_name' => 'Ahmed', 'l_name' => 'Ali', 'phone' => '+201000000008', 'email' => 'vendor@example.test', 'password' => Hash::make('OldPassword!1'), 'phone_verified_at' => now(), 'created_at' => now()->subDay(), 'updated_at' => now()]);
         DB::table('shops')->insert(['seller_id' => 8, 'name' => 'Store', 'address' => 'Cairo', 'contact' => '+201000000008']);
         $this->seller = Seller::findOrFail(8);
@@ -126,10 +127,16 @@ class VendorAccountAndInboxTest extends TestCase
             ['seller_activation_ticket_id' => 1, 'sender_type' => 'seller', 'body' => 'Seller reply'],
             ['seller_activation_ticket_id' => 2, 'sender_type' => 'admin', 'body' => 'Other vendor secret'],
         ]);
+        DB::table('vendor_support_threads')->insert(['id' => 1, 'seller_id' => 8, 'created_by_admin_id' => 1, 'subject' => 'Shipping issue', 'status' => 'open']);
+        DB::table('vendor_support_messages')->insert(['id' => 1, 'vendor_support_thread_id' => 1, 'admin_id' => 1, 'body' => 'Support message', 'created_at' => now()]);
+        DB::table('vendor_inbox_reads')->insert(['seller_id' => 8, 'kind' => 'message', 'record_id' => 1]);
         $service = app(VendorInboxService::class);
         $snapshot = $service->snapshot($this->seller);
         $this->assertSame(['orders' => 1, 'notifications' => 1, 'messages' => 1], $snapshot['counts']);
         $this->assertSame('***321', $snapshot['notifications'][0]['order_reference']);
+        $this->assertStringNotContainsString('Admin message', json_encode($snapshot));
+        $this->assertCount(1, $snapshot['threads']);
+        $this->assertSame('Shipping issue', $snapshot['threads'][0]['title']);
         $this->assertStringNotContainsString('123321', json_encode($snapshot));
         $service->read($this->seller, 'order_alert', 'secret-order-token');
         $service->read($this->seller, 'message', '1');
@@ -140,10 +147,56 @@ class VendorAccountAndInboxTest extends TestCase
 
     public function test_vendor_cannot_acknowledge_another_vendors_message(): void
     {
-        DB::table('seller_activation_tickets')->insert(['id' => 2, 'seller_id' => 99]);
-        DB::table('seller_activation_ticket_messages')->insert(['id' => 2, 'seller_activation_ticket_id' => 2, 'sender_type' => 'admin', 'body' => 'Private']);
+        DB::table('vendor_support_threads')->insert(['id' => 2, 'seller_id' => 99, 'created_by_admin_id' => 1, 'subject' => 'Private']);
+        DB::table('vendor_support_messages')->insert(['id' => 2, 'vendor_support_thread_id' => 2, 'admin_id' => 1, 'body' => 'Private']);
         $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
         app(VendorInboxService::class)->read($this->seller, 'message', '2');
+    }
+
+    public function test_support_threads_group_messages_and_keep_read_acknowledgements_explicit(): void
+    {
+        $thread = \App\Models\VendorSupportThread::create(['seller_id' => 8, 'created_by_admin_id' => 1, 'subject' => 'Product review']);
+        $first = $thread->messages()->create(['admin_id' => 1, 'body' => 'First message']);
+        $second = $thread->messages()->create(['admin_id' => 1, 'body' => 'New message']);
+        $service = app(VendorInboxService::class);
+        $snapshot = $service->snapshot($this->seller);
+        $this->assertCount(1, $snapshot['threads']);
+        $this->assertSame(2, $snapshot['counts']['messages']);
+        $this->assertSame(2, $snapshot['threads'][0]['unread_count']);
+        $history = $service->thread($this->seller, $thread->id);
+        $this->assertCount(2, $history['messages']);
+        $this->assertSame(0, DB::table('vendor_inbox_reads')->count());
+        $service->read($this->seller, 'message', (string) $first->id);
+        $this->assertSame(1, $service->snapshot($this->seller)['counts']['messages']);
+        $thread->update(['status' => 'closed']);
+        $this->assertSame('closed', $service->thread($this->seller, $thread->id)['status']);
+        $this->assertSame('New message', $service->snapshot($this->seller)['threads'][0]['body']);
+    }
+
+    public function test_support_history_is_scoped_to_vendor(): void
+    {
+        $thread = \App\Models\VendorSupportThread::create(['seller_id' => 99, 'created_by_admin_id' => 1, 'subject' => 'Secret']);
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        app(VendorInboxService::class)->thread($this->seller, $thread->id);
+    }
+
+    public function test_admin_can_open_and_continue_a_persisted_support_conversation(): void
+    {
+        $admin = new \App\Models\Admin();
+        $admin->id = 1;
+        auth('admin')->setUser($admin);
+        $controller = new \App\Http\Controllers\Admin\Vendor\VendorSupportController();
+        $request = Request::create('/admin/vendor-support', 'POST', ['seller_id' => 8, 'subject' => 'Delivery issue', 'body' => 'We are reviewing your order']);
+        $controller->store($request);
+        $thread = \App\Models\VendorSupportThread::firstOrFail();
+        $this->assertSame('Delivery issue', $thread->subject);
+        $controller->reply(Request::create('/admin/vendor-support', 'POST', ['body' => 'Review complete']), $thread);
+        $this->assertSame(2, $thread->messages()->count());
+        $this->assertSame(2, app(VendorInboxService::class)->snapshot($this->seller)['counts']['messages']);
+        $controller->status(Request::create('/admin/vendor-support', 'POST', ['status' => 'closed']), $thread);
+        $this->assertSame('closed', $thread->fresh()->status);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $controller->reply(Request::create('/admin/vendor-support', 'POST', ['body' => 'Blocked']), $thread);
     }
 
     public function test_payment_callback_rejects_unpersisted_pending_and_underpaid_results(): void

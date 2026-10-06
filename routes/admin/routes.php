@@ -189,6 +189,16 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         });
     });
 
+    Route::group(['prefix' => 'vendor-support', 'as' => 'vendor-support.', 'middleware' => ['module:people']], function () {
+        Route::controller(\App\Http\Controllers\Admin\Vendor\VendorSupportController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:30,1')->name('store');
+            Route::get('{thread}', 'show')->name('show');
+            Route::post('{thread}/reply', 'reply')->middleware('throttle:30,1')->name('reply');
+            Route::post('{thread}/status', 'status')->name('status');
+        });
+    });
+
     // Backward-compatible names for existing activation inbox shortcuts.
     Route::controller(AccountActivationCenterController::class)->group(function () {
         Route::post('vendors/activation-tickets/{activationCase}/reply', 'reply')->name('vendors.activation-tickets.reply');

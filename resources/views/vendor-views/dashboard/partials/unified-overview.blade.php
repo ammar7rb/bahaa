@@ -8,31 +8,12 @@
             <h3 class="mb-1">{{ translate('seller_dashboard_overview') }}</h3>
             <p class="text-muted mb-0">{{ translate('seller_dashboard_overview_hint') }}</p>
         </div>
-        <div class="d-flex flex-wrap gap-2">
-            <a href="{{ route('vendor.products.add') }}" class="btn btn--primary">
-                <i class="tio-add-circle-outlined mr-1"></i>{{ translate('add_product') }}
-            </a>
-            <a href="{{ route('vendor.packages.index') }}" class="btn btn-outline-primary">
-                <i class="tio-star-outlined mr-1"></i>{{ translate('advertising_packages') }}
-            </a>
-            <a href="#vendor-wallet" class="btn btn-outline-primary">
-                <i class="tio-wallet-outlined mr-1"></i>{{ translate('fund_operating_balance') }}
-            </a>
-            <a href="{{ route('vendor.orders.list', ['status' => 'all']) }}" class="btn btn-outline-secondary">
-                <i class="tio-receipt-outlined mr-1"></i>{{ translate('review_orders_and_due_dates') }}
-            </a>
-            <a href="#seller-financial-due-dates" class="btn btn-outline-secondary">
-                <i class="tio-shield-outlined mr-1"></i>{{ translate('order_insurance_details') }}
-            </a>
-            <a href="#seller-financial-due-dates" class="btn btn-outline-secondary">
-                <i class="tio-truck-outlined mr-1"></i>{{ translate('shipping_earnings_details') }}
-            </a>
-        </div>
+        <a class="vendor-text-link" href="#seller-financial-due-dates">{{ translate('review_orders_and_due_dates') }}</a>
     </div>
 
     <div class="row g-2 mb-2">
         <div class="col-md-4">
-            <div class="card h-100 remove-card-shadow border-left border-primary">
+            <div class="card h-100 remove-card-shadow vendor-summary-primary">
                 <div class="card-body">
                     <div class="text-muted mb-2">{{ translate('sales_summary') }}</div>
                     <h2 class="mb-2">{{ $money($sellerOverview['sales']['total_amount']) }}</h2>
@@ -44,7 +25,7 @@
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card h-100 remove-card-shadow border-left border-success">
+            <div class="card h-100 remove-card-shadow vendor-summary-products">
                 <div class="card-body">
                     <div class="text-muted mb-2">{{ translate('products_summary') }}</div>
                     <h2 class="mb-2">{{ $sellerOverview['products']['total'] }}</h2>
@@ -57,7 +38,7 @@
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card h-100 remove-card-shadow border-left border-info">
+            <div class="card h-100 remove-card-shadow vendor-summary-advertisements">
                 <div class="card-body">
                     <div class="text-muted mb-2">{{ translate('advertisements_summary') }}</div>
                     <h2 class="mb-2">{{ $sellerOverview['advertisements']['active'] }}</h2>

@@ -82,6 +82,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
         Route::post('account/password', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'password'])->middleware('throttle:6,1');
         Route::get('account/document/{kind}', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'document']);
         Route::get('inbox', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index']);
+        Route::get('inbox/threads/{thread}', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'thread'])->whereNumber('thread');
         Route::post('inbox/read', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'read']);
         Route::prefix('packages')->controller(SellerPackageController::class)->group(function () {
             Route::get('/', 'index');

@@ -7,9 +7,10 @@
      primary / secondary picker in business settings is intentionally
      NOT propagated here — v2 stays on its design colours. --}}
 
-<div class="app-v2" id="appV2">
+<div class="app-v2 vendor-shell" id="appV2">
     @php
-        $vendorInboxCounts = app(\App\Services\VendorInboxService::class)->snapshot(auth('seller')->user())['counts'];
+        $vendorInbox = app(\App\Services\VendorInboxService::class)->snapshot(auth('seller')->user());
+        $vendorInboxCounts = $vendorInbox['counts'];
     @endphp
     <script>
         // Apply the shell token set while the parser is still building it.
@@ -21,8 +22,8 @@
     {{-- activation-support-banner is rendered on the seller dashboard and remains
          the single activation entry point for the seller/admin conversation. --}}
     @include('layouts.vendor.partials.v2._header')
-    @include('layouts.vendor.partials.v2._rail')
     @include('layouts.vendor.partials.v2._side-bar')
+    <button type="button" class="vendor-sidebar-backdrop" data-vendor-sidebar-close aria-label="{{ translate('close') }}"></button>
 
     {{-- Pre-paint sidebar hydration. Runs synchronously while the parser is
          still walking the document, so the rail's v2-is-active and the

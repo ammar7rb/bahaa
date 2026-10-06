@@ -34,12 +34,14 @@
     $v2RefundRejected = (clone $v2RefundBase)->where('status', 'rejected')->count();
 @endphp
 
-<aside class="v2-ctxpanel" id="v2-ctxpanel">
+<aside class="v2-ctxpanel" id="v2-ctxpanel" aria-label="{{ translate('vendor_navigation') }}">
+    <div class="vendor-sidebar-brand"><a href="{{ route('vendor.dashboard.index') }}"><img src="{{ getStorageImages(path: getWebConfig(name: 'company_web_logo'), type: 'backend-logo') }}" alt="{{ getWebConfig(name: 'company_name') }}"></a><button type="button" data-vendor-sidebar-close aria-label="{{ translate('close') }}">&times;</button></div>
+    <div class="vendor-store-identity"><strong>{{ $v2Seller->shop?->name }}</strong><span>{{ translate('vendor_workspace') }}</span></div>
     <div class="v2-ctx-scroll">
 
     {{-- ================= HOME (active by default) ================= --}}
-    <div class="v2-ctx-section v2-is-on" data-section="home">
-        <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('home') }}</div></div>
+    <div class="v2-ctx-section v2-is-on vendor-section-expanded" data-section="home">
+        <button type="button" class="v2-ctx-head" aria-expanded="false">@include('layouts.vendor.partials.v2._workspace-icon', ['icon' => 'home'])<span class="v2-ctx-title">{{ translate('home') }}</span><svg class="vendor-section-chevron" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 8 5 5 5-5"/></svg></button>
         <div class="v2-ctx-group v2-is-pinned" style="display:none;">
             <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
             <div class="v2-ctx-group-body"></div>
@@ -61,7 +63,7 @@
 
     {{-- ================= ORDERS (Orders + Refund Requests) ================= --}}
     <div class="v2-ctx-section" data-section="orders">
-        <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('orders') }}</div></div>
+        <button type="button" class="v2-ctx-head" aria-expanded="false">@include('layouts.vendor.partials.v2._workspace-icon', ['icon' => 'orders'])<span class="v2-ctx-title">{{ translate('orders') }}</span><svg class="vendor-section-chevron" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 8 5 5 5-5"/></svg></button>
         <div class="v2-ctx-group v2-is-pinned" style="display:none;">
             <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
             <div class="v2-ctx-group-body"></div>
@@ -173,7 +175,7 @@
 
     {{-- ================= CATALOG (Products + Reviews) ================= --}}
     <div class="v2-ctx-section" data-section="products">
-        <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('catalog') }}</div></div>
+        <button type="button" class="v2-ctx-head" aria-expanded="false">@include('layouts.vendor.partials.v2._workspace-icon', ['icon' => 'products'])<span class="v2-ctx-title">{{ translate('catalog') }}</span><svg class="vendor-section-chevron" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 8 5 5 5-5"/></svg></button>
         <div class="v2-ctx-group v2-is-pinned" style="display:none;">
             <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
             <div class="v2-ctx-group-body"></div>
@@ -225,7 +227,7 @@
     {{-- ================= AUCTION ================= --}}
     @if ($v2Auction)
         <div class="v2-ctx-section" data-section="auction">
-            <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('Auction_Management') }}</div></div>
+            <button type="button" class="v2-ctx-head" aria-expanded="false">@include('layouts.vendor.partials.v2._workspace-icon', ['icon' => 'auction'])<span class="v2-ctx-title">{{ translate('Auction_Management') }}</span><svg class="vendor-section-chevron" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 8 5 5 5-5"/></svg></button>
             <div class="v2-ctx-group v2-is-pinned" style="display:none;">
                 <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
                 <div class="v2-ctx-group-body"></div>
@@ -265,7 +267,7 @@
 
     {{-- ================= PROMOTIONS (Coupons + Clearance Sale) ================= --}}
     <div class="v2-ctx-section" data-section="marketing">
-        <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('marketing') }}</div></div>
+        <button type="button" class="v2-ctx-head" aria-expanded="false">@include('layouts.vendor.partials.v2._workspace-icon', ['icon' => 'marketing'])<span class="v2-ctx-title">{{ translate('marketing') }}</span><svg class="vendor-section-chevron" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 8 5 5 5-5"/></svg></button>
         <div class="v2-ctx-group v2-is-pinned" style="display:none;">
             <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
             <div class="v2-ctx-group-body"></div>
@@ -293,7 +295,7 @@
 
     {{-- ================= REPORTS ================= --}}
     <div class="v2-ctx-section" data-section="reports">
-        <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('reports') }}</div></div>
+        <button type="button" class="v2-ctx-head" aria-expanded="false">@include('layouts.vendor.partials.v2._workspace-icon', ['icon' => 'reports'])<span class="v2-ctx-title">{{ translate('reports') }}</span><svg class="vendor-section-chevron" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 8 5 5 5-5"/></svg></button>
         <div class="v2-ctx-group v2-is-pinned" style="display:none;">
             <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
             <div class="v2-ctx-group-body"></div>
@@ -335,7 +337,7 @@
 
     {{-- ================= SETTINGS (Shipping, Withdraws, Bank, Shop) ================= --}}
     <div class="v2-ctx-section" data-section="settings">
-        <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('settings') }}</div></div>
+        <button type="button" class="v2-ctx-head" aria-expanded="false">@include('layouts.vendor.partials.v2._workspace-icon', ['icon' => 'settings'])<span class="v2-ctx-title">{{ translate('settings') }}</span><svg class="vendor-section-chevron" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 8 5 5 5-5"/></svg></button>
         <div class="v2-ctx-group v2-is-pinned" style="display:none;">
             <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
             <div class="v2-ctx-group-body"></div>
@@ -365,7 +367,7 @@
         </div>
     </div>
 
-    {{-- ================= PEOPLE (Delivery Man + Support) — merged section
+    {{-- ================= PEOPLE (Delivery Man + Support) â€” merged section
          matching the admin v2 sidebar pattern: a single "people" rail entry
          whose ctxpanel groups together everything human-facing (deliverymen
          and customer-support inbox). ================= --}}
@@ -395,6 +397,8 @@
         </div>
     @endif
 
+<a class="vendor-sidebar-account" href="{{ route('vendor.account') }}">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'settings'])<span>{{ translate('vendor_account') }}</span></a>
 </aside>
 
-<aside class="v2-rail-flyout" id="v2-rail-flyout" aria-hidden="true"></aside>
+<aside class="v2-rail-flyout" id="v2-rail-flyout" aria-hidden="true"><a class="vendor-sidebar-account" href="{{ route('vendor.account') }}">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'settings'])<span>{{ translate('vendor_account') }}</span></a>
+</aside>

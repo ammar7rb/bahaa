@@ -29,5 +29,15 @@ setInterval(async function () {
             const link = badge.closest('a[aria-label]');
             if (link) link.setAttribute('aria-label', link.title + (count ? ' +' + count : ''));
         });
+        ['messages', 'notifications'].forEach(function (channel) {
+            const popover = document.getElementById('vendor-popover-' + channel);
+            if (!popover) return;
+            const list = popover.querySelector('.vendor-popover-list');
+            if (list && !list.contains(document.activeElement) && counts.previews && typeof counts.previews[channel] === 'string') {
+                list.innerHTML = counts.previews[channel];
+            }
+            const total = popover.querySelector('.vendor-popover-total');
+            if (total) total.textContent = Number(counts[channel] || 0) + ' ' + total.dataset.unreadLabel;
+        });
     } catch (error) { /* Retain server-confirmed counts during connectivity loss. */ }
 }, 30000);

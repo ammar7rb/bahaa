@@ -7,6 +7,7 @@
         <div class="mb-3">
             <h2 class="h1 mb-1 text-capitalize">{{ translate('account_activation_center') }}</h2>
             <p class="mb-0 text-muted">{{ translate('activation_center_help_text') }}</p>
+            <a class="btn btn-outline-primary mt-3" href="{{ route('admin.vendor-support.index') }}">{{ translate('vendor_support_conversations') }}</a>
         </div>
 
         @php

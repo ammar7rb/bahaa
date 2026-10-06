@@ -51,20 +51,7 @@
         <button class="v2-sidebar-toggle" id="v2-sidebar-toggle" type="button"
                 data-v2-tooltip="{{ translate('Collapse_sidebar') }}" aria-label="{{ translate('Toggle_sidebar') }}"
                 data-v2-tip-expanded="{{ translate('Collapse_sidebar') }}"
-                data-v2-tip-collapsed="{{ translate('Expand_sidebar') }}">
-            {{-- Shown when sidebar is expanded → "collapse" arrow pointing inward --}}
-            <svg class="v2-sb-icon v2-sb-collapse" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M15 6l-6 6 6 6"/>
-                <path d="M21 4v16"/>
-            </svg>
-            {{-- Shown when sidebar is collapsed → "expand" arrow pointing outward --}}
-            <svg class="v2-sb-icon v2-sb-expand" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M9 6l6 6-6 6"/>
-                <path d="M3 4v16"/>
-            </svg>
-        </button>
+                data-v2-tip-collapsed="{{ translate('Expand_sidebar') }}"></button>
     </div>
 
     <nav class="v2-crumbs" id="v2-header-crumbs" aria-label="{{ translate('Breadcrumb') }}"></nav>
