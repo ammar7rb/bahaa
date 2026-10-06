@@ -77,6 +77,12 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
     });
 
     Route::group(['middleware' => ['seller_api_auth']], function () {
+        Route::get('account', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'show']);
+        Route::post('account', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'update']);
+        Route::post('account/password', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'password'])->middleware('throttle:6,1');
+        Route::get('account/document/{kind}', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'document']);
+        Route::get('inbox', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index']);
+        Route::post('inbox/read', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'read']);
         Route::prefix('packages')->controller(SellerPackageController::class)->group(function () {
             Route::get('/', 'index');
             Route::post('pay', 'pay');

@@ -272,17 +272,17 @@
                         </thead>
                         <tbody>
                         @foreach($orders as $key=>$order)
-                            @php($restrictedOrder = in_array($order->commerce_flow_version, [config('order_commerce.new_flow_version'), \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION], true) && in_array($order->commerce_flow_status, [\App\Support\Commerce\OrderCommerceState::SELLER_INSURANCE_PENDING, \App\Support\Commerce\OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW], true))
+                            @php($restrictedOrder = !app(\App\Services\SellerOrderVisibilityService::class)->canSellerView($order))
                             @php($restrictedAccessReference = $restrictedOrder ? app(\App\Services\OrderCommerceContractService::class)->restrictedAccessToken($order) : null)
                             <tr class="{{ $restrictedOrder ? 'opacity-75' : '' }}">
                                 @if($restrictedOrder)
                                 <td>{{ $orders->firstItem() + $key }}</td>
                                 <td><a class="title-color hover-c1" href="{{ route('vendor.orders.details', $restrictedAccessReference) }}">***{{ str_pad(substr((string) $order->id, -3), 3, '0', STR_PAD_LEFT) }}</a></td>
                                 <td>—</td>
-                                <td>—</td>
+                                <td>{{ translate('Insurance_Amount') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->sellerOrderInsurance?->amount ?? 0)) }}</td>
                                 <td class="text-end fw-bold">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount), currencyCode: getCurrencyCode()) }}</td>
                                 <td>—</td>
-                                <td><a class="btn btn-outline--success icon-btn" title="{{ translate('view_and_pay_insurance') }}" href="{{ route('vendor.orders.details', $restrictedAccessReference) }}"><i class="fi fi-sr-eye d-flex"></i></a></td>
+                                <td><a class="btn btn--primary" href="{{ route('vendor.orders.details', $restrictedAccessReference) }}">{{ translate('continue_to_pay_insurance') }}</a></td>
                                 @else
                                 <td>
                                     {{ $orders->firstItem() + $key}}

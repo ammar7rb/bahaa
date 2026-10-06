@@ -504,7 +504,7 @@ class OrderController extends BaseController
                 \App\Support\Commerce\OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW,
             ], true) && $order->admin_order_review_status === 'approved';
 
-            if ($releasedForInsurance && $sellerOrderInsurance) {
+            if (app(\App\Services\SellerOrderVisibilityService::class)->canSellerAccess($order) && $sellerOrderInsurance) {
                 $accessReference = $order->seller_restricted_access_token ?: $order->id;
 
                 return view('vendor-views.order.seller-order-insurance-gate', compact('order', 'sellerOrderInsurance', 'accessReference'));

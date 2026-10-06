@@ -70,15 +70,7 @@
     <nav class="v2-crumbs" id="v2-header-crumbs" aria-label="{{ translate('Breadcrumb') }}"></nav>
 
     <div class="v2-header-right">
-        <button class="vendor-theme-toggle" id="v2-theme-toggle" type="button"
-                aria-label="{{ translate('dark_mode') }}" aria-pressed="false"
-                data-v2-tooltip="{{ translate('dark_mode') }}">
-            <span class="vendor-theme-toggle__moon" aria-hidden="true">☾</span>
-            <span class="vendor-theme-toggle__sun" aria-hidden="true">☀</span>
-            <span class="sr-only">{{ translate('dark_mode') }}</span>
-        </button>
-
-        <button class="v2-icon-btn" type="button" onclick="window.baFullPagePrint();"
+<button class="v2-icon-btn" type="button" onclick="window.baFullPagePrint();"
                 aria-label="{{ translate('print') }}" data-v2-tooltip="{{ translate('print') }}" data-smart-print-trigger>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -102,176 +94,7 @@
             </svg>
         </a>
 
-        {{-- Notifications. Class names notification-data-view /
-             notification_data_new_count / notification_data_new_badge{id}
-             are kept verbatim so the existing jQuery handler in
-             resources/views/layouts/vendor/partials/_script-partials.blade.php
-             continues to fire (mark-as-seen + badge fadeout + count update). --}}
-        @php
-            $v2VendorNotifBase = \App\Models\Notification::whereBetween('created_at', [
-                    auth('seller')->user()->created_at,
-                    \Carbon\Carbon::now(),
-                ])
-                ->where('sent_to', 'seller')
-                ->where(function ($query) {
-                    $query->where('seller_id', auth('seller')->id())->orWhereNull('seller_id');
-                });
-            $v2VendorNotifList = (clone $v2VendorNotifBase)
-                ->with('notificationSeenBy')
-                ->latest()
-                ->get();
-            $v2VendorNotifNew = (clone $v2VendorNotifBase)
-                ->whereDoesntHave('notificationSeenBy')
-                ->count();
-        @endphp
-        <div class="v2-dropdown">
-            <button class="v2-icon-btn" type="button" data-v2-dropdown-toggle
-                    data-v2-tooltip="{{ translate('Notifications') }}"
-                    aria-label="{{ translate('Notifications') }}">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-                    <path d="M10 21a2 2 0 0 0 4 0"/>
-                </svg>
-                @if ($v2VendorNotifNew > 0)
-                    <span class="v2-badge-dot notification_data_new_count">{{ $v2VendorNotifNew > 99 ? '99+' : $v2VendorNotifNew }}</span>
-                @endif
-            </button>
-            <div class="v2-dropdown-menu v2-notif-menu">
-                @forelse ($v2VendorNotifList as $v2VendorNotifItem)
-                    <button type="button" class="v2-dropdown-item notification-data-view"
-                            data-id="{{ $v2VendorNotifItem->id }}">
-                        <span class="v2-notif-title">{{ translate($v2VendorNotifItem->title) }}</span>
-                        <span class="v2-notif-time">{{ $v2VendorNotifItem->created_at->diffforHumans() }}</span>
-                        @if ($v2VendorNotifItem->notification_seen_by == null)
-                            <span class="v2-notif-new notification_data_new_badge{{ $v2VendorNotifItem->id }}">
-                                {{ translate('new') }}
-                            </span>
-                        @endif
-                    </button>
-                @empty
-                    <div class="v2-dropdown-empty">{{ translate('no_notifications') }}</div>
-                @endforelse
-            </div>
-        </div>
-
-        {{-- Messages / Inbox. Vendor v1 splits unread into customer vs
-             delivery-man, each with its own count — preserved here as a
-             two-row dropdown. --}}
-        {{-- Pending orders. Vendor-scoped Order query + admin-v2 .v2-pop-*
-             popup design. The +N thumbnail chip and view-eye action mirror
-             the admin v2 header so both panels share the same visual. --}}
-        @php
-            $v2VendorPendingBase = \App\Models\Order::sellerAccessible()->where([
-                'seller_is'    => 'seller',
-                'seller_id'    => auth('seller')->id(),
-                'order_status' => 'pending',
-            ]);
-            $v2VendorPendingCount = (clone $v2VendorPendingBase)->count();
-            $v2VendorPendingOrders = (clone $v2VendorPendingBase)
-                ->with(['sellerOrderInsurance', 'details.productAllStatus'])
-                ->orderBy('id', 'desc')
-                ->take(5)
-                ->get();
-        @endphp
-        <div class="v2-dropdown">
-            <button class="v2-icon-btn" type="button" data-v2-dropdown-toggle
-                    data-v2-tooltip="{{ translate('pending_Orders') }}"
-                    aria-label="{{ translate('pending_Orders') }}">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M5 8h14l-1 12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 8Z"/>
-                    <path d="M9 8V6a3 3 0 0 1 6 0v2"/>
-                </svg>
-                @if ($v2VendorPendingCount > 0)
-                    <span class="v2-badge-dot">{{ $v2VendorPendingCount > 99 ? '99+' : $v2VendorPendingCount }}</span>
-                @endif
-            </button>
-            <div class="v2-dropdown-menu v2-orders-menu">
-                <div class="v2-pop">
-                    <div class="v2-pop-head">
-                        <div class="v2-pop-head-title">
-                            <h4>{{ translate('total_orders') }}</h4>
-                            <span>{{ $v2VendorPendingCount }}</span>
-                        </div>
-                        <a class="v2-pop-view-all" href="{{ route('vendor.orders.list', ['pending']) }}">
-                            {{ translate('view_all') }}
-                            <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M5 10h10"/><path d="m11 6 4 4-4 4"/>
-                            </svg>
-                        </a>
-                    </div>
-                    <div class="v2-pop-scroll">
-                        <table class="v2-pop-table">
-                            <tbody>
-                                @forelse ($v2VendorPendingOrders as $v2VendorOrder)
-                                    @php
-                                        $v2InsuranceLocked = in_array($v2VendorOrder->commerce_flow_status, ['seller_insurance_pending', 'seller_insurance_under_review'], true);
-                                        $v2VendorThumbs = [];
-                                        foreach ($v2InsuranceLocked ? [] : $v2VendorOrder->details as $v2OrderDetail) {
-                                            $v2OrderImg = $v2OrderDetail?->productAllStatus?->thumbnail_full_url;
-                                            if ($v2OrderImg && ($v2OrderImg['status'] ?? 0) === 200) {
-                                                $v2VendorThumbs[] = $v2OrderImg;
-                                            }
-                                        }
-                                    @endphp
-                                    <tr>
-                                        <td>
-                                            <div class="v2-pop-thumbs">
-                                                @if (count($v2VendorThumbs))
-                                                    @foreach ($v2VendorThumbs as $v2VendorThumbIdx => $v2VendorThumb)
-                                                        <div class="v2-pop-thumb-wrap{{ $v2VendorThumbIdx > 2 ? ' is-hidden' : '' }}">
-                                                            <img src="{{ getStorageImages(path: $v2VendorThumb, type: 'backend-product') }}" alt="product image">
-                                                            @if ($v2VendorThumbIdx == 2 && count($v2VendorThumbs) > 3)
-                                                                <div class="v2-pop-thumb-more">
-                                                                    <span>+ {{ count($v2VendorThumbs) - 3 }}</span>
-                                                                </div>
-                                                            @endif
-                                                        </div>
-                                                    @endforeach
-                                                @else
-                                                    <img src="{{ getStorageImages(path: '', type: 'backend-product') }}" alt="placeholder">
-                                                @endif
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="v2-pop-info">
-                                                <div class="v2-pop-row">
-                                                    <div class="v2-pop-label">{{ translate('Order_id') }}</div>
-                                                    :
-                                                    <span class="v2-pop-value">{{ $v2InsuranceLocked ? '***'.substr((string)$v2VendorOrder->id, -3) : $v2VendorOrder->id }}</span>
-                                                </div>
-                                                <div class="v2-pop-row">
-                                                    <div class="v2-pop-label">{{ $v2InsuranceLocked ? translate('Insurance_Amount') : translate('Order_Amount') }}</div>
-                                                    :
-                                                    <span class="v2-pop-value">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $v2InsuranceLocked ? ($v2VendorOrder->sellerOrderInsurance?->amount ?? 0) : $v2VendorOrder->order_amount), currencyCode: getCurrencyCode()) }}</span>
-                                                </div>
-                                                @if($v2InsuranceLocked)<div class="small text-warning mt-1"><i class="fi fi-sr-lock"></i> {{ translate('details_hidden_until_insurance_is_paid') }}</div>@endif
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="v2-pop-action-wrap">
-                                                <a class="v2-pop-action" href="{{ route('vendor.orders.details', ['id' => $v2InsuranceLocked ? $v2VendorOrder->seller_restricted_access_token : $v2VendorOrder->id]) }}"
-                                                   title="{{ translate('view') }}">
-                                                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                                                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                        <path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z"/><circle cx="10" cy="10" r="2.5"/>
-                                                    </svg>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="3" class="v2-pop-empty">{{ translate('no_pending_orders') }}</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        @include('layouts.vendor.partials.v2._account-navigation')
         {{-- Language switcher --}}
         <div class="v2-dropdown">
             <button class="v2-lang-btn" type="button" data-v2-dropdown-toggle
@@ -358,7 +181,7 @@
                     </div>
                 </div>
                 <a class="v2-dropdown-item"
-                   href="{{ route('vendor.profile.update', [$v2Vendor->id ?? '']) }}">
+                   href="{{ route('vendor.account') }}">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"/>

@@ -22,6 +22,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-v2.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-dark-mode.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-dark-mode.css')) }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-account.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-account.css')) }}">
     @include('layouts.partials._unified-print-styles')
 
     @stack('css_or_js')
@@ -65,6 +66,7 @@
     @include("layouts.vendor.partials._script-partials")
 
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-v2.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-v2.js')) }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-account.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-account.js')) }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/v2-pjax.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/full-page-print.js') }}?v={{ filemtime(public_path('assets/back-end/js/full-page-print.js')) }}"></script>
 

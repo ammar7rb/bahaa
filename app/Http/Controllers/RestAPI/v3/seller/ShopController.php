@@ -44,16 +44,13 @@ class ShopController extends Controller
     {
 
         $seller = $request->seller;
-        $notificationData = Notification::whereBetween('created_at', [$seller->created_at, Carbon::now()])
-            ->where('sent_to', 'seller')
-            ->where(function ($query) use ($seller) {
-                $query->whereNull('seller_id')->orWhere('seller_id', $seller->id);
-            });
+        $notificationData = app(\App\Services\VendorInboxService::class)->notifications($seller);
         $notification = $notificationData->with('notificationSeenBy')
             ->select('id', 'title', 'description', 'image', 'created_at')
             ->latest()->paginate($request['limit'], ['*'], 'page', $request['offset']);
 
         $notification->map(function ($data) use ($seller) {
+            app(\App\Services\VendorInboxService::class)->protectNotification($seller, $data);
             $data['notification_seen_status'] = \App\Models\NotificationSeen::query()
                 ->where('seller_id', $seller->id)->where('notification_id', $data->id)->exists() ? 1 : 0;
             unset($data->notificationSeenBy);
@@ -74,6 +71,7 @@ class ShopController extends Controller
     {
 
         $seller = $request->seller;
+        app(\App\Services\VendorInboxService::class)->notifications($seller)->whereKey($request->id)->firstOrFail();
         NotificationSeen::updateOrInsert(['seller_id' => $seller->id, 'notification_id' => $request->id], [
             'created_at' => Carbon::now(),
         ]);

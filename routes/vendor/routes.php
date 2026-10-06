@@ -82,6 +82,14 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
         });
 
         Route::group(['middleware' => ['seller']], function () {
+            Route::get('account', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'show'])->name('account');
+            Route::post('account', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'update'])->name('account.update');
+            Route::post('account/password', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'password'])->middleware('throttle:6,1')->name('account.password');
+            Route::get('account/document/{kind}', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'document'])->name('account.document');
+            Route::get('messages', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index'])->name('messages');
+            Route::get('notifications', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index'])->name('notifications');
+            Route::post('inbox/read', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'read'])->name('inbox.read');
+            Route::get('inbox/counts', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'counts'])->name('inbox.counts');
             Route::group(['prefix' => 'balance', 'as' => 'balance.'], function () {
                 Route::controller(SellerBalanceController::class)->group(function () {
                     Route::get('/', 'index')->name('index');

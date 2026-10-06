@@ -1,14 +1,15 @@
+<meta name="color-scheme" content="light">
 <script>
     (function () {
+        var root = document.documentElement;
+        root.dataset.vendorTheme = 'light';
+        root.dataset.baStorefrontTheme = 'light';
+        root.style.colorScheme = 'light';
+        root.style.backgroundColor = '#f7f9fc';
         try {
-            var preference = localStorage.getItem('ba_storefront_theme');
-            var theme = preference === 'dark' ? 'dark' : 'light';
-            document.documentElement.dataset.vendorTheme = theme;
-            document.documentElement.dataset.baStorefrontTheme = theme;
-            document.documentElement.style.colorScheme = theme;
-            document.documentElement.style.backgroundColor = theme === 'dark' ? '#0f1525' : '#f7f9fc';
-        } catch (error) {
-            // Private browsing or a disabled storage must not block the page.
-        }
+            localStorage.setItem('ba_vendor_theme', JSON.stringify('light'));
+            localStorage.setItem('6v_vendor_v2_theme', JSON.stringify('light'));
+            localStorage.setItem('ba_storefront_theme', 'light');
+        } catch (error) {}
     })();
 </script>

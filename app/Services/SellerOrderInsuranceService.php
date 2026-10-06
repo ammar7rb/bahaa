@@ -141,7 +141,9 @@ class SellerOrderInsuranceService
     {
         $settings = $this->settings();
         if (! $settings['enabled']) {
-            return null;
+            // Disabling deposits for future orders must not cancel an existing
+            // persisted payment obligation or strand its payment action.
+            return SellerOrderInsurance::query()->where('order_id', $order->id)->where('seller_id', $seller->id)->first();
         }
         if ((int) $order->seller_id !== (int) $seller->id || $order->seller_is !== 'seller') {
             throw new DomainException('seller_order_insurance_order_not_found');

@@ -59,6 +59,10 @@ class SellerOrderVisibilityService
     public function canSellerView(Order|array $order): bool
     {
         if (! $this->canSellerAccess($order)) return false;
+        $existingInsurance = $order instanceof Order
+            ? ($order->relationLoaded('sellerOrderInsurance') ? $order->sellerOrderInsurance : $order->sellerOrderInsurance()->first())
+            : SellerOrderInsurance::where('order_id', (int) data_get($order, 'id'))->where('seller_id', (int) data_get($order, 'seller_id'))->first();
+        if ($existingInsurance && !app(SellerOrderInsuranceService::class)->canViewDetails($existingInsurance)) return false;
         $flow = data_get($order, 'commerce_flow_version');
         $requiresRestrictedRelease = in_array($flow, [
             PostPurchaseInvoiceService::CONTRACT_VERSION,
@@ -73,12 +77,7 @@ class SellerOrderVisibilityService
             return false;
         }
 
-        $insurance = $order instanceof Order
-            ? $order->sellerOrderInsurance()->first()
-            : SellerOrderInsurance::query()
-                ->where('order_id', (int) data_get($order, 'id'))
-                ->where('seller_id', (int) data_get($order, 'seller_id'))
-                ->first();
+        $insurance = $existingInsurance;
 
         return $insurance !== null
             && app(SellerOrderInsuranceService::class)->canViewDetails($insurance);

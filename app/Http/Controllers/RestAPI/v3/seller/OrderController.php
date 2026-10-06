@@ -343,11 +343,7 @@ class OrderController extends Controller
 
     private function mustReturnRestrictedOrder(Order $order): bool
     {
-        return in_array($order->commerce_flow_version, [config('order_commerce.new_flow_version'), \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION], true)
-            && in_array($order->commerce_flow_status, [
-                OrderCommerceState::SELLER_INSURANCE_PENDING,
-                OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW,
-            ], true);
+        return !app(\App\Services\SellerOrderVisibilityService::class)->canSellerView($order);
     }
 
     private function sanitizeShippingDecisionForSeller(?Order $order): void

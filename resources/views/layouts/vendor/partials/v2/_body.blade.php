@@ -8,6 +8,9 @@
      NOT propagated here — v2 stays on its design colours. --}}
 
 <div class="app-v2" id="appV2">
+    @php
+        $vendorInboxCounts = app(\App\Services\VendorInboxService::class)->snapshot(auth('seller')->user())['counts'];
+    @endphp
     <script>
         // Apply the shell token set while the parser is still building it.
         // This prevents a light shell frame before vendor-v2.js boots.

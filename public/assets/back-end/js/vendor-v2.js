@@ -27,7 +27,7 @@
     expanded:     new Set(LS.get('6v_vendor_v2_expanded', [])),
     collapsed:    LS.get('6v_vendor_v2_collapsed', false),
     pins:         SERVER_PINS !== null ? SERVER_PINS : LS.get('6v_vendor_v2_pins', []),
-    theme:        LS.get('ba_vendor_theme', LS.get('6v_vendor_v2_theme', 'light')),
+    theme:        'light',
     fullscreen:   LS.get(FS_KEY, false),
     paletteOpen:  false,
     paletteQuery: '',
@@ -74,17 +74,12 @@
     });
   }
 
-  /* -------------------- theme toggle (light / dark) -------------------- */
+  /* Vendor appearance is permanently light. */
   function applyTheme() {
-    ROOT.classList.toggle('v2-theme-dark', state.theme === 'dark');
-    document.documentElement.dataset.vendorTheme = state.theme === 'dark' ? 'dark' : 'light';
-    var toggle = document.getElementById('v2-theme-toggle');
-    if (toggle) toggle.setAttribute('aria-pressed', state.theme === 'dark' ? 'true' : 'false');
-  }
-  function toggleTheme() {
-    state.theme = state.theme === 'dark' ? 'light' : 'dark';
-    persist();
-    applyTheme();
+    state.theme = 'light';
+    ROOT.classList.remove('v2-theme-dark');
+    document.documentElement.dataset.vendorTheme = 'light';
+    document.documentElement.style.colorScheme = 'light';
   }
 
   /* -------------------- fullscreen toggle --------------------
@@ -993,11 +988,6 @@
 
     if (e.target.closest('#v2-sidebar-toggle')) {
       toggleSidebar();
-      return;
-    }
-
-    if (e.target.closest('#v2-theme-toggle')) {
-      toggleTheme();
       return;
     }
 

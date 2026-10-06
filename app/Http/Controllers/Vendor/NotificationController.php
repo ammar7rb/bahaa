@@ -52,11 +52,10 @@ class NotificationController extends BaseController
         $shop = $this->shopRepo->getFirstWhere(params:['seller_id'=> auth('seller')->id()]);
         $companyName = getWebConfig(name: 'company_name') ?? '';
 
-        $notificationSeenId = $this->notificationSeenRepo->getFirstWhere(params:['seller_id' => auth('seller')->id(), 'notification_id' => $request['id']]);
-
-        $this->notificationSeenRepo->update(id: $notificationSeenId['id'],data: [ 'created_at' => now()]);
-
-        $data = $this->notificationRepo->getFirstWhere(params:['id' => $request['id']]);
+        $inbox = app(\App\Services\VendorInboxService::class);
+        $seller = auth('seller')->user();
+        $data = $inbox->notifications($seller)->whereKey($request['id'])->firstOrFail();
+        $inbox->read($seller, 'notification', (string) $data->id);
 
         $actionUrl = null;
         $actionLabel = null;
@@ -78,9 +77,8 @@ class NotificationController extends BaseController
             }
         }
 
-        $notification = $this->notificationRepo->getListWhereBetween(params:[auth('seller')->user()->created_at, now()],filters: ['sent_to'=>'seller'],relations: 'notificationSeenBy');
-
-        $notificationCount = count($notification);
+        $data = $inbox->protectNotification($seller, $data);
+        $notificationCount = $inbox->snapshot($seller)['counts']['notifications'];
         return response()->json([
             'notification_count' => $notificationCount,
             'view' => view(Notification::INDEX[VIEW], compact('shop', 'companyName', 'data', 'actionUrl', 'actionLabel'))->render(),

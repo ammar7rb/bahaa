@@ -15,6 +15,11 @@
         && $sellerOrderInsurance->payment_status === 'unpaid';
 @endphp
 <div class="content container-fluid"><div class="insurance-gate">
+    <div class="d-flex flex-wrap gap-3 mb-3">
+        <strong>{{ translate('order') }}: <span dir="ltr">***{{ substr((string) $order->id, -3) }}</span></strong>
+        <strong>{{ translate('Order_Amount') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount)) }}</strong>
+        <a class="btn btn--primary" href="#insurance-payment-options">{{ translate('continue_to_pay_insurance') }}</a>
+    </div>
     <div class="insurance-gate__hero card border-0 shadow-sm mb-3"><div class="card-body p-4 p-lg-5">
         <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
             <span class="insurance-gate__icon"><i class="fi fi-sr-shield-check"></i></span>
@@ -25,10 +30,9 @@
             <div class="insurance-gate__blur-content" aria-hidden="true"><div class="row g-3">@for($i = 0; $i < 3; $i++)<div class="col-md-4"><div class="bg-white rounded p-4"><span class="insurance-gate__placeholder-line"></span><span class="insurance-gate__placeholder-line"></span></div></div>@endfor</div></div>
             <div class="insurance-gate__lock"><div><i class="fi fi-sr-lock fs-28 text-primary"></i><h4 class="mt-2 mb-1">{{ translate('order_details_are_securely_hidden') }}</h4><p class="text-muted mb-0">{{ translate('pay_insurance_to_unlock_full_order_details') }}</p></div></div>
         </div>
-        <div class="row g-3"><div class="col-md-6"><div class="border rounded p-3 h-100"><small class="text-muted d-block">{{ translate('Order_ID') }}</small><strong>***{{ substr(str_pad((string)$order->id, 3, '0', STR_PAD_LEFT), -3) }}</strong></div></div><div class="col-md-6"><div class="border rounded p-3 h-100"><small class="text-muted d-block">{{ translate('Order_Amount') }}</small><strong>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount)) }}</strong></div></div></div>
     </div></div>
 
-    <div class="insurance-policy-note p-3 p-lg-4 mb-3"><div class="d-flex gap-3"><i class="fi fi-sr-info text-info fs-20 mt-1"></i><div><strong class="d-block mb-1">{{ translate('insurance_is_refundable_when_platform_policies_are_followed') }}</strong><span class="text-muted">{{ translate('insurance_refund_policy_explanation') }}</span><div class="mt-2"><a href="{{ route('business-page.view', ['slug'=>'terms-and-conditions']) }}" target="_blank">{{ translate('Terms_And_Conditions') }}</a><span class="mx-2">•</span><a href="{{ route('business-page.view', ['slug'=>'privacy-policy']) }}" target="_blank">{{ translate('Privacy_Policy') }}</a></div></div></div></div>
+    <div class="insurance-policy-note p-3 p-lg-4 mb-3"><div class="d-flex gap-3"><i class="fi fi-sr-info text-info fs-20 mt-1"></i><div><strong class="d-block mb-1">{{ translate('insurance_is_refundable_when_platform_policies_are_followed') }}</strong><span class="text-muted">{{ translate('insurance_refund_policy_explanation') }}</span><div class="mt-2"><a href="{{ route('business-page.view', ['slug'=>'terms-and-conditions']) }}" target="_blank">{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}</a></div></div></div></div>
 
     <div class="card border-0 shadow-sm" id="insurance-payment-options"><div class="card-body p-4"><h3 class="mb-1">{{ translate('continue_to_pay_insurance') }}</h3><p class="text-muted mb-4">{{ translate('choose_insurance_payment_method') }}</p>
     @if($canSubmit)

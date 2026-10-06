@@ -75,9 +75,7 @@
                     <span class="v2-nav-label">{{ translate('orders') }}</span>
                 </a>
                 <div class="v2-nav-right">
-                    @if ($v2OrderCountPending > 0)
-                        <span data-v2-tag="primary">{{ $v2OrderCountPending }}</span>
-                    @endif
+                    <span class="vendor-count" data-inbox-count="orders" {{ ($vendorInboxCounts['orders'] ?? 0) ? '' : 'hidden' }}>+{{ $vendorInboxCounts['orders'] ?? 0 }}</span>
                     <button class="v2-pin-btn" type="button" data-pin="v-orders" aria-label="Pin"></button>
                     <span class="v2-nav-chev" aria-label="{{ translate('toggle') }}">
                         <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="currentColor"

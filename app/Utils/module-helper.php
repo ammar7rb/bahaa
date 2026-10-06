@@ -588,12 +588,17 @@ if (!function_exists('seller_insurance_payment_fail')) {
 if (!function_exists('seller_order_insurance_payment_success')) {
     function seller_order_insurance_payment_success($paymentData): void
     {
-        if (($paymentData['is_paid'] ?? 0) != 1) return;
-        $data = json_decode($paymentData['additional_data'] ?? '{}', true);
-        $insurance = SellerOrderInsurance::query()->where('id', (int) ($data['seller_order_insurance_id'] ?? $paymentData['attribute_id'] ?? 0))
-            ->where('seller_id', (int) ($data['seller_id'] ?? $paymentData['payer_id'] ?? 0))->first();
+        // Trust the persisted gateway result, never a redirect or callback payload.
+        $verified = \App\Models\PaymentRequest::query()->whereKey($paymentData['id'] ?? '')
+            ->where('is_paid', 1)->where('attribute', 'seller_order_insurance')->first();
+        if (!$verified) return;
+        $insurance = SellerOrderInsurance::query()->whereKey((int) $verified->attribute_id)
+            ->where('seller_id', (int) $verified->payer_id)->first();
         if (! $insurance) return;
-        app(SellerOrderInsuranceService::class)->markPaid($insurance, (string) ($paymentData['payment_method'] ?? 'digital_payment'), (string) ($paymentData['transaction_id'] ?? $paymentData['id'] ?? ''), null, null);
+        if ($insurance->payment_request_id && $insurance->payment_request_id !== $verified->id) return;
+        $paidAmount = Convert::usdPaymentModule((float) $verified->payment_amount, $verified->currency_code);
+        if ($paidAmount === null || abs((float) $paidAmount - (float) $insurance->amount) > 0.01) return;
+        app(SellerOrderInsuranceService::class)->markPaid($insurance, (string) $verified->payment_method, (string) ($verified->transaction_id ?: $verified->id), null, null);
     }
 }
 
