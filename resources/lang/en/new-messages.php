@@ -1,6 +1,7 @@
 <?php
 
 return [
+    ...require __DIR__.'/vendor-messages.php',
     'wallet_transactions' => 'Wallet transactions',
     'wallet_credit' => 'Credit',
     'wallet_debit' => 'Debit',
