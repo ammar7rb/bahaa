@@ -25,6 +25,7 @@ class PageController extends Controller
 
     public function getPageView(Request $request): View|RedirectResponse
     {
+        $request->merge(['slug' => $request->route('slug')]);
         $filter = ['slug' => $request['slug']];
         if (!($request->has('source') && $request->source == 'admin')) {
             $filter += ['status' => 1];
