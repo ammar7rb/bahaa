@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\Schema;
 
 class HomepageSectionBuilderService
 {
-    public const THEMES = ['default', 'theme_aster'];
+    public const THEMES = ['default', 'theme_aster', 'theme_sigma_care'];
     public const SOURCE_MODES = ['automatic', 'manual', 'mixed'];
-    public const PRODUCT_SOURCES = ['existing', 'latest', 'best_selling', 'top_rated', 'popular', 'featured', 'paid_ads'];
+    public const PRODUCT_SOURCES = ['existing', 'latest', 'best_selling', 'top_rated', 'popular', 'featured', 'paid_ads', 'discounted', 'active'];
 
     public function catalog(string $theme): array
     {
@@ -41,15 +41,20 @@ class HomepageSectionBuilderService
             'brands' => ['label' => 'Brands', 'type' => 'content', 'source' => 'existing'],
             'reliability' => ['label' => 'Company_Reliability', 'type' => 'content', 'source' => 'existing'],
         ];
-        $order = $theme === 'theme_aster'
+        $order = theme_base_path($theme) === 'theme_aster'
             ? ['main_banner', 'flash_deals', 'paid_ads', 'categories', 'clearance_sale', 'featured_deals', 'featured_products', 'latest_products', 'best_selling', 'top_rated', 'deal_of_day', 'category_products', 'main_section_banner']
             : ['main_banner', 'flash_deals', 'paid_ads', 'featured_products', 'categories', 'featured_deals', 'clearance_sale', 'main_section_banner', 'deal_of_day', 'latest_products', 'best_selling', 'top_rated', 'footer_banners', 'brands', 'category_products', 'reliability'];
+        if ($theme === 'theme_sigma_care') {
+            $common['savings_offers'] = ['label' => 'Savings_Offers', 'type' => 'product', 'source' => 'active'];
+            $common['featured_deals'] = ['label' => 'Shop_And_Save', 'type' => 'product', 'source' => 'discounted'];
+            $order = ['main_banner', 'categories', 'latest_products', 'featured_products', 'featured_deals', 'savings_offers', 'main_section_banner', 'footer_banners', 'paid_ads', 'flash_deals', 'best_selling', 'top_rated', 'clearance_sale', 'deal_of_day', 'category_products', 'brands'];
+        }
         $sections = collect($order)->map(fn (string $key): array => ['key' => $key] + $common[$key])->all();
 
-        return collect($sections)->values()->map(function (array $section, int $index): array {
+        return collect($sections)->values()->map(function (array $section, int $index) use ($theme): array {
             return $section + [
                 'default_order' => ($index + 1) * 10,
-                'default_visible' => true,
+                'default_visible' => $theme !== 'theme_sigma_care' || in_array($section['key'], ['main_banner', 'categories', 'latest_products', 'featured_products', 'featured_deals', 'savings_offers', 'main_section_banner', 'footer_banners'], true),
             ];
         })->all();
     }
@@ -273,7 +278,7 @@ class HomepageSectionBuilderService
         }
         $limit = (int) data_get($section, 'settings.limit', 12);
         $mode = $section['source_mode'];
-        $manual = $this->manualProducts($section['product_ids'], $limit, $section['automatic_source'] === 'paid_ads');
+        $manual = $this->manualProducts($section['product_ids'], $limit, $section['automatic_source'] === 'paid_ads', $section['automatic_source'] === 'active');
         $automatic = $this->automaticProducts($section['automatic_source'], $fallback, $sectionKey, $limit);
         $products = match ($mode) {
             'manual' => $manual,
@@ -284,7 +289,7 @@ class HomepageSectionBuilderService
         // Approval makes a product searchable. Homepage eligibility is a separate
         // editorial decision made by the administrator during product review.
         $products = $products
-            ->filter(fn (Product $product): bool => (int) $product->is_homepage_visible === 1)
+            ->filter(fn (Product $product): bool => $section['automatic_source'] === 'active' || (int) $product->is_homepage_visible === 1)
             ->take($limit)
             ->values();
         if ($recordImpressions) {
@@ -304,7 +309,7 @@ class HomepageSectionBuilderService
         if ($section['source_mode'] === 'automatic' || $ids === []) {
             return $fallback;
         }
-        $manual = Banner::query()->where('published', 1)->where('theme', $theme)->whereIn('id', $ids)->get()->sortBy(fn (Banner $banner) => array_search($banner->id, $ids, true))->values();
+        $manual = Banner::query()->where('published', 1)->whereIn('theme', \App\Services\BannerService::sourceThemes($theme))->whereIn('id', $ids)->get()->sortBy(fn (Banner $banner) => array_search($banner->id, $ids, true))->values();
         return $section['source_mode'] === 'mixed' ? $manual->concat($fallback)->unique('id')->values() : $manual;
     }
 
@@ -326,21 +331,23 @@ class HomepageSectionBuilderService
             if ($section->starts_at && $section->expires_at && $section->expires_at->lte($section->starts_at)) {
                 $errors[] = 'homepage_section_end_must_be_after_start:'.$section->section_key;
             }
-            if ($section->source_mode === 'manual' && in_array($section->section_key, $this->productSectionKeys(), true)) {
-                $count = Product::active()->homepageVisible()->whereIn('id', $section->product_ids ?? [])->count();
+            if ($section->source_mode === 'manual' && in_array($section->section_key, $this->productSectionKeys($version->theme), true)) {
+                $count = Product::active()->when($section->automatic_source !== 'active', fn ($q) => $q->homepageVisible())->whereIn('id', $section->product_ids ?? [])->count();
                 if ($count === 0) {
                     $errors[] = 'manual_homepage_section_requires_active_products:'.$section->section_key;
                 }
             }
             if ($section->source_mode === 'manual' && in_array($section->section_key, $this->bannerSectionKeys(), true)) {
-                $count = Banner::query()->where('published', 1)->where('theme', $version->theme)->whereIn('id', $section->banner_ids ?? [])->count();
+                $count = Banner::query()->where('published', 1)->whereIn('theme', \App\Services\BannerService::sourceThemes($version->theme))->whereIn('id', $section->banner_ids ?? [])->count();
                 if ($count === 0) {
                     $errors[] = 'manual_homepage_banner_section_requires_active_banners:'.$section->section_key;
                 }
             }
         }
         $main = $sections->firstWhere('section_key', 'main_banner');
-        if ($main && $main->source_mode === 'automatic' && ! Banner::query()->where('theme', $version->theme)->where('published', 1)->where('banner_type', 'Main Banner')->exists()) {
+        // Care ships a branded main hero; uploaded banners can replace it later.
+        if ($main && $main->source_mode === 'automatic' && $version->theme !== 'theme_sigma_care'
+            && ! Banner::query()->where('theme', $version->theme)->where('published', 1)->where('banner_type', 'Main Banner')->exists()) {
             $errors[] = 'active_main_banner_is_required_for_the_selected_theme';
         }
 
@@ -419,10 +426,12 @@ class HomepageSectionBuilderService
             };
             return ProductManager::markHomepagePromotedProducts(ProductManager::getHomepagePromotedProductsQuery($scope)->limit($limit)->get());
         }
-        $query = Product::active()->homepageVisible()->with(['seller.shop', 'rating', 'reviews' => fn ($q) => $q->active(), 'clearanceSale' => fn ($q) => $q->active()]);
+        $query = Product::active()->when($source !== 'active', fn ($q) => $q->homepageVisible())->with(['seller.shop', 'rating', 'reviews' => fn ($q) => $q->active(), 'clearanceSale' => fn ($q) => $q->active()]);
         $query = match ($source) {
             'latest' => $query->latest('id'),
+            'active' => $query->latest('id'),
             'featured' => $query->where('featured', 1)->latest('id'),
+            'discounted' => $query->where('discount', '>', 0)->latest('id'),
             'top_rated' => $query->withAvg('reviews', 'rating')->orderByDesc('reviews_avg_rating'),
             'best_selling' => $query->withSum('orderDetails', 'qty')->orderByDesc('order_details_sum_qty'),
             'popular' => $query->withCount('orderDetails')->orderByDesc('order_details_count'),
@@ -431,12 +440,12 @@ class HomepageSectionBuilderService
         return $query ? $query->limit($limit)->get() : $fallback;
     }
 
-    private function manualProducts(array $ids, int $limit, bool $adsOnly): Collection
+    private function manualProducts(array $ids, int $limit, bool $adsOnly, bool $includeUnplaced = false): Collection
     {
         if ($ids === []) {
             return collect();
         }
-        $query = Product::active()->homepageVisible()->with(['activeHomepagePromotion', 'seller.shop', 'rating', 'reviews' => fn ($q) => $q->active()])->whereIn('id', $ids);
+        $query = Product::active()->when(!$includeUnplaced, fn ($q) => $q->homepageVisible())->with(['activeHomepagePromotion', 'seller.shop', 'rating', 'reviews' => fn ($q) => $q->active()])->whereIn('id', $ids);
         if ($adsOnly) {
             $query->whereHas('activeHomepagePromotion');
         }
@@ -454,9 +463,9 @@ class HomepageSectionBuilderService
         return collect($values)->map(fn ($id) => (int) $id)->filter(fn (int $id) => $id > 0)->unique()->values()->all();
     }
 
-    private function productSectionKeys(): array
+    private function productSectionKeys(string $theme): array
     {
-        return ['paid_ads', 'featured_products', 'latest_products', 'best_selling', 'top_rated'];
+        return array_merge(['paid_ads', 'featured_products', 'latest_products', 'best_selling', 'top_rated'], $theme === 'theme_sigma_care' ? ['featured_deals', 'savings_offers'] : []);
     }
 
     private function bannerSectionKeys(): array

@@ -502,6 +502,25 @@ enum GlobalConstant
             'Seller Image' => 'Ratio 1:1 (500 x 500 px)',
             'Meta Thumbnail' => '(Ratio 2:1)'
         ],
+        'theme_sigma_care' => [
+            'Main Banner' => 'Ratio 2:1 (2000 x 1000 px)',
+            'Footer Banner' => '(2500 x 602 px)',
+            'Popup Banner' => 'Ratio 1:1 (1200 x 1200 px)',
+
+            'Main Section Banner' => '(2000 x 618 px)',
+            'Store cover Image' => 'Ratio 4:1 (2000 x 500 px)',
+            'Store Banner Image' => '(2000 x 377 px)',
+            'Header Banner' => '(585 x 160 px)',
+            'Sidebar Banner' => '(280 x 500 px)',
+            'Top Side Banner' => '(205 x 500 px)',
+
+            'Main website Logo' => '(1000 x 308 px)',
+            'Product Image' => 'Ratio 1:1 (500 x 500 px)',
+            'Category Image' => 'Ratio 1:1 (500 x 500 px)',
+            'Brand Image' => 'Ratio 1:1 (500 x 500 px)',
+            'Seller Image' => 'Ratio 1:1 (500 x 500 px)',
+            'Meta Thumbnail' => '(Ratio 2:1)'
+        ],
         'theme_fashion' => [
             'Main Banner' => 'Ratio 1:1 (Transparent PNG)',
             'Footer Banner' => 'Ratio 4:1',

@@ -54,7 +54,7 @@ class ProductDetailsController extends Controller
         if ($viewedProduct) {
             app(SellerPackagePerformanceService::class)->recordVisit($viewedProduct);
         }
-        $theme_name = theme_root_path();
+        $theme_name = theme_base_path();
 
         return match ($theme_name) {
             'default' => self::getDefaultTheme(slug: $slug),

@@ -47,7 +47,7 @@ class HomeController extends Controller
 
     public function index(): View
     {
-        $themeName = theme_root_path();
+        $themeName = theme_base_path();
         return match ($themeName) {
             'default' => self::default_theme(),
             'theme_aster' => self::theme_aster(),
@@ -351,18 +351,20 @@ class HomeController extends Controller
         }
 
         $robotsMetaContentData = \App\Models\RobotsMetaContent::where('page_name', 'default')->first();
-        $homepageLayout = $this->homepageBuilder->layout('theme_aster');
-        $homepagePromotedProducts = $this->homepageBuilder->resolveProducts('theme_aster', 'paid_ads', $homepagePromotedProducts, $homepageLayout);
-        $featuredProductsList = $this->homepageBuilder->resolveProducts('theme_aster', 'featured_products', collect($featuredProductsList), $homepageLayout);
-        $latestProductsList = $this->homepageBuilder->resolveProducts('theme_aster', 'latest_products', collect($latestProductsList), $homepageLayout);
-        $bestSellProduct = $this->homepageBuilder->resolveProducts('theme_aster', 'best_selling', collect($bestSellProduct), $homepageLayout);
-        $topRatedProducts = $this->homepageBuilder->resolveProducts('theme_aster', 'top_rated', collect($topRatedProducts), $homepageLayout);
-        $bannerTypeMainBanner = $this->homepageBuilder->resolveBanners('theme_aster', 'main_banner', collect($bannerTypeMainBanner), $homepageLayout);
-        $bannerTypeMainSectionBanner = $this->homepageBuilder->resolveBanners('theme_aster', 'main_section_banner', collect($bannerTypeMainSectionBanner ? [$bannerTypeMainSectionBanner] : []), $homepageLayout)->first();
+        $homepageLayout = $this->homepageBuilder->layout(theme_root_path());
+        $careSavingsProducts = theme_root_path() === 'theme_sigma_care'
+            ? $this->homepageBuilder->resolveProducts(theme_root_path(), 'featured_deals', collect(), $homepageLayout) : collect();
+        $homepagePromotedProducts = $this->homepageBuilder->resolveProducts(theme_root_path(), 'paid_ads', $homepagePromotedProducts, $homepageLayout);
+        $featuredProductsList = $this->homepageBuilder->resolveProducts(theme_root_path(), 'featured_products', collect($featuredProductsList), $homepageLayout);
+        $latestProductsList = $this->homepageBuilder->resolveProducts(theme_root_path(), 'latest_products', collect($latestProductsList), $homepageLayout);
+        $bestSellProduct = $this->homepageBuilder->resolveProducts(theme_root_path(), 'best_selling', collect($bestSellProduct), $homepageLayout);
+        $topRatedProducts = $this->homepageBuilder->resolveProducts(theme_root_path(), 'top_rated', collect($topRatedProducts), $homepageLayout);
+        $bannerTypeMainBanner = $this->homepageBuilder->resolveBanners(theme_root_path(), 'main_banner', collect($bannerTypeMainBanner), $homepageLayout);
+        $bannerTypeMainSectionBanner = $this->homepageBuilder->resolveBanners(theme_root_path(), 'main_section_banner', collect($bannerTypeMainSectionBanner ? [$bannerTypeMainSectionBanner] : []), $homepageLayout)->first();
 
         return view(VIEW_FILE_NAMES['home'],
             compact(
-                'flashDeal', 'homepagePromotedProducts', 'topRatedProducts', 'bestSellProduct', 'latestProductsList', 'featuredProductsList', 'dealOfTheDay', 'topVendorsList',
+                'flashDeal', 'careSavingsProducts', 'homepagePromotedProducts', 'topRatedProducts', 'bestSellProduct', 'latestProductsList', 'featuredProductsList', 'dealOfTheDay', 'topVendorsList',
                 'homeCategories', 'bannerTypeMainBanner', 'bannerTypeFooterBanner', 'randomSingleProduct', 'decimal_point_settings', 'justForYouProducts', 'moreVendors',
                 'final_category', 'category_slider', 'order_again', 'bannerTypeSidebarBanner', 'bannerTypeMainSectionBanner', 'random_coupon', 'bannerTypeTopSideBanner',
                 'categories', 'topVendorsListSectionShowingStatus', 'clearanceSaleProducts', 'recommendedProduct', 'robotsMetaContentData', 'homepageLayout'

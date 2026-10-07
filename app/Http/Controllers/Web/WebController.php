@@ -165,7 +165,7 @@ class WebController extends Controller
 
     public function getAllCategoriesView(Request $request): View|RedirectResponse
     {
-        if (theme_root_path() == 'theme_fashion') {
+        if (theme_base_path() == 'theme_fashion') {
             Toastr::warning(translate('Page_not_found'));
             return back();
         }
@@ -228,9 +228,9 @@ class WebController extends Controller
 
     function getPriorityWiseBrandProductsQuery($request, $query)
     {
-        if (theme_root_path() == 'theme_aster') {
+        if (theme_base_path() == 'theme_aster') {
             $paginateLimit = 12;
-        } elseif (theme_root_path() == 'theme_fashion') {
+        } elseif (theme_base_path() == 'theme_fashion') {
             $paginateLimit = 10;
         } else {
             $paginateLimit = 18;
@@ -1006,7 +1006,7 @@ class WebController extends Controller
             $topRatedShops = [];
             $newSellers = [];
             $currentDate = date('Y-m-d H:i:s');
-            if (theme_root_path() === "theme_fashion") {
+            if (theme_base_path() === "theme_fashion") {
 
                 $sellerList = $this->seller->approved()->with(['shop', 'product.reviews'])
                     ->withCount(['product' => function ($query) {
@@ -1037,7 +1037,7 @@ class WebController extends Controller
             return view(VIEW_FILE_NAMES['cart_list'], compact('topRatedShops', 'newSellers', 'currentDate', 'request'));
         }
         Toastr::warning(translate('please_login_your_account'));
-        if (theme_root_path() == 'default') {
+        if (theme_base_path() == 'default') {
             return redirect('customer/auth/login');
         } else {
             return redirect('/');

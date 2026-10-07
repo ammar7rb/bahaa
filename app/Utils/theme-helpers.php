@@ -4,6 +4,13 @@ if (!function_exists('theme_asset')) {
     function theme_asset($path = null): string
     {
         $themeName = theme_root_path();
+        if ($themeName === 'theme_sigma_care' && str_starts_with((string) $path, 'public/assets/')) {
+            return dynamicAsset(path: $path);
+        }
+        // Sigma Care owns its visual assets and shares Aster's maintained commerce runtime.
+        if ($themeName === 'theme_sigma_care' && !is_file(base_path('resources/themes/theme_sigma_care/public/' . $path))) {
+            $themeName = 'theme_aster';
+        }
         if ($themeName == 'default') {
             return dynamicAsset(path: $path);
         } else {
@@ -13,6 +20,14 @@ if (!function_exists('theme_asset')) {
                 return dynamicAsset(path: 'resources/themes/' . $themeName . '/public/' . $path);
             }
         }
+    }
+}
+
+if (!function_exists('theme_base_path')) {
+    function theme_base_path(?string $theme = null): string
+    {
+        $theme ??= theme_root_path();
+        return $theme === 'theme_sigma_care' ? 'theme_aster' : $theme;
     }
 }
 
