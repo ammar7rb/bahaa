@@ -108,9 +108,9 @@
                                         class="form-control" required>
                                     <select class="form-control input-group--merge-action" name="discount_type" id="discount_type">
                                         <option
-                                            value="flat" {{ $product['discount_type']=='flat'?'selected':''}}>{{ translate('flat') }}</option>
+                                            value="flat" {{ $product['discount_type']=='flat'?'selected':''}}>{{ translate('vendor_discount_fixed') }}</option>
                                         <option
-                                            value="percent" {{ $product['discount_type']=='percent'?'selected':''}}>{{ translate('percent') }}</option>
+                                            value="percent" {{ $product['discount_type']=='percent'?'selected':''}}>{{ translate('vendor_discount_percent') }}</option>
                                     </select>
                                 </div>
                             </div>
@@ -138,9 +138,6 @@
                         @endif
 
                         <div class="col-12">
-                            <div class="alert alert-soft-info mb-0">
-                                {{ translate('shipping_cost_is_calculated_by_the_platform_and_cannot_be_set_by_the_seller') }}
-                            </div>
                             <input type="hidden" name="shipping_cost" value="0">
                             <input type="hidden" name="multiply_qty" value="off">
                         </div>

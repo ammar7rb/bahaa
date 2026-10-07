@@ -3,6 +3,10 @@
 /* Reviewed Arabic wording for the merchant surface. Keep this separate from
  * the shared catalogue so each dark-mode phase can own its language review. */
 return [
+    'vendor_discount_fixed' => 'مبلغ ثابت',
+    'vendor_discount_percent' => 'نسبة مئوية',
+    'vendor_manage_payment_methods' => 'إدارة طرق الدفع',
+
     'reselect_payment_proof' => 'اختر صورة إثبات الدفع مجددًا لإعادة الإرسال.',
     'notifications' => 'الإشعارات',
     'held_security_total' => 'التأمين المحجوز',

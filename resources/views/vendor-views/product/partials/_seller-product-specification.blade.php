@@ -12,6 +12,7 @@
             <div>
                 <h3 class="mb-1">{{ translate('seller_product_sale_unit_and_measurements') }}</h3>
                 <p class="fs-12 mb-0">{{ translate('seller_product_measurements_help') }}</p>
+                @if($sellerProduct)<input type="hidden" name="tags" value="{{ $sellerProduct->tags->pluck('tag')->implode(', ') }}">@endif
             </div>
         </div>
         <div class="card-body">
@@ -44,52 +45,7 @@
                     </div>
                 </div>
 
-                <div class="border-top mt-3 pt-3">
-                    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-                        <label class="title-color mb-0">{{ translate('seller_product_optional_dimensions') }}</label>
-                        <span class="fs-12 text-muted">{{ translate('seller_product_optional_measurements_note') }}</span>
-                    </div>
-                    <div class="row g-2">
-                        @foreach(['length' => 'seller_product_length', 'width' => 'seller_product_width', 'height' => 'seller_product_height'] as $field => $label)
-                            <div class="col-6 col-lg-2">
-                                <input class="form-control" type="number" min="0" step="0.01" name="{{ $field }}"
-                                       value="{{ old($field, data_get($sellerProduct, $field)) }}" placeholder="{{ translate($label) }}">
-                            </div>
-                        @endforeach
-                        <div class="col-6 col-lg-2">
-                            <select class="form-control" name="dimension_unit" aria-label="{{ translate('seller_product_dimension_unit') }}">
-                                @foreach(['cm', 'm'] as $unit)
-                                    <option value="{{ $unit }}" {{ old('dimension_unit', data_get($sellerProduct, 'dimension_unit', 'cm')) === $unit ? 'selected' : '' }}>{{ $unit }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-6 col-lg-2">
-                            <input class="form-control" type="number" min="0" step="0.01" name="weight"
-                                   value="{{ old('weight', data_get($sellerProduct, 'weight')) }}" placeholder="{{ translate('seller_product_weight') }}">
-                        </div>
-                        <div class="col-6 col-lg-2">
-                            <select class="form-control" name="weight_unit" aria-label="{{ translate('seller_product_weight_unit') }}">
-                                @foreach(['kg', 'g'] as $unit)
-                                    <option value="{{ $unit }}" {{ old('weight_unit', data_get($sellerProduct, 'weight_unit', 'kg')) === $unit ? 'selected' : '' }}>{{ $unit }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="border-top mt-3 pt-3">
-                    <label class="title-color d-flex align-items-center gap-2" for="tags">
-                        {{ translate('search_tags') }}
-                        <span class="input-label-secondary cursor-pointer" data-toggle="tooltip"
-                              title="{{ translate('seller_product_search_tags_help') }}">
-                            <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/info-circle.svg') }}" alt="">
-                        </span>
-                    </label>
-                    <p class="fs-12 text-muted mb-2">{{ translate('seller_product_search_tags_help') }}</p>
-                    <input class="form-control" type="text" name="tags" id="tags"
-                           value="{{ old('tags', data_get($sellerProduct, 'tags')?->pluck('tag')->implode(', ')) }}"
-                           placeholder="{{ translate('enter_search_tags_separated_by_commas') }}">
-                </div>
             </div>
         </div>
     </div>

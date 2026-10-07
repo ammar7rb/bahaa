@@ -3,11 +3,6 @@
 @section('content')
 <div class="content container-fluid vendor-account">
     <div class="vendor-page-heading"><h1>{{ translate('vendor_account') }}</h1>
-        <nav class="vendor-account-links" aria-label="{{ translate('vendor_account') }}">
-            <a href="{{ route('vendor.account.withdrawal-methods') }}">{{ translate('manage_withdrawal_methods') }}</a>
-            <a href="{{ route('vendor.messages') }}">{{ translate('administration_messages') }}</a>
-            <a href="{{ route('vendor.notifications') }}">{{ translate('notifications') }}</a>
-        </nav>
     </div>
     @if(session('account_saved'))<div class="alert alert-success" role="status">{{ translate('profile_updated_successfully') }}</div>@endif
     @if($errors->any())<div class="alert alert-danger" role="alert">@foreach($errors->all() as $error)<p class="mb-1">{{ $error }}</p>@endforeach</div>@endif
@@ -21,7 +16,7 @@
                 @foreach(['f_name' => 'first_Name', 'l_name' => 'last_Name', 'store_name' => 'store_name', 'email' => 'email'] as $key => $label)
                 <div class="col-md-6 form-group"><label for="account-{{ $key }}">{{ translate($label) }}</label><input class="form-control" id="account-{{ $key }}" name="{{ $key }}" type="{{ $key === 'email' ? 'email' : 'text' }}" value="{{ old($key, $data[$key]) }}" required maxlength="191"></div>
                 @endforeach
-                <div class="col-md-6 form-group"><label for="account-id">{{ translate('vendor_account_id') }}</label><input class="form-control" id="account-id" value="{{ $data['account_id'] }}" readonly dir="ltr"></div>
+                <div class="col-md-6 form-group"><label for="account-id">{{ translate('vendor_account_id') }}</label><div class="vendor-account-id-actions"><input class="form-control" id="account-id" value="{{ $data['account_id'] }}" readonly dir="ltr"><a class="btn btn-outline-primary" href="{{ route('vendor.account.withdrawal-methods') }}">{{ translate('vendor_manage_payment_methods') }}</a></div></div>
             </div>
             <div class="vendor-contact-grid">
             @foreach(['phone_numbers' => 'vendor_phone_numbers', 'store_addresses' => 'vendor_store_addresses'] as $key => $label)

@@ -44,22 +44,8 @@
                                 </div>
                             </div>
                         @endif
-                        <div class="col-md-6 col-lg-4">
-                            <div class="form-group mb-0">
-                                <label class="title-color d-flex justify-content-between gap-2"><span>{{ translate('product_SKU') }} <span class="input-required-icon">*</span></span><span class="style-one-pro cursor-pointer user-select-none text--primary action-onclick-generate-number" data-input="#generate_number">{{ translate('generate_code') }}</span></label>
-                                <input type="text" id="generate_number" name="code" class="form-control" value="{{ request('product-gallery') ? ' ' : $product->code }}" placeholder="{{ translate('4FOITO') }}" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-4 physical_product_show">
-                            <div class="form-group mb-0">
-                                <label class="title-color">{{ translate('unit') }} <span class="input-required-icon">*</span></label>
-                                <select class="js-example-basic-multiple form-control" name="unit" required>
-                                    @foreach(units() as $unit)
-                                        <option value="{{ $unit }}" {{ $product['unit'] == $unit ? 'selected' : '' }}>{{ $unit }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
+                        <input type="hidden" id="generate_number" name="code" value="{{ request('product-gallery') ? \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(12)) : $product->code }}">
+                        <input type="hidden" name="unit" value="{{ $product->unit ?: 'pc' }}">
                     </div>
                 </div>
             </div>

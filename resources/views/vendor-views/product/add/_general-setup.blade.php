@@ -53,22 +53,8 @@
                                 </div>
                             </div>
                         @endif
-                        <div class="col-md-6 col-lg-4">
-                            <div class="form-group mb-0">
-                                <label class="title-color d-flex justify-content-between gap-2"><span>{{ translate('product_SKU') }} <span class="input-required-icon">*</span></span><span class="style-one-pro cursor-pointer user-select-none text--primary action-onclick-generate-number" data-input="#generate_number">{{ translate('generate_code') }}</span></label>
-                                <input type="text" minlength="6" id="generate_number" name="code" class="form-control" value="{{ old('code') }}" placeholder="{{ translate('123412') }}" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-4 physical_product_show">
-                            <div class="form-group mb-0">
-                                <label class="title-color">{{ translate('unit') }} <span class="input-required-icon">*</span></label>
-                                <select class="js-example-basic-multiple form-control" name="unit" required>
-                                    @foreach (units() as $unit)
-                                        <option value="{{ $unit }}" {{ old('unit') == $unit ? 'selected' : '' }}>{{ $unit }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
+                        <input type="hidden" id="generate_number" name="code" value="{{ old('code', \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(12))) }}">
+                        <input type="hidden" name="unit" value="pc">
                     </div>
                 </div>
             </div>
