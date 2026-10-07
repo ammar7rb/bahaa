@@ -10,11 +10,12 @@ use Carbon\Carbon;
 /** Seller-safe financial records; sales and deposit returns never share totals. */
 class VendorFinancialWorkspaceService
 {
-    public function transactions(int $sellerId, int $page = 1): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    public function transactions(int $sellerId, int $page = 1, ?string $bucket = null): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         // Never expose order identifiers or private ledger metadata from locked orders.
         return \App\Models\SellerLedgerEntry::where('seller_id', $sellerId)
             ->whereIn('bucket', [SellerLedgerService::AVAILABLE, SellerLedgerService::OPERATING, SellerLedgerService::ORDER_INSURANCE_CREDIT])
+            ->when(in_array($bucket, [SellerLedgerService::AVAILABLE, SellerLedgerService::OPERATING, SellerLedgerService::ORDER_INSURANCE_CREDIT], true), fn ($q) => $q->where('bucket', $bucket))
             ->latest('id')->paginate(20, ['id', 'bucket', 'direction', 'amount', 'created_at'], 'transactions_page', max(1, $page));
     }
 

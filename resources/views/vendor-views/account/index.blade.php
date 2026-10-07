@@ -1,10 +1,10 @@
 @extends('layouts.vendor.app')
 @section('title', translate('vendor_account'))
 @section('content')
-    <div class="content container-fluid pb-0"><a class="btn btn-outline-primary" href="{{ route('vendor.account.withdrawal-methods') }}">{{ translate('manage_withdrawal_methods') }}</a></div>
 <div class="content container-fluid vendor-account">
     <div class="vendor-page-heading"><h1>{{ translate('vendor_account') }}</h1>
         <nav class="vendor-account-links" aria-label="{{ translate('vendor_account') }}">
+            <a href="{{ route('vendor.account.withdrawal-methods') }}">{{ translate('manage_withdrawal_methods') }}</a>
             <a href="{{ route('vendor.messages') }}">{{ translate('administration_messages') }}</a>
             <a href="{{ route('vendor.notifications') }}">{{ translate('notifications') }}</a>
         </nav>
@@ -23,6 +23,7 @@
                 @endforeach
                 <div class="col-md-6 form-group"><label for="account-id">{{ translate('vendor_account_id') }}</label><input class="form-control" id="account-id" value="{{ $data['account_id'] }}" readonly dir="ltr"></div>
             </div>
+            <div class="vendor-contact-grid">
             @foreach(['phone_numbers' => 'vendor_phone_numbers', 'store_addresses' => 'vendor_store_addresses'] as $key => $label)
                 <fieldset class="vendor-account-group"><legend>{{ translate($label) }}</legend>
                     <p class="text-muted">{{ translate('vendor_primary_contact_hint') }}</p>
@@ -35,7 +36,7 @@
                     <button type="button" class="btn btn-outline-primary" data-repeat-add="{{ $key }}">{{ translate('add') }}</button>
                 </fieldset>
             @endforeach
-            <div class="row">
+            </div><div class="row">
             @foreach(['commercial' => 'commercial_registration', 'tax' => 'tax_card'] as $kind => $key)
                 <fieldset class="col-md-6 vendor-account-group"><legend>{{ translate($key) }}</legend>
                     <label for="account-{{ $key }}">{{ translate('vendor_document_manual') }}</label><textarea id="account-{{ $key }}" class="form-control mb-3" name="{{ $key }}" rows="3" maxlength="5000">{{ old($key, $data[$key]) }}</textarea>

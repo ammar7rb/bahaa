@@ -41,4 +41,13 @@ class SellerWithdrawalReservationTest extends SellerLedgerServiceTest {
   $this->assertStringNotContainsString('987654',json_encode($rows));
   $this->assertStringNotContainsString('Private customer',json_encode($rows));
  }
+ public function test_wallet_destination_history_separates_payments_and_security_funds():void {
+  $seller=Seller::create();$ledger=app(SellerLedgerService::class);
+  $ledger->post($seller->id,'funding','bucket-filter',[['bucket'=>'operating','direction'=>'credit','amount'=>50],['bucket'=>'order_insurance_credit','direction'=>'credit','amount'=>25]]);
+  $service=app(\App\Services\VendorFinancialWorkspaceService::class);
+  $payments=$service->transactions($seller->id,1,SellerLedgerService::OPERATING)->items();
+  $security=$service->transactions($seller->id,1,SellerLedgerService::ORDER_INSURANCE_CREDIT)->items();
+  $this->assertCount(1,$payments);$this->assertCount(1,$security);
+  $this->assertSame(50.0,(float)$payments[0]->amount);$this->assertSame(25.0,(float)$security[0]->amount);
+ }
 }

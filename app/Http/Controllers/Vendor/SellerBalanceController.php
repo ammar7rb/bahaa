@@ -38,6 +38,8 @@ class SellerBalanceController extends Controller
 
     public function index(Request $request)
     {
+        $section = $request->attributes->get('wallet_section');
+        $bucket = $section === 'insurance' ? SellerLedgerService::ORDER_INSURANCE_CREDIT : ($section === 'operating' ? SellerLedgerService::OPERATING : SellerLedgerService::AVAILABLE);
         $seller = auth('seller')->user();
         $funding = $this->fundingSettings->get();
         $gateways = collect(payment_gateways())
@@ -45,8 +47,9 @@ class SellerBalanceController extends Controller
             ->values();
         $summary = $this->ledger->summary((int) $seller->id);
 
-        return view('vendor-views.balance.index', [
-            'transactions' => app(\App\Services\VendorFinancialWorkspaceService::class)->transactions((int) $seller->id, $request->integer('transactions_page', 1)),
+        $data = [
+            'walletSection' => $section,
+            'transactions' => app(\App\Services\VendorFinancialWorkspaceService::class)->transactions((int) $seller->id, $request->integer('transactions_page', 1), $bucket),
             'securityDeposits' => app(\App\Services\VendorFinancialWorkspaceService::class)->securityDeposits((int) $seller->id, $request->integer('security_page', 1)),
             'withdrawalMethods' => \App\Models\VendorWithdrawMethodInfo::where('user_id', $seller->id)->where('approval_status', 'approved')->where('is_active', true)->get(),
             'withdrawals' => \App\Models\WithdrawRequest::where('seller_id', $seller->id)->latest('id')->paginate(10, ['*'], 'withdrawals_page'),
@@ -60,14 +63,18 @@ class SellerBalanceController extends Controller
                 'withdrawn' => (float) ($summary[SellerLedgerService::WITHDRAWN] ?? 0),
             ],
             'financeOverview' => $this->financePresentation->overview((int) $seller->id, 50),
-            'deposits' => \App\Models\SellerBalanceDeposit::where('seller_id', $seller->id)->latest('id')->paginate(10),
+            'deposits' => \App\Models\SellerBalanceDeposit::where('seller_id', $seller->id)->when($section, fn ($q) => $q->where(fn ($target) => $target->where('metadata->wallet_target', $section)->when($section === 'operating', fn ($legacy) => $legacy->orWhereNull('metadata->wallet_target'))))->latest('id')->paginate(10, ['*'], 'deposits_page'),
             'fundingSettings' => $funding,
             'paymentGatewayList' => $gateways,
             'digitalPaymentAvailable' => $funding['digital_enabled'] && $gateways->isNotEmpty() && (bool) (getWebConfig(name: 'digital_payment')['status'] ?? 0),
             'offlinePaymentAvailable' => $funding['offline_enabled'] && (bool) (getWebConfig(name: 'offline_payment')['status'] ?? 0),
-            'offlinePaymentMethods' => OfflinePaymentMethod::query()->where('status', 1)->get(),
-        ]);
+            'offlinePaymentMethods' => OfflinePaymentMethod::query()->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])->get(),
+        ];
+        return view($section ? 'vendor-views.balance.details' : 'vendor-views.balance.index', $data);
     }
+
+    public function insurance(Request $request) { $request->attributes->set('wallet_section', 'insurance'); return $this->index($request); }
+    public function payments(Request $request) { $request->attributes->set('wallet_section', 'operating'); return $this->index($request); }
 
     public function pay(Request $request): RedirectResponse
     {

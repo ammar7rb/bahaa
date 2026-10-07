@@ -35,7 +35,7 @@ class SellerBalanceController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $request->validate(['page' => 'nullable|integer|min:1', 'records_page' => 'nullable|integer|min:1', 'orders_page' => 'nullable|integer|min:1', 'limit' => 'nullable|integer|min:1|max:100', 'records_limit' => 'nullable|integer|min:1|max:100', 'category' => 'nullable|in:balance,insurance,shipping']);
+        $request->validate(['ledger_bucket' => 'nullable|in:available,operating,order_insurance_credit', 'wallet_target' => 'nullable|in:insurance,operating', 'page' => 'nullable|integer|min:1', 'records_page' => 'nullable|integer|min:1', 'orders_page' => 'nullable|integer|min:1', 'limit' => 'nullable|integer|min:1|max:100', 'records_limit' => 'nullable|integer|min:1|max:100', 'category' => 'nullable|in:balance,insurance,shipping']);
         $seller = $request->seller;
         $gateways = collect(payment_gateways());
         $digital = getWebConfig(name: 'digital_payment');
@@ -44,10 +44,10 @@ class SellerBalanceController extends Controller
         $gateways = $gateways->filter(fn ($gateway) => $funding['digital_gateways'] === [] || in_array($gateway->key_name, $funding['digital_gateways'], true))->values();
         $summary = $this->ledger->summary((int) $seller->id);
         $financeOverview = $this->financePresentation->overview((int) $seller->id, (int) $request->get('records_limit', 20), (int) $request->get('records_page', 1), $request->get('category'));
-        $deposits = \App\Models\SellerBalanceDeposit::query()->where('seller_id', $seller->id)->latest('id')->paginate(min(100, max(1, $request->integer('limit', 10))), ['*'], 'deposits_page', max(1, $request->integer('deposits_page', 1)));
+        $deposits = \App\Models\SellerBalanceDeposit::query()->where('seller_id', $seller->id)->when($request->wallet_target, fn ($q) => $q->where(fn ($target) => $target->where('metadata->wallet_target', $request->wallet_target)->when($request->wallet_target === 'operating', fn ($legacy) => $legacy->orWhereNull('metadata->wallet_target'))))->latest('id')->paginate(min(100, max(1, $request->integer('limit', 10))), ['*'], 'deposits_page', max(1, $request->integer('deposits_page', 1)));
 
         return response()->json([
-            'transactions' => app(\App\Services\VendorFinancialWorkspaceService::class)->transactions((int) $seller->id, $request->integer('transactions_page', 1)),
+            'transactions' => app(\App\Services\VendorFinancialWorkspaceService::class)->transactions((int) $seller->id, $request->integer('transactions_page', 1), $request->wallet_target === 'insurance' ? SellerLedgerService::ORDER_INSURANCE_CREDIT : ($request->wallet_target === 'operating' ? SellerLedgerService::OPERATING : $request->ledger_bucket)),
             'summary' => $summary,
             'security_deposits' => app(\App\Services\VendorFinancialWorkspaceService::class)->securityDeposits((int) $seller->id, $request->integer('security_page', 1)),
             'withdrawal_methods' => \App\Models\VendorWithdrawMethodInfo::where('user_id', $seller->id)->where('approval_status', 'approved')->where('is_active', true)->get(),

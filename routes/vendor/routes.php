@@ -101,6 +101,8 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             Route::group(['prefix' => 'balance', 'as' => 'balance.'], function () {
                 Route::controller(SellerBalanceController::class)->group(function () {
                     Route::get('/', 'index')->name('index');
+                    Route::get('insurance', 'insurance')->name('insurance');
+                    Route::get('payments', 'payments')->name('payments');
                     Route::post('pay', 'pay')->name('pay');
                     Route::post('offline-payment', 'submitOfflinePayment')->name('offline-payment');
                 });
