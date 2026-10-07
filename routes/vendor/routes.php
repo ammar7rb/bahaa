@@ -91,6 +91,13 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             Route::get('notifications', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index'])->name('notifications');
             Route::post('inbox/read', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'read'])->name('inbox.read');
             Route::get('inbox/counts', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'counts'])->name('inbox.counts');
+            Route::controller('\\App\\Http\\Controllers\\Vendor\\VendorFinanceWorkspaceController')->group(function () {
+                Route::get('invoices', 'invoices')->name('invoices');
+                Route::get('account/withdrawal-methods', 'methods')->name('account.withdrawal-methods');
+                Route::post('account/withdrawal-methods', 'saveMethod')->name('account.withdrawal-methods.save');
+                Route::post('account/withdrawal-methods/{method}/disable', 'disableMethod')->name('account.withdrawal-methods.disable');
+                Route::post('balance/withdraw', 'withdraw')->name('balance.withdraw');
+            });
             Route::group(['prefix' => 'balance', 'as' => 'balance.'], function () {
                 Route::controller(SellerBalanceController::class)->group(function () {
                     Route::get('/', 'index')->name('index');
@@ -418,7 +425,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::controller(WithdrawController::class)->group(function () {
                         Route::get('index', 'index')->name('index');
                         Route::post('index', 'getListByStatus');
-                        Route::get('close/{id}', 'closeWithdrawRequest')->name('close');
+                        Route::post('close/{id}', 'closeWithdrawRequest')->name('close');
                         Route::get('export', 'exportList')->name('export-withdraw-list');
                         Route::post('render-withdraw-method-infos', 'renderInfosView')->name('render-withdraw-method-infos');
                     });

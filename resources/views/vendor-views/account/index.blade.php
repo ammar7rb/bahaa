@@ -1,6 +1,7 @@
 @extends('layouts.vendor.app')
 @section('title', translate('vendor_account'))
 @section('content')
+    <div class="content container-fluid pb-0"><a class="btn btn-outline-primary" href="{{ route('vendor.account.withdrawal-methods') }}">{{ translate('manage_withdrawal_methods') }}</a></div>
 <div class="content container-fluid vendor-account">
     <div class="vendor-page-heading"><h1>{{ translate('vendor_account') }}</h1>
         <nav class="vendor-account-links" aria-label="{{ translate('vendor_account') }}">

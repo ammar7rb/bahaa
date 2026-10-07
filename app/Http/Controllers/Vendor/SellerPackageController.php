@@ -42,12 +42,16 @@ class SellerPackageController extends Controller
         $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
 
         $ledgerSummary = app(SellerLedgerService::class)->summary((int) $seller->id);
+        $summary = $this->purchaseService->getSummary($seller);
+        $performanceSubscription = request()->filled('subscription')
+            ? $seller->packageSubscriptions()->findOrFail(request()->integer('subscription'))
+            : $summary['active_subscription'];
 
         return view('vendor-views.package.index', [
             'packages' => SellerPackage::query()->active()->orderBy('sort_order')->orderBy('id')->get(),
-            'summary' => $this->purchaseService->getSummary($seller),
+            'summary' => $summary,
             'subscriptions' => $seller->packageSubscriptions()->latest('id')->limit(10)->get(),
-            'performance' => null,
+            'performance' => $performanceSubscription ? app(\App\Services\SellerPackagePerformanceService::class)->report($performanceSubscription) : null,
             'operatingBalance' => (float) ($ledgerSummary[SellerLedgerService::OPERATING] ?? 0),
             'paymentGatewayList' => $paymentGatewayList,
             'digitalPaymentAvailable' => count($paymentGatewayList) > 0 && ($digitalPaymentStatus['status'] ?? 0),
@@ -94,144 +98,19 @@ class SellerPackageController extends Controller
 
     public function pay(Request $request): RedirectResponse
     {
-        $validator = Validator::make($request->all(), [
-            'package_id' => 'required|integer',
-            'payment_method' => 'required|string|max:100',
-            'current_currency_code' => 'nullable|string|max:10',
-        ]);
-        if ($validator->fails()) {
-            ToastMagic::error($validator->errors()->first());
-
-            return back();
-        }
-
-        $gateways = collect(payment_gateways());
-        $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
-        if (! ($digitalPaymentStatus['status'] ?? 0) || ! $gateways->firstWhere('key_name', $request->get('payment_method'))) {
-            ToastMagic::error(translate('payment_method_is_not_available'));
-
-            return back();
-        }
-
-        $package = SellerPackage::query()->active()->find($request->get('package_id'));
-        if (! $package) {
-            ToastMagic::error(translate('seller_package_not_found_or_inactive'));
-
-            return back();
-        }
-
+        $request->validate(['package_id' => 'required|integer', 'payment_method' => 'required|in:operating_balance', 'request_key' => 'required|uuid']);
         try {
-            $seller = auth('seller')->user();
-            $subscription = $this->purchaseService->getOrCreatePendingSubscription($seller, $package);
-            $currencyCode = $this->getCurrencyCode($request);
-            $paymentAmount = getWebConfig(name: 'currency_model') === 'multi_currency'
-                ? usdToAnotherCurrencyConverter(currencyCode: $currencyCode, amount: (float) $subscription->paid_package_price)
-                : (float) $subscription->paid_package_price;
-            $paymentInfo = new PaymentInfo(
-                success_hook: 'seller_package_payment_success',
-                failure_hook: 'seller_package_payment_fail',
-                currency_code: $currencyCode,
-                payment_method: $request->get('payment_method'),
-                payment_platform: 'web',
-                payer_id: $seller->id,
-                receiver_id: '100',
-                additional_data: $this->paymentAdditionalData($seller, $subscription, 'vendor_web'),
-                payment_amount: $paymentAmount,
-                external_redirect_link: route('vendor.packages.index'),
-                attribute: 'seller_package_subscription',
-                attribute_id: $subscription->id,
-            );
-            $payer = new Payer(trim($seller->f_name.' '.$seller->l_name), $seller->email, $seller->phone, '');
-            $redirectLink = $this->generate_link($payer, $paymentInfo, new Receiver('receiver_name', 'example.png'));
-            if (! $redirectLink) {
-                ToastMagic::error(translate('payment_method_is_not_available'));
-
-                return back();
-            }
-
-            if ($paymentRequestId = $this->extractPaymentRequestId((string) $redirectLink)) {
-                $this->purchaseService->attachPaymentRequest($subscription, $paymentRequestId);
-            }
-
-            return redirect($redirectLink);
-        } catch (DomainException $exception) {
-            ToastMagic::error(translate($exception->getMessage()));
-
-            return back();
-        }
+            $package = SellerPackage::active()->findOrFail($request->integer('package_id'));
+            $this->purchaseService->purchaseWithPaymentsBalance(auth('seller')->user(), $package, $request->string('request_key')->toString());
+            ToastMagic::success(translate('seller_package_payment_completed_from_operating_balance'));
+        } catch (DomainException $exception) { return back()->withErrors(['payment_method' => translate($exception->getMessage())]); }
+        return back();
     }
+
 
     public function submitOfflinePayment(Request $request): RedirectResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'package_id' => 'required|integer',
-            'method_id' => 'required|integer',
-            'method_information' => 'nullable|array',
-            'method_information.*' => 'nullable|string|max:1000',
-            'payment_note' => 'nullable|string|max:1000',
-            'payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
-        ]);
-        if ($validator->fails()) {
-            ToastMagic::error($validator->errors()->first());
+    { return back()->withErrors(['payment_method' => translate('fund_payments_balance_first')]); }
 
-            return back();
-        }
-
-        $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
-        $method = OfflinePaymentMethod::query()->whereKey($request->get('method_id'))->where('status', 1)->first();
-        $package = SellerPackage::query()->active()->find($request->get('package_id'));
-        if (! ($offlinePaymentStatus['status'] ?? 0) || ! $method) {
-            ToastMagic::error(translate('offline_payment_method_not_found'));
-
-            return back();
-        }
-        if (! $package) {
-            ToastMagic::error(translate('seller_package_not_found_or_inactive'));
-
-            return back();
-        }
-
-        $submittedInformation = (array) $request->get('method_information', []);
-        foreach (($method->method_informations ?? []) as $field) {
-            $inputName = $field['customer_input'] ?? null;
-            if (! $inputName || $inputName === 'payment_screenshot') {
-                continue;
-            }
-            if (($field['is_required'] ?? 0) && empty($submittedInformation[$inputName])) {
-                ToastMagic::error(translate('required_offline_payment_information_is_missing'));
-
-                return back();
-            }
-        }
-
-        try {
-            $subscription = $this->purchaseService->getOrCreatePendingSubscription(auth('seller')->user(), $package);
-            $proofName = $this->upload(
-                dir: 'seller-package/payment-proof/',
-                format: 'webp',
-                image: $request->file('payment_proof')
-            );
-            $this->purchaseService->submitOfflinePayment($subscription, [
-                'method_id' => $method->id,
-                'method_name' => $method->method_name,
-                'method_information' => $submittedInformation,
-                'payment_note' => $request->get('payment_note'),
-                'payment_proof' => [
-                    'image_name' => $proofName,
-                    'storage' => config('filesystems.disks.default') ?? 'public',
-                ],
-                'submitted_at' => now()->toDateTimeString(),
-            ]);
-
-            ToastMagic::success(translate('package_offline_payment_submitted_and_waiting_for_admin_review'));
-
-            return redirect()->route('vendor.packages.index');
-        } catch (DomainException $exception) {
-            ToastMagic::error(translate($exception->getMessage()));
-
-            return back();
-        }
-    }
 
     private function paymentAdditionalData(mixed $seller, mixed $subscription, string $source): array
     {

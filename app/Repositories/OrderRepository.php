@@ -637,6 +637,11 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function manageWalletOnOrderStatusChange(object $order, string $receivedBy): bool
     {
+        return (bool) app(\App\Services\SellerDeliveredEarningService::class)->record($order, fn () => $this->calculateLegacyDeliveredWallet($order, $receivedBy));
+    }
+
+    private function calculateLegacyDeliveredWallet(object $order, string $receivedBy): bool
+    {
         $order = $this->order->find($order['id']);
         $orderSummary = getOrderSummary(order: $order);
         $orderAmount = $orderSummary['subtotal'] - $orderSummary['total_discount_on_product'] - $order['discount_amount'];

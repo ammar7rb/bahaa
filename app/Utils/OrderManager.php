@@ -141,6 +141,12 @@ class OrderManager
 
     public static function getWalletManageOnOrderStatusChange($order, $received_by): void
     {
+        $model = Order::findOrFail($order['id']);
+        app(\App\Services\SellerDeliveredEarningService::class)->record($model, fn () => self::calculateLegacyDeliveredWallet($order, $received_by));
+    }
+
+    private static function calculateLegacyDeliveredWallet($order, $received_by): void
+    {
         $order = Order::find($order['id']);
         $order_summary = OrderManager::getOrderTotalAndSubTotalAmountSummary($order);
         $order_amount = $order_summary['subtotal'] - $order_summary['total_discount_on_product'] - $order['discount_amount'];

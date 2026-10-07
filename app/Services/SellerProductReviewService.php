@@ -39,6 +39,7 @@ class SellerProductReviewService
             throw new DomainException('seller_product_review_reason_is_required');
         }
         if ($status === self::APPROVED_PUBLISHED) {
+            if ($product->category_review_required) throw new DomainException('category_assignment_required_before_publish');
             app(ProductDateComplianceService::class)->assertPublishable($product);
         }
 

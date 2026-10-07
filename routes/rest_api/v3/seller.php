@@ -84,6 +84,14 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
         Route::get('inbox', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index']);
         Route::get('inbox/threads/{thread}', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'thread'])->whereNumber('thread');
         Route::post('inbox/read', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'read']);
+        Route::controller('\\App\\Http\\Controllers\\Vendor\\VendorFinanceWorkspaceController')->group(function () {
+            Route::get('invoices', 'invoices');
+            Route::get('invoices/{order}/document', 'invoiceDocument')->whereNumber('order');
+            Route::get('withdrawal-methods', 'methods');
+            Route::post('withdrawal-methods', 'saveMethod');
+            Route::post('withdrawal-methods/{method}/disable', 'disableMethod');
+            Route::post('balance/withdraw', 'withdraw');
+        });
         Route::prefix('packages')->controller(SellerPackageController::class)->group(function () {
             Route::get('/', 'index');
             Route::post('pay', 'pay');

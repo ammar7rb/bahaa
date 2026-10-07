@@ -3,6 +3,7 @@
 @section('title', translate('product_Preview'))
 
 @section('content')
+@if($product->category_review_required)<div class="alert alert-warning m-3" role="alert">{{ translate('other_category_review') }} · {{ translate('category_assignment_required_before_publish') }}</div>@endif
     <div class="content container-fluid text-start">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
             <div class="flex-grow-1">

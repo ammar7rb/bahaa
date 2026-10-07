@@ -16,7 +16,7 @@
         </div>
         <div class="card-body">
             <div class="bg-section rounded-10 p-12 p-sm-20">
-                <div class="row g-2">
+                <label class="d-flex align-items-center gap-2 mb-3"><input type="checkbox" name="no_production_expiry_dates" id="no_production_expiry_dates" value="1" @checked(old('no_production_expiry_dates', data_get($sellerProduct,'no_production_expiry_dates',false)))> {{ translate('no_production_expiry_dates') }}</label><div class="row g-2">
                     <div class="col-md-6 col-lg-4">
                         <label class="title-color" for="production_date">{{ translate('production_date') }} <span class="input-required-icon">*</span></label>
                         <input class="form-control" type="date" name="production_date" id="production_date" required
@@ -29,9 +29,9 @@
                                value="{{ old('expiry_date', optional(data_get($sellerProduct, 'expiry_date'))->format('Y-m-d')) }}">
                         @error('expiry_date') <div class="text-danger fs-12 mt-1">{{ $message }}</div> @enderror
                     </div>
-                    <div class="col-md-6 col-lg-4">
+                    <div class="col-md-6 col-lg-4" id="sale_unit_selector">
                         <label class="title-color" for="sale_unit_type">{{ translate('seller_product_sale_unit_type') }} <span class="input-required-icon">*</span></label>
-                        <select class="form-control" name="sale_unit_type" id="sale_unit_type" required>
+                        <select class="form-control" name="sale_unit_type" id="sale_unit_type" data-package-price="{{ translate('price_per_package') }}" data-piece-price="{{ translate('price_per_piece') }}" data-package-quantity="{{ translate('quantity_packages') }}" data-piece-quantity="{{ translate('quantity_pieces') }}" required>
                             <option value="piece" {{ $saleUnitType === 'piece' ? 'selected' : '' }}>{{ translate('seller_product_sale_unit_piece') }}</option>
                             <option value="package" {{ $saleUnitType === 'package' ? 'selected' : '' }}>{{ translate('seller_product_sale_unit_package') }}</option>
                         </select>

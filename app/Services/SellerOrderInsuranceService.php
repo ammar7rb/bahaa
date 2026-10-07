@@ -297,13 +297,14 @@ class SellerOrderInsuranceService
         $released = 0;
         foreach ($query->get() as $insurance) {
             $done = DB::transaction(function () use ($insurance): bool {
+                $this->ledger->lockSellerFinancialState((int) $insurance->seller_id);
                 $locked = SellerOrderInsurance::query()->lockForUpdate()->find($insurance->id);
-                if (! $locked || $locked->reusable_released_at || $locked->reusable_at?->isFuture()) return false;
-                $this->ledger->lockSellerFinancialState((int) $locked->seller_id);
-                $this->ledger->post(
+                if (! $locked || $locked->status !== SellerOrderInsurance::STATUS_PAID || $locked->reusable_released_at || $locked->reusable_at?->isFuture()) return false;
+                $returnAmount = max(0, (float) $locked->amount - (float) $locked->confiscated_amount);
+                if ($returnAmount > 0) $this->ledger->post(
                     sellerId: (int) $locked->seller_id, eventType: 'seller_order_insurance_credit_released',
                     groupKey: 'seller-order-insurance:' . $locked->id . ':credit-release',
-                    movements: [['bucket' => SellerLedgerService::ORDER_INSURANCE_CREDIT, 'direction' => 'credit', 'amount' => (float) $locked->amount]],
+                    movements: [['bucket' => SellerLedgerService::ORDER_INSURANCE_CREDIT, 'direction' => 'credit', 'amount' => $returnAmount]],
                     referenceType: SellerOrderInsurance::class, referenceId: (int) $locked->id,
                     metadata: ['order_id' => $locked->order_id, 'restricted_to' => 'seller_order_insurance'],
                 );
@@ -320,9 +321,9 @@ class SellerOrderInsuranceService
         $this->assertNotUnderInvestigation($insurance);
         $this->releaseReusableCredits();
         return DB::transaction(function () use ($insurance): SellerOrderInsurance {
+            $this->ledger->lockSellerFinancialState((int) $insurance->seller_id);
             $locked = SellerOrderInsurance::query()->lockForUpdate()->findOrFail($insurance->id);
             if ($locked->status !== SellerOrderInsurance::STATUS_PENDING_PAYMENT || $locked->payment_status !== 'unpaid') throw new DomainException('seller_order_insurance_payment_is_not_available');
-            $this->ledger->lockSellerFinancialState((int) $locked->seller_id);
             try { $this->ledger->assertSufficient((int) $locked->seller_id, SellerLedgerService::ORDER_INSURANCE_CREDIT, (float) $locked->amount); }
             catch (\InvalidArgumentException $exception) { throw new DomainException('seller_order_insurance_credit_insufficient', previous: $exception); }
             $this->ledger->post(

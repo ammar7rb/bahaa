@@ -117,7 +117,7 @@ class ReleaseDataPreparationService
         if (! $this->hasColumns('products', ['production_date', 'expiry_date', 'status'])) return 0;
         $count = 0;
         DB::table('products')->where('status', 1)
-            ->where(fn ($query) => $query->whereNull('production_date')->orWhereNull('expiry_date'))
+            ->where('no_production_expiry_dates', false)->where(fn ($query) => $query->whereNull('production_date')->orWhereNull('expiry_date'))
             ->orderBy('id')->chunkById(200, function ($products) use ($runId, &$count): void {
                 foreach ($products as $product) {
                     $after = ['status' => 0];
@@ -275,7 +275,7 @@ class ReleaseDataPreparationService
     private function countProductsMissingDates(): int
     {
         if (! $this->hasColumns('products', ['production_date', 'expiry_date', 'status'])) return 0;
-        return DB::table('products')->where('status', 1)->where(fn ($q) => $q->whereNull('production_date')->orWhereNull('expiry_date'))->count();
+        return DB::table('products')->where('status', 1)->where('no_production_expiry_dates', false)->where(fn ($q) => $q->whereNull('production_date')->orWhereNull('expiry_date'))->count();
     }
 
     private function countPublishedExpiredProducts(): int

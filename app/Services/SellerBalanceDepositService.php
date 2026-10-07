@@ -60,6 +60,7 @@ class SellerBalanceDepositService
     public function markPaid(SellerBalanceDeposit $deposit, array $paymentData = [], ?int $adminId = null, ?string $note = null): SellerBalanceDeposit
     {
         return DB::transaction(function () use ($deposit, $paymentData, $adminId, $note) {
+            $this->ledger->lockSellerFinancialState((int) $deposit->seller_id);
             $deposit = SellerBalanceDeposit::query()->lockForUpdate()->findOrFail($deposit->id);
             if ($deposit->status === SellerBalanceDeposit::STATUS_PAID) {
                 return $deposit;
@@ -108,7 +109,8 @@ class SellerBalanceDepositService
         if (trim($reason) === '') {
             throw new DomainException('seller_balance_deposit_rejection_reason_required');
         }
-        $deposit = SellerBalanceDeposit::query()->lockForUpdate()->findOrFail($deposit->id);
+        $this->ledger->lockSellerFinancialState((int) $deposit->seller_id);
+            $deposit = SellerBalanceDeposit::query()->lockForUpdate()->findOrFail($deposit->id);
         if ($deposit->status !== SellerBalanceDeposit::STATUS_PENDING || $deposit->source !== SellerBalanceDeposit::SOURCE_OFFLINE) {
             throw new DomainException('seller_balance_deposit_cannot_be_rejected');
         }
@@ -127,6 +129,7 @@ class SellerBalanceDepositService
             throw new DomainException('seller_balance_deposit_reversal_reason_required');
         }
         return DB::transaction(function () use ($deposit, $adminId, $reason) {
+            $this->ledger->lockSellerFinancialState((int) $deposit->seller_id);
             $deposit = SellerBalanceDeposit::query()->lockForUpdate()->findOrFail($deposit->id);
             if ($deposit->status !== SellerBalanceDeposit::STATUS_PAID) {
                 throw new DomainException('seller_balance_deposit_cannot_be_reversed');

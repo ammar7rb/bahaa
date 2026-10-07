@@ -23,8 +23,10 @@ class WithdrawRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'withdraw_method' => 'required',
-            'amount' => 'required',
+            'withdraw_method' => 'required_without:saved_method_id|integer',
+            'saved_method_id' => 'required_without:withdraw_method|integer',
+            'request_key' => 'nullable|uuid',
+            'amount' => 'required|numeric|min:0.01',
         ];
     }
 }

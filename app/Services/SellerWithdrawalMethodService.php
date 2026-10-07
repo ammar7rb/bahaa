@@ -31,6 +31,7 @@ class SellerWithdrawalMethodService
         if (str_contains($value, 'insta') || str_contains($value, 'إنستا') || str_contains($value, 'انستا')) {
             return self::INSTAPAY;
         }
+        if (str_contains($value, 'wallet') || str_contains($value, 'محفظة')) { return 'electronic_wallet'; }
         if (str_contains($value, 'vodafone') || str_contains($value, 'فودافون')) {
             return self::VODAFONE_CASH;
         }

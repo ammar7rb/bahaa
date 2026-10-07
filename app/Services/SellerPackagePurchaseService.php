@@ -18,11 +18,32 @@ class SellerPackagePurchaseService
         private readonly SubscriptionDurationService $durationService,
     ) {}
 
+    /** Persisted request key prevents charging again after a lost response. */
+    public function purchaseWithPaymentsBalance(Seller $seller, SellerPackage $package, string $requestKey): array
+    {
+        return DB::transaction(function () use ($seller, $package, $requestKey) {
+            $this->ledger->lockSellerFinancialState((int) $seller->id);
+            $subscription = SellerPackageSubscription::where('seller_id', $seller->id)
+                ->where('metadata->purchase_request_key', $requestKey)->first();
+            if ($subscription && (int) $subscription->seller_package_id !== (int) $package->id) {
+                throw new DomainException('package_retry_details_mismatch');
+            }
+            $subscription ??= $this->getOrCreatePendingSubscription($seller, $package);
+            $metadata = $subscription->metadata ?: [];
+            if (isset($metadata['purchase_request_key']) && $metadata['purchase_request_key'] !== $requestKey) {
+                throw new DomainException('another_seller_package_payment_is_already_pending');
+            }
+            $metadata['purchase_request_key'] = $requestKey;
+            $subscription->update(['metadata' => $metadata]);
+            return $this->payFromOperatingBalance($subscription);
+        });
+    }
+
     public function payFromOperatingBalance(SellerPackageSubscription $subscription): array
     {
         return DB::transaction(function () use ($subscription) {
-            $subscription = SellerPackageSubscription::query()->lockForUpdate()->findOrFail($subscription->id);
             $this->ledger->lockSellerFinancialState((int) $subscription->seller_id);
+            $subscription = SellerPackageSubscription::query()->lockForUpdate()->findOrFail($subscription->id);
             if ($subscription->payment_status === 'paid'
                 && $subscription->status === SellerPackageSubscription::STATUS_ACTIVE) {
                 return ['status' => 1, 'message' => 'already_paid', 'subscription' => $subscription];

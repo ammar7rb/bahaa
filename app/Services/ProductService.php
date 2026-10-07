@@ -282,6 +282,7 @@ class ProductService
     public function getCategoriesArray(object $request): array
     {
         $category = [];
+        if ($request['category_id'] === 'other') return [];
         if ($request['category_id'] != null) {
             $category[] = [
                 'id' => $request['category_id'],
@@ -544,7 +545,7 @@ class ProductService
             app(SellerProductSpecificationService::class)->normalize($request->only([
                 'length', 'width', 'height', 'dimension_unit', 'weight', 'weight_unit', 'sale_unit_type', 'pieces_per_unit',
             ])),
-            app(ProductDateComplianceService::class)->normalized($request->only(['production_date', 'expiry_date']))
+            app(ProductDateComplianceService::class)->normalized($request->only(['production_date', 'expiry_date', 'no_production_expiry_dates']))
         );
 
         return array_merge([
@@ -555,7 +556,8 @@ class ProductService
             'code' => $request['code'],
             'slug' => $this->getSlug($request),
             'category_ids' => json_encode($this->getCategoriesArray(request: $request)),
-            'category_id' => $request['category_id'],
+            'category_review_required' => $request['category_id'] === 'other',
+            'category_id' => $request['category_id'] === 'other' ? null : $request['category_id'],
             'sub_category_id' => $request['sub_category_id'],
             'sub_sub_category_id' => $request->input('sub_sub_category_id'),
             'brand_id' => $request['product_type'] == 'physical' ? ($request['brand_id'] ?? null) : null,
@@ -646,7 +648,8 @@ class ProductService
             'code' => $request['code'],
             'product_type' => $request['product_type'],
             'category_ids' => json_encode($this->getCategoriesArray(request: $request)),
-            'category_id' => $request['category_id'],
+            'category_review_required' => $request['category_id'] === 'other',
+            'category_id' => $request['category_id'] === 'other' ? null : $request['category_id'],
             'sub_category_id' => $request['sub_category_id'],
             'sub_sub_category_id' => $request->input('sub_sub_category_id'),
             'brand_id' => $request['product_type'] == 'physical' ? ($request['brand_id'] ?? null) : null,
@@ -685,7 +688,7 @@ class ProductService
             'length', 'width', 'height', 'dimension_unit', 'weight', 'weight_unit', 'sale_unit_type', 'pieces_per_unit',
         ]));
         $dataArray += app(ProductDateComplianceService::class)->normalized(
-            $request->only(['production_date', 'expiry_date'])
+            $request->only(['production_date', 'expiry_date', 'no_production_expiry_dates'])
         );
 
         if ($request->file('image')) {

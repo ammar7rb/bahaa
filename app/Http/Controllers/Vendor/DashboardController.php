@@ -194,28 +194,13 @@ class DashboardController extends BaseController
      */
     public function getWithdrawRequest(WithdrawRequest $request): RedirectResponse
     {
-        $vendorId = auth('seller')->id();
-        $withdrawMethod = $this->withdrawalMethodRepo->getFirstWhere(params: ['id' => $request['withdraw_method']]);
-        $wallet = $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => auth('seller')->id()]);
-        if (($wallet['total_earning'] ?? 0) >= currencyConverter($request['amount']) && $request['amount'] > 0) {
-            $this->withdrawRequestRepo->add($this->withdrawRequestService->getWithdrawRequestData(
-                withdrawMethod: $withdrawMethod,
-                request: $request,
-                addedBy: 'vendor',
-                vendorId: $vendorId
-            ));
-            $totalEarning = $wallet['total_earning'] - currencyConverter($request['amount']);
-            $pendingWithdraw = $wallet['pending_withdraw'] + currencyConverter($request['amount']);
-            $this->vendorWalletRepo->update(
-                id: $wallet['id'],
-                data: $this->vendorWalletService->getVendorWalletData(totalEarning: $totalEarning, pendingWithdraw: $pendingWithdraw)
-            );
+        try {
+            app(\App\Services\SellerWithdrawalService::class)->submit(auth('seller')->id(), (int) ($request->saved_method_id ?? $request->withdraw_method), (float) currencyConverter($request->amount), $request->request_key);
             ToastMagic::success(translate('withdraw_request_has_been_sent'));
-        } else {
-            ToastMagic::error(translate('invalid_request') . '!');
-        }
-        return redirect()->back();
+        } catch (\DomainException | \InvalidArgumentException $exception) { return back()->withErrors(['amount' => translate($exception->getMessage())]); }
+        return back();
     }
+
 
     /**
      * @param WithdrawRequest $request
@@ -224,40 +209,9 @@ class DashboardController extends BaseController
      */
     public function updateWithdrawRequest(WithdrawRequest $request): RedirectResponse
     {
-        $vendorId = auth('seller')->id();
-        $withdrawMethod = $this->withdrawalMethodRepo->getFirstWhere(params: ['id' => $request['withdraw_method']]);
-        $wallet = $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => auth('seller')->id()]);
-        $withdrawRequest = $this->withdrawRequestRepo->getFirstWhere(params: ['id' => $request['withdraw_request_id']]);
-
-        if ($withdrawRequest) {
-            $totalEarning = $wallet['total_earning'] + $withdrawRequest['amount'];
-            $pendingWithdraw = $wallet['pending_withdraw'] - $withdrawRequest['amount'];
-
-            if ($totalEarning >= currencyConverter($request['amount']) && $request['amount'] > 0) {
-                $this->withdrawRequestRepo->update(id: $withdrawRequest['id'], data: $this->withdrawRequestService->getWithdrawRequestData(
-                    withdrawMethod: $withdrawMethod,
-                    request: $request,
-                    addedBy: 'vendor',
-                    vendorId: $vendorId
-                ));
-
-                $this->vendorWalletRepo->update(
-                    id: $wallet['id'],
-                    data: [
-                        'total_earning' => $totalEarning - currencyConverter($request['amount']),
-                        'pending_withdraw' => $pendingWithdraw + currencyConverter($request['amount']),
-                    ],
-                );
-                ToastMagic::success(translate('withdraw_request_has_been_update'));
-            } else {
-                ToastMagic::error(translate('Currently this amount not withdrawable') . '!');
-            }
-            return redirect()->back();
-        }
-
-        ToastMagic::error(translate('invalid_request') . '!');
-        return redirect()->back();
+        return back()->withErrors(['amount' => translate('withdrawal_cancel_and_resubmit')]);
     }
+
 
     /**
      * @param string $type

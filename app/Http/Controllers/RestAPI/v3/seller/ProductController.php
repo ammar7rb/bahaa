@@ -779,9 +779,12 @@ class ProductController extends Controller
         // When admin owns shipping, a seller must not be required to submit a product price for it.
         $isAdminManagedShipping = app(CustomerThreeStepShippingService::class)->isEnabled();
 
+        $request->merge(['no_production_expiry_dates' => $request->boolean('no_production_expiry_dates') ? 1 : 0]);
+        if ($request->boolean('no_production_expiry_dates')) $request->merge(['production_date' => null, 'expiry_date' => null]);
+        if ($request->category_id === 'other') $request->merge(['sub_category_id' => null, 'sub_sub_category_id' => null]);
         $validator = Validator::make($request->all(), [
             'name' => 'required',
-            'category_id' => 'required',
+            'category_id' => ['required', function ($attribute, $value, $fail) use ($request) { foreach (app(\App\Services\SellerProductCategoryService::class)->validate($request->all()) as $message) $fail(translate($message)); }],
             'product_type' => 'required',
             'unit' => 'nullable|string|max:50',
             'brand_name' => 'nullable|string|max:100',
@@ -802,8 +805,9 @@ class ProductController extends Controller
             'dimension_unit' => 'nullable|in:cm,m',
             'weight' => 'nullable|numeric|gt:0',
             'weight_unit' => 'nullable|in:g,kg',
-            'production_date' => 'required|date',
-            'expiry_date' => 'required|date|after_or_equal:production_date|after:today',
+            'no_production_expiry_dates' => 'boolean',
+            'production_date' => 'exclude_if:no_production_expiry_dates,1|required|date',
+            'expiry_date' => 'exclude_if:no_production_expiry_dates,1|required|date|after_or_equal:production_date|after:today',
         ], [
             'name.required' => translate('Product name is required!'),
             'unit.required_if' => translate('Unit is required!'),
@@ -914,8 +918,9 @@ class ProductController extends Controller
             'added_by' => "seller",
             'name' => $requestName[array_search(Helpers::default_lang(), $requestLanguage)],
             'slug' => Str::slug($requestName[array_search(Helpers::default_lang(), $requestLanguage)], '-') . '-' . Str::random(6),
-            'category_ids' => json_encode($category),
-            'category_id' => $request['category_id'],
+            'category_ids' => json_encode($request->category_id === 'other' ? [] : $category),
+            'category_review_required' => $request['category_id'] === 'other',
+            'category_id' => $request['category_id'] === 'other' ? null : $request['category_id'],
             'sub_category_id' => $request['sub_category_id'],
             'sub_sub_category_id' => $request['sub_sub_category_id'],
             'brand_id' => $request['product_type'] == "physical" ? $resolvedBrandId : null,
@@ -928,6 +933,7 @@ class ProductController extends Controller
             'dimension_unit' => $request->filled('dimension_unit') ? $request->input('dimension_unit') : null,
             'weight' => $request->filled('weight') ? (float) $request->input('weight') : null,
             'weight_unit' => $request->filled('weight_unit') ? $request->input('weight_unit') : null,
+            'no_production_expiry_dates' => $request->boolean('no_production_expiry_dates'),
             'production_date' => $request->input('production_date'),
             'expiry_date' => $request->input('expiry_date'),
             'product_type' => $request['product_type'],
@@ -1279,9 +1285,12 @@ class ProductController extends Controller
         }
         $wasRejected = (int) $product->request_status === 2;
         $oldProductData = $product;
+        $request->merge(['no_production_expiry_dates' => $request->boolean('no_production_expiry_dates') ? 1 : 0]);
+        if ($request->boolean('no_production_expiry_dates')) $request->merge(['production_date' => null, 'expiry_date' => null]);
+        if ($request->category_id === 'other') $request->merge(['sub_category_id' => null, 'sub_sub_category_id' => null]);
         $validator = Validator::make($request->all(), [
             'name' => 'required',
-            'category_id' => 'required',
+            'category_id' => ['required', function ($attribute, $value, $fail) use ($request) { foreach (app(\App\Services\SellerProductCategoryService::class)->validate($request->all()) as $message) $fail(translate($message)); }],
             'product_type' => 'required',
             'unit' => 'nullable|string|max:50',
             'brand_name' => 'nullable|string|max:100',
@@ -1300,8 +1309,9 @@ class ProductController extends Controller
             'dimension_unit' => 'nullable|in:cm,m',
             'weight' => 'nullable|numeric|gt:0',
             'weight_unit' => 'nullable|in:g,kg',
-            'production_date' => 'required|date',
-            'expiry_date' => 'required|date|after_or_equal:production_date|after:today',
+            'no_production_expiry_dates' => 'boolean',
+            'production_date' => 'exclude_if:no_production_expiry_dates,1|required|date',
+            'expiry_date' => 'exclude_if:no_production_expiry_dates,1|required|date|after_or_equal:production_date|after:today',
         ], [
             'name.required' => 'Product name is required!',
             'category_id.required' => 'category  is required!',
@@ -1465,8 +1475,9 @@ class ProductController extends Controller
         }
 
         $productArray += [
-            'category_ids' => json_encode($category),
-            'category_id' => $request['category_id'],
+            'category_ids' => json_encode($request->category_id === 'other' ? [] : $category),
+            'category_review_required' => $request['category_id'] === 'other',
+            'category_id' => $request['category_id'] === 'other' ? null : $request['category_id'],
             'sub_category_id' => $request['sub_category_id'],
             'sub_sub_category_id' => $request['sub_sub_category_id'],
             'brand_id' => $request['product_type'] == "physical" ? $resolvedBrandId : null,
@@ -1479,6 +1490,7 @@ class ProductController extends Controller
             'dimension_unit' => $request->filled('dimension_unit') ? $request->input('dimension_unit') : null,
             'weight' => $request->filled('weight') ? (float) $request->input('weight') : null,
             'weight_unit' => $request->filled('weight_unit') ? $request->input('weight_unit') : null,
+            'no_production_expiry_dates' => $request->boolean('no_production_expiry_dates'),
             'production_date' => $request->input('production_date'),
             'expiry_date' => $request->input('expiry_date'),
             'product_type' => $request['product_type'],
@@ -1879,7 +1891,7 @@ class ProductController extends Controller
             return response()->json(['message' => translate('invalid_prodcut')], 403);
         }
         if ((int) $request->status === 1 && (int) $product->request_status === 1) {
-            if (! $product->expiry_date || ! $product->expiry_date->isFuture()) {
+            if (!$product->no_production_expiry_dates && (! $product->expiry_date || ! $product->expiry_date->isFuture())) {
                 return response()->json(['errors' => [['code' => 'product_is_expired', 'message' => translate('product_is_expired')]]], 403);
             }
         }
@@ -2170,7 +2182,8 @@ class ProductController extends Controller
         $filters = [
             'added_by' => 'seller',
             'seller_id' => $seller->id,
-            'category_id' => $request['category_id'],
+            'category_review_required' => $request['category_id'] === 'other',
+            'category_id' => $request['category_id'] === 'other' ? null : $request['category_id'],
             'brand_ids' => $request['brand_ids'] ? json_decode($request['brand_ids']) : [],
         ];
 

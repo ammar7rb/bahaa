@@ -27,7 +27,7 @@
                                     @foreach ($categories as $category)
                                         <option value="{{ $category['id'] }}" {{ old('category_id') == $category['id'] ? 'selected' : '' }}>{{ $category['defaultName'] }}</option>
                                     @endforeach
-                                </select>
+                                <option value="other" @selected(old('category_id', isset($product) && $product->category_review_required ? 'other' : '') === 'other')>{{ translate('other_category_review') }}</option></select>
                             </div>
                         </div>
                         <div class="col-md-6 col-lg-4">

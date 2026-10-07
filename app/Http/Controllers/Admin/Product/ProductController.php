@@ -192,7 +192,7 @@ class ProductController extends BaseController
         }
         $shopId = getInHouseShopConfig('id');
         $dataArray = $service->getAddProductData(request: $request, addedBy: 'admin', shopId: $shopId);
-        $dataArray = array_merge($dataArray, $this->getAdminManagedShippingRates($request));
+        $dataArray = array_merge($dataArray, $this->getAdminManagedShippingRates($request), ['category_review_required' => false]);
         $savedProduct = $this->productRepo->add(data: $dataArray);
         $this->productRepo->addRelatedTags(request: $request, product: $savedProduct);
         $this->translationRepo->add(request: $request, model: 'App\Models\Product', id: $savedProduct->id);

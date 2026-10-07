@@ -9,6 +9,7 @@ class SellerProductCategoryService
     public function validate(array $input): array
     {
         $categoryId = $input['category_id'] ?? null;
+        if ($categoryId === 'other') return [];
         if (!$categoryId || !Category::withoutGlobalScopes()->where(['id' => $categoryId, 'position' => 0, 'is_active' => 1])->exists()) {
             return ['category_id' => 'seller_product_category_invalid'];
         }

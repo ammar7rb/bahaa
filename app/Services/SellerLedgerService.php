@@ -51,12 +51,13 @@ class SellerLedgerService
         ?int $referenceId = null,
         array $metadata = [],
         ?int $createdBy = null,
+        bool $initializeLegacy = true,
     ): Collection {
         $this->ensureLedgerAvailable();
         if ($sellerId <= 0 || trim($eventType) === '' || trim($groupKey) === '') {
             throw new InvalidArgumentException('Seller ledger event identity is required.');
         }
-        if (!in_array($eventType, ['legacy_opening_balance', 'legacy_wallet_sync'], true) && !SellerLedgerEntry::where('seller_id', $sellerId)->exists()) {
+        if ($initializeLegacy && !in_array($eventType, ['legacy_opening_balance', 'legacy_wallet_sync'], true) && !SellerLedgerEntry::where('seller_id', $sellerId)->exists()) {
             $this->ensureLegacyOpeningBalance($sellerId);
         }
 

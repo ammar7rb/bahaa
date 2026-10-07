@@ -369,107 +369,28 @@ class SellerController extends Controller
 
     public function withdraw_request(Request $request): JsonResponse
     {
-        $method = WithdrawalMethod::find($request['withdraw_method_id']);
-
-        if (!$method) {
-            return response()->json(['message' => translate('Invalid_withdraw_request')], 403);
-        }
-
-        $fields = !is_null($method->method_fields) ? array_column($method->method_fields, 'input_name') : [];
-        $values = $request->all();
-
-        $data['method_name'] = $method->method_name;
-        foreach ($fields as $field) {
-            if (key_exists($field, $values)) {
-                $data[$field] = $values[$field];
-            }
-        }
-
         $seller = $request->seller;
-
-        $wallet = SellerWallet::where('seller_id', $seller['id'])->first();
-        if (($wallet->total_earning) >= Convert::usd($request['amount']) && $request['amount'] > 0) {
-            DB::table('withdraw_requests')->insert([
-                'seller_id' => $seller['id'],
-                'amount' => Convert::usd($request['amount']),
-                'transaction_note' => null,
-                'withdrawal_method_id' => $request['withdraw_method_id'],
-                'withdrawal_method_fields' => json_encode($data),
-                'approved' => 0,
-                'created_at' => now(),
-                'updated_at' => now()
-            ]);
-            $wallet->total_earning -= BackEndHelper::currency_to_usd($request['amount']);
-            $wallet->pending_withdraw += BackEndHelper::currency_to_usd($request['amount']);
-            $wallet->save();
-            return response()->json(translate('Withdraw request sent successfully!'), 200);
-        }
-        return response()->json(['message' => translate('Invalid_withdraw_request')], 403);
+        $input = $request->validate(['amount' => 'required|numeric|min:0.01', 'saved_method_id' => 'required_without:withdraw_method_id|integer', 'withdraw_method_id' => 'required_without:saved_method_id|integer', 'request_key' => 'nullable|uuid']);
+        try {
+            $withdrawal = app(\App\Services\SellerWithdrawalService::class)->submit((int) $seller['id'], (int) ($input['saved_method_id'] ?? $input['withdraw_method_id']), (float) Convert::usd($input['amount']), $input['request_key'] ?? null);
+            return response()->json(['message' => translate('withdraw_request_has_been_sent'), 'request' => $withdrawal]);
+        } catch (\DomainException | \InvalidArgumentException $exception) { return response()->json(['message' => translate($exception->getMessage())], 422); }
     }
+
 
 
     public function withdraw_request_update(Request $request): JsonResponse
-    {
-        $method = WithdrawalMethod::find($request['withdraw_method_id']);
-        if (!$method) {
-            return response()->json(['message' => translate('Invalid_withdraw_request')], 403);
-        }
+    { return response()->json(['message' => translate('withdrawal_cancel_and_resubmit')], 422); }
 
-        $fields = !is_null($method->method_fields) ? array_column($method->method_fields, 'input_name') : [];
-        $values = $request->all();
-
-        $data['method_name'] = $method->method_name;
-        foreach ($fields as $field) {
-            if (key_exists($field, $values)) {
-                $data[$field] = $values[$field];
-            }
-        }
-
-        $seller = $request->seller;
-        $wallet = SellerWallet::where('seller_id', $seller['id'])->first();
-
-        $withdrawRequest = WithdrawRequest::where(['id' => $request['withdraw_request_id']])->first();
-        if ($withdrawRequest) {
-            $totalEarning = $wallet->total_earning + $withdrawRequest['amount'];
-            $pendingWithdraw = $wallet->pending_withdraw - $withdrawRequest['amount'];
-
-            if (($totalEarning) >= Convert::usd($request['amount']) && $request['amount'] > 0) {
-                WithdrawRequest::where(['id' => $request['withdraw_request_id']])->update([
-                    'seller_id' => $seller['id'],
-                    'amount' => Convert::usd($request['amount']),
-                    'transaction_note' => null,
-                    'withdrawal_method_id' => $request['withdraw_method_id'],
-                    'withdrawal_method_fields' => json_encode($data),
-                    'approved' => 0,
-                    'updated_at' => now()
-                ]);
-                SellerWallet::where('seller_id', $seller['id'])->update([
-                    'total_earning' => $totalEarning - BackEndHelper::currency_to_usd($request['amount']),
-                    'pending_withdraw' => $pendingWithdraw + BackEndHelper::currency_to_usd($request['amount']),
-                ]);
-                return response()->json(translate('Withdraw request update successfully!'), 200);
-            }
-        }
-        return response()->json(['message' => translate('Invalid_withdraw_request')], 403);
-    }
 
     public function close_withdraw_request(Request $request): JsonResponse
     {
         $seller = $request->seller;
-
-        $withdraw_request = WithdrawRequest::find($request['id']);
-        $wallet = SellerWallet::where('seller_id', $seller['id'])->first();
-
-        if (isset($withdraw_request) && $withdraw_request->approved == 0) {
-            $wallet->total_earning += $withdraw_request['amount'];
-            $wallet->pending_withdraw -= $withdraw_request['amount'];
-            $wallet->save();
-            $withdraw_request->delete();
-            return response()->json(translate('Withdraw request has been closed successfully!'), 200);
-        }
-
-        return response()->json(translate('Withdraw request is invalid'), 403);
+        $request->validate(['id' => 'required|integer']);
+        try { app(\App\Services\SellerWithdrawalService::class)->finish((int) $request->id, 3, (int) $seller['id'], 'Cancelled by vendor'); return response()->json(['message' => translate('withdraw_request_closed')]); }
+        catch (\DomainException $exception) { return response()->json(['message' => translate($exception->getMessage())], 422); }
     }
+
 
     public function transaction(Request $request): JsonResponse
     {

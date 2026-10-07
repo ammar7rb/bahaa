@@ -750,7 +750,7 @@ class ProductController extends BaseController
             ], 404);
         }
 
-        if ($status == 1 && $product['request_status'] == 1 && $product->expiry_date?->isFuture()) {
+        if ($status == 1 && $product['request_status'] == 1 && ($product->no_production_expiry_dates || $product->expiry_date?->isFuture())) {
             $this->productRepo->update(id: $productId, data: ['status' => $status]);
             $success = 1;
         } elseif ($status != 1) {

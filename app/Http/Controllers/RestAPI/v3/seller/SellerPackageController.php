@@ -95,7 +95,7 @@ class SellerPackageController extends Controller
             'subscription' => $this->formatSummary($summary),
             'operating_balance' => $operatingBalance,
             'operating_balance_payment_available' => $summary['can_purchase'] && $operatingBalance > 0,
-            'digital_payment_available' => $gateways->isNotEmpty() && ($digitalPaymentStatus['status'] ?? 0),
+            'digital_payment_available' => false,
             'payment_gateways' => $gateways->map(function ($gateway) {
                 $gatewayData = ! empty($gateway->additional_data) ? json_decode($gateway->additional_data) : null;
 
@@ -104,7 +104,7 @@ class SellerPackageController extends Controller
                     'title' => $gatewayData?->gateway_title ?? ucwords(str_replace('_', ' ', $gateway->key_name)),
                 ];
             })->values(),
-            'offline_payment_available' => (bool) ($offlinePaymentStatus['status'] ?? 0),
+            'offline_payment_available' => false,
             'offline_payment_methods' => OfflinePaymentMethod::query()
                 ->where('status', 1)
                 ->get(['id', 'method_name', 'payment_channel', 'method_fields', 'method_informations']),
@@ -115,7 +115,8 @@ class SellerPackageController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'package_id' => 'required|integer',
-            'payment_method' => 'required|string|max:100',
+            'payment_method' => 'required|in:operating_balance',
+            'request_key' => 'required|uuid',
             'payment_platform' => 'required|string|max:50',
             'current_currency_code' => 'nullable|string|max:10',
         ]);
@@ -138,9 +139,9 @@ class SellerPackageController extends Controller
 
         try {
             $seller = $request->seller;
-            $subscription = $this->purchaseService->getOrCreatePendingSubscription($seller, $package);
+            $subscription = null;
             if ($request->get('payment_method') === 'operating_balance') {
-                $result = $this->purchaseService->payFromOperatingBalance($subscription);
+                $result = $this->purchaseService->purchaseWithPaymentsBalance($seller, $package, $request->string('request_key')->toString());
 
                 return response()->json([
                     'message' => translate('seller_package_payment_completed_from_operating_balance'),
@@ -195,76 +196,8 @@ class SellerPackageController extends Controller
     }
 
     public function submitOfflinePayment(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'package_id' => 'required|integer',
-            'method_id' => 'required|integer',
-            'method_informations' => 'required|string',
-            'payment_note' => 'nullable|string|max:1000',
-            'payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
-        ]);
-        if ($validator->fails()) {
-            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
-        }
+    { return response()->json(['message' => translate('fund_payments_balance_first')], 422); }
 
-        $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
-        $method = OfflinePaymentMethod::query()->whereKey($request->get('method_id'))->where('status', 1)->first();
-        $package = SellerPackage::query()->active()->find($request->get('package_id'));
-        if (! ($offlinePaymentStatus['status'] ?? 0) || ! $method) {
-            return response()->json(['message' => translate('offline_payment_method_not_found')], 404);
-        }
-        if (! $package) {
-            return response()->json(['message' => translate('seller_package_not_found_or_inactive')], 404);
-        }
-
-        $submittedInformation = $this->decodeOfflineInformation($request->get('method_informations'));
-        if ($submittedInformation === null) {
-            return response()->json(['message' => translate('invalid_offline_payment_information')], 403);
-        }
-        $missingFields = [];
-        foreach (($method->method_informations ?? []) as $field) {
-            $inputName = $field['customer_input'] ?? null;
-            if (! $inputName || $inputName === 'payment_screenshot') {
-                continue;
-            }
-            if (($field['is_required'] ?? 0) && empty($submittedInformation[$inputName])) {
-                $missingFields[] = $inputName;
-            }
-        }
-        if ($missingFields) {
-            return response()->json([
-                'message' => translate('required_offline_payment_information_is_missing'),
-                'missing_fields' => $missingFields,
-            ], 403);
-        }
-
-        try {
-            $subscription = $this->purchaseService->getOrCreatePendingSubscription($request->seller, $package);
-            $proofName = $this->upload(
-                dir: 'seller-package/payment-proof/',
-                format: 'webp',
-                image: $request->file('payment_proof')
-            );
-            $subscription = $this->purchaseService->submitOfflinePayment($subscription, [
-                'method_id' => $method->id,
-                'method_name' => $method->method_name,
-                'method_information' => $submittedInformation,
-                'payment_note' => $request->get('payment_note'),
-                'payment_proof' => [
-                    'image_name' => $proofName,
-                    'storage' => config('filesystems.disks.default') ?? 'public',
-                ],
-                'submitted_at' => now()->toDateTimeString(),
-            ]);
-
-            return response()->json([
-                'message' => translate('package_offline_payment_submitted_and_waiting_for_admin_review'),
-                'subscription' => $this->formatSubscription($subscription),
-            ]);
-        } catch (DomainException $exception) {
-            return response()->json(['message' => translate($exception->getMessage())], 403);
-        }
-    }
 
     private function formatSummary(array $summary): array
     {

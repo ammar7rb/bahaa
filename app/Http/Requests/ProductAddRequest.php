@@ -19,6 +19,9 @@ class ProductAddRequest extends Request
     {
         // The marketplace sells physical products only.  Keep the submitted
         // payload deterministic for both the admin and seller entry points.
+        $this->merge(['no_production_expiry_dates' => $this->boolean('no_production_expiry_dates') ? 1 : 0]);
+        if ($this->boolean('no_production_expiry_dates')) $this->merge(['production_date' => null, 'expiry_date' => null]);
+        if ($this->input('category_id') === 'other') $this->merge(['sub_category_id' => null, 'sub_sub_category_id' => null]);
         $submittedLanguages = (array) $this->input('lang', []);
         $submittedNames = (array) $this->input('name', []);
         $submittedDescriptions = (array) $this->input('description', []);
@@ -59,7 +62,10 @@ class ProductAddRequest extends Request
     {
         $rules = [
             'name' => 'required',
-            'category_id' => 'required',
+            'category_id' => ['required', function ($attribute, $value, $fail) {
+                if ($value === 'other' && !auth('seller')->check()) { $fail(translate('category_is_required')); return; }
+                foreach (app(\App\Services\SellerProductCategoryService::class)->validate($this->all()) as $message) $fail(translate($message));
+            }],
             'product_type' => 'required|in:physical',
             'digital_product_type' => 'nullable',
             // 'digital_file_ready' => 'required_if' . ':' . 'digital_product_type' . ',==,' . 'ready_product' . '|' . 'mimes' . ':jpg,jpeg,png,gif,zip,pdf',
@@ -70,15 +76,17 @@ class ProductAddRequest extends Request
             'code' => 'required'.'|'.'regex:/^[a-zA-Z0-9]+$/'.'|'.'min'.':6|'.'max'.':20|'.'unique'.':products',
             'minimum_order_qty' => 'required'.'|'.'numeric'.'|'.'min'.':1',
             'video_url' => 'nullable|url',
-            'pieces_per_unit' => 'nullable|integer|min:1',
+            'sale_unit_type' => 'required|in:piece,package,box',
+            'pieces_per_unit' => 'exclude_if:sale_unit_type,piece|required_if:sale_unit_type,package,box|nullable|integer|min:1',
             'length' => 'nullable|numeric|gt:0',
             'width' => 'nullable|numeric|gt:0',
             'height' => 'nullable|numeric|gt:0',
             'dimension_unit' => 'nullable|in:cm,m',
             'weight' => 'nullable|numeric|gt:0',
             'weight_unit' => 'nullable|in:g,kg',
-            'production_date' => 'required|date',
-            'expiry_date' => 'required|date|after_or_equal:production_date|after:today',
+            'no_production_expiry_dates' => 'boolean',
+            'production_date' => 'exclude_if:no_production_expiry_dates,1|required|date',
+            'expiry_date' => 'exclude_if:no_production_expiry_dates,1|required|date|after_or_equal:production_date|after:today',
         ];
 
         if (! isset($this['existing_thumbnail'])) {

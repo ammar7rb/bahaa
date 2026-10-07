@@ -14,6 +14,7 @@ class ProductDateComplianceService
     public function validate(array $data): array
     {
         $errors = [];
+        if (filter_var($data['no_production_expiry_dates'] ?? false, FILTER_VALIDATE_BOOLEAN)) return [];
         $production = $this->parse($data['production_date'] ?? null);
         $expiry = $this->parse($data['expiry_date'] ?? null);
 
@@ -35,12 +36,14 @@ class ProductDateComplianceService
 
     public function normalized(array $data): array
     {
+        if (filter_var($data['no_production_expiry_dates'] ?? false, FILTER_VALIDATE_BOOLEAN)) return ['no_production_expiry_dates' => true, 'production_date' => null, 'expiry_date' => null];
         $errors = $this->validate($data);
         if ($errors) {
             throw new DomainException((string) reset($errors));
         }
 
         return [
+            'no_production_expiry_dates' => false,
             'production_date' => $this->parse($data['production_date'])->toDateString(),
             'expiry_date' => $this->parse($data['expiry_date'])->toDateString(),
         ];
@@ -54,6 +57,7 @@ class ProductDateComplianceService
             return;
         }
         $errors = $this->validate([
+            'no_production_expiry_dates' => $product->no_production_expiry_dates,
             'production_date' => $product->getRawOriginal('production_date'),
             'expiry_date' => $product->getRawOriginal('expiry_date'),
         ]);

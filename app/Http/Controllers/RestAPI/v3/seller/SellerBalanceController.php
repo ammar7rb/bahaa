@@ -44,15 +44,14 @@ class SellerBalanceController extends Controller
         $gateways = $gateways->filter(fn ($gateway) => $funding['digital_gateways'] === [] || in_array($gateway->key_name, $funding['digital_gateways'], true))->values();
         $summary = $this->ledger->summary((int) $seller->id);
         $financeOverview = $this->financePresentation->overview((int) $seller->id, (int) $request->get('records_limit', 20), (int) $request->get('records_page', 1), $request->get('category'));
-        $deposits = \App\Models\SellerBalanceDeposit::query()->where('seller_id', $seller->id)->latest('id')->paginate($request->get('limit', 10));
-        $ledgerEntries = SellerLedgerEntry::query()
-            ->where('seller_id', $seller->id)
-            ->latest('id')
-            ->limit(20)
-            ->get(['id', 'bucket', 'direction', 'amount', 'event_type', 'reporting_category', 'reference_type', 'reference_id', 'reference_code', 'created_at']);
+        $deposits = \App\Models\SellerBalanceDeposit::query()->where('seller_id', $seller->id)->latest('id')->paginate(min(100, max(1, $request->integer('limit', 10))), ['*'], 'deposits_page', max(1, $request->integer('deposits_page', 1)));
 
         return response()->json([
+            'transactions' => app(\App\Services\VendorFinancialWorkspaceService::class)->transactions((int) $seller->id, $request->integer('transactions_page', 1)),
             'summary' => $summary,
+            'security_deposits' => app(\App\Services\VendorFinancialWorkspaceService::class)->securityDeposits((int) $seller->id, $request->integer('security_page', 1)),
+            'withdrawal_methods' => \App\Models\VendorWithdrawMethodInfo::where('user_id', $seller->id)->where('approval_status', 'approved')->where('is_active', true)->get(),
+            'withdrawals' => \App\Models\WithdrawRequest::where('seller_id', $seller->id)->latest('id')->paginate(20, ['*'], 'withdrawals_page'),
             'insurance_wallet' => app(\App\Services\SellerDashboardOverviewService::class)->orderInsuranceWallet((int) $seller->id),
             'financial_summary' => [
                 'order_insurance_credit' => (float) ($summary[SellerLedgerService::ORDER_INSURANCE_CREDIT] ?? 0),
@@ -69,11 +68,7 @@ class SellerBalanceController extends Controller
                 'pending' => (float) ($summary[SellerLedgerService::PENDING] ?? 0),
                 'next_collection_at' => $financeOverview['next_collection_at'],
             ],
-            'financial_tabs' => $financeOverview['tabs'],
-            'records_pagination' => $financeOverview['pagination'],
-            'order_dues' => app(\App\Services\SellerOrderDuesPresentationService::class)->page((int) $seller->id, (int) $request->get('orders_page', 1)),
             'deposits' => $deposits,
-            'financial_records' => $ledgerEntries,
             'digital_payment_available' => $funding['digital_enabled'] && $gateways->isNotEmpty() && ($digital['status'] ?? 0),
             'payment_gateways' => $gateways->map(fn ($gateway) => ['key_name' => $gateway->key_name, 'title' => $gateway->key_name])->values(),
             'offline_payment_available' => $funding['offline_enabled'] && (bool) ($offline['status'] ?? 0),

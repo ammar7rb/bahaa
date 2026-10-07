@@ -171,7 +171,10 @@ class SellerSettlementService
     {
         $now ??= now();
         return DB::transaction(function () use ($settlement, $now) {
-            $model = SellerSettlement::query()->lockForUpdate()->find($settlement instanceof SellerSettlement ? $settlement->id : $settlement);
+            $identity = SellerSettlement::find($settlement instanceof SellerSettlement ? $settlement->id : $settlement);
+            if (!$identity) return false;
+            $this->ledger->lockSellerFinancialState((int) $identity->seller_id);
+            $model = SellerSettlement::query()->lockForUpdate()->find($identity->id);
             if (! $model || ! in_array($model->status, [SellerSettlement::STATUS_HELD, SellerSettlement::STATUS_DISPUTED], true)) {
                 return false;
             }
@@ -199,7 +202,10 @@ class SellerSettlementService
     public function reverse(int|SellerSettlement $settlement, string $reason, ?int $adminId = null): bool
     {
         return DB::transaction(function () use ($settlement, $reason, $adminId) {
-            $model = SellerSettlement::query()->lockForUpdate()->find($settlement instanceof SellerSettlement ? $settlement->id : $settlement);
+            $identity = SellerSettlement::find($settlement instanceof SellerSettlement ? $settlement->id : $settlement);
+            if (!$identity) return false;
+            $this->ledger->lockSellerFinancialState((int) $identity->seller_id);
+            $model = SellerSettlement::query()->lockForUpdate()->find($identity->id);
             if (! $model || ! in_array($model->status, [SellerSettlement::STATUS_HELD, SellerSettlement::STATUS_DISPUTED, SellerSettlement::STATUS_RELEASED], true)) {
                 return false;
             }
@@ -230,7 +236,10 @@ class SellerSettlementService
     public function dispute(int|SellerSettlement $settlement, string $reason): bool
     {
         return DB::transaction(function () use ($settlement, $reason) {
-            $model = SellerSettlement::query()->lockForUpdate()->find($settlement instanceof SellerSettlement ? $settlement->id : $settlement);
+            $identity = SellerSettlement::find($settlement instanceof SellerSettlement ? $settlement->id : $settlement);
+            if (!$identity) return false;
+            $this->ledger->lockSellerFinancialState((int) $identity->seller_id);
+            $model = SellerSettlement::query()->lockForUpdate()->find($identity->id);
             if (! $model || $model->status !== SellerSettlement::STATUS_HELD) {
                 return false;
             }
@@ -306,7 +315,10 @@ class SellerSettlementService
     public function setDueAt(int|SellerSettlement $settlement, Carbon $dueAt, ?int $adminId = null, ?string $note = null): ?SellerSettlement
     {
         return DB::transaction(function () use ($settlement, $dueAt, $adminId, $note) {
-            $model = SellerSettlement::query()->lockForUpdate()->find($settlement instanceof SellerSettlement ? $settlement->id : $settlement);
+            $identity = SellerSettlement::find($settlement instanceof SellerSettlement ? $settlement->id : $settlement);
+            if (!$identity) return false;
+            $this->ledger->lockSellerFinancialState((int) $identity->seller_id);
+            $model = SellerSettlement::query()->lockForUpdate()->find($identity->id);
             if (! $model || ! in_array($model->status, [SellerSettlement::STATUS_HELD, SellerSettlement::STATUS_DISPUTED], true)) {
                 return null;
             }

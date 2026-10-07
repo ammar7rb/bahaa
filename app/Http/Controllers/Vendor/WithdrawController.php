@@ -174,25 +174,11 @@ class WithdrawController extends BaseController
      */
     public function closeWithdrawRequest(string|int $id): RedirectResponse
     {
-        $withdrawRequest = $this->withdrawRequestRepo->getFirstWhere(params: ['id' => $id]);
-        $wallet = $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => auth('seller')->id()]);
-        if ($withdrawRequest['approved'] == 0) {
-            $totalEarning = $wallet['total_earning'] + $withdrawRequest['amount'];
-            $pendingWithdraw = $wallet['pending_withdraw'] - $withdrawRequest['amount'];
-            $this->vendorWalletRepo->update(
-                id: $wallet['id'],
-                data: $this->vendorWalletService->getVendorWalletData(
-                    totalEarning: $totalEarning,
-                    pendingWithdraw: $pendingWithdraw
-                )
-            );
-            $this->withdrawRequestRepo->delete(['id' => $withdrawRequest['id']]);
-            ToastMagic::success(message: translate('withdraw_request_closed') . '!');
-        } else {
-            ToastMagic::error(message: translate('invalid_withdraw_request'));
-        }
-        return redirect()->back();
+        try { app(\App\Services\SellerWithdrawalService::class)->finish((int) $id, 3, auth('seller')->id(), 'Cancelled by vendor'); }
+        catch (\DomainException $exception) { return back()->withErrors(['amount' => translate($exception->getMessage())]); }
+        return back();
     }
+
 
     public function exportList(Request $request): BinaryFileResponse
     {

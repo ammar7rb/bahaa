@@ -1,6 +1,9 @@
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 @switch($icon)
 @case('home')<path d="m3 10 9-7 9 7v10H15v-6H9v6H3Z"/>@break
+@case('profile')<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>@break
+@case('wallet')<path d="M3 6h17v14H3ZM3 6V3h14v3M16 11h5v5h-5Z"/>@break
+@case('invoices')<path d="M5 3h14v18l-3-2-4 2-4-2-3 2ZM9 7h6M9 11h6M9 15h4"/>@break
 @case('products')<path d="m3 7 9-4 9 4v10l-9 4-9-4Z"/><path d="m3 7 9 5 9-5M12 12v9"/>@break
 @case('orders')<path d="M5 7h14v14H5Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 12h6M9 16h4"/>@break
 @case('messages')<path d="M21 11a9 9 0 0 1-9 9H4l-2 2V11a9 9 0 1 1 19 0Z"/><path d="M7 9h9M7 13h6"/>@break

@@ -1,4 +1,5 @@
 @php($editingProduct = $product ?? null)
+<div class="col-12"><label class="d-flex gap-2 align-items-center"><input type="checkbox" name="no_production_expiry_dates" value="1" id="admin-product-no-dates" @checked(old('no_production_expiry_dates', $editingProduct?->no_production_expiry_dates))>{{ translate('no_production_expiry_dates') }}</label></div>
 <div class="col-md-6 col-lg-4">
     <div class="form-group"><label class="form-label">{{ translate('production_date') }} <span class="input-required-icon">*</span></label><input type="date" name="production_date" class="form-control" value="{{ old('production_date', $editingProduct?->production_date?->format('Y-m-d')) }}" required></div>
 </div>
@@ -11,3 +12,5 @@
 @endforeach
 <div class="col-md-6 col-lg-4 show-for-physical-product"><div class="form-group"><label class="form-label">{{ translate('dimension_unit') }}</label><select name="dimension_unit" class="form-select"><option value="">—</option><option value="cm" @selected($editingProduct?->dimension_unit === 'cm')>cm</option><option value="m" @selected($editingProduct?->dimension_unit === 'm')>m</option></select></div></div>
 <div class="col-md-6 col-lg-4 show-for-physical-product"><div class="form-group"><label class="form-label">{{ translate('weight_unit') }}</label><select name="weight_unit" class="form-select"><option value="">—</option><option value="g" @selected($editingProduct?->weight_unit === 'g')>g</option><option value="kg" @selected($editingProduct?->weight_unit === 'kg')>kg</option></select></div></div>
+
+<script>document.addEventListener('DOMContentLoaded',function(){const option=document.getElementById('admin-product-no-dates');if(!option)return;function sync(){['production_date','expiry_date'].forEach(name=>{const field=document.querySelector('input[name="'+name+'"]');if(field){field.disabled=option.checked;field.required=!option.checked;if(option.checked)field.value='';}});}option.addEventListener('change',sync);sync();});</script>

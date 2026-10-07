@@ -34,6 +34,7 @@ class WithdrawRequest extends Model
      */
     protected $fillable = [
         'seller_id',
+        'request_key',
         'delivery_man_id',
         'admin_id',
         'amount',

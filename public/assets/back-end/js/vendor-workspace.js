@@ -88,3 +88,39 @@
         }
     });
 }());
+
+(function () {
+    const select = document.getElementById('withdrawal_definition');
+    function syncMethod() { document.querySelectorAll('[data-withdrawal-definition]').forEach(el => { el.hidden = el.dataset.withdrawalDefinition !== select.value; el.disabled = el.hidden; }); }
+    if (select) {
+        select.addEventListener('change', syncMethod); syncMethod();
+        document.querySelectorAll('[data-edit-withdrawal]').forEach(button => button.addEventListener('click', () => {
+            const method = JSON.parse(button.dataset.editWithdrawal);
+            document.getElementById('withdrawal-method-form').reset();
+            document.getElementById('withdrawal_method_id').value = method.id;
+            document.getElementById('withdrawal_method_name').value = method.method_name;
+            select.value = method.withdraw_method_id; syncMethod();
+            const group = Array.from(document.querySelectorAll('[data-withdrawal-definition]')).find(el => !el.disabled);
+            if (group) group.querySelectorAll('input').forEach(input => { const key = input.name.slice(12, -1); input.value = method.method_info[key] || ''; });
+            document.getElementById('withdrawal_method_name').focus();
+        }));
+    }
+    const noDates = document.getElementById('no_production_expiry_dates');
+    if (noDates) {
+        const sync = () => ['production_date','expiry_date'].forEach(id => { const input = document.getElementById(id); if (!input) return; input.disabled = noDates.checked; input.required = !noDates.checked; if(noDates.checked) input.value=''; });
+        noDates.addEventListener('change', sync); sync();
+    }
+    const stock = document.querySelector('[name="current_stock"]'), unit = document.getElementById('sale_unit_type');
+    if (stock && unit) {
+        const sync = () => {
+            const wrapper = document.getElementById('sale_unit_selector'); if(wrapper) wrapper.hidden = !(Number(stock.value) > 0);
+            const isPackage = unit.value === 'package';
+            const price = document.querySelector('[name="unit_price"]');
+            const priceLabel = price && (document.querySelector('label[for="'+price.id+'"]') || price.parentElement.querySelector('label'));
+            const stockLabel = document.querySelector('label[for="'+stock.id+'"]') || stock.parentElement.querySelector('label');
+            if(priceLabel) priceLabel.textContent = isPackage ? unit.dataset.packagePrice : unit.dataset.piecePrice;
+            if(stockLabel) stockLabel.textContent = isPackage ? unit.dataset.packageQuantity : unit.dataset.pieceQuantity;
+        };
+        stock.addEventListener('input',sync); unit.addEventListener('change',sync); sync();
+    }
+})();

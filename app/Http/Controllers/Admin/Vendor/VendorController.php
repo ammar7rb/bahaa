@@ -880,33 +880,14 @@ class VendorController extends BaseController
 
     public function withdrawStatus(Request $request, $id): RedirectResponse
     {
-        $withdrawData = [
-            'approved' => $request['approved'],
-            'transaction_note' => $request['note'],
-        ];
-
-        $withdraw = $this->withdrawRequestRepo->getFirstWhere(params: ['id' => $id], relations: ['seller']);
-        if (isset($withdraw->seller->cm_firebase_token) && $withdraw->seller->cm_firebase_token) {
-            event(new WithdrawStatusUpdateEvent(key: 'withdraw_request_status_message', type: 'seller', lang: $withdraw->deliveryMan?->app_language ?? getDefaultLanguage(), status: $request['approved'], fcmToken: $withdraw->seller?->cm_firebase_token));
-        }
-
-        if ($request['approved'] == 1) {
-            $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => $withdraw['seller_id']])->increment('withdrawn', $withdraw['amount']);
-            $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => $withdraw['seller_id']])->decrement('pending_withdraw', $withdraw['amount']);
-
-            $this->withdrawRequestRepo->update(id: $id, data: $withdrawData);
-            ToastMagic::success(translate('Vendor_Payment_has_been_approved_successfully'));
-            return redirect()->route('admin.vendors.withdraw_list');
-        }
-
-        $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => $withdraw['seller_id']])->increment('total_earning', $withdraw['amount']);
-        $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => $withdraw['seller_id']])->decrement('pending_withdraw', $withdraw['amount']);
-        $this->withdrawRequestRepo->update(id: $id, data: $withdrawData);
-
-        ToastMagic::info(translate('Vendor_Payment_request_has_been_Denied_successfully'));
+        $input = $request->validate(['approved' => 'required|integer|in:1,2', 'note' => 'nullable|string|max:1000']);
+        try {
+            $withdraw = app(\App\Services\SellerWithdrawalService::class)->finish((int) $id, (int) $input['approved'], note: $input['note'] ?? null);
+            ToastMagic::success(translate('withdraw_request_updated'));
+        } catch (\DomainException | \InvalidArgumentException $exception) { return back()->withErrors(['approved' => translate($exception->getMessage())]); }
         return redirect()->route('admin.vendors.withdraw_list');
-
     }
+
 
 
     public function loadMoreStores(Request $request): JsonResponse
