@@ -11,4 +11,7 @@ return [
 'grow_your_catalogue_hint'=>'Add its images, specifications and price to reach buyers.',
     'vendor_login_welcome' => 'Welcome to your store dashboard',
     'vendor_login_welcome_hint' => 'Manage your products, follow your orders, and keep your store up to date.',
+    'vendor_product_price' => 'Product price',
+    'vendor_product_reference' => 'Product ID',
+    'vendor_products_intro' => 'Add products, update their details, and manage their visibility here.',
 ];

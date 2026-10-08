@@ -13,6 +13,12 @@
 @case('settings')<path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="3" fill="white"/><circle cx="16" cy="17" r="3" fill="white"/>@break
 @case('add')<path d="M12 5v14M5 12h14"/>@break
 @case('arrow')<path d="m9 5 7 7-7 7"/>@break
+@case('search')<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>@break
+@case('view')<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>@break
+@case('edit')<path d="m14 4 6 6M4 20l4-1L21 6l-4-4L4 15ZM12 20h8"/>@break
+@case('delete')<path d="M3 6h18M8 6V3h8v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>@break
+@case('export')<path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/>@break
+@case('filter')<path d="M3 6h18M3 18h18"/><circle cx="8" cy="6" r="3" fill="white"/><circle cx="16" cy="18" r="3" fill="white"/>@break
 @default<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>
 @endswitch
 </svg>

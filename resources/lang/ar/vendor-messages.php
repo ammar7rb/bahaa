@@ -339,4 +339,7 @@ return [
     'instapay' => 'إنستا باي',
     'vendor_login_welcome' => 'أهلًا بك في لوحة تحكم متجرك',
     'vendor_login_welcome_hint' => 'تابع منتجاتك وطلباتك، وأدر متجرك من مكان واحد.',
+    'vendor_product_price' => 'سعر المنتج',
+    'vendor_product_reference' => 'رقم المنتج',
+    'vendor_products_intro' => 'أضف منتجاتك، وحدّث بياناتها، وتحكّم في ظهورها من هنا.',
 ];
