@@ -122,6 +122,10 @@ class Category extends Model
 
     public function getIconFullUrlAttribute():array
     {
+        $libraryAsset = config('medical_category_icons.' . $this->medical_icon . '.asset');
+        if ($this->medical_icon && $libraryAsset && is_file(base_path($libraryAsset))) {
+            return ['key' => $this->medical_icon, 'path' => dynamicAsset($libraryAsset), 'status' => 200];
+        }
         $value = $this->icon;
         return $this->storageLink('category',$value,$this->icon_storage_type ?? 'public');
     }
