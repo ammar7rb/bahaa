@@ -342,4 +342,7 @@ return [
     'vendor_product_price' => 'سعر المنتج',
     'vendor_product_reference' => 'رقم المنتج',
     'vendor_products_intro' => 'أضف منتجاتك، وحدّث بياناتها، وتحكّم في ظهورها من هنا.',
+    'vendor_product_visibility' => 'ظهور المنتج',
+    'seller_product_review_submitted' => 'بانتظار المراجعة',
+    'seller_product_review_under_review' => 'قيد مراجعة الإدارة',
 ];

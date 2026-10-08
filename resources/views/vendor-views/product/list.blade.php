@@ -116,7 +116,7 @@
 
                                 <!-- <th class="text-center text-capitalize">{{ translate('verify_status') }}</th> -->
                                 @if($type != 'new-request' )
-                                <th class="text-center text-capitalize">{{ translate('active_status') }}</th>
+                                <th class="text-center text-capitalize">{{ translate('vendor_product_visibility') }}</th>
                                 @endif
                                 <th class="text-center">{{ translate('action') }}</th>
                             </tr>
@@ -150,19 +150,20 @@
                                                             (int) $product->request_status === 1 => 'suspended',
                                                             default => 'submitted',
                                                         };
-                                                        $sellerVisibleStatus = in_array($reviewStatus, ['submitted', 'under_review'], true) ? 'active' : $reviewStatus;
+                                                        $sellerVisibleStatus = $reviewStatus;
+                                                        if ((int) $product->request_status === 1 && !(int) $product->status && $reviewStatus === 'approved_published') {
+                                                            $sellerVisibleStatus = 'suspended';
+                                                        }
                                                         $reviewStatusClass = match ($sellerVisibleStatus) {
-                                                            'active' => 'success',
+                                                            'submitted', 'under_review' => 'warning',
                                                             'approved_published' => 'success',
                                                             'rejected', 'suspended', 'deleted' => 'danger',
                                                             default => 'warning',
                                                         };
                                                         $reviewReason = $product->seller_review_reason ?: $product->denied_note;
                                                     @endphp
-                                                    <label class="badge badge-soft-{{ $reviewStatusClass }} m-0 font-weight-normal">{{ $sellerVisibleStatus === 'active' ? translate('active') : translate('seller_product_review_' . $reviewStatus) }}</label>
-                                                    @if(in_array($reviewStatus, ['submitted', 'under_review'], true))
-                                                        <span class="badge badge-soft-warning m-0 font-weight-normal">{{ translate('under_admin_review') }}</span>
-                                                    @endif
+                                                    <label class="badge badge-soft-{{ $reviewStatusClass }} m-0 font-weight-normal">{{ translate('seller_product_review_' . $sellerVisibleStatus) }}</label>
+
                                                 </div>
                                                 @if($reviewReason)
                                                     <div class="fs-12 text-danger text-truncate" style="max-width: 230px" title="{{ $reviewReason }}">
