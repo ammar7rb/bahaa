@@ -2,6 +2,7 @@
     $seller = auth('seller')->user();
     $sections = [
         ['home','dashboard','vendor.dashboard.index',[],request()->routeIs('vendor.dashboard.*')],
+        ['products','products','vendor.products.list',['type'=>'all'],request()->routeIs('vendor.products.*')],
         ['profile','account_profile','vendor.account',[],request()->routeIs('vendor.account*')],
         ['wallet','finance_my_wallet','vendor.balance.index',[],request()->routeIs('vendor.balance.*')],
         ['invoices','vendor_invoices','vendor.invoices',[],request()->routeIs('vendor.invoices')],

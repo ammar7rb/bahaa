@@ -337,4 +337,6 @@ return [
     'expires_at' => 'تاريخ الانتهاء',
     'bank_account' => 'حساب بنكي',
     'instapay' => 'إنستا باي',
+    'vendor_login_welcome' => 'أهلًا بك في لوحة تحكم متجرك',
+    'vendor_login_welcome_hint' => 'تابع منتجاتك وطلباتك، وأدر متجرك من مكان واحد.',
 ];

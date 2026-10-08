@@ -9,4 +9,6 @@ return [
 'choose_deposit_method'=>'Choose a deposit method',
 'grow_your_catalogue'=>'Your next product starts here',
 'grow_your_catalogue_hint'=>'Add its images, specifications and price to reach buyers.',
+    'vendor_login_welcome' => 'Welcome to your store dashboard',
+    'vendor_login_welcome_hint' => 'Manage your products, follow your orders, and keep your store up to date.',
 ];

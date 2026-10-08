@@ -58,7 +58,7 @@ class LoginController extends Controller
             if ($this->vendorWalletRepo->getFirstWhere(params: ['id' => auth('seller')->id()]) === false) {
                 $this->vendorWalletRepo->add($this->vendorService->getInitialWalletData(vendorId: auth('seller')->id()));
             }
-            ToastMagic::info(translate('welcome_to_your_dashboard') . '.');
+            ToastMagic::success(translate('vendor_login_welcome'), translate('vendor_login_welcome_hint'));
             return redirect()->route('vendor.dashboard.index');
         } else {
             ToastMagic::error(translate('credentials_doesnt_match') . '!');

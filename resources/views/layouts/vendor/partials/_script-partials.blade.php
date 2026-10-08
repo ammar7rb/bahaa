@@ -42,7 +42,21 @@
 
 <script src="{{ dynamicAsset(path: 'public/assets/backend/backend-utils.js') }}"></script>
 
+@php
+    config(['laravel-toaster-magic.options.positionClass' => 'toast-top-start']);
+@endphp
 {!! ToastMagic::scripts() !!}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const container = document.querySelector('.toast-container');
+        if (!container) return;
+        const labelDismissButtons = () => container.querySelectorAll('.toast-close-btn').forEach(button => {
+            button.setAttribute('aria-label', @json(translate('close')));
+        });
+        labelDismissButtons();
+        new MutationObserver(labelDismissButtons).observe(container, {childList: true, subtree: true});
+    });
+</script>
 
 @if ($errors->any())
     <script>
