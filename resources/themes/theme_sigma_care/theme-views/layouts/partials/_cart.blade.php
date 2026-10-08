@@ -27,7 +27,7 @@
     .care-cart-empty > .bi { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 18px; background: #edf3fc; color: #1d4287; font-size: 30px; margin-bottom: 14px; }
     .care-cart-empty h3 { font-size: 16px; margin-bottom: 8px; }
     .care-cart-empty p { font-size: 13px; color: #52627a; }
-    .care-bottom-nav .care-cart-bottom-trigger { display: flex; flex-direction: column; align-items: center; gap: 5px; border: 0; background: transparent; color: inherit; font: inherit; padding: 0; min-height: 44px; }
+    .care-bottom-nav .care-cart-bottom-trigger { display: flex; flex-direction: column; align-items: center; gap: 5px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 11px; flex: 1; min-width: 0; padding: 0; min-height: 44px; }
     @media (max-width: 767px) {
         .care-cart-trigger-label { display: none; }
         .sigma-care .care-cart-menu.show { position: fixed !important; inset: auto 16px 88px 16px !important; transform: none !important; width: auto; max-width: none; z-index: 1055; }
@@ -76,10 +76,10 @@
             var close = event.target.closest('[data-care-cart-close]');
             if (!open && !close) return;
             var trigger = document.getElementById('care-cart-trigger');
-            if (!trigger || !window.bootstrap) return;
+            if (!trigger) return;
             event.preventDefault();
-            var dropdown = bootstrap.Dropdown.getOrCreateInstance(trigger);
-            if (open) dropdown.toggle(); else dropdown.hide();
+            event.stopImmediatePropagation();
+            if (open || trigger.getAttribute('aria-expanded') === 'true') trigger.click();
         });
     }
 </script>
