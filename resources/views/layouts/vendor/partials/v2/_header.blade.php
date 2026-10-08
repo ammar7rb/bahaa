@@ -66,21 +66,6 @@
             </svg>
         </button>
 
-        {{-- Website shop view (vendor storefront) --}}
-        <a class="v2-icon-btn"
-           href="{{ !empty($v2Vendor?->shop) ? route('vendor-shop', ['slug' => $v2Vendor?->shop?->slug ?? '']) : 'javascript:;' }}"
-           target="_blank"
-           data-v2-tooltip="{{ translate('website_shop_view') }}"
-           aria-label="{{ translate('website_shop_view') }}">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"/>
-                <path d="M3 12h18"/>
-                <path d="M12 3a13.5 13.5 0 0 1 0 18"/>
-                <path d="M12 3a13.5 13.5 0 0 0 0 18"/>
-            </svg>
-        </a>
-
         @include('layouts.vendor.partials.v2._account-navigation')
         {{-- Language switcher --}}
         <div class="v2-dropdown">

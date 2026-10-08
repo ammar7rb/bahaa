@@ -1,5 +1,4 @@
 <nav class="vendor-global-links" aria-label="{{ translate('vendor_navigation') }}">
-    <a class="vendor-order-shortcut" href="{{ route('vendor.orders.list', 'all') }}" title="{{ translate('orders') }}">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'orders'])<span class="vendor-count" data-inbox-count="orders" {{ $vendorInboxCounts['orders'] ? '' : 'hidden' }}>+{{ $vendorInboxCounts['orders'] }}</span></a>
     @foreach(['messages', 'notifications'] as $channel)
         <div class="v2-dropdown vendor-inbox-dropdown">
             <button class="vendor-inbox-trigger" type="button" data-v2-dropdown-toggle aria-expanded="false" aria-controls="vendor-popover-{{ $channel }}" aria-label="{{ translate($channel === 'messages' ? 'administration_messages' : 'notifications') }}">
