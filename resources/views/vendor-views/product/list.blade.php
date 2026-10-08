@@ -107,13 +107,13 @@
                             <tr>
                                 <th>{{ translate('SL') }}</th>
                                 <th class="text-capitalize">{{ translate('product_name') }}</th>
-                                
+
                                 <th class="text-center text-capitalize">{{ translate('vendor_product_price') }}</th>
                                 <th class="text-center">{{ translate('stock') }}</th>
                                 @if ($productWiseTax)
                                     <th class="text-center">{{ translate('Vat/Tax') }}</th>
                                 @endif
-                                
+
                                 <!-- <th class="text-center text-capitalize">{{ translate('verify_status') }}</th> -->
                                 @if($type != 'new-request' )
                                 <th class="text-center text-capitalize">{{ translate('active_status') }}</th>
