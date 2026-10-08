@@ -4,6 +4,25 @@
 @push('css_or_js')
     <link href="{{dynamicAsset(path: 'public/assets/back-end/vendor/datatables/dataTables.bootstrap4.min.css')}}"
           rel="stylesheet">
+    <style>
+        .vendor-orders-toolbar { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+        .vendor-orders-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+        .vendor-orders-insurance { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; white-space: normal; }
+        .vendor-orders-search { display: flex; flex: 1 1 360px; align-items: center; gap: 12px; min-width: 0; }
+        .vendor-orders-search-field { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; padding-inline: 16px; border: 1px solid #dce4f0; border-radius: 12px; background: #fff; transition: border-color .15s ease, box-shadow .15s ease; }
+        .vendor-orders-search-field:focus-within { border-color: #1d4287; box-shadow: 0 0 0 3px rgba(29,66,135,.1); }
+        .vendor-orders-search-field > i { color: #52627a; font-size: 20px; flex-shrink: 0; }
+        .vendor-orders-search-field > .form-control { min-width: 0; width: 100%; height: 48px; padding-inline: 0; border: 0 !important; background: transparent; box-shadow: none !important; }
+        .vendor-orders-search > .btn { min-height: 48px; padding-inline: 24px; flex-shrink: 0; border-radius: 12px; }
+        @media (max-width: 575px) {
+            .vendor-orders-toolbar { padding: 16px; }
+            .vendor-orders-tools { gap: 12px; }
+            .vendor-orders-insurance { width: 100%; }
+            .vendor-orders-search { flex-basis: 100%; gap: 8px; }
+            .vendor-orders-search-field { padding-inline: 12px; }
+            .vendor-orders-search > .btn { padding-inline: 16px; }
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -197,58 +216,26 @@
 
         <div class="card">
             <div class="card-body">
-                <div class="px-3 py-4 light-bg">
-                    <div class="row g-2 align-items-center flex-grow-1">
-                        <div class="col-md-4">
-                            <h5 class="text-capitalize d-flex gap-1">
-                                {{translate('order_list')}}
-                                <span class="badge badge-soft-dark radius-50 fs-12">{{$orders->total()}}</span>
-                            </h5>
-                        </div>
-                        <div class="col-md-8 d-flex gap-3 flex-wrap flex-sm-nowrap justify-content-md-end">
-                            <a class="btn btn-outline-warning text-nowrap" href="{{ route('vendor.orders.insurance-pending') }}"><i class="fi fi-sr-shield-exclamation"></i> {{ translate('insurance_pending_orders') }}</a>
-                            <form action="{{ url()->current() }}" method="GET">
-                                <div class="input-group input-group-merge input-group-custom">
-                                    <div class="input-group-prepend">
-                                        <div class="input-group-text">
-                                            <i class="tio-search"></i>
-                                        </div>
-                                    </div>
-                                    <input id="datatableSearch_" type="search" name="searchValue" class="form-control"
-                                           placeholder="{{translate('search_by_Order_ID')}}" aria-label="Search orders"
-                                           value="{{ $searchValue }}" required>
-                                    <button type="submit" class="btn btn--primary">{{translate('search')}}</button>
-                                </div>
-                            </form>
-                            <div class="dropdown">
-                                <a type="button" class="btn btn-outline--primary text-nowrap"
-                                   href="{{ route('vendor.orders.export-excel', [
-                                                'status' => $status, 'from' => $from, 'to' => $to,
-                                                'filter' => $filter, 'searchValue' => $searchValue,
-                                                'seller_id' => $vendorId, 'customer_id' => $customerId,
-                                                'date_type' => $dateType,
-                                                'payment_status' => request('payment_status'),
-                                                 'order_current_status' => request('order_current_status'),
-                                                  'order_amount_settlement' => request('order_amount_settlement')
-                                            ]) }}">
-                                    <img width="14" src="{{dynamicAsset(path: 'public/assets/back-end/img/excel.png')}}"
-                                         class="excel" alt="">
-                                    <span class="ps-2">{{ translate('export') }}</span>
-                                </a>
+                <div class="vendor-orders-toolbar">
+                    <h5 class="mb-0 d-flex align-items-center gap-2">
+                        {{ translate('order_list') }}
+                        <span class="badge badge-soft-dark radius-50 fs-12">{{ $orders->total() }}</span>
+                    </h5>
+                    <div class="vendor-orders-tools">
+                        <a class="btn btn-outline-warning vendor-orders-insurance" href="{{ route('vendor.orders.insurance-pending') }}">
+                            <i class="fi fi-sr-shield-exclamation" aria-hidden="true"></i>
+                            {{ translate('insurance_pending_orders') }}
+                        </a>
+                        <form class="vendor-orders-search" action="{{ url()->current() }}" method="GET" role="search">
+                            <div class="vendor-orders-search-field">
+                                <i class="tio-search" aria-hidden="true"></i>
+                                <input id="datatableSearch_" type="search" name="searchValue" class="form-control"
+                                       placeholder="{{ translate('search_by_Order_ID') }}"
+                                       aria-label="{{ translate('search_by_Order_ID') }}"
+                                       value="{{ $searchValue }}">
                             </div>
-                            <div class="position-relative">
-                                @if(($from || $to || $filter || $searchValue || $vendorId || $customerId || $dateType))
-                                    <div
-                                        class="position-absolute inset-inline-end-0 top-0 mt-n1 me-n1 btn-circle bg-danger border border-white border-2 z-2"
-                                        style="--size: 12px;"></div>
-                                @endif
-                                <button type="button" class="btn btn--primary px-4" data-toggle="offcanvas"
-                                        data-target="#offcanvasOrderFilter">
-                                    <i class="fi fi-sr-settings-sliders"></i>
-                                    {{ translate('Filter') }}
-                                </button>
-                            </div>
-                        </div>
+                            <button type="submit" class="btn btn--primary">{{ translate('search') }}</button>
+                        </form>
                     </div>
                 </div>
 
