@@ -21,7 +21,7 @@
                 <div class="card">
                     <div class="vendor-products-toolbar">
                         <div class="row align-items-center">
-                            <div class="col-lg-7">
+                            <div class="col-lg-8">
 
                                 <form action="{{ url()->current() }}" method="GET">
                                     <div class="input-group input-group-custom input-group-merge">
@@ -35,61 +35,11 @@
                                                placeholder="{{ translate('search_by_Product_Name') }}"
                                                aria-label="{{ translate('search_by_Product_Name') }}"
                                                value="{{ request('searchValue') }}">
-                                        <select class="form-control form-control-sm" name="expiry_status" onchange="this.form.submit()">
-                                            <option value="">{{ translate('All_Expiry_Statuses') }}</option>
-                                            <option value="near_expiry" {{ request('expiry_status') === 'near_expiry' ? 'selected' : '' }}>{{ translate('Near_Expiry_30_Days') }}</option>
-                                            <option value="expired" {{ request('expiry_status') === 'expired' ? 'selected' : '' }}>{{ translate('Expired') }}</option>
-                                            <option value="missing" {{ request('expiry_status') === 'missing' ? 'selected' : '' }}>{{ translate('Missing_Product_Dates') }}</option>
-                                        </select>
-                                        <input type="hidden" value="{{ request('status') }}" name="status">
                                         <button type="submit" class="btn btn--primary">{{ translate('search') }}</button>
-                                    </div>
-                                    <div class="mt-2">
-                                        <select class="form-control form-control-sm" name="seller_review_status" onchange="this.form.submit()">
-                                            <option value="">{{ translate('seller_product_all_review_statuses') }}</option>
-                                            @foreach(['approved_published', 'suspended', 'rejected', 'deleted'] as $status)
-                                                <option value="{{ $status }}" {{ $sellerReviewStatus === $status ? 'selected' : '' }}>
-                                                    {{ translate('seller_product_review_' . $status) }}
-                                                </option>
-                                            @endforeach
-                                        </select>
                                     </div>
                                 </form>
                             </div>
-                            <div class="col-lg-5 mt-3 mt-lg-0 d-flex flex-wrap gap-3 justify-content-lg-end">
-                                <div class="dropdown flex-grow-1 flex-grow-sm-0">
-                                    <a type="button" class="btn btn-outline--primary text-nowrap w-100"
-                                       href="{{ route('vendor.products.export-excel', [
-                                            'type' => $type,
-                                            'searchValue' => request('searchValue'),
-                                            'filter_sort_by' => request('filter_sort_by'),
-                                            'filter_product_types' => request('filter_product_types'),
-                                            'product_status' => request('product_status'),
-                                            'filter_brand_ids' => request('filter_brand_ids'),
-                                            'filter_category_ids' => request('filter_category_ids'),
-                                            ]) }}"
-                                        >
-                                        @include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'export'])
-                                        <span class="ps-1">{{ translate('export') }}</span>
-                                    </a>
-                                </div>
-
-                                <div class="position-relative flex-grow-1 flex-grow-sm-0">
-                                    @if(!empty(request('filter_sort_by')) || !empty(request('filter_product_types')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
-                                        <div class="position-absolute inset-inline-end-0 top-0 mt-n1 me-n1 btn-circle bg-danger border border-white border-2 z-2" style="--size: 12px;"></div>
-                                    @endif
-                                    <button type="button"
-                                            @if(!empty(request('filter_sort_by')) || !empty(request('filter_product_types')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
-                                                class="btn btn--primary px-4 w-100"
-                                            @else
-                                                class="btn btn-outline--primary px-4 w-100"
-                                            @endif
-                                            data-toggle="offcanvas" data-target="#offcanvasProductFilter">
-                                        @include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'filter'])
-                                        {{ translate('Filter') }}
-                                    </button>
-                                </div>
-
+                            <div class="col-lg-4 mt-3 mt-lg-0 d-flex flex-wrap gap-3 justify-content-lg-end">
                                 @if($type != 'new-request' )
                                 <a href="{{ route('vendor.products.add') }}" class="btn btn--primary flex-grow-1 flex-grow-sm-0">
                                     @include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'add'])
@@ -105,7 +55,7 @@
                                class="table table-hover table-borderless table-thead-bordered table-nowrap table-align-middle card-table w-100 text-start">
                             <thead class="thead-light thead-50 text-capitalize">
                             <tr>
-                                <th>{{ translate('SL') }}</th>
+                                <th class="vendor-product-serial">#</th>
                                 <th class="text-capitalize">{{ translate('product_name') }}</th>
 
                                 <th class="text-center text-capitalize">{{ translate('vendor_product_price') }}</th>
@@ -143,33 +93,7 @@
                                                 </div>
                                                 <div class="d-flex gap-1">
                                                     <span class="text-secondary">{{ translate('vendor_product_reference') }} #{{$product['id']}}</span>
-                                                    @php
-                                                        $reviewStatus = $product->seller_review_status ?: match (true) {
-                                                            (int) $product->request_status === 2 => 'rejected',
-                                                            (int) $product->request_status === 1 && (int) $product->status === 1 => 'approved_published',
-                                                            (int) $product->request_status === 1 => 'suspended',
-                                                            default => 'submitted',
-                                                        };
-                                                        $sellerVisibleStatus = $reviewStatus;
-                                                        if ((int) $product->request_status === 1 && !(int) $product->status && $reviewStatus === 'approved_published') {
-                                                            $sellerVisibleStatus = 'suspended';
-                                                        }
-                                                        $reviewStatusClass = match ($sellerVisibleStatus) {
-                                                            'submitted', 'under_review' => 'warning',
-                                                            'approved_published' => 'success',
-                                                            'rejected', 'suspended', 'deleted' => 'danger',
-                                                            default => 'warning',
-                                                        };
-                                                        $reviewReason = $product->seller_review_reason ?: $product->denied_note;
-                                                    @endphp
-                                                    <label class="badge badge-soft-{{ $reviewStatusClass }} m-0 font-weight-normal">{{ translate('seller_product_review_' . $sellerVisibleStatus) }}</label>
-
                                                 </div>
-                                                @if($reviewReason)
-                                                    <div class="fs-12 text-danger text-truncate" style="max-width: 230px" title="{{ $reviewReason }}">
-                                                        {{ translate('seller_product_review_reason') }}: {{ $reviewReason }}
-                                                    </div>
-                                                @endif
                                             </div>
                                         </a>
                                     </td>
@@ -278,7 +202,7 @@
                         @include('layouts.vendor.partials._empty-state',['text'=>'no_product_found'],['image'=>'default'])
                     @endif
 
-                    @include('vendor-views.product.partials.offcanvas._filter-offcanvas')
+
                 </div>
             </div>
         </div>
