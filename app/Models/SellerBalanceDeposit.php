@@ -7,6 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class SellerBalanceDeposit extends Model
 {
+    public function getTransactionNumberAttribute(): string
+    {
+        return \App\Services\AdministrativeReferenceService::format(data_get($this->metadata, 'wallet_target') === 'insurance' ? 'seller_insurance_deposit' : 'seller_balance_deposit', (int) $this->id);
+    }
+
+    protected $appends = ['transaction_number'];
+
     public const SOURCE_OFFLINE = 'offline';
     public const SOURCE_DIGITAL = 'digital';
     public const STATUS_PENDING = 'pending';

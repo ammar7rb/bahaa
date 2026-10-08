@@ -72,7 +72,7 @@
                 <div class="card-header"><h3 class="mb-0">{{ translate('seller_product_review_decision') }}</h3></div>
                 <div class="card-body">
                     <div class="row g-3 mb-3">
-                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('seller_identifier') }}</span><a href="{{ route('admin.vendors.view', $product->user_id) }}" class="fw-bold">V{{ $product->user_id }}</a></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('seller_identifier') }}</span><a href="{{ route('admin.vendors.view', $product->user_id) }}" class="fw-bold">M{{ $product->user_id }}</a></div>
                         <div class="col-md-3"><span class="text-muted d-block">{{ translate('shop') }}</span><strong>{{ $product->seller?->shop?->name ?? translate('shop_not_found') }}</strong></div>
                         <div class="col-md-3"><span class="text-muted d-block">{{ translate('phone') }}</span><strong>{{ $product->seller?->phone ?? '—' }}</strong></div>
                         <div class="col-md-3"><span class="text-muted d-block">{{ translate('account_status') }}</span><strong>{{ translate($product->seller?->status ?? 'unknown') }}</strong></div>

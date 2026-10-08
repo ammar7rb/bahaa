@@ -50,6 +50,8 @@ class CustomerBalanceDepositServiceTest extends TestCase
         $this->assertSame(0, DB::table('customer_insurance_ledger_entries')->count());
         $this->assertSame(1, DB::table('wallet_transactions')->count());
         $this->assertSame('paid', $deposit->fresh()->status);
+        $this->assertSame('ADC1', $deposit->transaction_number);
+        $this->assertSame($deposit->transaction_number, DB::table('wallet_transactions')->value('transaction_id'));
     }
 
     public function test_insurance_approval_never_credits_purchase_balance(): void
@@ -59,6 +61,9 @@ class CustomerBalanceDepositServiceTest extends TestCase
         $this->assertEquals(100, DB::table('users')->where('id',1)->value('wallet_balance'));
         $this->assertEquals(50, DB::table('customer_insurance_ledger_entries')->sum('credit'));
         $this->assertSame(0, DB::table('wallet_transactions')->count());
+        $this->assertSame('AIC1', $deposit->fresh()->transaction_number);
+        $metadata = json_decode(DB::table('customer_insurance_ledger_entries')->value('metadata'), true);
+        $this->assertSame($deposit->transaction_number, $metadata['transaction_number']);
     }
 
     public function test_repeated_approval_cannot_credit_twice(): void

@@ -100,7 +100,7 @@
     <div class="card">
         <div class="card-header"><h3 class="mb-0">{{ translate('Insurance_Governance_History') }}</h3></div>
         <div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>#</th><th>{{ translate('Action') }}</th><th>{{ translate('Amount') }}</th><th>{{ translate('Reason') }}</th><th>{{ translate('Reference') }}</th><th>{{ translate('Created_By') }}</th><th>{{ translate('Created_At') }}</th></tr></thead><tbody>
-            @forelse($actions as $action)<tr><td>{{ $action->id }}</td><td>{{ translate('insurance_action_'.$action->action) }}</td><td>{{ setCurrencySymbol(amount:usdToDefaultCurrency(amount:$action->amount)) }}</td><td>{{ $action->reason }}</td><td>{{ $action->reference }}</td><td>{{ $action->admin_id ?: translate('System') }}</td><td>{{ $action->created_at }}</td></tr>@empty<tr><td colspan="7" class="text-center text-muted">{{ translate('no_data_found') }}</td></tr>@endforelse
+            @forelse($actions as $action)<tr><td>{{ $action->id }}</td><td>{{ translate('insurance_action_'.$action->action) }}</td><td>{{ setCurrencySymbol(amount:usdToDefaultCurrency(amount:$action->amount)) }}</td><td>{{ $action->reason }}</td><td>{{ $action->display_reference }}</td><td>{{ $action->admin_id ?: translate('System') }}</td><td>{{ $action->created_at }}</td></tr>@empty<tr><td colspan="7" class="text-center text-muted">{{ translate('no_data_found') }}</td></tr>@endforelse
         </tbody></table></div>
     </div>
 </div>

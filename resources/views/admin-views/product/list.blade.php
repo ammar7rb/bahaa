@@ -177,7 +177,7 @@
                                     </td>
                                     @if($type === 'seller')
                                         <td>
-                                            <a href="{{ route('admin.vendors.view', $product->user_id) }}" class="fw-semibold">V{{ $product->user_id }}</a>
+                                            <a href="{{ route('admin.vendors.view', $product->user_id) }}" class="fw-semibold">M{{ $product->user_id }}</a>
                                             <div class="small text-muted">{{ $product->seller?->shop?->name ?? translate('shop_not_found') }}</div>
                                             <div class="small text-muted">{{ $product->seller?->phone ?? '—' }}</div>
                                         </td>

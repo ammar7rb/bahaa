@@ -1,10 +1,10 @@
 @php
     $seller = auth('seller')->user();
     $sections = [
-        ['home','dashboard','vendor.dashboard.index',[],request()->routeIs('vendor.dashboard.*')],
+        ['profile','account_profile','vendor.account',[],request()->routeIs('vendor.account*')],
         ['wallet','finance_my_wallet','vendor.balance.index',[],request()->routeIs('vendor.balance.*')],
         ['products','products','vendor.products.list',['type'=>'all'],request()->routeIs('vendor.products.*')],
-        ['profile','account_profile','vendor.account',[],request()->routeIs('vendor.account*')],
+        ['home','dashboard','vendor.dashboard.index',[],request()->routeIs('vendor.dashboard.*')],
         ['invoices','vendor_invoices','vendor.invoices',[],request()->routeIs('vendor.invoices')],
         ['orders','orders','vendor.orders.list',['status'=>'all'],request()->routeIs('vendor.orders.*')],
         ['messages','administration_messages','vendor.messages',[],request()->routeIs('vendor.messages*')],

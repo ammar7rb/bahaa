@@ -40,6 +40,7 @@ class VendorFinancialWorkspaceTest extends VendorAccountAndInboxTest
         $this->assertSame(50.0, $data['summary']['next_due_amount']);
         $this->assertSame(100.0, $data['summary']['settled_total']);
         $this->assertCount(3, $data['records']);
+        $this->assertStringStartsWith('IV', $data['records']->first()['invoice_number']);
     }
 
     public function test_locked_invoice_projection_never_contains_full_number_or_receivable_details(): void

@@ -82,7 +82,7 @@
                             <tr>
                                 <td>{{ $invoices->firstItem() + $key }}</td>
                                 <td>
-                                    <div class="fw-semibold">{{ $invoice->invoice_no }}</div>
+                                    <div class="fw-semibold">{{ $invoice->invoice_number }}</div>
                                     <div class="fs-12 text-muted">{{ translate('Order_Group') }}: {{ $invoice->order_group_id }}</div>
                                     <div class="fs-12 text-muted">{{ $invoice->created_at }}</div>
                                 </td>

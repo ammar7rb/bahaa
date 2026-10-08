@@ -7,6 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PostPurchaseInvoice extends Model
 {
+    public function getInvoiceNumberAttribute(): string
+    {
+        return \App\Services\AdministrativeReferenceService::format('invoice', (int) $this->id);
+    }
+
+    protected $appends = ['invoice_number'];
+
     public const STATUS_PENDING = 'pending';
     public const STATUS_AWAITING_REVIEW = 'awaiting_review';
     public const STATUS_PAID = 'paid';

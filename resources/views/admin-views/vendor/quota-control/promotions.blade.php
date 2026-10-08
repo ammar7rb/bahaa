@@ -35,7 +35,7 @@
                     @forelse($promotions as $promotion)
                         <tr>
                             <td>#{{ $promotion->id }}</td>
-                            <td><a href="{{ route('admin.vendors.quota-control.show', $promotion->seller_id) }}">V{{ $promotion->seller_id }} — {{ $promotion->seller?->shop?->name ?? $promotion->seller?->email }}</a></td>
+                            <td><a href="{{ route('admin.vendors.quota-control.show', $promotion->seller_id) }}">M{{ $promotion->seller_id }} — {{ $promotion->seller?->shop?->name ?? $promotion->seller?->email }}</a></td>
                             <td>{{ $promotion->product?->name ?? '#'.$promotion->product_id }}</td>
                             <td>{{ translate($promotion->promotion_type === 'search' ? 'Search_Ad' : 'Homepage_Ad') }}</td>
                             <td><span class="badge badge-soft-{{ $promotion->approval_status === 'approved' ? 'success' : ($promotion->approval_status === 'rejected' ? 'danger' : 'warning') }}">{{ translate($promotion->approval_status) }}</span>@if($promotion->review_note)<div class="fs-11 text-muted mt-1 text-wrap">{{ $promotion->review_note }}</div>@endif</td>

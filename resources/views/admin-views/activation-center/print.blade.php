@@ -10,7 +10,7 @@
 <body>
 @php
     $subject = $activationCase->subjectModel();
-    $prefix = $activationCase->subject_type === 'seller' ? 'V' : 'C';
+    $prefix = $activationCase->subject_type === 'seller' ? 'M' : 'C';
 @endphp
 <button class="no-print" onclick="window.print()">{{ translate('print') }}</button>
 <div class="head">

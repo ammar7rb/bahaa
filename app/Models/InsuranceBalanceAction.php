@@ -7,6 +7,15 @@ use LogicException;
 
 class InsuranceBalanceAction extends Model
 {
+    public function getDisplayReferenceAttribute(): string
+    {
+        if (!in_array($this->action, [self::ACTION_RELEASE, self::ACTION_REVERSE_CONFISCATION], true)) return (string) $this->reference;
+        $entry = $this->subject_type === self::SUBJECT_SELLER
+            ? SellerLedgerEntry::where('seller_id', $this->subject_id)->where('group_key', 'insurance-governance:'.$this->reference)->where('direction', 'credit')->first()
+            : CustomerInsuranceLedgerEntry::where('customer_id', $this->subject_id)->where('reference', 'governance-credit-'.sha1($this->reference))->first();
+        return $entry?->transaction_number ?? (string) $this->reference;
+    }
+
     public const SUBJECT_CUSTOMER = 'customer';
     public const SUBJECT_SELLER = 'seller';
 

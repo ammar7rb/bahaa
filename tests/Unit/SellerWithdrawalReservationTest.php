@@ -37,7 +37,7 @@ class SellerWithdrawalReservationTest extends SellerLedgerServiceTest {
   $ledger->post($other->id,'funding','other',[['bucket'=>'operating','direction'=>'credit','amount'=>900]]);
   $rows=app(\App\Services\VendorFinancialWorkspaceService::class)->transactions($seller->id)->items();
   $this->assertCount(1,$rows);$this->assertSame(50.0,(float)$rows[0]->amount);
-  $this->assertSame(['id','bucket','direction','amount','created_at'],array_keys($rows[0]->toArray()));
+  $this->assertSame(['id','bucket','direction','amount','created_at','transaction_number'],array_keys($rows[0]->toArray()));
   $this->assertStringNotContainsString('987654',json_encode($rows));
   $this->assertStringNotContainsString('Private customer',json_encode($rows));
  }

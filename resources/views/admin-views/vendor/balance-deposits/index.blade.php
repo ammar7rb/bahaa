@@ -33,7 +33,7 @@
                         @if($proofUrl)<a href="{{ $proofUrl }}" target="_blank" rel="noopener">عرض إثبات التحويل</a>@endif
                         @if($deposit->payment_note)<div class="small text-muted">{{ $deposit->payment_note }}</div>@endif
                     </td>
-                    <td><span class="badge {{ $deposit->status === 'paid' ? 'bg-success' : ($deposit->status === 'pending' ? 'bg-warning text-dark' : 'bg-danger') }}">{{ translate($deposit->status) }}</span><br><small>{{ $deposit->transaction_reference ?: $deposit->payment_request_id ?: 'DEP-'.$deposit->id }}</small>@if($deposit->rejection_reason)<div class="small text-danger">{{ $deposit->rejection_reason }}</div>@endif</td>
+                    <td><span class="badge {{ $deposit->status === 'paid' ? 'bg-success' : ($deposit->status === 'pending' ? 'bg-warning text-dark' : 'bg-danger') }}">{{ translate($deposit->status) }}</span><br><small>{{ $deposit->transaction_reference ?: $deposit->payment_request_id ?: $deposit->transaction_number }}</small>@if($deposit->rejection_reason)<div class="small text-danger">{{ $deposit->rejection_reason }}</div>@endif</td>
                     <td>
                         @if($deposit->status === 'pending' && $deposit->source === 'offline')
                             <div class="d-flex flex-wrap gap-2">

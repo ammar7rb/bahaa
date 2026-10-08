@@ -46,7 +46,7 @@ class SellerFinancePresentationService
                 'direction' => $entry->direction,
                 'amount' => (float) $entry->amount,
                 'event_type' => $entry->event_type,
-                'reference_code' => $entry->reference_code ?: $this->ledger->referenceCode($entry->group_key, $entry->reference_type, $entry->reference_id, $entry->metadata ?: []),
+                'reference_code' => str_starts_with($entry->transaction_number, 'WLT-') ? ($entry->reference_code ?: $this->ledger->referenceCode($entry->group_key, $entry->reference_type, $entry->reference_id, $entry->metadata ?: [])) : $entry->transaction_number,
                 'order_id' => $orderId ?: null,
                 'shipment_reference' => $order?->shipment_reference,
                 'shipping_status' => $order?->shipping_operational_status,

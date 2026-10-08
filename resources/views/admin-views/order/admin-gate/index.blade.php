@@ -35,7 +35,7 @@
             <tr>
                 <td><strong>ORD-{{ $order->id }}</strong><div class="text-muted fs-12">{{ dateFormat($order->created_at) }}</div></td>
                 <td>C{{ $order->customer_id }}<div class="text-muted fs-12">{{ $order->customer?->f_name }} {{ $order->customer?->l_name }}</div></td>
-                <td>V{{ $order->seller_id }}<div class="text-muted fs-12">{{ $order->seller?->shop?->name }}</div></td>
+                <td>M{{ $order->seller_id }}<div class="text-muted fs-12">{{ $order->seller?->shop?->name }}</div></td>
                 <td><span class="badge bg-{{ $order->payment_status==='paid'?'success':'warning' }}">{{ translate($order->payment_status) }}</span><div>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount)) }}</div></td>
                 <td>@if($order->insurance)<span class="badge bg-{{ $order->insurance->payment_status==='paid'?'success':'warning' }}">{{ translate($order->insurance->payment_status) }}</span><div>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->insurance->amount)) }}</div>@else<span class="badge bg-secondary">{{ translate('not_required') }}</span>@endif</td>
                 <td><span class="badge bg-{{ ($order->shipping_assignment_status??'pending')==='assigned'?'success':'warning' }}">{{ translate($order->shipping_assignment_status??'pending') }}</span></td>

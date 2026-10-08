@@ -41,7 +41,7 @@ class OperationalFeedController extends BaseController
         }
         if (Schema::hasTable('sellers')) {
             Seller::query()->where('created_at', '>', $after)->latest('created_at')->limit(25)->get()->each(function (Seller $seller) use ($events) {
-                $events->push($this->event('seller_registration', $seller->created_at, translate('new_seller_registration'), 'V'.$seller->id.' · '.trim($seller->f_name.' '.$seller->l_name), route('admin.activation-center.index', ['tab' => 'sellers'])));
+                $events->push($this->event('seller_registration', $seller->created_at, translate('new_seller_registration'), 'M'.$seller->id.' · '.trim($seller->f_name.' '.$seller->l_name), route('admin.activation-center.index', ['tab' => 'sellers'])));
             });
         }
         if (Schema::hasTable('orders')) {
@@ -260,7 +260,7 @@ class OperationalFeedController extends BaseController
                         'reference' => '#'.$product->id,
                         'amount_label' => translate('product_price'),
                         'amount' => setCurrencySymbol(amount: usdToDefaultCurrency(amount: $product->unit_price), currencyCode: getCurrencyCode()),
-                        'meta' => translate('vendor').': '.($product->seller?->shop?->name ?? 'V'.$product->user_id),
+                        'meta' => translate('vendor').': '.($product->seller?->shop?->name ?? 'M'.$product->user_id),
                         'image' => getStorageImages(path: $product->thumbnail_full_url, type: 'backend-product'),
                         'url' => route('admin.products.view', ['addedBy' => 'vendor', 'id' => $product->id]),
                         'count' => 1,

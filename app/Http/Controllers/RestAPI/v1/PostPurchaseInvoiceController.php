@@ -266,6 +266,7 @@ class PostPurchaseInvoiceController extends Controller
             'order_group_id' => $invoice->order?->order_group_id,
             'first_payment_amount' => (float) ($invoice->metadata['first_payment_amount'] ?? $invoice->order?->order_amount ?? 0),
             'support_required_if_unable_to_pay' => true,
+            'invoice_number' => $invoice->invoice_number,
             'web_payment_url' => route('post-purchase-invoices.show', $invoice->id),
         ]);
     }

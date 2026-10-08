@@ -28,7 +28,7 @@
                         <h3 class="mb-0">{{ $sellerShop?->name ?? $seller?->f_name . ' ' . $seller?->l_name }}</h3>
                         <span class="badge badge-soft-{{ $sellerStatus === 'approved' ? 'success' : ($sellerStatus === 'suspended' || $sellerStatus === 'rejected' ? 'danger' : 'warning') }}">{{ translate($sellerStatus ?: 'pending') }}</span>
                     </div>
-                    <div class="text-muted mt-1">{{ translate('seller_administrative_profile') }} · V{{ $seller?->id }}</div>
+                    <div class="text-muted mt-1">{{ translate('seller_administrative_profile') }} · M{{ $seller?->id }}</div>
                     <small class="text-muted">{{ translate('activation_case_private_admin_workspace') }}</small>
                 </div>
             </div>

@@ -150,13 +150,13 @@ class IdentityAndSupportBatchTest extends TestCase
     {
         $this->assertSame(['type' => 'users', 'id' => 123], AdministrativeReferenceService::parse('C123'));
         $this->assertSame(['type' => 'users', 'id' => 123], AdministrativeReferenceService::parse('c-123'));
-        $this->assertSame(['type' => 'sellers', 'id' => 55], AdministrativeReferenceService::parse('V#55'));
+        $this->assertSame(['type' => 'sellers', 'id' => 55], AdministrativeReferenceService::parse('M#55'));
         $this->assertNull(AdministrativeReferenceService::parse('123'));
         $this->assertSame('C8', AdministrativeReferenceService::format('customer', 8));
-        $this->assertSame('V8', AdministrativeReferenceService::format('seller', 8));
+        $this->assertSame('M8', AdministrativeReferenceService::format('seller', 8));
     }
 
-    public function test_vendor_repository_can_find_the_visible_v_reference(): void
+    public function test_vendor_repository_can_find_the_visible_m_reference(): void
     {
         $seller = Seller::create([
             'f_name' => 'Vendor',
@@ -170,7 +170,7 @@ class IdentityAndSupportBatchTest extends TestCase
 
         $this->assertCount(1, $results);
         $this->assertSame($seller->id, $results->first()->id);
-        $this->assertSame('V'.$seller->id, $results->first()->administrative_reference);
+        $this->assertSame('M'.$seller->id, $results->first()->administrative_reference);
     }
 
     public function test_only_latest_active_required_policy_version_is_returned_for_registration(): void

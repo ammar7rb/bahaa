@@ -92,7 +92,7 @@
                                                     @endif
                                                 </div>
                                                 <div class="d-flex gap-1">
-                                                    <span class="text-secondary">{{ translate('vendor_product_reference') }} #{{$product['id']}}</span>
+                                                    <span class="text-secondary">{{ translate('vendor_product_reference') }} {{ $product->administrative_reference }}</span>
                                                 </div>
                                             </div>
                                         </a>

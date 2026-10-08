@@ -63,7 +63,7 @@
                             <div class="border rounded p-3 mb-4">
                                 <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
                                     <div>
-                                        <h5 class="mb-1">{{ translate('activation_invoice') }} #{{ $pendingActivationInvoice->invoice_no }}</h5>
+                                        <h5 class="mb-1">{{ translate('activation_invoice') }} #{{ $pendingActivationInvoice->invoice_number }}</h5>
                                         <p class="text-muted mb-0">{{ translate('pay_this_invoice_to_activate_your_package_and_release_your_paid_order') }}</p>
                                     </div>
                                     <div class="text-end">

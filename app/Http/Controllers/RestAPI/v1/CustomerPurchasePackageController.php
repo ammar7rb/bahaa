@@ -200,7 +200,7 @@ class CustomerPurchasePackageController extends Controller
             'payment_request_from' => 'app',
             'customer_id' => $customer->id,
             'activation_invoice_id' => $invoice->id,
-            'invoice_no' => $invoice->invoice_no,
+            'invoice_no' => $invoice->invoice_number,
             'order_group_id' => $invoice->order_group_id,
             'package_id' => $invoice->customer_purchase_package_id,
             'package_name' => $invoice->package_name,
@@ -555,7 +555,7 @@ class CustomerPurchasePackageController extends Controller
 
         return [
             'id' => $invoice->id,
-            'invoice_no' => $invoice->invoice_no,
+            'invoice_no' => $invoice->invoice_number,
             'order_id' => $invoice->order_id,
             'order_group_id' => $invoice->order_group_id,
             'package' => [

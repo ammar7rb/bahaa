@@ -27,7 +27,7 @@
         <section class="card mb-3" id="ticket-{{ $ticket->id }}">
             <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <div>
-                    <strong>{{ $ticket->seller?->administrative_reference ?? ('V'.$ticket->seller_id) }}</strong>
+                    <strong>{{ $ticket->seller?->administrative_reference ?? ('M'.$ticket->seller_id) }}</strong>
                     <span class="text-muted">#{{ $ticket->id }}</span>
                     <div class="small text-muted">{{ $ticket->seller?->email }} · {{ $ticket->seller?->phone }}</div>
                 </div>

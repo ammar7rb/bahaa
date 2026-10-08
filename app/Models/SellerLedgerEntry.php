@@ -8,6 +8,13 @@ use LogicException;
 
 class SellerLedgerEntry extends Model
 {
+    public function getTransactionNumberAttribute(): string
+    {
+        return \App\Services\FinancialReferenceService::sellerEntry($this);
+    }
+
+    protected $appends = ['transaction_number'];
+
     protected $table = 'seller_ledger_entries';
 
     protected $fillable = [

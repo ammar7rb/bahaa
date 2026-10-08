@@ -16,7 +16,7 @@ class VendorFinancialWorkspaceService
         return \App\Models\SellerLedgerEntry::where('seller_id', $sellerId)
             ->whereIn('bucket', [SellerLedgerService::AVAILABLE, SellerLedgerService::OPERATING, SellerLedgerService::ORDER_INSURANCE_CREDIT])
             ->when(in_array($bucket, [SellerLedgerService::AVAILABLE, SellerLedgerService::OPERATING, SellerLedgerService::ORDER_INSURANCE_CREDIT], true), fn ($q) => $q->where('bucket', $bucket))
-            ->latest('id')->paginate(20, ['id', 'bucket', 'direction', 'amount', 'created_at'], 'transactions_page', max(1, $page));
+            ->latest('id')->paginate(20, ['id', 'bucket', 'direction', 'amount', 'created_at', 'event_type', 'reference_type', 'reference_id'], 'transactions_page', max(1, $page))->through(fn ($entry) => $entry->makeHidden(['event_type', 'reference_type', 'reference_id']));
     }
 
     public function invoices(int $sellerId, int $page = 1): array
@@ -40,7 +40,7 @@ class VendorFinancialWorkspaceService
             $reference = $visible ? (string) $order->id : $this->lockedReference($order);
             // Locked rows contain only the permitted public projection.
             return $visible ? [
-                'invoice_number' => (string) $order->id, 'receivable' => (float) $item->amount,
+                'invoice_number' => AdministrativeReferenceService::format('invoice', (int) $order->id), 'receivable' => (float) $item->amount,
                 'due_at' => $item->due_at?->toIso8601String(), 'status' => $item->status,
                 'order_reference' => $reference, 'locked' => false,
                 'action_url' => route('vendor.orders.details', $reference),
@@ -69,7 +69,7 @@ class VendorFinancialWorkspaceService
             return [
                 'reference' => $item->payment_reference ?: 'DEP-'.$item->id,
                 'amount' => (float) $item->amount, 'paid_at' => $item->paid_at?->toIso8601String(),
-                'invoice_number' => $visible ? (string) $item->order_id : null,
+                'invoice_number' => $visible ? AdministrativeReferenceService::format('invoice', (int) $item->order_id) : null,
                 'order_reference' => $visible ? (string) $item->order_id : null,
                 'invoice_url' => $visible ? route('vendor.orders.generate-invoice', $item->order_id) : null,
                 'return_at' => $item->reusable_at?->toIso8601String(),

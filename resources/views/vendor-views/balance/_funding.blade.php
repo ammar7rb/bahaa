@@ -38,7 +38,7 @@
 
     <div class="card"><div class="card-header"><h5 class="mb-0">{{ translate('deposit_history') }}</h5></div><div class="table-responsive"><table class="table align-middle"><thead><tr><th>{{ translate('amount') }}</th><th>{{ translate('source') }}</th><th>{{ translate('status') }}</th><th>{{ translate('reference') }}</th><th>{{ translate('date') }}</th></tr></thead><tbody>
         @forelse($deposits as $deposit)
-            <tr><td>{{ webCurrencyConverter(amount:$deposit->amount) }}</td><td>{{ translate($deposit->source) }}</td><td><span class="badge">{{ translate($deposit->status) }}</span>@if($deposit->rejection_reason)<br><small>{{ $deposit->rejection_reason }}</small>@endif</td><td>{{ $deposit->transaction_reference ?: $deposit->payment_request_id ?: '—' }}</td><td>{{ $deposit->created_at?->format('Y-m-d H:i') }}</td></tr>
+            <tr><td>{{ webCurrencyConverter(amount:$deposit->amount) }}</td><td>{{ translate($deposit->source) }}</td><td><span class="badge">{{ translate($deposit->status) }}</span>@if($deposit->rejection_reason)<br><small>{{ $deposit->rejection_reason }}</small>@endif</td><td><bdi>{{ $deposit->transaction_number }}</bdi><small class="d-block text-muted"><bdi>{{ $deposit->transaction_reference ?: $deposit->payment_request_id ?: '—' }}</bdi></small></td><td>{{ $deposit->created_at?->format('Y-m-d H:i') }}</td></tr>
         @empty
             <tr><td colspan="5" class="text-center text-muted">{{ translate('no_seller_balance_deposits_found') }}</td></tr>
         @endforelse

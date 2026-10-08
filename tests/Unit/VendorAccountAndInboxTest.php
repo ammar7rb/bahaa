@@ -85,7 +85,7 @@ class VendorAccountAndInboxTest extends TestCase
         $this->assertNotNull($this->seller->fresh()->image);
         Storage::disk('public')->assertExists('seller/'.$this->seller->fresh()->image);
         $payload = $controller->show($this->request())->getData(true);
-        $this->assertSame('V8', $payload['account_id']);
+        $this->assertSame('M8', $payload['account_id']);
         $this->assertArrayNotHasKey('commercial_document', $payload);
         $this->assertTrue($payload['tax_document_uploaded']);
         $this->assertSame(200, $controller->document($this->request(), 'tax')->getStatusCode());

@@ -87,7 +87,7 @@
                     @forelse($cases as $case)
                         @php
                             $subject = $case->subjectModel();
-                            $prefix = $case->subject_type === 'seller' ? 'V' : 'C';
+                            $prefix = $case->subject_type === 'seller' ? 'M' : 'C';
                         @endphp
                         <tr>
                             <td>{{ $cases->firstItem() + $loop->index }}</td>

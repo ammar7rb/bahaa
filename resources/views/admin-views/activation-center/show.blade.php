@@ -5,7 +5,7 @@
 @section('content')
     @php
         $subject = $activationCase->subjectModel();
-        $prefix = $activationCase->subject_type === 'seller' ? 'V' : 'C';
+        $prefix = $activationCase->subject_type === 'seller' ? 'M' : 'C';
     @endphp
     <div class="content container-fluid">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">

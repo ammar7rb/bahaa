@@ -8,6 +8,13 @@ use LogicException;
 
 class CustomerInsuranceLedgerEntry extends Model
 {
+    public function getTransactionNumberAttribute(): string
+    {
+        return \App\Services\FinancialReferenceService::customerInsuranceEntry($this);
+    }
+
+    protected $appends = ['transaction_number'];
+
     protected $fillable = [
         'customer_id', 'order_insurance_id', 'order_id', 'entry_type',
         'credit', 'debit', 'reference', 'metadata',

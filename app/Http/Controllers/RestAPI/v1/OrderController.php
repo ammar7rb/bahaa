@@ -99,7 +99,7 @@ class OrderController extends Controller
 
         return [
             'id' => $invoice->id,
-            'invoice_no' => $invoice->invoice_no,
+            'invoice_no' => $invoice->invoice_number,
             'order_id' => $invoice->order_id,
             'order_group_id' => $invoice->order_group_id,
             'package' => [

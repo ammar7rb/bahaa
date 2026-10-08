@@ -385,7 +385,7 @@ class AdvanceSearch
                                     if ($table['type'] === 'users') {
                                         $displayName = 'C' . $item->id . ' — ' . $displayName;
                                     } elseif ($table['type'] === 'sellers') {
-                                        $displayName = 'V' . $item->id . ' — ' . $displayName;
+                                        $displayName = 'M' . $item->id . ' — ' . $displayName;
                                     }
 
                                     $result[] = [

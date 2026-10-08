@@ -35,6 +35,7 @@ class UserWalletController extends Controller
             'pending_invoices' => $pendingInvoicesQuery->with('order:id,order_group_id,order_amount')
                 ->latest('id')->limit(5)->get()->map(fn (PostPurchaseInvoice $invoice) => [
                     'id' => $invoice->id,
+                    'invoice_number' => $invoice->invoice_number,
                     'order_id' => $invoice->order_id,
                     'order_group_id' => $invoice->order?->order_group_id,
                     'status' => $invoice->status,
@@ -52,9 +53,10 @@ class UserWalletController extends Controller
             'deposits' => \App\Models\CustomerBalanceDeposit::where('customer_id', $customerId)->latest('id')
                 ->paginate(20, ['id', 'wallet_type', 'amount', 'status', 'method_name', 'payment_reference', 'review_note', 'created_at']),
             'purchase_entries' => WalletTransaction::where('user_id', $customerId)->latest('id')
-                ->paginate(20, ['credit', 'debit', 'balance', 'created_at']),
+                ->paginate(20, ['id', 'transaction_type', 'transaction_id', 'reference', 'credit', 'debit', 'balance', 'created_at']),
             'insurance_entries' => $insurance->recentEntries($customerId)->map(fn ($entry) => [
                 'order_id' => $entry->order_id, 'entry_type' => $entry->entry_type,
+                'transaction_number' => $entry->transaction_number,
                 'credit' => $entry->credit, 'debit' => $entry->debit, 'created_at' => $entry->created_at,
             ])->values(),
             'orders' => \App\Models\Order::where('customer_id', $customerId)->where('is_guest', 0)

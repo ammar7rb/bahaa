@@ -35,7 +35,7 @@
     <div class="alert alert-info" id="second-invoice-changed" hidden>{{ translate('second_invoice_updated_review') }} <a class="second-stage-help" href="{{ route('post-purchase-invoices.show', $invoice->id) }}">{{ translate('second_invoice_refresh') }}</a></div>
     @if(session('checkout_pending_notice'))<div class="alert alert-success">{{ translate('checkout_request_received_pending') }}</div>@endif
     <header class="second-stage-hero">
-        <div class="second-stage-kicker">{{ translate('second_invoice_step') }} · #{{ $invoice->order_id }}</div>
+        <div class="second-stage-kicker">{{ translate('second_invoice_step') }} · <bdi>{{ $invoice->invoice_number }}</bdi> · #{{ $invoice->order_id }}</div>
         <h1>{{ translate('second_invoice_heading') }}</h1>
         <p class="second-stage-muted">{{ translate('second_invoice_intro') }}</p>
         <div class="second-stage-due"><div><span class="second-stage-muted">{{ translate('second_invoice_amount_now') }}</span><strong><bdi>{{ webCurrencyConverter($amountDue) }}</bdi></strong></div>@if($invoice->payment_due_at)<small class="second-stage-muted">{{ translate('second_invoice_deadline') }}: {{ $invoice->payment_due_at->format('d M Y, h:i A') }}</small>@endif</div>

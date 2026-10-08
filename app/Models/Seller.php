@@ -197,7 +197,7 @@ class Seller extends Authenticatable
 
     public function getAdministrativeReferenceAttribute(): string
     {
-        return 'V' . $this->id;
+        return \App\Services\AdministrativeReferenceService::format('seller', (int) $this->id);
     }
 
     protected static function boot(): void

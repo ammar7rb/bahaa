@@ -143,7 +143,7 @@
                                 <strong>{{ $v2ChangedFields ? translate('product_update_request') : translate('product_pending_review') }}</strong>
                                 <span class="v2-review-name">{{ $v2NotificationProduct->name }}</span>
                                 <span class="v2-review-meta"><span>{{ translate('product_id') }}: <b>#{{ $v2NotificationProduct->id }}</b></span><span>{{ translate('product_price') }}: <b>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $v2NotificationProduct->unit_price), currencyCode: getCurrencyCode()) }}</b></span></span>
-                                <span class="d-block small text-muted">{{ translate('vendor') }}: {{ $v2NotificationProduct->seller?->shop?->name ?? ('V' . $v2NotificationProduct->user_id) }}</span>
+                                <span class="d-block small text-muted">{{ translate('vendor') }}: {{ $v2NotificationProduct->seller?->shop?->name ?? ('M' . $v2NotificationProduct->user_id) }}</span>
                                 @if($v2ChangedFields)
                                     <span class="d-block small text-warning">{{ translate('changed_fields') }}: {{ implode('، ', $v2ChangedFields) }}</span>
                                 @endif

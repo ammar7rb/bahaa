@@ -26,6 +26,13 @@ use Illuminate\Support\Carbon;
  */
 class WithdrawRequest extends Model
 {
+    public function getTransactionNumberAttribute(): string
+    {
+        return $this->seller_id ? \App\Services\AdministrativeReferenceService::format('seller_payment', (int) $this->id) : (string) $this->id;
+    }
+
+    protected $appends = ['transaction_number'];
+
 
     /**
      * The attributes that are mass assignable.

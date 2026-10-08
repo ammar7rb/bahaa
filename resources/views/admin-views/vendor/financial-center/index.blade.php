@@ -147,10 +147,10 @@
 
     <div class="row g-3 mb-3">
         <div class="col-lg-6"><div class="card h-100"><div class="card-header d-flex justify-content-between"><h3 class="mb-0">{{ translate('Recent_Deposits') }}</h3><a href="{{ route('admin.vendors.balance-deposits.index') }}">{{ translate('View_All') }}</a></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>
-            @forelse($recentDeposits as $deposit)<tr><td>{{ $deposit->seller?->email ?? '#'.$deposit->seller_id }}</td><td>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $deposit->amount)) }}</td><td>{{ translate($deposit->status) }}</td></tr>@empty<tr><td class="text-muted">{{ translate('no_data_found') }}</td></tr>@endforelse
+            @forelse($recentDeposits as $deposit)<tr><td>{{ $deposit->seller?->email ?? '#'.$deposit->seller_id }}<small class="d-block">{{ $deposit->transaction_number }}</small></td><td>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $deposit->amount)) }}</td><td>{{ translate($deposit->status) }}</td></tr>@empty<tr><td class="text-muted">{{ translate('no_data_found') }}</td></tr>@endforelse
         </tbody></table></div></div></div>
         <div class="col-lg-6"><div class="card h-100"><div class="card-header d-flex justify-content-between"><h3 class="mb-0">{{ translate('Recent_Withdrawals') }}</h3><a href="{{ route('admin.vendors.withdraw_list') }}">{{ translate('View_All') }}</a></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>
-            @forelse($recentWithdrawals as $withdrawal)<tr><td>{{ $withdrawal->seller?->email ?? '#'.$withdrawal->seller_id }}</td><td>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $withdrawal->amount)) }}</td><td>{{ translate($withdrawal->approved === 0 ? 'pending' : ($withdrawal->approved === 1 ? 'approved' : 'denied')) }}</td></tr>@empty<tr><td class="text-muted">{{ translate('no_data_found') }}</td></tr>@endforelse
+            @forelse($recentWithdrawals as $withdrawal)<tr><td>{{ $withdrawal->seller?->email ?? '#'.$withdrawal->seller_id }}<small class="d-block">{{ $withdrawal->transaction_number }}</small></td><td>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $withdrawal->amount)) }}</td><td>{{ translate($withdrawal->approved === 0 ? 'pending' : ($withdrawal->approved === 1 ? 'approved' : 'denied')) }}</td></tr>@empty<tr><td class="text-muted">{{ translate('no_data_found') }}</td></tr>@endforelse
         </tbody></table></div></div></div>
     </div>
 
@@ -166,7 +166,7 @@
         </div>
         <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>{{ translate('Date') }}</th><th>{{ translate('Seller') }}</th><th>{{ translate('Bucket') }}</th><th>{{ translate('Direction') }}</th><th>{{ translate('Amount') }}</th><th>{{ translate('Event_Type') }}</th><th>{{ translate('Reference') }}</th></tr></thead><tbody>
         @forelse($entries as $entry)
-            <tr><td>{{ $entry->created_at }}</td><td>{{ $entry->seller?->email ?? '#'.$entry->seller_id }}</td><td>{{ translate($entry->bucket) }}</td><td>{{ translate($entry->direction) }}</td><td>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: (float) $entry->amount)) }}</td><td>{{ translate(str_replace('_', ' ', $entry->event_type)) }}<br><small class="text-muted">{{ translate($entry->reporting_category ?: 'balance') }}</small></td><td><code>{{ $entry->reference_code ?: '—' }}</code></td></tr>
+            <tr><td>{{ $entry->created_at }}</td><td>{{ $entry->seller?->email ?? '#'.$entry->seller_id }}</td><td>{{ translate($entry->bucket) }}</td><td>{{ translate($entry->direction) }}</td><td>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: (float) $entry->amount)) }}</td><td>{{ translate(str_replace('_', ' ', $entry->event_type)) }}<br><small class="text-muted">{{ translate($entry->reporting_category ?: 'balance') }}</small></td><td><code>{{ $entry->transaction_number }}</code></td></tr>
         @empty <tr><td colspan="7" class="text-center text-muted py-4">{{ translate('no_ledger_entries_found') }}</td></tr>@endforelse
         </tbody></table></div>
         @if($entries->hasPages())<div class="card-footer">{{ $entries->links() }}</div>@endif

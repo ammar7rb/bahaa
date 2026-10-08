@@ -74,6 +74,7 @@
                             <tr>
                                 <td>{{$withdrawRequests->firstItem() + $key }}</td>
                                 <td>
+                                    <bdi class="d-block text-muted small">{{ $withdrawRequest->transaction_number }}</bdi>
                                     {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $withdrawRequest['amount']), currencyCode: getCurrencyCode(type: 'default')) }}
                                 </td>
 

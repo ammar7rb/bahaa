@@ -8,6 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CustomerActivationInvoice extends Model
 {
+    public function getInvoiceNumberAttribute(): string
+    {
+        return \App\Services\AdministrativeReferenceService::format('invoice', (int) $this->id);
+    }
+
+    protected $appends = ['invoice_number'];
+
     use HasFactory;
 
     protected $fillable = [
