@@ -33,4 +33,11 @@ class CustomerEmptyCartTest extends TestCase
         $this->assertInstanceOf(\Illuminate\Contracts\View\View::class, $response);
         $this->assertSame(VIEW_FILE_NAMES['cart_list'], $response->name());
     }
+
+    public function test_cart_template_compiles_to_valid_php(): void
+    {
+        $template = file_get_contents(base_path('resources/themes/theme_aster/theme-views/cart/cart-details.blade.php'));
+        $compiled = app('blade.compiler')->compileString($template);
+        $this->assertNotEmpty(token_get_all($compiled, TOKEN_PARSE));
+    }
 }

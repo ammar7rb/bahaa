@@ -135,7 +135,9 @@
                                                                         </button>
                                                                         <ul class="dropdown-menu dropdown-left-auto bs-dropdown-min-width--8rem">
                                                                             @foreach($shippings as $shipping)
-                                                                                @php($promise = app(\App\Services\ShippingPromiseService::class)->forMethod($shipping['id']))
+                                                                                @php
+                                                                                    $promise = app(\App\Services\ShippingPromiseService::class)->forMethod($shipping['id']);
+                                                                                @endphp
                                                                                 <li class="cursor-pointer set-shipping-id" data-id="{{$shipping['id']}}" data-cart-group="{{$cartItem['cart_group_id']}}">
                                                                                     <strong>{{ $shipping['title'] }}</strong>
                                                                                     <small class="d-block text-muted">{{ $promise['display_date'] }}</small>
@@ -291,7 +293,7 @@
                                                                                    data-current-stock="{{ $getProductCurrentStock }}"
                                                                                    data-min="{{ $cartItem?->product?->minimum_order_qty ?? 1 }}">
                                                                             <span
-                                                                                class="quantity__plus cart-qty-btn update-cart-quantity-list-cart-data  {{ $isProductCountChangeable ? '' : 'd-none' }}""
+                                                                                class="quantity__plus cart-qty-btn update-cart-quantity-list-cart-data  {{ $isProductCountChangeable ? '' : 'd-none' }}"
                                                                             data-prevent=true
                                                                             data-min-order="{{ $product->minimum_order_qty }}"
                                                                             data-cart="{{ $cartItem['id'] }}" data-value="1"
