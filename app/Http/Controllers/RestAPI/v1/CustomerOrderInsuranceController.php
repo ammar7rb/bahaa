@@ -31,6 +31,7 @@ class CustomerOrderInsuranceController extends Controller
     {
         [$order, $insurance] = $this->resolve($request, $id);
         return response()->json([
+            'invoice_number' => $order->postPurchaseInvoice?->invoice_number,
             'claim' => $this->service->payload($order),
             'insurance_balance' => app(\App\Services\CustomerInsuranceBalanceService::class)->summary((int) $request->user()->id),
             'payment_options' => [
