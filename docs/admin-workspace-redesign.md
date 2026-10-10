@@ -160,3 +160,8 @@ Before production acceptance:
   large counts, wrapping, focus and target sizes against the final build.
 - Record authenticated production verification and the missing branding/sidebar,
   English-copy and populated interaction captures before production acceptance.
+
+Relative notification timestamps now use ISO 8601 offsets for payment/message
+query rows. A server-seeded monotonic browser clock recalculates visible time text
+each second without network polling; absolute localized date/time is available
+on hover. Tests cover seconds/minutes/hours, equivalent UTC offsets and Cairo data.

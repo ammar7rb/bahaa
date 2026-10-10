@@ -3,6 +3,30 @@
     if (window.adminWorkspaceStarted) return;
     window.adminWorkspaceStarted = true;
     const config = window.adminWorkspaceConfig;
+    const clockStarted = performance.now();
+    const serverNow = Number(config.serverNow) || Date.now();
+    function relativeTime(timestamp, now, locale) {
+        const instant = Date.parse(timestamp);
+        if (!Number.isFinite(instant)) return null;
+        const seconds = Math.max(0, Math.floor((now - instant) / 1000));
+        const units = [['year',31536000],['month',2592000],['day',86400],['hour',3600],['minute',60],['second',1]];
+        const [unit, size] = units.find(([,size]) => seconds >= size) || units[units.length - 1];
+        return new Intl.RelativeTimeFormat(locale, {numeric:'always'}).format(-Math.floor(seconds / size), unit);
+    }
+    function updateTimes() {
+        if (document.hidden) return;
+        const now = serverNow + performance.now() - clockStarted;
+        document.querySelectorAll('.admin-notice time[datetime]').forEach(time => {
+            const label = relativeTime(time.dateTime, now, document.documentElement.lang || 'ar');
+            if (label === null) return;
+            time.textContent = label;
+            if (!time.title) time.title = new Intl.DateTimeFormat(document.documentElement.lang || 'ar', {dateStyle:'medium',timeStyle:'short',timeZone:config.timeZone || 'Africa/Cairo'}).format(new Date(time.dateTime));
+        });
+    }
+    // Recalculate labels locally; this timer never fetches or refreshes records.
+    updateTimes();
+    setInterval(updateTimes, 1000);
+    document.addEventListener('visibilitychange', updateTimes);
     const input = document.getElementById('admin-global-search');
     const panel = document.getElementById('admin-search-results');
     let timer, request, generation = 0, selected = -1;
@@ -95,6 +119,7 @@
                 list.replaceChildren(...category.items.map(item => notification(item, key)));
                 if (!category.items.length) { const p = document.createElement('p'); p.className = 'admin-empty'; p.textContent = config.pendingEmpty; list.append(p); }
             });
+            updateTimes();
         } catch (_) { /* Retain the last data until the next navigation or return. */ }
         finally { refreshing = false; }
     }

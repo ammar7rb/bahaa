@@ -43,3 +43,16 @@ test('failed photos recover once and then retain a category icon',()=>{
  assert.match(code,/img.complete && img.naturalWidth===0/);
  assert.doesNotMatch(code,/set(?:Timeout|Interval)\(refresh/);
 });
+
+ test('relative labels advance from the real offset timestamp across units',()=>{
+ const code=fs.readFileSync('public/assets/back-end/js/admin-workspace.js','utf8');
+ const helper=code.slice(code.indexOf('    function relativeTime('),code.indexOf('    function updateTimes('));
+ const context={Intl,Date,Number,Math};vm.runInNewContext(helper,context);
+ const stamp='2026-10-10T10:00:00+03:00', start=Date.parse(stamp);
+ assert.equal(context.relativeTime(stamp,start+3000,'en'),'3 seconds ago');
+ assert.equal(context.relativeTime(stamp,start+65000,'en'),'1 minute ago');
+ assert.equal(context.relativeTime(stamp,start+7200000,'en'),'2 hours ago');
+ assert.equal(context.relativeTime('2026-10-10T07:00:00Z',start+3000,'en'),'3 seconds ago');
+ assert.match(context.relativeTime(stamp,start+65000,'ar'),/دقيقة/);
+ assert.equal(context.relativeTime('invalid',start,'ar'),null);
+ });

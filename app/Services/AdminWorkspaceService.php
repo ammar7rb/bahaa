@@ -91,12 +91,17 @@ class AdminWorkspaceService
     public function paymentItem(object $row): array
     {
         $actor = trim($row->actor_first.' '.$row->actor_last);
-        return ['title' => $this->paymentLabel($row->source).' #'.$row->id, 'detail' => translate($row->audience).($actor ? ' · '.$actor : ''), 'url' => $this->paymentUrl($row->source, $row), 'time' => $row->updated_at, 'time_label' => $this->timeLabel($row->updated_at), 'meta' => $this->money($row->review_amount ?? 0, $row->review_currency ?? null), 'badge' => translate('payments_waiting_for_review'), 'icon' => 'credit-card'];
+        return ['title' => $this->paymentLabel($row->source).' #'.$row->id, 'detail' => translate($row->audience).($actor ? ' · '.$actor : ''), 'url' => $this->paymentUrl($row->source, $row), 'time' => $this->timeIso($row->updated_at), 'time_label' => $this->timeLabel($row->updated_at), 'meta' => $this->money($row->review_amount ?? 0, $row->review_currency ?? null), 'badge' => translate('payments_waiting_for_review'), 'icon' => 'credit-card'];
     }
 
     private function timeLabel($time): string
     {
         return $time ? \Carbon\Carbon::parse($time)->locale(session('local', 'en'))->diffForHumans() : '';
+    }
+
+    private function timeIso($time): ?string
+    {
+        return $time ? \Carbon\Carbon::parse($time)->toIso8601String() : null;
     }
 
     private function money($amount, ?string $currency = null): string
@@ -196,7 +201,7 @@ class AdminWorkspaceService
         $categories['payments'] = $this->payments();
         if (Helpers::module_permission_check('people')) {
             $q = $this->conversations();
-            $categories['messages'] = ['count' => (int) (clone $q)->sum('unread'), 'items' => $q->orderByDesc('unread')->orderByDesc('updated_at')->limit(6)->get()->map(fn ($r) => ['title'=>$r->sender ?: translate($r->audience), 'detail'=>translate($r->audience).' · '.($r->subject ?: translate('messages')), 'preview'=>\Illuminate\Support\Str::limit(strip_tags($r->preview),100), 'icon'=>$r->audience==='vendor'?'shop':'user', 'badge'=>$r->unread ? translate('workspace_unread') : translate('workspace_channel_'.$r->kind), 'time'=>$r->updated_at, 'time_label'=>$this->timeLabel($r->updated_at), 'url'=>$this->conversationUrl($r), 'unread'=>$r->unread])->all()];
+            $categories['messages'] = ['count' => (int) (clone $q)->sum('unread'), 'items' => $q->orderByDesc('unread')->orderByDesc('updated_at')->limit(6)->get()->map(fn ($r) => ['title'=>$r->sender ?: translate($r->audience), 'detail'=>translate($r->audience).' · '.($r->subject ?: translate('messages')), 'preview'=>\Illuminate\Support\Str::limit(strip_tags($r->preview),100), 'icon'=>$r->audience==='vendor'?'shop':'user', 'badge'=>$r->unread ? translate('workspace_unread') : translate('workspace_channel_'.$r->kind), 'time'=>$this->timeIso($r->updated_at), 'time_label'=>$this->timeLabel($r->updated_at), 'url'=>$this->conversationUrl($r), 'unread'=>$r->unread])->all()];
         }
         return ['totals' => $this->totals(), 'categories' => $categories];
     }

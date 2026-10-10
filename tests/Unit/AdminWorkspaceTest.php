@@ -149,7 +149,7 @@ class AdminWorkspaceTest extends TestCase
         DB::table('products')->insert([['added_by'=>'admin','request_status'=>1,'name'=>'منتج معتمد','user_id'=>1], ['added_by'=>'seller','request_status'=>1,'name'=>'منتج آخر','user_id'=>7], ['added_by'=>'seller','request_status'=>0,'name'=>'قفازات طبية','user_id'=>7]]);
         DB::table('translations')->insert(['translationable_type'=>\App\Models\Product::class,'translationable_id'=>3,'locale'=>'en','key'=>'name','value'=>'Medical gloves']);
         DB::table('orders')->insert([['id'=>101,'order_status'=>'pending','commerce_flow_status'=>'pending_admin_review'], ['id'=>102,'order_status'=>'delivered','commerce_flow_status'=>'completed']]);
-        DB::table('orders')->insert(['id'=>103,'order_status'=>'confirmed','commerce_flow_status'=>'awaiting_payment','payment_method'=>'offline_payment','payment_status'=>'unpaid']);
+        DB::table('orders')->insert(['id'=>103,'order_status'=>'confirmed','commerce_flow_status'=>'awaiting_payment','payment_method'=>'offline_payment','payment_status'=>'unpaid','updated_at'=>now()->subMinutes(5)]);
         DB::table('orders')->where('id',101)->update(['customer_id'=>12,'order_amount'=>250,'updated_at'=>now()]);
         DB::table('products')->where('id',3)->update(['updated_at'=>now()]);
         DB::table('account_activation_cases')->insert(['subject_type'=>'customer','subject_id'=>12,'status'=>'in_review','updated_at'=>now()]);
@@ -163,6 +163,9 @@ class AdminWorkspaceTest extends TestCase
         $this->assertStringContainsString('250.00',$snapshot['categories']['orders']['items'][0]['meta']);
         $this->assertCount(1,$snapshot['categories']['orders']['items'][0]['images']);
         $this->assertNotEmpty($snapshot['categories']['payments']['items'][0]['badge']);
+        $this->assertMatchesRegularExpression('/T.*[+-]\d{2}:\d{2}$/',$snapshot['categories']['payments']['items'][0]['time']);
+        $this->assertEqualsWithDelta(300,\Carbon\Carbon::parse($snapshot['categories']['payments']['items'][0]['time'])->diffInSeconds(now()),2);
+        $this->assertMatchesRegularExpression('/T.*[+-]\d{2}:\d{2}$/',$snapshot['categories']['orders']['items'][0]['time']);
         $this->assertNotEmpty($snapshot['categories']['messages']['items'][0]['preview']);
         $this->assertSame(1,$service->snapshot()['categories']['orders']['count']);
         $this->assertSame(1,$service->snapshot()['categories']['products']['count']);
