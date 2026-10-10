@@ -151,6 +151,12 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         Route::get('conversation/{kind}/{id}', 'conversation')->middleware('module:people')->whereNumber('id')->name('conversation');
         Route::post('read', 'read')->middleware('module:people')->name('read');
     });
+    Route::controller(\App\Http\Controllers\Admin\AccountDirectoryController::class)->prefix('customer-list')->name('account-directory.')->middleware('module:people')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('{kind}/{id}/status', 'status')->whereIn('kind', ['customer','vendor'])->whereNumber('id')->name('status');
+        Route::delete('{kind}/{id}', 'destroy')->whereIn('kind', ['customer','vendor'])->whereNumber('id')->name('destroy');
+    });
+
     Route::get('operational-feed', [\App\Http\Controllers\Admin\System\OperationalFeedController::class, 'index'])->name('operational-feed.index');
     Route::group(['prefix' => 'insurance-center', 'as' => 'insurance-center.', 'middleware' => ['module:reports']], function () {
         Route::controller(InsuranceConfigurationController::class)->group(function () {

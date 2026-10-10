@@ -34,6 +34,11 @@
                     <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="pos" aria-label="Pin"></button></div>
                 </a>
             @endif
+            @if (Helpers::module_permission_check('people'))
+                <a class="v2-nav-item {{ request()->routeIs('admin.account-directory.*') ? 'v2-is-active' : '' }}" data-item="customer-list" href="{{ route('admin.account-directory.index') }}">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('directory_title') }}</span></span>
+                </a>
+            @endif
         </div>
     </div>
 
