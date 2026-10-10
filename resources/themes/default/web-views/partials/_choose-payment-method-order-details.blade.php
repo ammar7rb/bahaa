@@ -10,7 +10,7 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="cash-on-delivery-section">
-                <form action="{{ route('customer.customer-order-edit-pay-amount') }}" method="POST"
+                <form action="{{ route('customer.customer-order-edit-pay-amount') }}" method="POST" enctype="multipart/form-data"
                       class="needs-validation" id="cash_on_delivery_form">
                     @csrf
                     <input type="hidden" name="payment_method" value="cash_on_delivery" checked>
@@ -215,7 +215,7 @@
                         </div>
                     </div>
                     <div class="modal-body pt-0">
-                        <form action="{{ route('customer.customer-order-edit-pay-amount') }}" method="post"
+                        <form action="{{ route('customer.customer-order-edit-pay-amount') }}" method="post" enctype="multipart/form-data"
                               class="needs-validation form-loading-button-form">
                             @csrf
                             <input type="hidden" name="payment_method" value="offline">

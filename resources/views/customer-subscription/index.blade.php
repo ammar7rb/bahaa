@@ -1,6 +1,7 @@
 @extends('layouts.front-end.app')
 @section('title', 'الاشتراك الشهري')
-@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-subscription.css') }}">@endpush
+@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-subscription.css') }}"><link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-transfer.css') }}">@endpush
+
 @section('content')
 <main class="monthly-page" dir="rtl">
     <a class="monthly-back" href="{{ route('user-profile') }}">@include('customer-subscription.icon',['name'=>'arrow']) العودة إلى الملف الشخصي</a>
@@ -18,31 +19,19 @@
             <span class="monthly-payment-icon">@include('customer-subscription.icon',['name'=>'card'])</span><h2 id="monthly-payment-title">{{ $subscription['status'] !== 'inactive' ? 'جدّد اشتراكك' : 'ابدأ اشتراكك' }}</h2>
             @if($open && $open->status === 'pending_review')
                 <div class="monthly-notice" role="status"><strong>الدفع قيد المراجعة</strong><p>تم استلام إثبات الدفع. يبدأ اشتراكك بعد اعتماد الإدارة.</p></div>
-                <p>مرجع التحويل: <bdi>{{ $open->payment_reference }}</bdi></p><p>المبلغ المقدم: {{ number_format((float)$open->quoted_amount,2) }} {{ $open->currency_code }}</p>
+                <p>مرجع طلب الدفع: <bdi>{{ $open->payment_reference }}</bdi></p><p>المبلغ المقدم: {{ number_format((float)$open->quoted_amount,2) }} {{ $open->currency_code }}</p>
             @elseif($open)
                 <p class="monthly-quote">المبلغ المطلوب: <strong>{{ number_format((float)$open->quoted_amount,2) }} {{ $open->currency_code }}</strong></p>
                 @if($subscription['active'])<div class="monthly-notice">الدفع الآن يبدأ 30 يومًا جديدة عند اعتماده، ولا يضيفها إلى تاريخ الانتهاء الحالي.</div>@endif
                 @if($purchase_wallet_enabled)
                     <form method="post" action="{{ route('customer.subscription.wallet',$open->id) }}">@csrf
                         <p>رصيد محفظة المشتريات: {{ webCurrencyConverter($purchase_balance) }}</p>
-                        @if($purchase_balance < (float)$open->wallet_debit_amount)<div class="monthly-error" role="alert">عذرًا، رصيد محفظة المشتريات لا يكفي. برجاء الإيداع فيها أو استخدام طريقة أخرى.</div><a class="monthly-button" href="{{ route('wallet') }}#purchase-balance" style="color:#fff">الإيداع في محفظة المشتريات</a>@else<button class="monthly-button" type="submit">دفع الاشتراك من محفظة المشتريات</button>@endif
+                        @if($purchase_balance < (float)$open->wallet_debit_amount)<div class="monthly-error" role="alert">عذرًا، رصيد محفظة المشتريات لا يكفي. برجاء الإيداع فيها أو استخدام طريقة أخرى.</div><a class="monthly-button" href="{{ route('wallet') }}#purchase-balance">الإيداع في محفظة المشتريات</a>@else<button class="monthly-button" type="submit">دفع الاشتراك من محفظة المشتريات</button>@endif
                     </form>
                 @endif
                 @foreach($offline_methods as $method)
                     <details class="monthly-method"><summary>@include('customer-subscription.icon',['name'=>$method->payment_channel === 'instapay' ? 'transfer' : 'wallet']){{ $method->payment_channel === 'instapay' ? 'InstaPay' : 'محفظة إلكترونية' }} — {{ $method->method_name }}</summary>
-                        <dl>@foreach($method->method_fields ?? [] as $field)<div><dt>{{ ucwords(str_replace('_',' ',$field['input_name'] ?? '')) }}</dt><dd><bdi>{{ $field['input_data'] ?? '' }}</bdi></dd></div>@endforeach</dl>
-                        <form method="post" action="{{ route('customer.subscription.offline',$open->id) }}" enctype="multipart/form-data">@csrf
-                            <input type="hidden" name="method_id" value="{{ $method->id }}">
-                            <label for="reference-{{ $method->id }}">مرجع التحويل</label><input id="reference-{{ $method->id }}" name="payment_reference" required maxlength="191" dir="ltr" value="{{ old('payment_reference') }}">
-                            @foreach($method->method_informations ?? [] as $field)
-                                @if(($field['customer_input'] ?? '') !== '' && $field['customer_input'] !== 'payment_screenshot')
-                                    <label for="info-{{ $method->id }}-{{ $loop->index }}">{{ ucwords(str_replace('_',' ',$field['customer_input'])) }}</label><input id="info-{{ $method->id }}-{{ $loop->index }}" name="method_information[{{ $field['customer_input'] }}]" type="{{ preg_match('/phone|mobile|هاتف|موبايل/iu', $field['customer_input']) ? 'tel' : 'text' }}" maxlength="255" @required($field['is_required'] ?? false)>
-                                @endif
-                            @endforeach
-                            <label for="proof-{{ $method->id }}">صورة إثبات الدفع</label><input id="proof-{{ $method->id }}" name="payment_proof" type="file" accept="image/jpeg,image/png,image/webp" required><small>JPG أو PNG أو WebP، حتى 5 ميجابايت.</small>
-                            <label for="note-{{ $method->id }}">ملاحظة للإدارة (اختياري)</label><textarea id="note-{{ $method->id }}" name="payment_note" maxlength="1000"></textarea>
-                            <button class="monthly-button" type="submit">إرسال الدفع للمراجعة</button>
-                        </form>
+                        @include('customer-subscription.transfer-form')
                     </details>
                 @endforeach
                 @if(!$purchase_wallet_enabled && $offline_methods->isEmpty())<p class="monthly-error">لا توجد وسيلة دفع متاحة حاليًا. تواصل مع الإدارة.</p>@endif

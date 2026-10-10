@@ -10,9 +10,9 @@ use Illuminate\Validation\ValidationException;
 
 class CustomerOrderPaymentRetryService
 {
-    public function submit(int $customerId, int $orderId, string $key, string $reference, string $proof): bool
+    public function submit(int $customerId, int $orderId, string $key, string $reference, string $proof, array $sender = []): bool
     {
-        return DB::transaction(function () use ($customerId, $orderId, $key, $reference, $proof) {
+        return DB::transaction(function () use ($customerId, $orderId, $key, $reference, $proof, $sender) {
             User::lockForUpdate()->findOrFail($customerId);
             $order = Order::where('customer_id', $customerId)->where('is_guest', 0)->lockForUpdate()->findOrFail($orderId);
             $payment = OfflinePayments::where('order_id', $orderId)->lockForUpdate()->firstOrFail();
@@ -30,6 +30,8 @@ class CustomerOrderPaymentRetryService
             $history[] = ['information' => $previous, 'replaced_at' => now()->toIso8601String()];
             $info['retry_history'] = $history;
             $info['retry_key'] = $key;
+            foreach ($sender as $name => $value) $info[$name] = $value;
+            $info['transferred_amount'] = (string) $order->order_amount;
             $info['payment_reference'] = $reference;
             $info['private_retry_proof'] = $proof;
             $payment->update(['payment_info' => $info]);

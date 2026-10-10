@@ -87,8 +87,9 @@ class CustomerMonthlySubscriptionService
             if (isset($data['transferred_amount']) && (int) round((float) $data['transferred_amount'] * 1000) !== (int) round((float) $payment->quoted_amount * 1000)) {
                 throw new DomainException('مبلغ التحويل يجب أن يساوي مبلغ الاشتراك المطلوب.');
             }
-            $information = [];
-            foreach ($method->method_informations ?? [] as $field) {
+            $modern = ($data['transfer_schema'] ?? null) === 'sender_v2';
+            $information = $modern ? app(CustomerTransferInformationService::class)->sender($data) : [];
+            foreach ($modern ? [] : ($method->method_informations ?? []) as $field) {
                 $key = $field['customer_input'] ?? '';
                 if ($key === '' || $key === 'payment_screenshot') continue;
                 $value = trim($data['method_information'][$key] ?? '');

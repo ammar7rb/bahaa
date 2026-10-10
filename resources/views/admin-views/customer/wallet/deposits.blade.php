@@ -31,7 +31,7 @@
                     <p>{{ translate('payment_method') }}: {{ $deposit->method_name }}</p>
                     <p>{{ translate('deposit_transfer_reference') }}: <bdi>{{ $deposit->payment_reference }}</bdi></p>
                     @foreach($deposit->method_information ?? [] as $label => $value)
-                        <p>{{ translatePaymentText($label) }}: {{ $value }}</p>
+                        <p>{{ ['sender_name'=>'اسم المحفظة أو الحساب المرسل','sender_phone'=>'الرقم الذي تم التحويل منه'][$label] ?? translatePaymentText($label) }}: {{ $value }}</p>
                     @endforeach
                     <p>{{ $deposit->payment_note }}</p>
                     <a class="btn btn-outline-primary" target="_blank" rel="noopener" href="{{ route('admin.customer.wallet.deposits.proof', $deposit->id) }}">{{ translate('payment_proof') }}</a>

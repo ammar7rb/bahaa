@@ -277,5 +277,7 @@
 <script src="{{ theme_asset('assets/js/care-home.js') }}?v=5" defer></script>
 @stack('script')
 
+<script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.3" defer></script>
 </body>
 </html>

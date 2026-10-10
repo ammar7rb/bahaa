@@ -27,6 +27,7 @@ class CustomerBalanceDepositServiceTest extends TestCase
             $table->decimal('credit',24,3); $table->decimal('debit',24,3); $table->string('reference')->unique(); $table->json('metadata'); $table->timestamps();
         });
         (require base_path('database/migrations/2026_09_06_000001_create_customer_balance_deposits_table.php'))->up();
+        (require base_path('database/migrations/2026_10_10_200000_create_customer_monthly_subscriptions.php'))->up();
         DB::table('users')->insert(['id'=>1, 'wallet_balance'=>100]);
         DB::table('users')->insert(['id'=>2, 'wallet_balance'=>300]);
     }
@@ -59,11 +60,11 @@ class CustomerBalanceDepositServiceTest extends TestCase
         $deposit = $this->deposit('insurance');
         app(CustomerBalanceDepositService::class)->review($deposit,'approve',9,null);
         $this->assertEquals(100, DB::table('users')->where('id',1)->value('wallet_balance'));
-        $this->assertEquals(50, DB::table('customer_insurance_ledger_entries')->sum('credit'));
+        $this->assertEquals(0, DB::table('customer_insurance_ledger_entries')->sum('credit'));
+        $this->assertEquals(50,DB::table('customer_legacy_payment_receipts')->sum('amount'));
         $this->assertSame(0, DB::table('wallet_transactions')->count());
         $this->assertSame('AIC1', $deposit->fresh()->transaction_number);
-        $metadata = json_decode(DB::table('customer_insurance_ledger_entries')->value('metadata'), true);
-        $this->assertSame($deposit->transaction_number, $metadata['transaction_number']);
+        $this->assertSame(1,DB::table('customer_legacy_payment_receipts')->count());
     }
 
     public function test_repeated_approval_cannot_credit_twice(): void
@@ -78,35 +79,31 @@ class CustomerBalanceDepositServiceTest extends TestCase
         $this->assertSame(1, DB::table('wallet_transactions')->count());
     }
 
-    public function test_deposited_insurance_can_pay_second_stage_but_never_tax(): void
+    public function test_retired_insurance_cannot_pay_second_stage_and_tax_is_preserved(): void
     {
+        Schema::create('orders', function (Blueprint $table) { $table->id(); });
         Schema::table('customer_insurance_ledger_entries', function (Blueprint $table) { $table->unsignedBigInteger('order_id')->nullable(); });
         Schema::create('post_purchase_invoices', function (Blueprint $table) {
             $table->id(); $table->unsignedBigInteger('customer_id'); $table->unsignedBigInteger('order_id');
             $table->string('status'); $table->decimal('insurance_amount',24,4); $table->decimal('tax_amount',24,4);
             $table->decimal('total_amount',24,4); $table->decimal('paid_amount',24,4)->default(0);
             $table->json('metadata')->nullable(); $table->timestamps();
+            $table->timestamp('payment_due_at')->nullable();
         });
         (require base_path('database/migrations/2026_08_16_000003_add_post_purchase_payment_state_and_customer_insurance_balances.php'))->up();
         $deposit = $this->deposit('insurance');
         app(CustomerBalanceDepositService::class)->review($deposit, 'approve', 9, null);
         $invoice = \App\Models\PostPurchaseInvoice::create([
             'customer_id'=>1, 'order_id'=>42, 'status'=>'pending', 'insurance_amount'=>40,
-            'tax_amount'=>14, 'total_amount'=>54, 'paid_amount'=>0, 'metadata'=>[],
+            'tax_amount'=>14, 'total_amount'=>54, 'paid_amount'=>0, 'metadata'=>[], 'payment_due_at'=>now()->addDays(2),
         ]);
         $service = app(\App\Services\PostPurchaseInvoiceService::class);
-        $paid = $service->applyCustomerInsuranceBalance($invoice, \App\Models\User::find(1));
-        $this->assertEquals(40, $paid->paid_amount);
-        $this->assertSame('pending', $paid->status);
-        $this->assertEquals(14, $service->paymentSummary($paid)['external_amount_due']);
-        $this->assertEquals(10, DB::table('customer_insurance_ledger_entries')->selectRaw('SUM(credit-debit) as balance')->value('balance'));
-        $service->applyCustomerInsuranceBalance($paid, \App\Models\User::find(1));
-        $this->assertSame(1, DB::table('customer_insurance_ledger_entries')->where('entry_type','insurance_payment_debit')->count());
-        $this->assertEquals(100, \App\Models\User::find(1)->wallet_balance);
+        $this->assertEquals(14, $invoice->tax_amount);
+        $this->assertEquals(0, DB::table('customer_insurance_ledger_entries')->sum('credit'));
+        $this->assertEquals(100, DB::table('users')->where('id',1)->value('wallet_balance'));
         $this->expectException(DomainException::class);
-        $service->applyCustomerInsuranceBalance($paid, \App\Models\User::find(2));
+        $service->applyCustomerInsuranceBalance($invoice, \App\Models\User::find(1));
     }
-
     public function test_rejection_leaves_both_balances_unchanged_and_cannot_be_approved_later(): void
     {
         $deposit = $this->deposit();
@@ -171,7 +168,7 @@ class CustomerBalanceDepositServiceTest extends TestCase
 
         // API identity must win over any customer web session on the device.
         $apiRequest = \Illuminate\Http\Request::create('/api/v1/customer/wallet/deposits', 'POST', [
-            'wallet_type'=>'insurance','amount'=>25,'method_id'=>1,
+            'wallet_type'=>'purchase','amount'=>25,'method_id'=>1,
             'request_key'=>(string)\Illuminate\Support\Str::uuid(),'payment_reference'=>'mobile-transfer',
         ], [], ['payment_proof'=>\Illuminate\Http\UploadedFile::fake()->image('mobile.png')]);
         $apiRequest->setUserResolver(fn () => \App\Models\User::find(2));
@@ -182,11 +179,28 @@ class CustomerBalanceDepositServiceTest extends TestCase
         $this->assertSame(2, CustomerBalanceDeposit::count());
         $mobile = CustomerBalanceDeposit::where('payment_reference', 'mobile-transfer')->firstOrFail();
         $this->assertSame(2, (int) $mobile->customer_id);
-        $this->assertSame('insurance', $mobile->wallet_type);
+        $this->assertSame('purchase', $mobile->wallet_type);
         $this->assertSame('pending', $mobile->status);
         $this->assertEquals(300, DB::table('users')->where('id', 2)->value('wallet_balance'));
     }
 
+    public function test_sender_deposit_uses_editable_amount_and_does_not_credit_before_review(): void
+    {
+        $this->test_offline_submission_uses_platform_settings_and_waits_for_review();
+        $key=(string)\Illuminate\Support\Str::uuid();
+        $request=\Illuminate\Http\Request::create('/customer-balances/offline','POST',[
+            'transfer_schema'=>'sender_v2','wallet_type'=>'purchase','amount'=>75.50,'method_id'=>1,'request_key'=>$key,'sender_phone'=>'٠١١ ١٢٣٤-٥٦٧٨','sender_name'=>'محفظة العميل',
+        ],[],['payment_proof'=>\Illuminate\Http\UploadedFile::fake()->image('receipt.png')]);
+        $request->setLaravelSession(app('session')->driver());
+        $controller=app(\App\Http\Controllers\Customer\CustomerBalanceDepositController::class);
+        $controller->store($request);$controller->store($request);
+        $deposit=CustomerBalanceDeposit::latest('id')->first();
+        $this->assertSame(3,CustomerBalanceDeposit::count());
+        $this->assertEquals(75.50,$deposit->submitted_amount);
+        $this->assertSame('01112345678',$deposit->method_information['sender_phone']);
+        $this->assertSame('deposit-transfer-1:'.$key,$deposit->payment_reference);
+        $this->assertEquals(100,DB::table('users')->where('id',1)->value('wallet_balance'));
+    }
     public function test_disabled_platform_offline_payment_rejects_direct_submissions(): void
     {
         Schema::create('business_settings', function (Blueprint $table) { $table->id(); $table->string('type'); $table->text('value'); });

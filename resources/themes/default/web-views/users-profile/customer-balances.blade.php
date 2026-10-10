@@ -1,6 +1,7 @@
 @extends('layouts.front-end.app')
 @section('title', 'الأرصدة')
 @push('css_or_js')
+    <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-transfer.css') }}?v=20261010.3">
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/customer-wallet.css') }}?v=20261010.2">
     <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-subscription.css') }}">
 @endpush

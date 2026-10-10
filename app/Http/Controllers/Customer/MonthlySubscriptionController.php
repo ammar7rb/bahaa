@@ -55,14 +55,20 @@ class MonthlySubscriptionController extends Controller
     public function offline(Request $request, int $payment)
     {
         $record = CustomerSubscriptionPayment::where('customer_id', $this->customer($request))->findOrFail($payment);
+        if ($request->input('transfer_schema') === 'sender_v2') {
+            $sender = app(\App\Services\CustomerTransferInformationService::class)->sender($request->all());
+            $request->merge(['payment_reference' => 'subscription-transfer-'.$record->id, 'method_information' => $sender]);
+        }
         // An exact retry after a lost response doesn't create another proof or
         // change a submission. A different transfer requires a new reviewed case.
         if ($record->status === 'pending_review' && $record->payment_reference === trim((string) $request->input('payment_reference'))) return $this->result($request, $record);
         $data = $request->validate([
+            'transfer_schema' => 'nullable|in:sender_v2',
+            'sender_name' => 'nullable|string|max:150', 'sender_phone' => 'nullable|string|max:40',
             'method_id' => ['required','integer',Rule::exists('offline_payment_methods','id')->where(fn ($q) => $q->where('status',1)->whereIn('payment_channel',['wallet','instapay']))],
             'payment_reference' => 'required|string|max:191|unique:customer_subscription_payments,payment_reference',
             'payment_note' => 'nullable|string|max:1000',
-            'transferred_amount' => ['nullable','numeric','min:0.01','regex:/^[0-9]+(?:\.[0-9]{1,2})?$/'],
+            'transferred_amount' => ['nullable','numeric','min:0.01','regex:/^[0-9]+(?:\.[0-9]{1,3})?$/'],
             'method_information' => 'nullable|array', 'method_information.*' => 'nullable|string|max:255',
             'payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);

@@ -571,7 +571,9 @@ class PaymentController extends Controller
         }
 
         $validated = $validator->validated();
-        $order = Order::find($validated['order_id']);
+        $customer = Helpers::getCustomerInformation($request);
+        abort_if($customer === 'offline',401);
+        $order = Order::where('customer_id',$customer->id)->where('is_guest',0)->find($validated['order_id']);
         if (!$order) {
             Toastr::error(translate('Order_not_found'));
             return back();
@@ -596,12 +598,20 @@ class PaymentController extends Controller
             return back();
         }
 
+        if (!$orderEditHistory || $orderEditHistory->order_due_payment_status === 'paid' || $orderEditHistory->order_due_amount <= 0) abort(422,'لا يوجد مبلغ مستحق.');
         if ($validated['payment_method'] === 'offline_payment') {
             $offlinePaymentInfo = [];
-            $method = OfflinePaymentMethod::where(['id' => $validated['method_id'], 'status' => 1])->first();
+            $method = OfflinePaymentMethod::where(['id' => $validated['method_id'], 'status' => 1])->whereIn('payment_channel',['wallet','instapay'])->first();
 
             if (isset($method)) {
-                $fields = array_column($method->method_informations, 'customer_input');
+                $modern = $request->input('transfer_schema') === 'sender_v2';
+                $fields = $modern ? [] : array_column($method->method_informations ?? [], 'customer_input');
+                if ($modern) {
+                    $offlinePaymentInfo = app(\App\Services\CustomerTransferInformationService::class)->sender($request->all());
+                    $request->validate(['payment_proof'=>'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
+                    $offlinePaymentInfo['payment_proof']=['image_name'=>$this->upload(dir:'offline-payment/order-proof/',format:'webp',image:$request->file('payment_proof')),'storage'=>config('filesystems.disks.default') ?? 'public'];
+                    $offlinePaymentInfo['transferred_amount']=(string)$orderEditHistory->order_due_amount;
+                }
                 $values = $request->all();
 
                 $offlinePaymentInfo['method_id'] = $request['method_id'];
@@ -613,12 +623,13 @@ class PaymentController extends Controller
                     }
                 }
             }
+            abort_unless($method,422);
             $orderEditHistory->update([
                 'order_due_payment_method' => 'offline_payment',
                 'order_due_payment_info' => $offlinePaymentInfo,
             ]);
             OrderManager::sendPushNotificationAfterDuePayment(order: $order);
-            Toastr::success(translate('payment_successful'));
+            Toastr::success('الدفع قيد المراجعة');
             return back();
         }
 

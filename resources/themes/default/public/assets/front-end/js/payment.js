@@ -97,7 +97,7 @@ function pay_offline_method_field(method_id, edit_due_amount = null, isModalShow
 
     let url = $("#route-pay-offline-method-list").data("url") + "?method_id=" + method_id;
     if (edit_due_amount !== null) {
-        url += "&edit_due_amount=" + encodeURIComponent(edit_due_amount);
+        url += "&edit_due_amount=" + encodeURIComponent(edit_due_amount) + "&order_id=" + encodeURIComponent(orderId || document.querySelector('input[name="order_id"]')?.value || '');
     }
     const targetSelector = orderId ? `#payment_method_field_${orderId}` : '#payment_method_field';
 

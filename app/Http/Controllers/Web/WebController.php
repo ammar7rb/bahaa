@@ -786,11 +786,17 @@ class WebController extends Controller
 
         if (isset($method)) {
             $values = $request->all();
+            $modern = $request->input('transfer_schema') === 'sender_v2';
+            if ($modern) {
+                $request->validate(['payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
+                $offlinePaymentInfo = app(\App\Services\CustomerTransferInformationService::class)->sender($values);
+                $offlinePaymentInfo['payment_proof'] = ['image_name' => $this->upload(dir: 'offline-payment/order-proof/', format: 'webp', image: $request->file('payment_proof')), 'storage' => config('filesystems.disks.default') ?? 'public'];
+            }
             $missingFields = [];
 
             $offlinePaymentInfo['method_id'] = $request['method_id'];
             $offlinePaymentInfo['method_name'] = $method->method_name;
-            foreach (($method->method_informations ?? []) as $field) {
+            foreach (($modern ? [] : ($method->method_informations ?? [])) as $field) {
                 $inputName = $field['customer_input'] ?? null;
                 if (!$inputName) {
                     continue;
@@ -824,7 +830,7 @@ class WebController extends Controller
                 return back()->withInput();
             }
 
-            foreach (($method->method_informations ?? []) as $field) {
+            foreach (($modern ? [] : ($method->method_informations ?? [])) as $field) {
                 $inputName = $field['customer_input'] ?? null;
                 if (!$inputName || !$request->hasFile($inputName)) {
                     continue;
@@ -1796,8 +1802,9 @@ class WebController extends Controller
         if (app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {
             $totalOfflineAmount = $vendorWiseCartListCollection->sum('first_payment_amount');
         }
-        if($request->filled('edit_due_amount')){
-            $totalOfflineAmount = $request->edit_due_amount;
+        if ($request->filled('edit_due_amount')) {
+            $dueOrder = Order::with('latestEditHistory')->where('customer_id',auth('customer')->id())->where('is_guest',0)->findOrFail($request->input('order_id'));
+            $totalOfflineAmount = (float) ($dueOrder->latestEditHistory?->order_due_amount ?? 0);
         }
         return response()->json([
             'methodHtml' => view(VIEW_FILE_NAMES['pay_offline_method_list_partials'], compact('method', 'totalOfflineAmount'))->render(),

@@ -20,7 +20,12 @@ class CustomerBalanceDepositController extends Controller
             ? response()->json(['message' => translate('deposit_submitted_for_review')], 200)
             : redirect()->route('customer-balances')->with('deposit_message', translate('deposit_submitted_for_review'));
         abort_unless(getWebConfig('add_funds_to_wallet') == 1 && (getWebConfig('offline_payment')['status'] ?? 0), 403);
+        if ($request->input('transfer_schema') === 'sender_v2') {
+            $sender = app(\App\Services\CustomerTransferInformationService::class)->sender($request->all());
+            $request->merge(['payment_reference' => 'deposit-transfer-'.$customerId.':'.$request->input('request_key'), 'method_information' => $sender]);
+        }
         $data = $request->validate([
+            'transfer_schema' => 'nullable|in:sender_v2',
             'wallet_type' => 'required|in:purchase', 'amount' => 'required|numeric|gt:0',
             'method_id' => ['required', 'integer', Rule::exists('offline_payment_methods', 'id')->where(fn ($query) => $query->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay']))],
             'request_key' => 'required|uuid', 'payment_reference' => 'required|string|max:191',
@@ -32,8 +37,9 @@ class CustomerBalanceDepositController extends Controller
         $requestKey = $customerId . ':' . $data['request_key'];
         if (CustomerBalanceDeposit::where('request_key', $requestKey)->exists()) return $success();
         $method = OfflinePaymentMethod::where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])->findOrFail($data['method_id']);
-        $information = [];
-        foreach ($method->method_informations ?? [] as $field) {
+        $modern = ($data['transfer_schema'] ?? null) === 'sender_v2';
+        $information = $modern ? $data['method_information'] : [];
+        foreach ($modern ? [] : ($method->method_informations ?? []) as $field) {
             $key = $field['customer_input'] ?? '';
             if ($key === '' || $key === 'payment_screenshot') continue;
             $value = trim($data['method_information'][$key] ?? '');

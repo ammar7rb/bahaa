@@ -422,6 +422,14 @@ class OrderController extends Controller
 
         if (isset($method)) {
             $values = $this->decodeOfflinePaymentInformation($request['method_informations'] ?? null);
+            $modern = ($values['transfer_schema'] ?? null) === 'sender_v2';
+            if ($modern) {
+                $sender = app(\App\Services\CustomerTransferInformationService::class)->sender($values);
+                $values['sender_name'] = $sender['sender_name'];
+                $values['sender_identifier'] = $sender['sender_phone'];
+                $offlinePaymentInfo = $sender;
+                $request->validate(['payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
+            }
             $missingFields = [];
             $offlinePaymentInfo['method_id'] = $request['method_id'];
             $offlinePaymentInfo['method_name'] = $method->method_name;
@@ -436,7 +444,7 @@ class OrderController extends Controller
             }
             $offlinePaymentInfo['sender_name'] = mb_substr(strip_tags((string) $values['sender_name']), 0, 150);
             $offlinePaymentInfo['sender_identifier'] = mb_substr(strip_tags((string) $values['sender_identifier']), 0, 150);
-            foreach (($method->method_informations ?? []) as $field) {
+            foreach (($modern ? [] : ($method->method_informations ?? [])) as $field) {
                 $inputName = $field['customer_input'] ?? null;
                 if (!$inputName) {
                     continue;
@@ -1047,19 +1055,11 @@ class OrderController extends Controller
     public function offline_payment_method_list(Request $request): JsonResponse
     {
         $data = OfflinePaymentMethod::where('status', 1)->get()->map(function (OfflinePaymentMethod $method) {
-            $method->method_informations = collect($method->method_informations ?? [])->map(function (array $field) {
-                $inputName = strtolower((string) ($field['customer_input'] ?? ''));
-                $placeholder = strtolower((string) ($field['customer_placeholder'] ?? ''));
-                $fieldText = $inputName . ' ' . $placeholder;
-                $field['input_type'] = str_contains($fieldText, 'screenshot')
-                    || str_contains($fieldText, 'image')
-                    || str_contains($fieldText, 'receipt')
-                    || str_contains($fieldText, 'proof')
-                        ? 'image'
-                        : 'text';
-
-                return $field;
-            })->values()->all();
+            $method->method_informations = [
+                ['customer_input'=>'sender_name','customer_placeholder'=>$method->payment_channel === 'instapay' ? 'اسم الحساب الخاص بك' : 'اسم المحفظة الخاصة بك','is_required'=>1,'input_type'=>'text'],
+                ['customer_input'=>'sender_identifier','customer_placeholder'=>'الرقم الذي حولت منه','is_required'=>1,'input_type'=>'text'],
+                ['customer_input'=>'payment_screenshot','customer_placeholder'=>'صورة إيصال التحويل','is_required'=>1,'input_type'=>'image'],
+            ];
 
             return $method;
         });

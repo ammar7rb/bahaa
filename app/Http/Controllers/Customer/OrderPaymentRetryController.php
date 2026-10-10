@@ -17,6 +17,9 @@ class OrderPaymentRetryController extends Controller
     {
         $customerId = (int) ($request->is('api/*') ? $request->user('api')->id : auth('customer')->id());
         Order::where('customer_id', $customerId)->where('is_guest', 0)->findOrFail($order);
+        $sender = $request->input('transfer_schema') === 'sender_v2'
+            ? app(\App\Services\CustomerTransferInformationService::class)->sender($request->all()) : [];
+        if ($sender) $request->merge(['payment_reference' => 'order-transfer-'.$customerId.':'.$request->input('request_key')]);
         $data = $request->validate(['request_key' => 'required|uuid', 'payment_reference' => 'required|string|max:191',
             'payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
         $path = 'customer-order-retries/'.Str::uuid().'.enc';
@@ -24,7 +27,7 @@ class OrderPaymentRetryController extends Controller
             throw ValidationException::withMessages(['payment_proof' => 'تعذر حفظ إثبات الدفع. حاول مرة أخرى.']);
         }
         try {
-            $used = app(CustomerOrderPaymentRetryService::class)->submit($customerId, $order, $data['request_key'], trim($data['payment_reference']), $path);
+            $used = app(CustomerOrderPaymentRetryService::class)->submit($customerId, $order, $data['request_key'], trim($data['payment_reference']), $path, $sender);
             if (!$used) Storage::disk('local')->delete($path);
         } catch (\Throwable $e) {
             Storage::disk('local')->delete($path);

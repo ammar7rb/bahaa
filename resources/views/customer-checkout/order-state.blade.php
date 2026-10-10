@@ -19,7 +19,10 @@
         @if($errors->any())<div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>@endif
         <form method="post" enctype="multipart/form-data" action="{{ route('customer.order.payment-retry', $order->id) }}">
             @csrf<input type="hidden" name="request_key" value="{{ \Illuminate\Support\Str::uuid() }}">
-            <label for="retry-reference-{{ $order->id }}">مرجع التحويل</label><input class="form-control mb-3" id="retry-reference-{{ $order->id }}" name="payment_reference" required maxlength="191" dir="ltr">
+            <input type="hidden" name="transfer_schema" value="sender_v2">
+            <label>مبلغ الطلب</label><input class="form-control mb-3" readonly value="{{ webCurrencyConverter($order->order_amount) }}">
+            <label>الرقم الذي حولت منه</label><input class="form-control mb-3" name="sender_phone" type="tel" dir="ltr" required maxlength="40">
+            <label>اسم المحفظة أو الحساب الخاص بك</label><input class="form-control mb-3" name="sender_name" required maxlength="150">
             <label for="retry-proof-{{ $order->id }}">صورة إثبات الدفع</label><input class="form-control mb-3" type="file" id="retry-proof-{{ $order->id }}" name="payment_proof" required accept="image/jpeg,image/png,image/webp">
             <button class="btn btn-primary" type="submit">إرسال للمراجعة</button>
         </form>
