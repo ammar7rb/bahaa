@@ -10,8 +10,12 @@ class CustomerTransferInformationService
     public function sender(array $data): array
     {
         $phone = app(EgyptPhoneService::class);
-        $number = (string) ($data['sender_phone'] ?? $data['sender_identifier'] ?? '');
-        $name = trim((string) ($data['sender_name'] ?? ''));
+        $number = $data['sender_phone'] ?? $data['sender_identifier'] ?? '';
+        $name = $data['sender_name'] ?? '';
+        if (!is_string($number) || !is_string($name)) {
+            throw ValidationException::withMessages(['sender_name' => 'أدخل رقم المرسل واسم الحساب بشكل صحيح.']);
+        }
+        $name = trim($name);
         if (!$phone->isValid($number)) {
             throw ValidationException::withMessages(['sender_phone' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015']);
         }
