@@ -57,7 +57,7 @@ class CustomerMonthlySubscriptionTest extends TestCase
         $controller=app(\App\Http\Controllers\Customer\MonthlySubscriptionController::class);
         $controller->offline($request,$p->id);
         $controller->offline($request,$p->id);
-        $this->assertSame('subscription-transfer-'.$p->id,$p->fresh()->payment_reference);
+        $this->assertSame('subscription-transfer-'.$p->id.'-'.$p->request_key,$p->fresh()->payment_reference);
         $this->assertSame('01012345678',$p->fresh()->method_information['sender_phone']);
         $this->assertSame('حساب العميل',$p->fresh()->method_information['sender_name']);
         $this->assertSame('pending_review',$p->fresh()->status);

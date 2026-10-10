@@ -57,7 +57,7 @@ class MonthlySubscriptionController extends Controller
         $record = CustomerSubscriptionPayment::where('customer_id', $this->customer($request))->findOrFail($payment);
         if ($request->input('transfer_schema') === 'sender_v2') {
             $sender = app(\App\Services\CustomerTransferInformationService::class)->sender($request->all());
-            $request->merge(['payment_reference' => 'subscription-transfer-'.$record->id, 'method_information' => $sender]);
+            $request->merge(['payment_reference' => 'subscription-transfer-'.$record->id.'-'.$record->request_key, 'method_information' => $sender]);
         }
         // An exact retry after a lost response doesn't create another proof or
         // change a submission. A different transfer requires a new reviewed case.

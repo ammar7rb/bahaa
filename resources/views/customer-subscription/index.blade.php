@@ -19,7 +19,7 @@
             <span class="monthly-payment-icon">@include('customer-subscription.icon',['name'=>'card'])</span><h2 id="monthly-payment-title">{{ $subscription['status'] !== 'inactive' ? 'جدّد اشتراكك' : 'ابدأ اشتراكك' }}</h2>
             @if($open && $open->status === 'pending_review')
                 <div class="monthly-notice" role="status"><strong>الدفع قيد المراجعة</strong><p>تم استلام إثبات الدفع. يبدأ اشتراكك بعد اعتماد الإدارة.</p></div>
-                <p>مرجع طلب الدفع: <bdi>{{ $open->payment_reference }}</bdi></p><p>المبلغ المقدم: {{ number_format((float)$open->quoted_amount,2) }} {{ $open->currency_code }}</p>
+                <p>طلب دفع رقم: <bdi>#{{ $open->id }}</bdi></p><p>المبلغ المقدم: {{ number_format((float)$open->quoted_amount,2) }} {{ $open->currency_code }}</p>
             @elseif($open)
                 <p class="monthly-quote">المبلغ المطلوب: <strong>{{ number_format((float)$open->quoted_amount,2) }} {{ $open->currency_code }}</strong></p>
                 @if($subscription['active'])<div class="monthly-notice">الدفع الآن يبدأ 30 يومًا جديدة عند اعتماده، ولا يضيفها إلى تاريخ الانتهاء الحالي.</div>@endif
