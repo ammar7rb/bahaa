@@ -1,6 +1,6 @@
 @extends('layouts.front-end.app')
 @section('title', 'الاشتراك الشهري')
-@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-subscription.css') }}"><link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-transfer.css') }}">@endpush
+@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-subscription.css') }}"><link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-transfer.css') }}?v=20261010.4">@endpush
 
 @section('content')
 <main class="monthly-page" dir="rtl">
@@ -23,18 +23,8 @@
             @elseif($open)
                 <p class="monthly-quote">المبلغ المطلوب: <strong>{{ number_format((float)$open->quoted_amount,2) }} {{ $open->currency_code }}</strong></p>
                 @if($subscription['active'])<div class="monthly-notice">الدفع الآن يبدأ 30 يومًا جديدة عند اعتماده، ولا يضيفها إلى تاريخ الانتهاء الحالي.</div>@endif
-                @if($purchase_wallet_enabled)
-                    <form method="post" action="{{ route('customer.subscription.wallet',$open->id) }}">@csrf
-                        <p>رصيد محفظة المشتريات: {{ webCurrencyConverter($purchase_balance) }}</p>
-                        @if($purchase_balance < (float)$open->wallet_debit_amount)<div class="monthly-error" role="alert">عذرًا، رصيد محفظة المشتريات لا يكفي. برجاء الإيداع فيها أو استخدام طريقة أخرى.</div><a class="monthly-button" href="{{ route('wallet') }}#purchase-balance">الإيداع في محفظة المشتريات</a>@else<button class="monthly-button" type="submit">دفع الاشتراك من محفظة المشتريات</button>@endif
-                    </form>
-                @endif
-                @foreach($offline_methods as $method)
-                    <details class="monthly-method"><summary>@include('customer-subscription.icon',['name'=>$method->payment_channel === 'instapay' ? 'transfer' : 'wallet']){{ $method->payment_channel === 'instapay' ? 'InstaPay' : 'محفظة إلكترونية' }} — {{ $method->method_name }}</summary>
-                        @include('customer-subscription.transfer-form')
-                    </details>
-                @endforeach
-                @if(!$purchase_wallet_enabled && $offline_methods->isEmpty())<p class="monthly-error">لا توجد وسيلة دفع متاحة حاليًا. تواصل مع الإدارة.</p>@endif
+                <button class="monthly-button" type="button" data-payment-open="subscription-methods">@include('customer-subscription.icon',['name'=>'card']) اختر طريقة الدفع</button>
+                @include('customer-subscription.payment-dialogs')
             @elseif($subscription['payment_available'])
                                 <div class="monthly-channels" aria-label="وسائل دفع الاشتراك">
                     @if($purchase_wallet_enabled)<span>@include('customer-subscription.icon',['name'=>'wallet']) محفظة المشتريات</span>@endif

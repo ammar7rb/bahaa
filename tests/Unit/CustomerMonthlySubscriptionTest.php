@@ -147,6 +147,20 @@ class CustomerMonthlySubscriptionTest extends TestCase
             ->assertJsonMissingPath('subscription.open_payment.payment_proof');
         $this->actingAs(\App\Models\User::find(2),'api')->getJson('http://localhost/api/v1/customer/subscription')->assertOk()->assertJsonPath('subscription.open_payment',null);
     }
+    public function test_starting_payment_with_empty_wallet_only_creates_draft_and_never_debits(): void {
+        DB::table('users')->where('id',1)->update(['wallet_balance'=>0]);
+        $key=(string)Str::uuid();
+        $this->actingAs(\App\Models\User::find(1),'api')
+            ->postJson('http://localhost/api/v1/customer/subscription/checkout',['request_key'=>$key])
+            ->assertOk()->assertJsonPath('payment.status','draft');
+        $this->postJson('http://localhost/api/v1/customer/subscription/checkout',['request_key'=>$key])
+            ->assertOk()->assertJsonPath('payment.status','draft');
+        $this->assertSame(1,CustomerSubscriptionPayment::count());
+        $this->assertSame(0,DB::table('wallet_transactions')->count());
+        $this->assertSame(0,CustomerMonthlySubscription::count());
+        $this->assertEquals(0,DB::table('users')->where('id',1)->value('wallet_balance'));
+    }
+
     public function test_api_rejects_user_supplied_price_and_foreign_payment_id(): void {
         $this->actingAs(\App\Models\User::find(1),'api')->postJson('http://localhost/api/v1/customer/subscription/checkout',['request_key'=>(string)Str::uuid(),'quoted_amount'=>1])
             ->assertOk()->assertJsonPath('payment.quoted_amount','100.000');
