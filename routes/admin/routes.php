@@ -153,6 +153,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
     Route::controller(\App\Http\Controllers\Admin\AccountDirectoryController::class)->prefix('customer-list')->name('account-directory.')->middleware('module:people')->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::get('export', 'export')->name('export');
+        Route::get('print', 'print')->name('print');
         Route::post('{kind}/{id}/status', 'status')->whereIn('kind', ['customer','vendor'])->whereNumber('id')->name('status');
         Route::delete('{kind}/{id}', 'destroy')->whereIn('kind', ['customer','vendor'])->whereNumber('id')->name('destroy');
     });

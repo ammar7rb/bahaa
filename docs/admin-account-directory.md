@@ -12,7 +12,9 @@ Design guidance lives in .impeccable/surfaces/admin-account-directory.md. Root D
 - app/Http/Controllers/Admin/AccountDirectoryController.php validates filters, authorizes people access, changes status and enforces deletion confirmation.
 - resources/views/admin-views/accounts/index.blade.php renders the six-column table, existing profile links, filters, contact disclosures, feedback, pagination and deletion dialog.
 - public/assets/back-end/css/admin-account-directory.css consumes existing semantic admin tokens and scopes responsive layout to this surface.
-- public/assets/back-end/js/admin-account-directory.js handles modal focus, exact identifier validation and submission feedback.
+- app/Exports/AdminAccountDirectoryExport.php produces real XLSX with additional contacts and explicit text binding.
+- resources/views/admin-views/accounts/print.blade.php and public/assets/back-end/css/admin-account-directory-print.css render the standalone report.
+- public/assets/back-end/js/admin-account-directory.js handles mobile disclosure, modal focus, identifier validation, submission feedback and admin soft-navigation initialization.
 - tests/Unit/AdminAccountDirectoryTest.php exercises the projection and protected actions with isolated SQLite fixtures.
 
 Display references are lowercase c plus the customer ID and m plus the vendor ID. They do not mutate stored IDs or replace AdministrativeReferenceService. Vendor person/store names are separately labeled. Additional contacts come from actual vendor_account_profiles phone_numbers and shops.contact; the primary contact is excluded from the disclosure when it matches.
@@ -29,20 +31,30 @@ Deletion requires exact display-reference confirmation and an accepted irreversi
 
 Only accounts without blockers may be physically deleted. Vendor-owned shop/profile rows or customer token rows are removed inside the same database transaction. A deletion failure rolls back those database changes, preventing partial database deletion. This is a database guarantee; it is not a general claim about unrelated external side effects.
 
+## Classification, search and output
+
+Classification provides type/status, inclusive joining-date and order-date ranges, first N, sorting and direction. Sort fields are joining date (default descending), name, numeric identifier, status, order count and order amount, with stable kind/ID tie breakers. Name sorting uses the projected first-name field. First N applies before pagination; page sizes are 20, 50 and 100.
+
+Order-date classification requires a matching non-guest customer order or seller-owned vendor order in the range. Count and amount sorting use all qualifying account orders, rather than only those in the range. Search includes references, names, store names, email and telephone data, including additional vendor phones and shop contacts.
+
+Screen, Excel and print share validated filters and the service query. Both outputs include all matching records, rather than the current page; first N still applies. XLSX reads query records in batches of 500 and includes additional contacts, joining date and order count. Explicit string binding preserves phone zeroes and prevents account data from becoming spreadsheet formulas. Query batching is not a constant-memory guarantee for the spreadsheet writer.
+
+Print opens a standalone light report with count, timestamp, classification summary and six columns: row number, reference, name, type, contacts and status. CSS requests A4 landscape, repeating headings, rows kept together where possible, and hidden print controls on paper. Read, export, print and status each require authenticated admin people access; deletion retains its additional role/confirmation requirements.
+
 ## Verification and evidence
 
-The final regression run passed 18 tests and 122 assertions (ten directory tests and eight existing workspace tests), including the foreign-key dependency scan. Coverage includes union search/filter/pagination, real secondary contacts, freeze/revocation/reactivation, retained-history blockers, deletion of empty accounts, backend permissions/confirmation, frozen-session rejection, transaction rollback and table/sidebar structure.
+The reported final directory/workspace regression run passed 21 tests and 147 assertions using PHP with an explicit `-d extension=zip` runtime flag. Local zip is off by default; the server uses its existing Excel stack. Coverage includes actual XLSX values and formula protection, date boundaries, activity sorting, first-N/pagination consistency, output authorization/date validation and existing protected actions, rollback, contacts and page structure.
 
-The review reported a ship result within scoped source review and five isolated SQLite-backed captures:
+The fresh refinement review returned ship within fixture and source scope, with no material fixes. Five valid captures are recorded:
 
-- .impeccable/review/directory-light-desktop.jpg
-- .impeccable/review/directory-dark-desktop.jpg
-- .impeccable/review/directory-light-mobile.jpg — Arabic fixture in LTR layout
-- .impeccable/review/directory-dark-mobile.jpg — RTL layout
-- .impeccable/review/directory-delete.jpg
+- .impeccable/review/directory-refined-light-desktop.jpg
+- .impeccable/review/directory-refined-dark-desktop.jpg
+- .impeccable/review/directory-refined-light-mobile.jpg
+- .impeccable/review/directory-refined-dark-mobile.jpg
+- .impeccable/review/directory-refined-print.jpg
 
-These captures cover light/dark, desktop/mobile table behavior and the destructive-action dialog. The detector view returned an empty finding list once. Evidence does not include an authenticated production browser flow or a full-sidebar capture. Production integration and navigation appearance therefore remain outside this visual evidence. No deployment or production activation is claimed by this document.
+Desktop captures use 1440px and Arabic RTL in both themes. Mobile captures use 390px, English LTR in light mode and Arabic RTL in dark mode. Print verifies standalone report layout. Full production header/sidebar composition and actual physical-paper pagination were not captured. The single detector warning about Inter in print was accepted as intentional reuse of the incumbent installed font, rather than a new system rule.
 
-A read-only MySQL candidate check confirmed 25 real accounts (16 customers and nine vendors), phone/reference searches for both types, contact extraction and actual retained-dependency categories. No production account was frozen or deleted as a verification step.
+The read-only production MySQL candidate check confirmed 25 accounts (16 customers and nine vendors), phone/reference searches for both types, first-N=3 with actual total 3, joining-date classification returning 25 and order-date classification returning 12. It also confirmed actual contacts and retained-dependency categories. No production account was frozen or deleted during verification.
 
-The final source review also accepted the retained-FK safeguards, additional-phone search and fullscreen soft-navigation initialization. Customer status-write failure is covered by a rollback/error-feedback test.
+Release verification checks the deployed revision, protected routes, authenticated server rendering and actual Excel/print outputs separately from the visual fixtures. An authenticated production browser session and physical printing remain outside this evidence.

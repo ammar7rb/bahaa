@@ -15,12 +15,16 @@ class AdminAccountDirectoryService
             ->selectRaw("id, 'customer' as kind, CASE WHEN COALESCE(f_name,'')='' AND COALESCE(l_name,'')='' THEN name ELSE f_name END as f_name, l_name, email, phone, NULL as store_name, CASE WHEN is_active=1 THEN 'active' ELSE 'frozen' END as account_status, created_at");
         $vendors = DB::table('sellers')->selectRaw("sellers.id, 'vendor' as kind, f_name, l_name, email, phone, (SELECT name FROM shops WHERE shops.seller_id=sellers.id ORDER BY shops.id LIMIT 1) as store_name, CASE status WHEN 'approved' THEN 'active' WHEN 'suspended' THEN 'frozen' ELSE status END as account_status, sellers.created_at");
         $q = DB::query()->fromSub($customers->unionAll($vendors), 'accounts');
-        if (!empty($filters['type'])) $q->where('kind',$filters['type']);
+        $customerOrders=DB::table('orders')->where('is_guest',0)->selectRaw("customer_id as account_id, 'customer' as kind, COUNT(*) as orders_count, COALESCE(SUM(order_amount),0) as order_amount")->groupBy('customer_id');
+        $vendorOrders=DB::table('orders')->where('seller_is','seller')->selectRaw("seller_id as account_id, 'vendor' as kind, COUNT(*) as orders_count, COALESCE(SUM(order_amount),0) as order_amount")->groupBy('seller_id');
+        $q->leftJoinSub($customerOrders->unionAll($vendorOrders),'activity',fn($join)=>$join->on('activity.account_id','=','accounts.id')->on('activity.kind','=','accounts.kind'))
+            ->select('accounts.*')->selectRaw('COALESCE(activity.orders_count,0) as orders_count, COALESCE(activity.order_amount,0) as order_amount');
+        if (!empty($filters['type'])) $q->where('accounts.kind',$filters['type']);
         if (!empty($filters['status'])) $q->where('account_status',$filters['status']);
         $search = trim($filters['q'] ?? '');
         if ($search !== '') {
             $reference = AdministrativeReferenceService::parse($search);
-            if ($reference) $q->where('id',$reference['id'])->where('kind',$reference['type']==='users'?'customer':'vendor');
+            if ($reference) $q->where('accounts.id',$reference['id'])->where('accounts.kind',$reference['type']==='users'?'customer':'vendor');
             else $q->where(function ($q) use ($search) {
                 $like='%'.str_replace(['\\','%','_'],['\\\\','\\%','\\_'],$search).'%';
                 foreach (['f_name','l_name','store_name','email','phone'] as $column) $q->orWhere($column,'like',$like);
@@ -33,18 +37,32 @@ class AdminAccountDirectoryService
                     if (strlen($local)>=4) {
                         $q->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'-',''),'+',''),'(',''),')','') LIKE ?",['%'.$local.'%']);
                         if (Schema::hasTable('vendor_account_profiles')) $q->orWhere(function ($q) use ($local) {
-                            $q->where('kind','vendor')->whereExists(fn($p)=>$p->selectRaw('1')->from('vendor_account_profiles as vp')->whereColumn('vp.seller_id','accounts.id')->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(vp.phone_numbers,' ',''),'-',''),'+',''),'(',''),')','') LIKE ?",['%'.$local.'%']));
+                            $q->where('accounts.kind','vendor')->whereExists(fn($p)=>$p->selectRaw('1')->from('vendor_account_profiles as vp')->whereColumn('vp.seller_id','accounts.id')->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(vp.phone_numbers,' ',''),'-',''),'+',''),'(',''),')','') LIKE ?",['%'.$local.'%']));
                         });
                         $q->orWhere(function ($q) use ($local) {
-                            $q->where('kind','vendor')->whereExists(fn($s)=>$s->selectRaw('1')->from('shops as contact_shop')->whereColumn('contact_shop.seller_id','accounts.id')->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(contact_shop.contact,' ',''),'-',''),'+',''),'(',''),')','') LIKE ?",['%'.$local.'%']));
+                            $q->where('accounts.kind','vendor')->whereExists(fn($s)=>$s->selectRaw('1')->from('shops as contact_shop')->whereColumn('contact_shop.seller_id','accounts.id')->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(contact_shop.contact,' ',''),'-',''),'+',''),'(',''),')','') LIKE ?",['%'.$local.'%']));
                         });
                     }
                 }
             });
         }
-        $sort=$filters['sort'] ?? 'created_at';
-        $column=['name'=>'f_name','identifier'=>'id','status'=>'account_status','created_at'=>'created_at'][$sort] ?? 'created_at';
-        return $q->orderBy($column,($filters['direction'] ?? 'desc')==='asc'?'asc':'desc')->orderBy('kind')->orderBy('id');
+        foreach (['joined_from'=>'>=','joined_to'=>'<='] as $key=>$operator) if (!empty($filters[$key])) $q->where('accounts.created_at',$operator,$filters[$key].($operator==='>='?' 00:00:00':' 23:59:59.999999'));
+        if (!empty($filters['ordered_from']) || !empty($filters['ordered_to'])) {
+            $q->whereExists(function($orders) use ($filters) {
+                $orders->selectRaw('1')->from('orders as dated_orders')->where(function($match) {
+                    $match->where(fn($customer)=>$customer->where('accounts.kind','customer')->whereColumn('dated_orders.customer_id','accounts.id')->where('dated_orders.is_guest',0))
+                        ->orWhere(fn($vendor)=>$vendor->where('accounts.kind','vendor')->whereColumn('dated_orders.seller_id','accounts.id')->where('dated_orders.seller_is','seller'));
+                });
+                if (!empty($filters['ordered_from'])) $orders->where('dated_orders.created_at','>=',$filters['ordered_from'].' 00:00:00');
+                if (!empty($filters['ordered_to'])) $orders->where('dated_orders.created_at','<=',$filters['ordered_to'].' 23:59:59.999999');
+            });
+        }
+        $column=['name'=>'f_name','identifier'=>'id','status'=>'account_status','created_at'=>'created_at','orders_count'=>'orders_count','order_amount'=>'order_amount'][$filters['sort'] ?? 'created_at'] ?? 'created_at';
+        $direction=($filters['direction'] ?? 'desc')==='asc'?'asc':'desc';
+        $q->orderBy($column,$direction)->orderBy('accounts.kind')->orderBy('accounts.id');
+        // Limit the matching set before pagination, so its count and exports agree.
+        if (!empty($filters['first'])) return DB::query()->fromSub($q->limit((int)$filters['first']),'selected_accounts')->orderBy($column,$direction)->orderBy('kind')->orderBy('id');
+        return $q;
     }
 
     public function contacts($accounts): array

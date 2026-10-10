@@ -6,7 +6,8 @@ rounded:
   field: "8px"
   action: "7px"
 spacing:
-  filter-gap: "14px"
+  filter-row-gap: "20px"
+  filter-column-gap: "24px"
   desktop-cell: "18px"
   mobile-cell: "16px"
 ---
@@ -16,6 +17,20 @@ spacing:
 ## Overview
 
 An ordinary extension of the existing administration system: a quiet, readable, full-width directory that makes customer and vendor identity clear before an administrator acts. The Customer List entry appears in the Home navigation below POS. The six-column table keeps profile links, account type, contact information and management actions together.
+
+## Refinement direction contract
+
+THESIS: Make account administration easy to scan, borrowing the existing customer list's useful classification without expanding its six-column structure.
+
+OWN-WORLD: Preserve admin semantic tokens, fonts and rounded bordered surfaces in light and dark themes. Group a quiet filter panel above the table, with person initials and restrained account badges.
+
+STORY: Choose account type/status or dates, search, inspect the matching accounts, and export or print the applied results before taking an account action.
+
+FIRST VIEWPORT: A compact heading, collapsible classification panel, matching count and search/export/print toolbar lead into the actual unified table. Mobile collapses classification first and reserves horizontal scrolling for the table.
+
+SIGNATURE INTERACTION: Native filter disclosure keeps advanced date and order sorting controls available while letting the administrator reclaim table space. Export and print use the same validated backend query as pagination.
+
+BUILD PATH: Code-led refinement of the incumbent account directory and existing customer list; no new visual authority or vendor-system change. Verify actual XLSX data, permission gates, date semantics, Arabic RTL, English LTR and paper formatting.
 
 This contract applies only to the account directory. PRODUCT.md preserves the administration appearance; its later merchant redesign authorization applies to the vendor workspace. Root DESIGN.md and .impeccable/design.json remain vendor-only, and the existing admin-dashboard brief remains unchanged.
 
@@ -31,9 +46,9 @@ Inherit the admin system's installed typography. The table and fields use readab
 
 ## Layout
 
-The page fills available content width up to a centered maximum (1500px). Filters wrap above the table; the search field receives flexible space. The table retains six columns: row number, identifier, name, type, contacts and management. Its minimum width (940px) belongs inside a keyboard-focusable scroll region. At narrow widths, only that region scrolls horizontally; the page itself must fit a 390px viewport.
+The page fills available content width up to a centered maximum (1500px). A separate native classification disclosure sits above the table. Its controls use three columns, two below 1000px and one below 650px. Paired date and sorting fields remain grouped; the table toolbar combines count, flexible search, Excel and print. The table retains six columns: row number, identifier, name, type, contacts and management. Its minimum width (940px) belongs inside a keyboard-focusable scroll region. At narrow widths, only that region scrolls horizontally; the page itself must fit a 390px viewport.
 
-Below the mobile breakpoint (650px), search takes a full row, filters wrap, panel spacing contracts and row-action touch height increases (44px). Logical margins, padding and text alignment support Arabic RTL and supported-language LTR. Use bidi isolation for identifiers and contacts.
+Below the mobile breakpoint (650px), classification closes during initialization, search and its submit button occupy one row, Excel and print share the next, panel spacing contracts and row-action touch height increases (44px). Logical margins, padding and text alignment support Arabic RTL and supported-language LTR. Use bidi isolation for identifiers and contacts.
 
 ## Elevation & Depth
 
@@ -45,7 +60,11 @@ Use gently rounded panel and dialog corners, slightly smaller field corners and 
 
 ## Components
 
-- Filters: labeled search, type, status and page-size controls, Search and conditional Reset. Search accepts display references, names, store names, email and primary telephone data.
+- Classification: type/status, first N, inclusive joining-date and order-date ranges, sorting and direction, Apply and Reset. Sort fields are joining date, name, numeric identifier, status, order count and order amount. First N selects the ordered set before pagination.
+- Toolbar and footer: flexible search, Excel and print above the table; page size below it. Search includes references, person/store names, email and primary/additional vendor phones. Output uses applied filters and ordering across all matching records, including first N.
+- Identity: circular initials anchor each person and order count appears below the name. Order-date filtering requires a matching order; aggregate count/amount sorting still uses all qualifying account orders.
+- Excel: real XLSX with additional contacts and text-bound account values to protect formulas and preserve phone zeroes; query reads are batched.
+- Print: standalone light report with count, timestamp, applied classification summary and six report columns. A4 landscape rules repeat table headings and hide print controls on paper.
 - Identity: lowercase c/customer and m/vendor display references link to existing profiles. Stored numeric IDs and AdministrativeReferenceService conventions remain unchanged. Vendors show separately labeled person and store names plus an explicit type badge.
 - Contacts: primary email/phone remain visible; actual vendor profile phone numbers and shop contacts appear in a native details disclosure after primary-contact deduplication.
 - Management: small labeled View, Freeze/Reactivate and eligible Delete controls. Pending/rejected vendors retain review states; reactivation never auto-approves them.
@@ -61,3 +80,5 @@ Evidence and functional limitations are recorded in docs/admin-account-directory
 A read-only MySQL candidate check confirmed 25 real accounts (16 customers and nine vendors), phone/reference searches for both types, contact extraction and actual retained-dependency categories. No production account was frozen or deleted as a verification step.
 
 The final source review also accepted the retained-FK safeguards, additional-phone search and fullscreen soft-navigation initialization. Customer status-write failure is covered by a rollback/error-feedback test.
+
+The fresh refinement review accepted source and five valid fixture captures: Arabic RTL in both themes at 1440px desktop, English LTR/light and Arabic RTL/dark at 390px mobile, plus standalone print. Full production header/sidebar composition and physical-paper pagination were not captured. The single detector warning about Inter in print reflects intentional incumbent-font reuse, not a new typography authority. Release verification is separate from this visual evidence; freeze/delete safeguards are unchanged.

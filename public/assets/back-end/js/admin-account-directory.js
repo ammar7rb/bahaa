@@ -6,6 +6,7 @@
     const root=document.querySelector('.account-directory');
     if (!root || root.dataset.bound) return;
     root.dataset.bound='true';
+    if (window.matchMedia('(max-width:650px)').matches) root.querySelector('[data-directory-filters]')?.removeAttribute('open');
     const dialog=root.querySelector('#directory-delete-dialog'), form=root.querySelector('#directory-delete-form');
     let trigger;
     root.addEventListener('click',event=>{
