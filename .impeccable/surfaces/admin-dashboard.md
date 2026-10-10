@@ -4,13 +4,20 @@ Operate surface approved 10 October 2026. This brief applies to the admin header
 dashboard and Communication Center only. The vendor light-only brief does not apply.
 
 Preserve the existing v2 navigation, branding, locally served typography, regular
-rounded icon library and semantic color tokens. Use four flat, prominent summary
+rounded icon library and semantic color tokens. Use five flat, prominent summary
 cards followed by a concise activation list. No banner, chart or operational
 shortcut section. Use v2 theme tokens for both light and dark, logical spacing for
 Arabic RTL and supported-language LTR. Search is a wide inline combobox with grouped
 results, permission-scoped database queries and keyboard support. Header utilities
 are payments, orders, product review, messages, language and appearance, plus account
 and essential navigation. Totals and pending-review badges are different read models.
+
+The latest user reference overrides the earlier four-card count: add website visits
+as a fifth card, with blue/green/violet/amber/cyan icon wells and the reference's
+rounded corner tint. Visits sum recorded web page views, exclude app traffic, and
+link to the existing visits report. Notification previews use product photographs,
+vendor/customer identification, actual amounts, short message text, statuses and
+timestamps. Popup bounds must fit the viewport and remain below the mobile header.
 
 ## Implemented surface contract
 
@@ -20,8 +27,8 @@ unchanged; their light-only vendor palette is not an admin token authority.
 Admin styling comes from `public/assets/back-end/css/admin-v2.css` and
 `admin-dark-mode.css`, with scoped additions in `admin-workspace.css`.
 
-The dashboard contains four database-backed totals (orders, customers, vendors,
-products) and a maximum of six current activation cases. Permission-denied totals
+The dashboard contains five database-backed totals (orders, customers, vendors,
+products, recorded web page views) and a maximum of six current activation cases. Permission-denied totals
 show a restricted state. Walking-customer records are excluded from customer totals.
 Activation has enabled/disabled and empty states. Removing dashboard charts and
 operational shortcuts does not remove their underlying management pages.
@@ -41,13 +48,14 @@ navy surfaces and lighter blue. Business-setting overrides remain authoritative.
 The inherited `--v2-font` stack and locally supplied font/icon assets remain in use.
 Regular rounded `fi-rr-*` icons identify categories; no new icon system is introduced.
 
-Observed type sizes are 26px page title, 20px activation title, 38px totals (32px
+Observed type sizes are 26px page title, 20px activation title, 34px totals (32px
 on small screens), 14px supporting copy, and 12–13px row metadata/actions. Flat
-summary/activation panels use 14px corners, 24px desktop padding, and an 18px grid
-gap. Search uses 10px corners; its results use 12px corners and `--v2-shadow-lg`.
+summary cards use 16px corners, 24px/20px desktop padding and a 16px grid
+gap; activation panels retain 14px corners and 24px padding. Search uses 10px corners; its results use 12px corners and `--v2-shadow-lg`.
 These are surface observations, not additions to the vendor design system.
 
-The content caps at 1440px. Four summary columns become two at 900px. The header
+The content caps at 1440px. Five summary columns become three below 1050px of available container width
+and two below 650px, with the final card spanning both columns. The header
 places search on a second row at 900px and uses three rows with 164px header height
 at 560px; its logo remains visible. Logical inline spacing supports RTL/LTR, and
 directional review arrows reverse for LTR. Utility targets are 44px. Summary cards
@@ -59,9 +67,9 @@ have restrained 160ms color/border transitions, disabled for reduced motion.
 projection used by both header messages and Communication Center. Search queries
 real records, with permission filtering before each module query. The combobox has
 Ctrl/Cmd+K focus, arrow selection, Enter navigation, Escape dismissal, loading,
-empty/error states, 300ms debounce and cancellation of stale requests. Polling uses
-the real snapshot endpoint every 30 seconds while visible and retains last values
-on failure. Preview replacement preserves keyboard focus in a preview being used.
+empty/error states, 300ms debounce and cancellation of stale requests. There is no periodic polling. The snapshot endpoint refreshes data when returning
+to the visible page, restoring browser history or completing v2 navigation, retaining
+last values on failure. Preview replacement preserves keyboard focus in a preview being used.
 
 The migration `2026_10_10_120000_add_admin_read_at_to_support_tickets.php` adds
 ticket read timestamps/message cursors and contact sender classification. Apply it
@@ -92,3 +100,14 @@ branding and the full sidebar; the reviewer did not independently capture Englis
 copy or populated dropdown/search states. Authenticated MySQL production remains
 unverified, and this disposition does not approve deployment. See
 `docs/admin-workspace-redesign.md` for migration, validation and production checks.
+
+The latest five-card review uses cards-five-desktop.jpg and cards-mobile.jpg,
+plus populated products/orders/payments/messages and mobile notification captures.
+The product preview combines the actual Blade partial with real pending-product
+data and its public production photograph. A failed-image fallback covers initial
+and dynamically rendered images. MySQL candidate checks confirmed real counts,
+web-only visits, product photos, payment amounts, phone search and permission filters;
+the authenticated production browser layout is still outside the capture scope.
+
+The follow-up reviewer marked both image recovery and brief corrections resolved,
+with no regressions, and returned ship for those fixes within supplied evidence.

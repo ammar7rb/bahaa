@@ -1,6 +1,17 @@
 <?php
 
 return [
+    'workspace_total_orders' => 'Total orders',
+    'workspace_total_customers' => 'Total customers',
+    'workspace_total_vendors' => 'Total vendors',
+    'workspace_total_products' => 'Total products',
+    'workspace_site_visits' => 'Site visits',
+    'workspace_visits_definition' => 'Recorded website page views; excludes app traffic and is not a unique visitor count.',
+    'workspace_order_review_hint' => 'A new order awaiting your review.',
+    'workspace_product_review_hint' => 'A vendor product awaiting publishing approval.',
+    'workspace_items' => 'items',
+    'workspace_unread' => 'Unread',
+    'workspace_notifications_hint' => 'Recent updates awaiting your attention',
     'insurance_center' => 'Insurance Center',
     'workspace_search_placeholder' => 'Search a name, phone, product or transaction…',
     'workspace_dashboard_help' => 'A quick overview of accounts, orders and products.',

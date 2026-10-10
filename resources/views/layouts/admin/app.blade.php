@@ -20,7 +20,7 @@
 
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-v2.css') }}?v=20260910.7">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-dark-mode.css') }}?v=20260910.4">
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-workspace.css') }}?v=20261010.2">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-workspace.css') }}?v=20261010.3">
     <script>
         (function () {
             var storageKey = 'ba_admin_theme';
@@ -113,7 +113,7 @@
 @include("layouts.admin.partials._routes-list-container")
 @include("layouts.admin.partials._script-partials")
 
-<script src="{{ dynamicAsset(path: 'public/assets/back-end/js/admin-v2.js') }}?v=20260910.2"></script>
+<script src="{{ dynamicAsset(path: 'public/assets/back-end/js/admin-v2.js') }}?v=20261010.3"></script>
 <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/v2-pjax.js') }}"></script>
 <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/full-page-print.js') }}?v={{ filemtime(public_path('assets/back-end/js/full-page-print.js')) }}"></script>
 

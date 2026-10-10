@@ -5,7 +5,7 @@
     <div class="admin-page-heading"><h1>{{ $title }}</h1><span>{{ $records->total() }}</span></div>
     <section class="admin-activation">
         @forelse($records as $record)
-            <a class="admin-inbox-row" href="{{ $record['url'] }}"><strong>{{ $record['title'] }}</strong><span>{{ $record['detail'] }}</span></a>
+            @include('layouts.admin.partials.v2._notification-item', ['item'=>$record, 'kind'=>'payments'])
         @empty
             <p class="admin-empty">{{ translate('workspace_no_pending') }}</p>
         @endforelse

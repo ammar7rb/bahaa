@@ -17,6 +17,8 @@ class AdminWorkspaceTest extends TestCase
         parent::setUp();
         if (!defined('DOMAIN_POINTED_DIRECTORY')) define('DOMAIN_POINTED_DIRECTORY', 'public');
         session()->put('local', 'ar');
+        Schema::create('platform_daily_metrics', function (Blueprint $t) { $t->id(); $t->string('channel'); $t->integer('page_views'); });
+        DB::table('platform_daily_metrics')->insert([['channel'=>'web','page_views'=>42],['channel'=>'app','page_views'=>999]]);
         foreach (['users', 'sellers'] as $name) Schema::create($name, function (Blueprint $t) { $t->id(); $t->string('f_name')->nullable(); $t->string('l_name')->nullable(); $t->string('email')->nullable(); $t->string('phone')->nullable(); $t->timestamps(); });
         Schema::create('contacts', function (Blueprint $t) { $t->id(); foreach (['name','email','subject','message','sender_type'] as $c) $t->string($c)->nullable(); $t->boolean('seen')->default(false); $t->timestamps(); });
         Schema::create('support_tickets', function (Blueprint $t) { $t->id(); $t->integer('customer_id'); $t->string('subject'); $t->string('description'); $t->string('purpose')->nullable(); $t->timestamp('admin_read_at')->nullable(); $t->integer('admin_read_message_id')->nullable(); $t->timestamps(); });
@@ -137,19 +139,31 @@ class AdminWorkspaceTest extends TestCase
 
     public function test_totals_and_pending_reviews_are_distinct_and_blade_renders(): void
     {
-        Schema::create('products', function (Blueprint $t) { $t->id(); $t->string('added_by'); $t->integer('request_status'); $t->integer('user_id')->nullable(); $t->string('name')->nullable(); $t->string('code')->nullable(); $t->timestamps(); });
+        Schema::create('products', function (Blueprint $t) { $t->id(); $t->string('added_by'); $t->integer('request_status'); $t->integer('user_id')->nullable(); $t->string('name')->nullable(); $t->string('code')->nullable(); $t->string('thumbnail')->nullable(); $t->string('thumbnail_storage_type')->nullable(); $t->double('unit_price')->default(125); $t->timestamps(); });
         Schema::create('translations', function (Blueprint $t) { $t->id(); $t->string('translationable_type'); $t->integer('translationable_id'); $t->string('locale'); $t->string('key'); $t->string('value'); });
-        Schema::create('orders', function (Blueprint $t) { $t->id(); $t->string('order_status'); $t->string('commerce_flow_status')->nullable(); $t->string('payment_method')->nullable(); $t->string('payment_status')->nullable(); $t->string('activation_status')->nullable(); $t->double('order_amount')->default(0); $t->string('transaction_ref')->nullable(); $t->timestamps(); });
+        Schema::create('orders', function (Blueprint $t) { $t->id(); $t->integer('customer_id')->nullable(); $t->string('order_status'); $t->string('commerce_flow_status')->nullable(); $t->string('payment_method')->nullable(); $t->string('payment_status')->nullable(); $t->string('activation_status')->nullable(); $t->double('order_amount')->default(0); $t->string('transaction_ref')->nullable(); $t->timestamps(); });
+        Schema::create('order_details', function (Blueprint $t) { $t->id(); $t->integer('order_id'); $t->integer('qty'); $t->text('product_details')->nullable(); });
+        DB::table('order_details')->insert(['order_id'=>101,'qty'=>2,'product_details'=>json_encode(['name'=>'قفازات طبية'])]);
         Schema::create('business_settings', function (Blueprint $t) { $t->id(); $t->string('type'); $t->text('value'); });
         Schema::create('account_activation_cases', function (Blueprint $t) { $t->id(); $t->string('subject_type'); $t->integer('subject_id'); $t->string('status'); $t->timestamps(); });
         DB::table('products')->insert([['added_by'=>'admin','request_status'=>1,'name'=>'منتج معتمد','user_id'=>1], ['added_by'=>'seller','request_status'=>1,'name'=>'منتج آخر','user_id'=>7], ['added_by'=>'seller','request_status'=>0,'name'=>'قفازات طبية','user_id'=>7]]);
         DB::table('translations')->insert(['translationable_type'=>\App\Models\Product::class,'translationable_id'=>3,'locale'=>'en','key'=>'name','value'=>'Medical gloves']);
         DB::table('orders')->insert([['id'=>101,'order_status'=>'pending','commerce_flow_status'=>'pending_admin_review'], ['id'=>102,'order_status'=>'delivered','commerce_flow_status'=>'completed']]);
         DB::table('orders')->insert(['id'=>103,'order_status'=>'confirmed','commerce_flow_status'=>'awaiting_payment','payment_method'=>'offline_payment','payment_status'=>'unpaid']);
+        DB::table('orders')->where('id',101)->update(['customer_id'=>12,'order_amount'=>250,'updated_at'=>now()]);
+        DB::table('products')->where('id',3)->update(['updated_at'=>now()]);
         DB::table('account_activation_cases')->insert(['subject_type'=>'customer','subject_id'=>12,'status'=>'in_review','updated_at'=>now()]);
         $admin=auth('admin')->user(); $admin->admin_role_id=1; $admin->name='مسؤول الإدارة'; $admin->setRelation('storage',collect());
         $service=app(AdminWorkspaceService::class);
-        $this->assertSame(['orders'=>3,'customers'=>1,'vendors'=>1,'products'=>3],$service->totals());
+        $this->assertSame(['orders'=>3,'customers'=>1,'vendors'=>1,'products'=>3,'visits'=>42],$service->totals());
+        $snapshot=$service->snapshot();
+        $this->assertStringContainsString('تاجر سيجما',$snapshot['categories']['products']['items'][0]['detail']);
+        $this->assertStringContainsString('product.png',$snapshot['categories']['products']['items'][0]['images'][0]['url']);
+        $this->assertSame('أحمد محمد',$snapshot['categories']['orders']['items'][0]['detail']);
+        $this->assertStringContainsString('250.00',$snapshot['categories']['orders']['items'][0]['meta']);
+        $this->assertCount(1,$snapshot['categories']['orders']['items'][0]['images']);
+        $this->assertNotEmpty($snapshot['categories']['payments']['items'][0]['badge']);
+        $this->assertNotEmpty($snapshot['categories']['messages']['items'][0]['preview']);
         $this->assertSame(1,$service->snapshot()['categories']['orders']['count']);
         $this->assertSame(1,$service->snapshot()['categories']['products']['count']);
         $this->assertSame(route('admin.products.view',['addedBy'=>'vendor','id'=>3]),$service->snapshot()['categories']['products']['items'][0]['url']);
@@ -160,7 +174,9 @@ class AdminWorkspaceTest extends TestCase
         $dashboard=file_get_contents(resource_path('views/admin-views/system/dashboard.blade.php'));
         $dashboard=str_replace(["@extends('layouts.admin.app')", "@section('title', translate('dashboard'))", "@section('content')", '@endsection'], '', $dashboard);
         $body=\Illuminate\Support\Facades\Blade::render($dashboard,['totals'=>$service->totals(),'data'=>$service->activation()]);
-        $this->assertSame(4,substr_count($body,'data-workspace-total='));
+        $this->assertSame(5,substr_count($body,'data-workspace-total='));
+        $this->assertStringContainsString('section=visits',$body);
+        $this->assertStringContainsString('admin-notice-thumb',$header);
         $this->assertStringContainsString('admin-global-search',$header);
         $this->assertStringContainsString('activation-heading',$body);
         $script=\Illuminate\Support\Facades\Blade::render(file_get_contents(resource_path('views/layouts/admin/partials/v2/_workspace-script.blade.php')));
@@ -170,13 +186,13 @@ class AdminWorkspaceTest extends TestCase
             $styles=['backend/libs/fonts/inter/inter.css','backend/libs/bootstrap/bootstrap.min.css','backend/webfonts/uicons-regular-rounded.css','backend/admin/css/style.css','back-end/css/admin-v2.css','back-end/css/admin-dark-mode.css','back-end/css/admin-workspace.css'];
             $links=implode('',array_map(fn ($p)=>'<link rel="stylesheet" href="/assets/'.$p.'">',$styles));
             foreach (['light','dark'] as $theme) foreach (['rtl','ltr'] as $direction) {
-                $config=json_encode(['snapshot'=>'/admin/workspace/snapshot','empty'=>translate('workspace_search_empty'),'pendingEmpty'=>translate('workspace_no_pending'),'loading'=>translate('workspace_loading'),'error'=>translate('workspace_search_error'),'refreshOk'=>translate('workspace_auto_refresh'),'refreshError'=>translate('workspace_refresh_error')]);
+                $config=json_encode(['imageFallback'=>'/assets/back-end/img/placeholder/product.png','snapshot'=>'/admin/workspace/snapshot','empty'=>translate('workspace_search_empty'),'pendingEmpty'=>translate('workspace_no_pending'),'loading'=>translate('workspace_loading'),'error'=>translate('workspace_search_error'),'refreshOk'=>translate('workspace_auto_refresh'),'refreshError'=>translate('workspace_refresh_error')]);
                 $html='<!doctype html><html lang="ar" dir="'.$direction.'" data-ba-admin-theme="'.$theme.'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'.$links.'</head><body class="v2-active"><div class="app-v2 v2-collapsed" id="appV2">'.$header.'<main class="v2-main">'.$body.'</main></div><script>window.adminWorkspaceConfig='.$config.';</script><script src="/assets/back-end/js/admin-v2.js"></script><script src="/assets/back-end/js/admin-workspace.js"></script></body></html>';
                 $html=preg_replace('#https?://[^"\s]*/public/assets/#','/assets/',$html);
                 $html=preg_replace('#https?://[^"\s]*/admin/workspace/search#','/admin/workspace/search',$html);
                 file_put_contents($dir.'/'.$theme.'-'.$direction.'.html',$html);
             }
-            file_put_contents($dir.'/snapshot.json',json_encode($service->snapshot()));
+            file_put_contents($dir.'/snapshot.json',str_replace('http://localhost/ba/public/assets/','/assets/',json_encode($service->snapshot(), JSON_UNESCAPED_SLASHES)));
             file_put_contents($dir.'/search.json',json_encode(['groups'=>$this->search('01012345678')]));
         }
     }

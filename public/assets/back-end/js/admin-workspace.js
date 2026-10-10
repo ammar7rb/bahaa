@@ -14,6 +14,31 @@
         const detail = document.createElement('span'); detail.textContent = item.detail;
         a.append(title, detail); return a;
     }
+    function notification(item, kind) {
+        const a=document.createElement('a'); a.className='admin-notice'+(item.unread?' is-unread':''); a.dataset.noticeKind=kind; a.href=item.url;
+        const media=document.createElement('span'); media.className='admin-notice-media';
+        if (item.images?.length) item.images.slice(0,3).forEach(photo=>{const img=document.createElement('img'); img.className='admin-notice-thumb'; img.src=photo.url; img.alt=photo.alt || ''; img.loading='lazy'; img.width=56; img.height=56; media.append(img);});
+        else {const icon=document.createElement('i'); icon.className='fi fi-rr-'+(item.icon || 'bell'); icon.setAttribute('aria-hidden','true'); media.append(icon);}
+        const content=document.createElement('span'); content.className='admin-notice-content';
+        const text=(tag,cls,value)=>{const el=document.createElement(tag); el.className=cls; el.textContent=value; return el;};
+        content.append(text('strong','',item.title),text('span','admin-notice-identity',item.detail));
+        if(item.preview) content.append(text('span','admin-notice-preview',item.preview));
+        if(item.meta) content.append(text('span','admin-notice-meta',item.meta));
+        const footer=document.createElement('span'); footer.className='admin-notice-footer';
+        if(item.badge) footer.append(text('span','admin-notice-status',item.badge));
+        if(item.time){const time=text('time','',item.time_label || ''); time.dateTime=item.time; footer.append(time);}
+        content.append(footer);
+        const arrow=document.createElement('i'); arrow.className='fi fi-rr-angle-small-left admin-notice-arrow'; arrow.setAttribute('aria-hidden','true');
+        a.append(media,content,arrow); return a;
+    }
+    function imageFallback(img) {
+        if (!img.dataset.fallbackApplied && config.imageFallback) {img.dataset.fallbackApplied='true'; img.src=config.imageFallback; return;}
+        img.hidden=true;
+        const media=img.closest('.admin-notice-media');
+        if(media && !media.querySelector('i')) {const icon=document.createElement('i'); icon.className='fi fi-rr-picture'; icon.setAttribute('aria-hidden','true'); media.append(icon);}
+    }
+    document.addEventListener('error',event=>{const img=event.target; if(img instanceof HTMLImageElement && img.classList.contains('admin-notice-thumb')) imageFallback(img);},true);
+    document.querySelectorAll('.admin-notice-thumb').forEach(img=>{if(img.complete && img.naturalWidth===0) imageFallback(img);});
     async function search() {
         const token = ++generation;
         request?.abort(); selected = -1; input.removeAttribute('aria-activedescendant');
@@ -49,10 +74,9 @@
     document.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {event.preventDefault(); input.focus();} });
     document.addEventListener('click', event => { if (!event.target.closest('.admin-global-search')) { clearTimeout(timer); request?.abort(); ++generation; open(false); } });
     input.closest('.admin-global-search').addEventListener('focusout', event => { if (!event.relatedTarget || !event.relatedTarget.closest('.admin-global-search')) open(false); });
-    let refreshTimer, refreshing = false;
+    let refreshing = false;
     async function refresh() {
-        clearTimeout(refreshTimer);
-        if (refreshing || document.hidden) { refreshTimer = setTimeout(refresh, 60000); return; }
+        if (refreshing || document.hidden) return;
         refreshing = true;
         try {
             const response = await fetch(config.snapshot, {credentials:'same-origin', headers:{Accept:'application/json'}});
@@ -63,17 +87,17 @@
                 const badge = document.querySelector('[data-workspace-count="' + key + '"]');
                 if (badge) {badge.textContent = category.count > 99 ? '99+' : category.count; badge.classList.toggle('d-none', category.count === 0); badge.setAttribute('aria-label', String(category.count));}
                 if (badge) { const button = badge.closest('[data-workspace-label]'); button?.setAttribute('aria-label', button.dataset.workspaceLabel + ' (' + category.count + ')'); }
+                const previewCount=document.querySelector('[data-workspace-preview-count="'+key+'"]'); if(previewCount) previewCount.textContent=category.count;
                 const list = document.querySelector('[data-workspace-items="' + key + '"]');
                 if (!list) return;
                 // Preserve keyboard focus while a preview is being used.
                 if (list.contains(document.activeElement)) return;
-                list.replaceChildren(...category.items.map(item => row(item, 'admin-inbox-row')));
+                list.replaceChildren(...category.items.map(item => notification(item, key)));
                 if (!category.items.length) { const p = document.createElement('p'); p.className = 'admin-empty'; p.textContent = config.pendingEmpty; list.append(p); }
             });
-        } catch (_) { /* Retain the last data and retry silently. */ }
-        finally { refreshing = false; refreshTimer = setTimeout(refresh, 30000); }
+        } catch (_) { /* Retain the last data until the next navigation or return. */ }
+        finally { refreshing = false; }
     }
-    refreshTimer = setTimeout(refresh, 30000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     window.addEventListener('pageshow', event => { if (event.persisted) refresh(); });
     document.addEventListener('v2:page-loaded', () => { open(false); refresh(); });

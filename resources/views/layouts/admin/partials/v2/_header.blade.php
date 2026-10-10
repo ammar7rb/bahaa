@@ -59,15 +59,16 @@
                         <i class="fi fi-rr-{{ $icon }}" aria-hidden="true"></i>
                         <span class="v2-badge-dot {{ $category['count'] ? '' : 'd-none' }}" data-workspace-count="{{ $kind }}">{{ $category['count'] > 99 ? '99+' : $category['count'] }}</span>
                     </button>
-                    <div class="v2-dropdown-menu v2-orders-menu admin-inbox">
-                        <div class="v2-pop-head"><h4>{{ translate($label) }}</h4><a href="{{ $url }}">{{ translate('view_all') }}</a></div>
+                    <div class="v2-dropdown-menu admin-inbox">
+                        <div class="admin-inbox-heading"><span class="admin-inbox-heading-icon"><i class="fi fi-rr-{{ $icon }}" aria-hidden="true"></i></span><div><h4>{{ translate($label) }}</h4><span>{{ translate('workspace_notifications_hint') }}</span></div><span class="admin-inbox-total" data-workspace-preview-count="{{ $kind }}">{{ $category['count'] }}</span></div>
                         <div class="v2-pop-scroll" data-workspace-items="{{ $kind }}">
                             @forelse($category['items'] as $item)
-                                <a class="admin-inbox-row" href="{{ $item['url'] }}"><strong>{{ $item['title'] }}</strong><span>{{ $item['detail'] }}</span></a>
+                                @include('layouts.admin.partials.v2._notification-item', ['item'=>$item, 'kind'=>$kind])
                             @empty
                                 <p class="admin-empty">{{ translate('workspace_no_pending') }}</p>
                             @endforelse
                         </div>
+                        <a class="admin-inbox-view-all" href="{{ $url }}">{{ translate('view_all') }}<i class="fi fi-rr-arrow-small-left" aria-hidden="true"></i></a>
                     </div>
                 </div>
             @endif

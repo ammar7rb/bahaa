@@ -5,15 +5,16 @@
     <div class="admin-page-heading"><div><h1>{{ translate('dashboard') }}</h1><p>{{ translate('workspace_dashboard_help') }}</p></div></div>
     <div class="admin-summary-grid">
         @foreach([
-            'orders' => ['orders', 'shopping-bag', route('admin.orders.list', ['status' => 'all'])],
-            'customers' => ['customers', 'users', route('admin.customer.list')],
-            'vendors' => ['vendors', 'shop', route('admin.vendors.vendor-list')],
-            'products' => ['products', 'box', route('admin.products.product-gallery')]
+            'orders' => ['workspace_total_orders', 'shopping-cart', route('admin.orders.list', ['status' => 'all'])],
+            'customers' => ['workspace_total_customers', 'users', route('admin.customer.list')],
+            'vendors' => ['workspace_total_vendors', 'shop', route('admin.vendors.vendor-list')],
+            'products' => ['workspace_total_products', 'box', route('admin.products.product-gallery')],
+            'visits' => ['workspace_site_visits', 'chart-histogram', route('admin.report.operational-print', ['section'=>'visits', 'q'=>'web'])]
         ] as $key => [$label, $icon, $url])
             @if($totals[$key] !== null)
-                <a href="{{ $url }}" class="admin-summary-card"><span class="admin-summary-top"><span class="admin-summary-icon"><i class="fi fi-rr-{{ $icon }}" aria-hidden="true"></i></span><span>{{ translate($label) }}</span></span><span class="admin-summary-bottom"><strong data-workspace-total="{{ $key }}">{{ number_format($totals[$key]) }}</strong><span class="admin-summary-link"><i class="fi fi-rr-arrow-small-left" aria-hidden="true"></i><span class="sr-only">{{ translate('view_all') }}</span></span></span></a>
+                <a href="{{ $url }}" class="admin-summary-card" data-summary-kind="{{ $key }}" @if($key === 'visits') title="{{ translate('workspace_visits_definition') }}" @endif><span class="admin-summary-icon"><i class="fi fi-rr-{{ $icon }}" aria-hidden="true"></i></span><span class="admin-summary-copy"><span>{{ translate($label) }}</span><strong data-workspace-total="{{ $key }}">{{ number_format($totals[$key]) }}</strong></span></a>
             @else
-                <div class="admin-summary-card is-restricted"><span class="admin-summary-top">{{ translate($label) }}<i class="fi fi-rr-lock" aria-hidden="true"></i></span><span>{{ translate('workspace_access_restricted') }}</span></div>
+                <div class="admin-summary-card is-restricted" data-summary-kind="{{ $key }}"><span class="admin-summary-icon"><i class="fi fi-rr-lock" aria-hidden="true"></i></span><span class="admin-summary-copy"><span>{{ translate($label) }}</span><small>{{ translate('workspace_access_restricted') }}</small></span></div>
             @endif
         @endforeach
     </div>

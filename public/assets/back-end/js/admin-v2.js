@@ -803,6 +803,18 @@
   function positionDropdownMenu(btn) {
     const menu = btn.closest('.v2-dropdown')?.querySelector(':scope > .v2-dropdown-menu');
     if (!menu) return;
+    if (menu.classList.contains('admin-inbox')) {
+      const r = btn.getBoundingClientRect();
+      const width = menu.getBoundingClientRect().width;
+      const rtl = getComputedStyle(document.documentElement).direction === 'rtl';
+      const top = window.innerWidth <= 900 ? btn.closest('.v2-header').getBoundingClientRect().bottom + 8 : r.bottom + 8;
+      menu.style.insetInlineEnd = 'auto';
+      menu.style.right = 'auto';
+      menu.style.left = Math.max(12, Math.min(rtl ? r.left : r.right - width, window.innerWidth - width - 12)) + 'px';
+      menu.style.top = top + 'px';
+      menu.style.maxHeight = Math.max(100, window.innerHeight - top - 12) + 'px';
+      return;
+    }
     // Orders menu on mobile uses full-width CSS positioning — skip JS override.
     if (menu.classList.contains('v2-orders-menu') && isMobileViewport()) return;
     const r = btn.getBoundingClientRect();
@@ -817,6 +829,7 @@
     }
   }
   function bindDropdowns() {
+    window.addEventListener('resize', () => $$root('.v2-dropdown.v2-is-open > [data-v2-dropdown-toggle]').forEach(positionDropdownMenu));
     $$root('.v2-dropdown > [data-v2-dropdown-toggle]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();

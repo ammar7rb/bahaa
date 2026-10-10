@@ -2,11 +2,21 @@
 
 ## Follow-up refinement
 
+The subsequent reference-image request adds a fifth website visits card. Its total
+is the sum of `platform_daily_metrics.page_views` for channel `web`, permissioned
+by `reports`; it represents recorded page views rather than unique visitors.
+Cards now follow the supplied colored icon/corner treatment. Rich notification
+previews include product thumbnails/vendor names, order customer/items/amount,
+payment amount/status and support sender/text/unread state. Server rendering and
+silent refresh use the same item payload. Popovers clamp to viewport edges and
+the remaining height, with the full mobile header kept clear. Added regression
+coverage distinguishes web/app counts and verifies RTL/LTR popup positioning.
+
 The dashboard owns a full-width, centered container inside the v2 main grid,
 without the legacy `.content` class. It follows the available space when the
-sidebar opens or collapses. Four equal cards use grouped icon/label rows and
-aligned totals/action arrows. The 30-second refresh announcement was removed;
-background updates remain silent. Browser checks confirmed zero center offset,
+sidebar opens or collapses. Five equal cards use grouped icon/label rows and
+aligned totals. Periodic 30-second refresh is removed; data refreshes on navigation
+or return to the page. Browser checks confirmed zero center offset,
 equal card widths and no mobile horizontal overflow. Deployment packages only
 this admin feature; unrelated local route and language edits are excluded.
 

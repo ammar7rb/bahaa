@@ -8,6 +8,17 @@
  */
 return array_replace(
     [
+        'workspace_total_orders' => 'إجمالي الطلبات',
+        'workspace_total_customers' => 'إجمالي العملاء',
+        'workspace_total_vendors' => 'إجمالي التجار',
+        'workspace_total_products' => 'إجمالي المنتجات',
+        'workspace_site_visits' => 'زيارات الموقع',
+        'workspace_visits_definition' => 'مشاهدات صفحات الموقع المسجّلة؛ لا تشمل التطبيق ولا تمثل عدد زوار فريدين.',
+        'workspace_order_review_hint' => 'طلب جديد ينتظر المراجعة والاعتماد.',
+        'workspace_product_review_hint' => 'منتج رفعه التاجر وينتظر الموافقة على نشره.',
+        'workspace_items' => 'قطعة',
+        'workspace_unread' => 'غير مقروء',
+        'workspace_notifications_hint' => 'آخر المستجدات التي تحتاج متابعتك',
         'workspace_search_placeholder' => 'ابحث باسم، رقم هاتف، منتج أو معاملة…',
         'workspace_dashboard_help' => 'نظرة سريعة على الحسابات والطلبات والمنتجات.',
         'workspace_auto_refresh' => 'تحديث تلقائي كل 30 ثانية',

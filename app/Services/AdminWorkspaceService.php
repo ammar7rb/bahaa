@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Schema;
 /** Read models shared by the header, dashboard and communication center. */
 class AdminWorkspaceService
 {
+    private ?string $currencyCode = null;
     public function totals(): array
     {
         return [
@@ -17,6 +18,7 @@ class AdminWorkspaceService
             'customers' => Helpers::module_permission_check('people') ? User::where(fn ($q) => $q->whereNull('email')->orWhere('email', '!=', 'walking@customer.com'))->count() : null,
             'vendors' => Helpers::module_permission_check('people') ? Seller::count() : null,
             'products' => Helpers::module_permission_check('catalog') ? Product::count() : null,
+            'visits' => Helpers::module_permission_check('reports') ? (Schema::hasTable('platform_daily_metrics') ? (int) DB::table('platform_daily_metrics')->where('channel', 'web')->sum('page_views') : 0) : null,
         ];
     }
 
@@ -73,6 +75,8 @@ class AdminWorkspaceService
             $actorType = str_starts_with($table, 'seller_') ? 'vendor' : 'customer';
             $foreign = $actorType === 'vendor' ? 'seller_id' : 'customer_id';
             $q->selectRaw("'".$table."' as source, ".$table.".id, ".$table.".updated_at, ".($table === 'post_purchase_invoices' ? $table.'.order_id' : 'NULL')." as order_id, '".$actorType."' as audience");
+            $q->selectRaw($table.'.'.$amount.' as review_amount');
+            $q->selectRaw((Schema::hasColumn($table, 'currency_code') ? $table.'.currency_code' : 'NULL').' as review_currency');
             if (Schema::hasColumn($table, $foreign)) {
                 $q->leftJoin(($actorType === 'vendor' ? 'sellers' : 'users').' as actor', 'actor.id', '=', $table.'.'.$foreign)
                     ->addSelect('actor.f_name as actor_first', 'actor.l_name as actor_last');
@@ -86,7 +90,38 @@ class AdminWorkspaceService
 
     public function paymentItem(object $row): array
     {
-        return ['title' => $this->paymentLabel($row->source).' #'.$row->id, 'detail' => translate($row->audience).' · '.trim($row->actor_first.' '.$row->actor_last), 'url' => $this->paymentUrl($row->source, $row), 'time' => $row->updated_at];
+        $actor = trim($row->actor_first.' '.$row->actor_last);
+        return ['title' => $this->paymentLabel($row->source).' #'.$row->id, 'detail' => translate($row->audience).($actor ? ' · '.$actor : ''), 'url' => $this->paymentUrl($row->source, $row), 'time' => $row->updated_at, 'time_label' => $this->timeLabel($row->updated_at), 'meta' => $this->money($row->review_amount ?? 0, $row->review_currency ?? null), 'badge' => translate('payments_waiting_for_review'), 'icon' => 'credit-card'];
+    }
+
+    private function timeLabel($time): string
+    {
+        return $time ? \Carbon\Carbon::parse($time)->locale(session('local', 'en'))->diffForHumans() : '';
+    }
+
+    private function money($amount, ?string $currency = null): string
+    {
+        $this->currencyCode ??= Schema::hasTable('currencies') ? (string) DB::table('currencies')->where('id', getWebConfig(name: 'system_default_currency'))->value('code') : '';
+        return trim(number_format((float) $amount, 2).' '.($currency ?: $this->currencyCode));
+    }
+
+    private function productImage(Product $product): string
+    {
+        return getStorageImages(path: $product->thumbnail_full_url, type: 'backend-product');
+    }
+
+    private function orderItems($orders): array
+    {
+        $details = Schema::hasTable('order_details') ? DB::table('order_details')->whereIn('order_id', $orders->pluck('id'))->get(['order_id','product_details','qty'])->groupBy('order_id') : collect();
+        return $orders->map(function ($order) use ($details) {
+            $lines = $details->get($order->id, collect());
+            $images = $lines->take(3)->map(function ($line) {
+                $data = json_decode($line->product_details ?? '{}', true) ?: [];
+                return ['url' => $this->productImage(new Product(['thumbnail'=>$data['thumbnail'] ?? '', 'thumbnail_storage_type'=>$data['thumbnail_storage_type'] ?? 'public'])), 'alt' => $data['name'] ?? translate('product')];
+            })->all();
+            $customer = $order->customer;
+            return ['title'=>translate('Order_id').' #'.$order->id, 'detail'=>trim(($customer?->f_name ?? '').' '.($customer?->l_name ?? '')) ?: translate('customer'), 'preview'=>translate('workspace_order_review_hint'), 'meta'=>$this->money($order->order_amount).' · '.(int) $lines->sum('qty').' '.translate('workspace_items'), 'images'=>$images, 'icon'=>'shopping-bag', 'badge'=>translate('pending_Orders'), 'time'=>$order->updated_at?->toIso8601String(), 'time_label'=>$this->timeLabel($order->updated_at), 'url'=>route('admin.orders.details',$order->id)];
+        })->all();
     }
 
     public function paymentLabel(string $table): string
@@ -152,16 +187,16 @@ class AdminWorkspaceService
         $categories = [];
         if (Helpers::module_permission_check('orders')) {
             $q = $this->pendingOrders();
-            $categories['orders'] = ['count' => (clone $q)->count(), 'items' => $q->latest('id')->limit(6)->get()->map(fn ($o) => ['title' => translate('order').' #'.$o->id, 'detail' => translate($o->order_status), 'url' => route('admin.orders.details', $o->id)])->all()];
+            $categories['orders'] = ['count' => (clone $q)->count(), 'items' => $this->orderItems($q->with('customer:id,f_name,l_name')->latest('id')->limit(6)->get())];
         }
         if (Helpers::module_permission_check('catalog')) {
             $q = Product::withoutGlobalScope('translate')->where('added_by', 'seller')->where('request_status', 0);
-            $categories['products'] = ['count' => (clone $q)->count(), 'items' => $q->setEagerLoads([])->latest('updated_at')->limit(6)->get(['id', 'name', 'user_id'])->map(fn ($p) => ['title' => $p->name, 'detail' => translate('vendor').' #'.$p->user_id.' · #'.$p->id, 'url' => route('admin.products.view', ['addedBy' => 'vendor', 'id' => $p->id])])->all()];
+            $categories['products'] = ['count' => (clone $q)->count(), 'items' => $q->setEagerLoads([])->with('seller:id,f_name,l_name')->latest('updated_at')->limit(6)->get(['id','name','user_id','thumbnail','thumbnail_storage_type','unit_price','updated_at'])->map(fn ($p) => ['title'=>$p->name, 'detail'=>translate('vendor').' · '.(trim(($p->seller?->f_name ?? '').' '.($p->seller?->l_name ?? '')) ?: '#'.$p->user_id), 'preview'=>translate('workspace_product_review_hint'), 'meta'=>$this->money($p->unit_price).' · P'.$p->id, 'images'=>[['url'=>$this->productImage($p), 'alt'=>$p->name]], 'icon'=>'box', 'badge'=>translate('product_pending_review'), 'time'=>$p->updated_at?->toIso8601String(), 'time_label'=>$this->timeLabel($p->updated_at), 'url'=>route('admin.products.view', ['addedBy'=>'vendor','id'=>$p->id])])->all()];
         }
         $categories['payments'] = $this->payments();
         if (Helpers::module_permission_check('people')) {
             $q = $this->conversations();
-            $categories['messages'] = ['count' => (int) (clone $q)->sum('unread'), 'items' => $q->orderByDesc('unread')->orderByDesc('updated_at')->limit(6)->get()->map(fn ($r) => ['title' => $r->subject ?: translate('messages'), 'detail' => $r->sender.' · '.translate($r->audience).' · '.\Illuminate\Support\Str::limit(strip_tags($r->preview), 75), 'url' => $this->conversationUrl($r), 'unread' => $r->unread])->all()];
+            $categories['messages'] = ['count' => (int) (clone $q)->sum('unread'), 'items' => $q->orderByDesc('unread')->orderByDesc('updated_at')->limit(6)->get()->map(fn ($r) => ['title'=>$r->sender ?: translate($r->audience), 'detail'=>translate($r->audience).' · '.($r->subject ?: translate('messages')), 'preview'=>\Illuminate\Support\Str::limit(strip_tags($r->preview),100), 'icon'=>$r->audience==='vendor'?'shop':'user', 'badge'=>$r->unread ? translate('workspace_unread') : translate('workspace_channel_'.$r->kind), 'time'=>$r->updated_at, 'time_label'=>$this->timeLabel($r->updated_at), 'url'=>$this->conversationUrl($r), 'unread'=>$r->unread])->all()];
         }
         return ['totals' => $this->totals(), 'categories' => $categories];
     }
