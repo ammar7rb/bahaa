@@ -31,7 +31,6 @@
                 <a class="directory-button" href="{{ route('admin.account-directory.print',$exportFilters) }}" target="_blank" rel="noopener" title="{{ translate('directory_export_help') }}"><i class="fi fi-rr-print" aria-hidden="true"></i>{{ translate('directory_print') }}</a>
             </div>
         </div>
-        <p class="directory-id-note">{{ translate('directory_identifier_note') }}</p>
         <div class="directory-scroll" tabindex="0" role="region" aria-label="{{ translate('directory_table_scroll') }}">
             <table class="directory-table">
                 <caption class="sr-only">{{ translate('directory_help') }}</caption>
