@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'directory_active_products_count' => 'Active products',
     'directory_filter_title' => 'Filter accounts',
     'directory_filter_help' => 'Order date finds accounts with an order within the selected period.',
     'directory_apply' => 'Apply filters',

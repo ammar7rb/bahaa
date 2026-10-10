@@ -13,7 +13,7 @@ class AdminAccountDirectoryExport extends DefaultValueBinder implements FromGene
 
     public function headings(): array
     {
-        return array_map('translate',['SL','directory_identifier','directory_name','directory_store_label','directory_type','email','phone','directory_extra_contacts','directory_status','directory_joined','directory_orders_count']);
+        return array_map('translate',['SL','directory_identifier','directory_name','directory_store_label','directory_type','email','phone','directory_extra_contacts','directory_status','directory_joined','directory_orders_count','directory_active_products_count']);
     }
 
     public function generator(): \Generator
@@ -25,7 +25,7 @@ class AdminAccountDirectoryExport extends DefaultValueBinder implements FromGene
                 ++$number,($account->kind==='customer'?'c':'m').$account->id,
                 trim($account->f_name.' '.$account->l_name),$account->store_name ?? '',translate($account->kind),
                 $account->email ?? '',$account->phone ?? '',implode("\n",$contacts[$account->kind.':'.$account->id] ?? []),
-                translate('directory_'.$account->account_status),$account->created_at ?? '',(int)$account->orders_count,
+                translate('directory_'.$account->account_status),$account->created_at ?? '',(int)$account->orders_count,$account->kind==='vendor'?(int)$account->active_products_count:'',
             ];
         }
     }
@@ -33,14 +33,14 @@ class AdminAccountDirectoryExport extends DefaultValueBinder implements FromGene
     public function bindValue(Cell $cell,$value): bool
     {
         // Treat account data as text: preserve phone zeroes and never execute formulas.
-        if (in_array($cell->getColumn(),['A','K'],true) && is_int($value)) $cell->setValueExplicit($value,DataType::TYPE_NUMERIC);
+        if (in_array($cell->getColumn(),['A','K','L'],true) && is_int($value)) $cell->setValueExplicit($value,DataType::TYPE_NUMERIC);
         else $cell->setValueExplicit((string)$value,DataType::TYPE_STRING);
         return true;
     }
 
     public function columnWidths(): array
     {
-        return ['A'=>8,'B'=>15,'C'=>26,'D'=>26,'E'=>15,'F'=>34,'G'=>22,'H'=>30,'I'=>18,'J'=>24,'K'=>16];
+        return ['A'=>8,'B'=>15,'C'=>26,'D'=>26,'E'=>15,'F'=>34,'G'=>22,'H'=>30,'I'=>18,'J'=>24,'K'=>16,'L'=>18];
     }
 
     public function styles(Worksheet $sheet): array

@@ -8,6 +8,7 @@
  */
 return array_replace(
     [
+        'directory_active_products_count' => 'عدد المنتجات النشطة',
         'directory_filter_title' => 'تصفية الحسابات',
         'directory_filter_help' => 'تاريخ الطلب يعرض الحسابات التي لديها طلب خلال الفترة المحددة.',
         'directory_apply' => 'تطبيق الفلاتر',

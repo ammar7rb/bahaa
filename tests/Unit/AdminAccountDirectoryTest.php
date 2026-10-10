@@ -22,7 +22,7 @@ class AdminAccountDirectoryTest extends TestCase
         Schema::create('vendor_account_profiles',function(Blueprint $t){$t->id();$t->integer('seller_id');$t->text('phone_numbers')->nullable();});
         Schema::create('orders',function(Blueprint $t){$t->id();$t->integer('customer_id')->nullable();$t->integer('seller_id')->nullable();$t->string('seller_is')->default('seller');$t->boolean('is_guest')->default(0);$t->decimal('order_amount',12,2)->default(0);$t->timestamps();});
         Schema::create('support_tickets',function(Blueprint $t){$t->id();$t->integer('customer_id');});
-        Schema::create('products',function(Blueprint $t){$t->id();$t->integer('user_id');$t->string('added_by');});
+        Schema::create('products',function(Blueprint $t){$t->id();$t->integer('user_id');$t->string('added_by');$t->boolean('status')->default(1);$t->integer('request_status')->default(1);});
         Schema::create('oauth_access_tokens',function(Blueprint $t){$t->string('id')->primary();$t->integer('user_id');$t->boolean('revoked')->default(0);});
         Schema::create('oauth_refresh_tokens',function(Blueprint $t){$t->id();$t->string('access_token_id');$t->boolean('revoked')->default(0);});
         Schema::create('business_settings',function(Blueprint $t){$t->id();$t->string('type');$t->text('value');});
@@ -43,6 +43,19 @@ class AdminAccountDirectoryTest extends TestCase
         $this->assertSame(1,$service->query(['type'=>'vendor','status'=>'active'])->count());
         $page=$service->query(['sort'=>'identifier','direction'=>'asc'])->paginate(1,['*'],'page',2);
         $this->assertSame(2,$page->firstItem());
+    }
+
+    public function test_vendor_activity_counts_only_approved_enabled_vendor_products(): void
+    {
+        DB::table('products')->insert([
+            ['user_id'=>7,'added_by'=>'seller','status'=>1,'request_status'=>1],
+            ['user_id'=>7,'added_by'=>'seller','status'=>0,'request_status'=>1],
+            ['user_id'=>7,'added_by'=>'seller','status'=>1,'request_status'=>0],
+            ['user_id'=>7,'added_by'=>'admin','status'=>1,'request_status'=>1],
+        ]);
+        $directory=app(AdminAccountDirectoryService::class);
+        $this->assertSame(1,(int)$directory->query(['q'=>'m7'])->first()->active_products_count);
+        $this->assertSame(0,(int)$directory->query(['q'=>'c12'])->first()->active_products_count);
     }
 
     public function test_secondary_contacts_are_real_and_primary_is_deduplicated(): void
@@ -179,12 +192,19 @@ class AdminAccountDirectoryTest extends TestCase
 
     public function test_blade_columns_profiles_and_sidebar_placement(): void
     {
+        DB::table('orders')->insert(['customer_id'=>12,'seller_id'=>7,'order_amount'=>120]);
+        DB::table('products')->insert(['user_id'=>7,'added_by'=>'seller','status'=>1,'request_status'=>1]);
         $directory=app(AdminAccountDirectoryService::class);$accounts=$directory->query([])->paginate(20);
         $source=file_get_contents(resource_path('views/admin-views/accounts/index.blade.php'));preg_match("/@section\('content'\)([\s\S]*?)@endsection/",$source,$matches);
         $html=Blade::render($matches[1],['accounts'=>$accounts,'contacts'=>$directory->contacts(collect($accounts->items())),'errors'=>new \Illuminate\Support\ViewErrorBag]);
+        $this->assertStringNotContainsString('fi-rr-sort',$html);$this->assertStringContainsString('directory-icon-action',$html);$this->assertStringContainsString('عدد المنتجات النشطة',$html);$this->assertStringNotContainsString('class="directory-status is-active"',$html);
         $this->assertStringContainsString('c12',$html);$this->assertStringContainsString('m7',$html);$this->assertStringContainsString('متجر سيجما',$html);$this->assertStringContainsString('الاسم:',$html);$this->assertStringContainsString('المتجر:',$html);$this->assertStringContainsString('+2',$html);
         $this->assertStringContainsString(route('admin.customer.view',12),$html);$this->assertStringContainsString(route('admin.vendors.view',7),$html);
         $this->assertStringContainsString(route('admin.account-directory.export'),$html);$this->assertStringContainsString(route('admin.account-directory.print'),$html);
+        session()->put('local','en');
+        $english=Blade::render($matches[1],['accounts'=>$accounts,'contacts'=>$directory->contacts(collect($accounts->items())),'errors'=>new \Illuminate\Support\ViewErrorBag]);
+        foreach(['Customer List','Order count','Active products','title="View"','title="Freeze"','title="Permanently delete"'] as $label) $this->assertStringContainsString($label,$english);
+        session()->put('local','ar');
         $sidebar=file_get_contents(resource_path('views/layouts/admin/partials/v2/_side-bar.blade.php'));$this->assertGreaterThan(strpos($sidebar,'data-item="pos"'),strpos($sidebar,'data-item="customer-list"'));
         if(getenv('ADMIN_DIRECTORY_QA_EXPORT')) {
             $dir=storage_path('app/admin-account-directory-qa');if(!is_dir($dir))mkdir($dir,0777,true);

@@ -19,6 +19,9 @@ class AdminAccountDirectoryService
         $vendorOrders=DB::table('orders')->where('seller_is','seller')->selectRaw("seller_id as account_id, 'vendor' as kind, COUNT(*) as orders_count, COALESCE(SUM(order_amount),0) as order_amount")->groupBy('seller_id');
         $q->leftJoinSub($customerOrders->unionAll($vendorOrders),'activity',fn($join)=>$join->on('activity.account_id','=','accounts.id')->on('activity.kind','=','accounts.kind'))
             ->select('accounts.*')->selectRaw('COALESCE(activity.orders_count,0) as orders_count, COALESCE(activity.order_amount,0) as order_amount');
+        $activeProducts=DB::table('products')->where('added_by','seller')->where('status',1)->where('request_status',1)->selectRaw('user_id, COUNT(*) as total')->groupBy('user_id');
+        $q->leftJoinSub($activeProducts,'vendor_products',fn($join)=>$join->on('vendor_products.user_id','=','accounts.id')->where('accounts.kind','vendor'))
+            ->selectRaw('COALESCE(vendor_products.total,0) as active_products_count');
         if (!empty($filters['type'])) $q->where('accounts.kind',$filters['type']);
         if (!empty($filters['status'])) $q->where('account_status',$filters['status']);
         $search = trim($filters['q'] ?? '');

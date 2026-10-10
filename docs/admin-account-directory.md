@@ -37,15 +37,21 @@ Classification provides type/status, inclusive joining-date and order-date range
 
 Order-date classification requires a matching non-guest customer order or seller-owned vendor order in the range. Count and amount sorting use all qualifying account orders, rather than only those in the range. Search includes references, names, store names, email and telephone data, including additional vendor phones and shop contacts.
 
-Screen, Excel and print share validated filters and the service query. Both outputs include all matching records, rather than the current page; first N still applies. XLSX reads query records in batches of 500 and includes additional contacts, joining date and order count. Explicit string binding preserves phone zeroes and prevents account data from becoming spreadsheet formulas. Query batching is not a constant-memory guarantee for the spreadsheet writer.
+Screen, Excel and print share validated filters and the service query. Both outputs include all matching records, rather than the current page; first N still applies. XLSX reads query records in batches of 500 and includes additional contacts, joining date and order count. Column L adds vendor active products and is blank for customers; the existing order-count column remains for reports. Explicit string binding preserves phone zeroes and prevents account data from becoming spreadsheet formulas. Query batching is not a constant-memory guarantee for the spreadsheet writer.
 
 Print opens a standalone light report with count, timestamp, classification summary and six columns: row number, reference, name, type, contacts and status. CSS requests A4 landscape, repeating headings, rows kept together where possible, and hidden print controls on paper. Read, export, print and status each require authenticated admin people access; deletion retains its additional role/confirmation requirements.
 
+## Latest row presentation adjustment
+
+The duplicated top matching count and visible sort arrows are removed. Arrowless identifier/name/status header links retain sorting and aria-sort; classification sorting remains available. Row actions use icons with translated titles and account-specific aria-labels, at 40px desktop and 44px mobile. Active text/dot above the actions are omitted; non-active statuses and existing permission/deletion-confirmation behavior remain.
+
+Customers show their order count. Vendors show active products: only seller-owned products with status=1 and request_status=1 count, meaning admin-enabled and approved. Order aggregates and date classification remain unchanged for sorting and reports.
+
 ## Verification and evidence
 
-The reported final directory/workspace regression run passed 21 tests and 147 assertions using PHP with an explicit `-d extension=zip` runtime flag. Local zip is off by default; the server uses its existing Excel stack. Coverage includes actual XLSX values and formula protection, date boundaries, activity sorting, first-N/pagination consistency, output authorization/date validation and existing protected actions, rollback, contacts and page structure.
+The reported final directory/workspace regression run passed 22 tests and 159 assertions using PHP with an explicit `-d extension=zip` runtime flag. Local zip is off by default; the server uses its existing Excel stack. Coverage includes English action labels and exclusion of disabled, unapproved and admin-owned products from vendor activity, actual XLSX values and formula protection, date boundaries, activity sorting, first-N/pagination consistency, output authorization/date validation and existing protected actions, rollback, contacts and page structure.
 
-The fresh refinement review returned ship within fixture and source scope, with no material fixes. Five valid captures are recorded:
+The previous classification/output refinement review returned ship within fixture and source scope, with no material fixes. Its five captures remain recorded:
 
 - .impeccable/review/directory-refined-light-desktop.jpg
 - .impeccable/review/directory-refined-dark-desktop.jpg
@@ -58,3 +64,5 @@ Desktop captures use 1440px and Arabic RTL in both themes. Mobile captures use 3
 The read-only production MySQL candidate check confirmed 25 accounts (16 customers and nine vendors), phone/reference searches for both types, first-N=3 with actual total 3, joining-date classification returning 25 and order-date classification returning 12. It also confirmed actual contacts and retained-dependency categories. No production account was frozen or deleted during verification.
 
 Release verification checks the deployed revision, protected routes, authenticated server rendering and actual Excel/print outputs separately from the visual fixtures. An authenticated production browser session and physical printing remain outside this evidence.
+
+Latest icon/activity evidence consists of four valid captures: `.impeccable/review/directory-icons-light-desktop.jpg`, `.impeccable/review/directory-icons-dark-desktop.jpg`, `.impeccable/review/directory-icons-light-mobile.jpg` and `.impeccable/review/directory-icons-dark-mobile.jpg`. Desktop is 1440px and mobile 390px, with English LTR/light and Arabic RTL/dark fixtures. The changed-UI detector returned an empty finding list once. Fresh review of this adjustment is pending; neither ship nor deployment is claimed for this cycle. The production-shell and physical-printing evidence limits above remain.

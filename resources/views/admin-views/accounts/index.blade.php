@@ -1,11 +1,11 @@
 @extends('layouts.admin.app')
 @section('title', translate('directory_title'))
 @push('css_or_js')
-<link rel="stylesheet" href="{{ dynamicAsset(path:'public/assets/back-end/css/admin-account-directory.css') }}?v=2">
+<link rel="stylesheet" href="{{ dynamicAsset(path:'public/assets/back-end/css/admin-account-directory.css') }}?v=3">
 @endpush
 @section('content')
 <div class="account-directory">
-    <div class="admin-page-heading"><div><h1>{{ translate('directory_title') }}</h1><p>{{ translate('directory_help') }}</p></div><span>{{ number_format($accounts->total()) }} {{ translate('directory_matching') }}</span></div>
+    <div class="admin-page-heading"><div><h1>{{ translate('directory_title') }}</h1><p>{{ translate('directory_help') }}</p></div></div>
     @if(session('directory_notice'))<p class="directory-feedback" role="status">{{ session('directory_notice') }}</p>@endif
     @if($errors->any())<div class="directory-feedback is-error" role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
     @php
@@ -38,10 +38,10 @@
                 <thead><tr>
                     <th scope="col">#</th>
                     @foreach(['identifier'=>'directory_identifier','name'=>'directory_name'] as $sort=>$label)
-                        <th scope="col" aria-sort="{{ request('sort','created_at')===$sort ? (request('direction','desc')==='asc'?'ascending':'descending') : 'none' }}"><a href="{{ request()->fullUrlWithQuery(['sort'=>$sort,'direction'=>request('sort')===$sort && request('direction')==='asc'?'desc':'asc','page'=>1]) }}">{{ translate($label) }} <i class="fi fi-rr-sort" aria-hidden="true"></i></a></th>
+                        <th scope="col" aria-sort="{{ request('sort','created_at')===$sort ? (request('direction','desc')==='asc'?'ascending':'descending') : 'none' }}"><a href="{{ request()->fullUrlWithQuery(['sort'=>$sort,'direction'=>request('sort')===$sort && request('direction')==='asc'?'desc':'asc','page'=>1]) }}">{{ translate($label) }}</a></th>
                     @endforeach
                     <th scope="col">{{ translate('directory_type') }}</th><th scope="col">{{ translate('directory_contacts') }}</th>
-                    <th scope="col" aria-sort="{{ request('sort')==='status' ? (request('direction')==='asc'?'ascending':'descending') : 'none' }}"><a href="{{ request()->fullUrlWithQuery(['sort'=>'status','direction'=>request('sort')==='status' && request('direction')==='asc'?'desc':'asc','page'=>1]) }}">{{ translate('directory_management') }} <i class="fi fi-rr-sort" aria-hidden="true"></i></a></th>
+                    <th scope="col" aria-sort="{{ request('sort')==='status' ? (request('direction')==='asc'?'ascending':'descending') : 'none' }}"><a href="{{ request()->fullUrlWithQuery(['sort'=>'status','direction'=>request('sort')==='status' && request('direction')==='asc'?'desc':'asc','page'=>1]) }}">{{ translate('directory_management') }}</a></th>
                 </tr></thead>
                 <tbody>
                 @forelse($accounts as $account)
@@ -54,13 +54,13 @@
                     <tr>
                         <td class="directory-row-number">{{ $accounts->firstItem()+$loop->index }}</td>
                         <td><a class="directory-reference" href="{{ $profile }}"><bdi>{{ $identifier }}</bdi></a></td>
-                        <td class="directory-person"><div class="directory-identity"><span class="directory-avatar is-{{ $account->kind }}" aria-hidden="true">{{ mb_substr($name,0,1) }}</span><div class="directory-name">@if($account->kind==='vendor')<div><span>{{ translate('directory_person_label') }}</span><a href="{{ $profile }}">{{ $name }}</a></div><div><span>{{ translate('directory_store_label') }}</span>{{ $account->store_name ?: translate('directory_missing') }}</div>@else<a href="{{ $profile }}">{{ $name }}</a>@endif<div class="directory-activity">{{ translate('directory_orders_count') }}: {{ number_format($account->orders_count) }}</div></div></div></td>
+                        <td class="directory-person"><div class="directory-identity"><span class="directory-avatar is-{{ $account->kind }}" aria-hidden="true">{{ mb_substr($name,0,1) }}</span><div class="directory-name">@if($account->kind==='vendor')<div><span>{{ translate('directory_person_label') }}</span><a href="{{ $profile }}">{{ $name }}</a></div><div><span>{{ translate('directory_store_label') }}</span>{{ $account->store_name ?: translate('directory_missing') }}</div>@else<a href="{{ $profile }}">{{ $name }}</a>@endif<div class="directory-activity">{{ translate($account->kind==='vendor'?'directory_active_products_count':'directory_orders_count') }}: <bdi>{{ number_format($account->kind==='vendor'?$account->active_products_count:$account->orders_count) }}</bdi></div></div></div></td>
                         <td><span class="directory-type is-{{ $account->kind }}"><i class="fi fi-rr-{{ $account->kind==='vendor'?'shop':'user' }}" aria-hidden="true"></i>{{ translate($account->kind) }}</span></td>
                         <td class="directory-contact"><div><i class="fi fi-rr-envelope" aria-hidden="true"></i><bdi>{{ $account->email ?: translate('directory_missing') }}</bdi></div><div><i class="fi fi-rr-phone-call" aria-hidden="true"></i><bdi>{{ $account->phone ?: translate('directory_missing') }}</bdi></div>@if($extra)<details><summary aria-label="{{ translate('directory_extra_contacts') }}: {{ count($extra) }}"><bdi>+{{ count($extra) }}</bdi> {{ translate('directory_extra_contacts') }}</summary><ul>@foreach($extra as $contact)<li><bdi>{{ $contact }}</bdi></li>@endforeach</ul></details>@endif</td>
-                        <td><div class="directory-management"><span class="directory-status is-{{ $account->account_status }}">{{ translate('directory_'.$account->account_status) }}</span><div class="directory-actions">
-                            <a class="directory-button" href="{{ $profile }}" aria-label="{{ translate('directory_view') }} {{ $name }}"><i class="fi fi-rr-eye" aria-hidden="true"></i>{{ translate('directory_view') }}</a>
-                            @if(in_array($account->account_status,['active','frozen']))<form action="{{ route('admin.account-directory.status',[$account->kind,$account->id]) }}" method="post">@csrf<input type="hidden" name="action" value="{{ $account->account_status==='frozen'?'reactivate':'freeze' }}"><button class="directory-button" aria-label="{{ translate($account->account_status==='frozen'?'directory_reactivate':'directory_freeze') }} {{ $name }}">{{ translate($account->account_status==='frozen'?'directory_reactivate':'directory_freeze') }}</button></form>@endif
-                            @if((int)auth('admin')->user()->admin_role_id===1)<button type="button" class="directory-button is-danger" data-delete-account data-url="{{ route('admin.account-directory.destroy',[$account->kind,$account->id]) }}" data-identifier="{{ $identifier }}" data-name="{{ $name }}" aria-label="{{ translate('directory_delete') }} {{ $name }}"><i class="fi fi-rr-trash" aria-hidden="true"></i>{{ translate('directory_delete') }}</button>@endif
+                        <td><div class="directory-management">@if($account->account_status!=='active')<span class="directory-status is-{{ $account->account_status }}">{{ translate('directory_'.$account->account_status) }}</span>@endif<div class="directory-actions">
+                            <a class="directory-button directory-icon-action" title="{{ translate('directory_view') }}" href="{{ $profile }}" aria-label="{{ translate('directory_view') }} {{ $name }}"><i class="fi fi-rr-eye" aria-hidden="true"></i></a>
+                            @if(in_array($account->account_status,['active','frozen']))<form action="{{ route('admin.account-directory.status',[$account->kind,$account->id]) }}" method="post">@csrf<input type="hidden" name="action" value="{{ $account->account_status==='frozen'?'reactivate':'freeze' }}"><button class="directory-button directory-icon-action" title="{{ translate($account->account_status==='frozen'?'directory_reactivate':'directory_freeze') }}" aria-label="{{ translate($account->account_status==='frozen'?'directory_reactivate':'directory_freeze') }} {{ $name }}"><i class="fi fi-rr-{{ $account->account_status==='frozen'?'unlock':'lock' }}" aria-hidden="true"></i></button></form>@endif
+                            @if((int)auth('admin')->user()->admin_role_id===1)<button type="button" class="directory-button directory-icon-action is-danger" title="{{ translate('directory_delete') }}" data-delete-account data-url="{{ route('admin.account-directory.destroy',[$account->kind,$account->id]) }}" data-identifier="{{ $identifier }}" data-name="{{ $name }}" aria-label="{{ translate('directory_delete') }} {{ $name }}"><i class="fi fi-rr-trash" aria-hidden="true"></i></button>@endif
                         </div></div></td>
                     </tr>
                 @empty<tr><td colspan="6"><div class="directory-empty"><i class="fi fi-rr-users" aria-hidden="true"></i><strong>{{ translate('directory_empty') }}</strong><span>{{ translate('directory_empty_help') }}</span></div></td></tr>@endforelse
