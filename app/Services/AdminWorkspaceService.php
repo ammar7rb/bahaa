@@ -62,7 +62,7 @@ class AdminWorkspaceService
     {
         $query = $this->pendingPaymentRows();
         if (!$query) return ['count' => 0, 'items' => []];
-        return ['count' => (clone $query)->count(), 'items' => $query->orderByDesc('updated_at')->limit(6)->get()->map(fn ($row) => $this->paymentItem($row))->all()];
+        return ['count' => (clone $query)->count(), 'items' => $query->orderByDesc('occurred_at')->limit(6)->get()->map(fn ($row) => $this->paymentItem($row))->all()];
     }
 
     public function pendingPaymentRows(): ?\Illuminate\Database\Query\Builder
@@ -74,7 +74,7 @@ class AdminWorkspaceService
             if ($table === 'orders') $q->where(fn ($q) => $q->whereNull('orders.activation_status')->orWhere('orders.activation_status', '!=', 'offline_payment_rejected'));
             $actorType = str_starts_with($table, 'seller_') ? 'vendor' : 'customer';
             $foreign = $actorType === 'vendor' ? 'seller_id' : 'customer_id';
-            $q->selectRaw("'".$table."' as source, ".$table.".id, ".$table.".updated_at, ".($table === 'post_purchase_invoices' ? $table.'.order_id' : 'NULL')." as order_id, '".$actorType."' as audience");
+            $q->selectRaw("'".$table."' as source, ".$table.".id, ".$table.".updated_at, COALESCE(".$table.".created_at, ".$table.".updated_at) as occurred_at, ".($table === 'post_purchase_invoices' ? $table.'.order_id' : 'NULL')." as order_id, '".$actorType."' as audience");
             $q->selectRaw($table.'.'.$amount.' as review_amount');
             $q->selectRaw((Schema::hasColumn($table, 'currency_code') ? $table.'.currency_code' : 'NULL').' as review_currency');
             if (Schema::hasColumn($table, $foreign)) {
@@ -91,7 +91,7 @@ class AdminWorkspaceService
     public function paymentItem(object $row): array
     {
         $actor = trim($row->actor_first.' '.$row->actor_last);
-        return ['title' => $this->paymentLabel($row->source).' #'.$row->id, 'detail' => translate($row->audience).($actor ? ' · '.$actor : ''), 'url' => $this->paymentUrl($row->source, $row), 'time' => $this->timeIso($row->updated_at), 'time_label' => $this->timeLabel($row->updated_at), 'meta' => $this->money($row->review_amount ?? 0, $row->review_currency ?? null), 'badge' => translate('payments_waiting_for_review'), 'icon' => 'credit-card'];
+        return ['title' => $this->paymentLabel($row->source).' #'.$row->id, 'detail' => translate($row->audience).($actor ? ' · '.$actor : ''), 'url' => $this->paymentUrl($row->source, $row), 'time' => $this->timeIso($row->occurred_at ?? $row->updated_at), 'time_label' => $this->timeLabel($row->occurred_at ?? $row->updated_at), 'meta' => $this->money($row->review_amount ?? 0, $row->review_currency ?? null), 'badge' => translate('payments_waiting_for_review'), 'icon' => 'credit-card'];
     }
 
     private function timeLabel($time): string
@@ -125,7 +125,7 @@ class AdminWorkspaceService
                 return ['url' => $this->productImage(new Product(['thumbnail'=>$data['thumbnail'] ?? '', 'thumbnail_storage_type'=>$data['thumbnail_storage_type'] ?? 'public'])), 'alt' => $data['name'] ?? translate('product')];
             })->all();
             $customer = $order->customer;
-            return ['title'=>translate('Order_id').' #'.$order->id, 'detail'=>trim(($customer?->f_name ?? '').' '.($customer?->l_name ?? '')) ?: translate('customer'), 'preview'=>translate('workspace_order_review_hint'), 'meta'=>$this->money($order->order_amount).' · '.(int) $lines->sum('qty').' '.translate('workspace_items'), 'images'=>$images, 'icon'=>'shopping-bag', 'badge'=>translate('pending_Orders'), 'time'=>$order->updated_at?->toIso8601String(), 'time_label'=>$this->timeLabel($order->updated_at), 'url'=>route('admin.orders.details',$order->id)];
+            return ['title'=>translate('Order_id').' #'.$order->id, 'detail'=>trim(($customer?->f_name ?? '').' '.($customer?->l_name ?? '')) ?: translate('customer'), 'preview'=>translate('workspace_order_review_hint'), 'meta'=>$this->money($order->order_amount).' · '.(int) $lines->sum('qty').' '.translate('workspace_items'), 'images'=>$images, 'icon'=>'shopping-bag', 'badge'=>translate('pending_Orders'), 'time'=>($order->created_at ?? $order->updated_at)?->toIso8601String(), 'time_label'=>$this->timeLabel($order->created_at ?? $order->updated_at), 'url'=>route('admin.orders.details',$order->id)];
         })->all();
     }
 

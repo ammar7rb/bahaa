@@ -149,7 +149,7 @@ class AdminWorkspaceTest extends TestCase
         DB::table('products')->insert([['added_by'=>'admin','request_status'=>1,'name'=>'منتج معتمد','user_id'=>1], ['added_by'=>'seller','request_status'=>1,'name'=>'منتج آخر','user_id'=>7], ['added_by'=>'seller','request_status'=>0,'name'=>'قفازات طبية','user_id'=>7]]);
         DB::table('translations')->insert(['translationable_type'=>\App\Models\Product::class,'translationable_id'=>3,'locale'=>'en','key'=>'name','value'=>'Medical gloves']);
         DB::table('orders')->insert([['id'=>101,'order_status'=>'pending','commerce_flow_status'=>'pending_admin_review'], ['id'=>102,'order_status'=>'delivered','commerce_flow_status'=>'completed']]);
-        DB::table('orders')->insert(['id'=>103,'order_status'=>'confirmed','commerce_flow_status'=>'awaiting_payment','payment_method'=>'offline_payment','payment_status'=>'unpaid','updated_at'=>now()->subMinutes(5)]);
+        DB::table('orders')->insert(['id'=>103,'order_status'=>'confirmed','commerce_flow_status'=>'awaiting_payment','payment_method'=>'offline_payment','payment_status'=>'unpaid','created_at'=>now()->subMinutes(5),'updated_at'=>now()]);
         DB::table('orders')->where('id',101)->update(['customer_id'=>12,'order_amount'=>250,'updated_at'=>now()]);
         DB::table('products')->where('id',3)->update(['updated_at'=>now()]);
         DB::table('account_activation_cases')->insert(['subject_type'=>'customer','subject_id'=>12,'status'=>'in_review','updated_at'=>now()]);
