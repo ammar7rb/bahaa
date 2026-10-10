@@ -25,7 +25,7 @@
                 @if($purchase_wallet_enabled)
                     <form method="post" action="{{ route('customer.subscription.wallet',$open->id) }}">@csrf
                         <p>رصيد محفظة المشتريات: {{ webCurrencyConverter($purchase_balance) }}</p>
-                        <button class="monthly-button" type="submit">دفع الاشتراك من محفظة المشتريات</button>
+                        @if($purchase_balance < (float)$open->wallet_debit_amount)<div class="monthly-error" role="alert">عذرًا، رصيد محفظة المشتريات لا يكفي. برجاء الإيداع فيها أو استخدام طريقة أخرى.</div><a class="monthly-button" href="{{ route('wallet') }}#purchase-balance" style="color:#fff">الإيداع في محفظة المشتريات</a>@else<button class="monthly-button" type="submit">دفع الاشتراك من محفظة المشتريات</button>@endif
                     </form>
                 @endif
                 @foreach($offline_methods as $method)
