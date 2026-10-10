@@ -77,6 +77,7 @@ class Order extends Model
     }
 
     protected $fillable = [
+        'customer_checkout_operation_id', 'customer_eligible_at', 'customer_fulfillment_status', 'customer_pending_reasons',
         'id',
         'customer_id',
         'is_guest',
@@ -199,6 +200,7 @@ class Order extends Model
     ];
 
     protected $casts = [
+        'customer_eligible_at' => 'datetime', 'customer_pending_reasons' => 'array',
         'customer_id' => 'integer',
         'is_guest' => 'boolean',
         'customer_type' => 'string',

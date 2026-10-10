@@ -57,7 +57,9 @@ class CustomerManager
 
         $wallet_transaction = new WalletTransaction();
         $wallet_transaction->user_id = $user->id;
-        $wallet_transaction->transaction_id = \Str::uuid();
+        $wallet_transaction->transaction_id = $transaction_type === 'add_fund' && $reference === 'add_funds_to_wallet' && !empty($payment_data['id'])
+            ? 'd' . $payment_data['id']
+            : (string) \Str::uuid();
         $wallet_transaction->reference = $reference;
         $wallet_transaction->transaction_type = $transaction_type;
         $wallet_transaction->payment_method = isset($payment_data['payment_method']) ? $payment_data['payment_method'] : null;

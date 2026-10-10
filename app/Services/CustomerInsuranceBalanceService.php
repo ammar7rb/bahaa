@@ -17,7 +17,7 @@ class CustomerInsuranceBalanceService
 {
     public function summary(int $customerId): array
     {
-        app(CustomerInsuranceIncentiveService::class)->grantEligibleWelcomeCredits($customerId);
+        // Historical balances are read-only; no new incentive credits.
         $available = (float) CustomerInsuranceLedgerEntry::query()
             ->where('customer_id', $customerId)
             ->selectRaw('COALESCE(SUM(credit - debit), 0) as balance')
@@ -50,69 +50,12 @@ class CustomerInsuranceBalanceService
 
     public function recordHold(OrderInsurance $insurance): void
     {
-        if ($insurance->payment_status !== 'paid') {
-            return;
-        }
-
-        CustomerInsuranceLedgerEntry::query()->firstOrCreate(
-            ['reference' => 'order-insurance-hold-' . $insurance->id],
-            [
-                'customer_id' => $insurance->customer_id,
-                'order_insurance_id' => $insurance->id,
-                'order_id' => $insurance->order_id,
-                'entry_type' => 'hold',
-                'credit' => 0,
-                'debit' => 0,
-                'metadata' => ['matures_at' => optional($insurance->matures_at)->toIso8601String()],
-            ]
-        );
+        throw new DomainException('تم إيقاف تأمين العملاء.');
     }
 
     public function releaseDue(?int $limit = null): int
     {
-        $query = OrderInsurance::query()
-            ->where('status', 'held')
-            ->where('payment_status', 'paid')
-            ->whereNotNull('matures_at')
-            ->where('matures_at', '<=', now())
-            ->orderBy('id');
-
-        if ($limit) {
-            $query->limit($limit);
-        }
-
-        $count = 0;
-        foreach ($query->get() as $candidate) {
-            $released = DB::transaction(function () use ($candidate): bool {
-                $insurance = OrderInsurance::query()->lockForUpdate()->find($candidate->id);
-                if (!$insurance || $insurance->status !== 'held' || !$insurance->matures_at || $insurance->matures_at->isFuture()) {
-                    return false;
-                }
-
-                CustomerInsuranceLedgerEntry::query()->firstOrCreate(
-                    ['reference' => 'order-insurance-mature-' . $insurance->id],
-                    [
-                        'customer_id' => $insurance->customer_id,
-                        'order_insurance_id' => $insurance->id,
-                        'order_id' => $insurance->order_id,
-                        'entry_type' => 'matured_credit',
-                        'credit' => $insurance->amount,
-                        'debit' => 0,
-                        'metadata' => [
-                            'maturity_days' => $insurance->maturity_days,
-                            'restricted_to' => 'insurance_payment',
-                        ],
-                    ]
-                );
-
-                $insurance->update(['status' => 'matured', 'matured_at' => now(), 'refunded_at' => now()]);
-                return true;
-            });
-
-            $count += $released ? 1 : 0;
-        }
-
-        return $count;
+        return 0; // Historical funds remain archived for reconciliation.
     }
 
     /** @deprecated Insurance balance can no longer pay for products. */
@@ -123,85 +66,19 @@ class CustomerInsuranceBalanceService
 
     public function debitForInsurance(OrderInsurance $insurance, string $reference, array $metadata = []): float
     {
-        if ($insurance->customer_id <= 0 || $insurance->amount <= 0) {
-            throw new DomainException('invalid_customer_insurance_payment');
-        }
-
-        return $this->debit(
-            customerId: (int) $insurance->customer_id,
-            amount: (float) $insurance->amount,
-            reference: $reference,
-            entryType: 'insurance_payment_debit',
-            metadata: [
-                'order_insurance_id' => $insurance->id,
-                'order_id' => $insurance->order_id,
-                'restricted_to' => 'insurance_payment',
-            ] + $metadata,
-            orderInsuranceId: (int) $insurance->id,
-            orderId: (int) $insurance->order_id,
-        );
+        throw new DomainException('تم إيقاف تأمين العملاء.');
     }
 
     public function debitForGovernance(int $customerId, float $amount, string $reference, array $metadata = []): float
     {
-        return $this->debit($customerId, $amount, $reference, 'admin_governance_debit', $metadata);
+        throw new DomainException('تم إيقاف تأمين العملاء. تتم مطابقة المبالغ القديمة من الأرشيف.');
     }
 
     public function creditFromGovernance(int $customerId, float $amount, string $reference, array $metadata = []): float
     {
-        if ($amount <= 0) throw new DomainException('insurance_action_amount_must_be_positive');
-
-        return DB::transaction(function () use ($customerId, $amount, $reference, $metadata): float {
-            User::query()->lockForUpdate()->findOrFail($customerId);
-            $existing = CustomerInsuranceLedgerEntry::query()->where('reference', $reference)->first();
-            if ($existing) return (float) $existing->credit;
-
-            CustomerInsuranceLedgerEntry::query()->create([
-                'customer_id' => $customerId,
-                'entry_type' => 'admin_governance_credit',
-                'credit' => round($amount, 2), 'debit' => 0,
-                'reference' => $reference,
-                'metadata' => ['restricted_to' => 'insurance_payment'] + $metadata,
-            ]);
-            return round($amount, 2);
-        });
+        throw new DomainException('تم إيقاف تأمين العملاء. تتم مطابقة المبالغ القديمة من الأرشيف.');
     }
 
-    private function debit(
-        int $customerId,
-        float $amount,
-        string $reference,
-        string $entryType,
-        array $metadata = [],
-        ?int $orderInsuranceId = null,
-        ?int $orderId = null,
-    ): float {
-        if ($amount <= 0) throw new DomainException('insurance_payment_amount_must_be_positive');
-
-        return DB::transaction(function () use ($customerId, $amount, $reference, $entryType, $metadata, $orderInsuranceId, $orderId): float {
-            User::query()->lockForUpdate()->findOrFail($customerId);
-            $existing = CustomerInsuranceLedgerEntry::query()->where('reference', $reference)->first();
-            if ($existing) return (float) $existing->debit;
-
-            $available = (float) CustomerInsuranceLedgerEntry::query()
-                ->where('customer_id', $customerId)->lockForUpdate()
-                ->selectRaw('COALESCE(SUM(credit - debit), 0) as balance')->value('balance');
-            if ($available + 0.000001 < $amount) {
-                throw new DomainException('customer_insurance_balance_is_insufficient');
-            }
-
-            CustomerInsuranceLedgerEntry::query()->create([
-                'customer_id' => $customerId,
-                'order_insurance_id' => $orderInsuranceId,
-                'order_id' => $orderId,
-                'entry_type' => $entryType,
-                'credit' => 0, 'debit' => round($amount, 2),
-                'reference' => $reference,
-                'metadata' => ['restricted_to' => 'insurance_payment'] + $metadata,
-            ]);
-            return round($amount, 2);
-        });
-    }
 
     public function reversePurchaseDebit(int $customerId, string $debitReference, string $reason): void
     {

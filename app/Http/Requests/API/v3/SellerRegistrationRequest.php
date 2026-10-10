@@ -21,7 +21,7 @@ class SellerRegistrationRequest extends FormRequest
     {
         return [
             'email' => 'required|email|unique:sellers,email',
-            'phone' => ['required', 'regex:/^\+201[0125]\d{8}$/', 'unique:sellers,phone'],
+            'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueSellerPhone],
             'password' => 'required|min:8',
             'policy_version_ids' => 'nullable|array',
             'policy_version_ids.*' => 'integer',
@@ -34,7 +34,7 @@ class SellerRegistrationRequest extends FormRequest
             'email.required' => translate('Email is required.'),
             'email.unique' => translate('This email is already registered.'),
             'phone.unique' => translate('This phone number is already registered.'),
-            'phone.regex' => translate('please_provide_valid_phone_number'),
+            'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'password.min' => translate('Password must be at least 8 characters.'),
         ];
     }
@@ -42,7 +42,7 @@ class SellerRegistrationRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'phone' => app(EgyptPhoneService::class)->normalize($this->input('phone')),
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
         ]);
     }
 

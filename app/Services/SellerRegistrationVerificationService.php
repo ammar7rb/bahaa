@@ -183,7 +183,7 @@ class SellerRegistrationVerificationService
                 $token = $firebaseSessionInfo;
             } else {
                 try {
-                    $firebaseResponse = $this->firebaseService->sendOtp($seller->phone);
+                    $firebaseResponse = $this->firebaseService->sendOtp(app(EgyptPhoneService::class)->normalize($seller->phone));
                 } catch (Throwable) {
                     $firebaseResponse = ['status' => 'error', 'errors' => 'OTP_send_failed'];
                 }
@@ -200,7 +200,7 @@ class SellerRegistrationVerificationService
                 $token = $firebaseResponse['sessionInfo'];
             }
         } else {
-            $smsResponse = SMSModule::sendCentralizedSMS($seller->phone, $token);
+            $smsResponse = SMSModule::sendCentralizedSMS(app(EgyptPhoneService::class)->normalize($seller->phone), $token);
             if (env('APP_MODE') !== 'live') {
                 $smsResponse = 'success';
             }
@@ -281,7 +281,7 @@ class SellerRegistrationVerificationService
         $verified = false;
         if (strlen((string) $verification->token) > 6) {
             try {
-                $firebaseResponse = $this->firebaseService->verifyOtp($verification->token, $seller->phone, $otp);
+                $firebaseResponse = $this->firebaseService->verifyOtp($verification->token, app(EgyptPhoneService::class)->normalize($seller->phone), $otp);
                 $verified = ($firebaseResponse['status'] ?? 'error') === 'success';
             } catch (Throwable) {
                 $verified = false;

@@ -27,8 +27,7 @@ class PostPurchaseInvoiceService
 
     public function isEnabled(): bool
     {
-        return $this->settingBool('customer_order_insurance_status', false)
-            || $this->settingBool('customer_second_invoice_tax_enabled', false);
+        return $this->settingBool('customer_second_invoice_tax_enabled', false);
     }
 
     public function usesSecondInvoice(Order $order): bool
@@ -219,61 +218,8 @@ class PostPurchaseInvoiceService
      */
     public function applyCustomerInsuranceBalance(PostPurchaseInvoice $invoice, User $customer): PostPurchaseInvoice
     {
-        return DB::transaction(function () use ($invoice, $customer) {
-            $invoice = PostPurchaseInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
-            $this->assertInvoiceCustomer($invoice, $customer);
-            $this->assertPayable($invoice);
-
-            $metadata = $invoice->metadata ?: [];
-            $alreadyPaid = (float) ($metadata['insurance_balance_paid'] ?? 0);
-            $availableForInsurance = max(0, round((float) $invoice->insurance_amount - $alreadyPaid, 4));
-            if ($availableForInsurance <= 0) {
-                return $invoice;
-            }
-
-            User::query()->lockForUpdate()->findOrFail($customer->id);
-            $balance = $this->lockInsuranceBalance($customer->id);
-            $ledgerAvailable = \Illuminate\Support\Facades\Schema::hasTable('customer_insurance_ledger_entries')
-                ? max(0, (float) \App\Models\CustomerInsuranceLedgerEntry::where('customer_id', $customer->id)
-                    ->selectRaw('COALESCE(SUM(credit - debit), 0) as balance')->value('balance')) : 0;
-            $amount = $availableForInsurance;
-            if (round((float) $balance->available_amount + $ledgerAvailable, 4) < round($amount, 4)) {
-                throw new DomainException('insurance_balance_is_insufficient_deposit_or_use_transfer');
-            }
-
-            $before = (float) $balance->available_amount + $ledgerAvailable;
-            $ledgerUsed = min($ledgerAvailable, $amount);
-            if ($ledgerUsed > 0) {
-                \App\Models\CustomerInsuranceLedgerEntry::create([
-                    'customer_id' => $customer->id, 'order_id' => $invoice->order_id,
-                    'entry_type' => 'insurance_payment_debit', 'credit' => 0, 'debit' => $ledgerUsed,
-                    'reference' => 'post-purchase-insurance-' . $invoice->id . '-' . $alreadyPaid,
-                    'metadata' => ['invoice_id' => $invoice->id, 'restricted_to' => 'insurance_payment'],
-                ]);
-            }
-            $balance->update(['available_amount' => round((float) $balance->available_amount - ($amount - $ledgerUsed), 4)]);
-            $this->recordInsuranceBalanceAction(
-                subjectType: 'customer',
-                subjectId: $customer->id,
-                amount: -$amount,
-                before: $before,
-                after: round($before - $amount, 4),
-                action: 'post_purchase_invoice_insurance_payment',
-                orderId: $invoice->order_id,
-                invoiceId: $invoice->id,
-                metadata: ['tax_amount' => (float) $invoice->tax_amount],
-            );
-
-            $metadata['insurance_balance_paid'] = round($alreadyPaid + $amount, 4);
-            $invoice->update([
-                'paid_amount' => round((float) $invoice->paid_amount + $amount, 4),
-                'metadata' => $metadata,
-            ]);
-
-            return $this->completeIfFullyPaid($invoice->fresh());
-        });
+        throw new DomainException('customer_security_deposits_retired');
     }
-
     /**
      * Records the non-insurance part through an approved payment callback or
      * an approved offline review. $amount must not include a wallet amount.
@@ -286,6 +232,17 @@ class PostPurchaseInvoiceService
     ): PostPurchaseInvoice {
         return DB::transaction(function () use ($invoice, $amount, $paymentMethod, $reference) {
             $invoice = PostPurchaseInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            if (($invoice->metadata['customer_deposit_retired'] ?? false) && ($invoice->metadata['archived_insurance_amount'] ?? 0) > 0) {
+                $legacyReference = 'post-purchase-retired-'.($reference ?: $invoice->id);
+                if (DB::table('customer_legacy_payment_receipts')->where('reference',$legacyReference)->exists()) return $invoice;
+                app(CustomerLegacyPaymentService::class)->record($legacyReference,(int)$invoice->customer_id,$amount,getCurrencyCode(type:'default'),['invoice_id'=>$invoice->id,'payment_method'=>$paymentMethod]);
+                // Match legitimate tax against the received amount, retain any
+                // retired deposit excess for admin reconciliation without a debit.
+                $legitimateDue = max(0,(float)$invoice->tax_amount-(float)$invoice->paid_amount);
+                $applied = min($amount,$legitimateDue);
+                $invoice->update(['paid_amount'=>(float)$invoice->paid_amount+$applied]);
+                return $applied > 0 ? $this->completeIfFullyPaid($invoice->fresh()) : $invoice;
+            }
             $isApprovedOfflineReview = $invoice->status === PostPurchaseInvoice::STATUS_AWAITING_REVIEW
                 && str_starts_with($paymentMethod, 'offline_');
             if (! $isApprovedOfflineReview) {
@@ -330,6 +287,7 @@ class PostPurchaseInvoiceService
             }
 
             $order = Order::query()->lockForUpdate()->findOrFail($invoice->order_id);
+            app(CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
             if ($order->payment_status !== 'paid') {
                 throw new DomainException('first_payment_must_be_approved');
             }
@@ -443,6 +401,7 @@ class PostPurchaseInvoiceService
             'operational_block_reason' => 'seller_insurance_and_shipping_assignment_required',
         ]);
 
+        app(CustomerPurchaseEligibilityService::class)->reevaluateCustomer((int) $invoice->customer_id);
         return $invoice->fresh();
     }
 
@@ -466,7 +425,7 @@ class PostPurchaseInvoiceService
 
     private function insuranceSnapshot(Order $order): array
     {
-        $enabled = $this->settingBool('customer_order_insurance_status', false);
+        $enabled = false; // Customer security deposits have been retired.
         $threshold = max(0, $this->settingFloat('customer_order_insurance_threshold', 1000));
         $base = max(0, round((float) $order->order_amount, 4));
         $type = $this->setting('customer_order_insurance_type', 'percentage');

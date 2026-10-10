@@ -26,18 +26,8 @@ class CustomerInsuranceDepositService
             throw new \DomainException('invalid_customer_insurance_deposit');
         }
 
-        DB::transaction(function () use ($customerId, $paymentId, $credit, $payment): void {
-            User::query()->lockForUpdate()->findOrFail($customerId);
-            CustomerInsuranceLedgerEntry::query()->firstOrCreate(
-                ['reference' => 'insurance-deposit-' . $paymentId],
-                [
-                    'customer_id' => $customerId,
-                    'entry_type' => 'deposit',
-                    'credit' => $credit,
-                    'debit' => 0,
-                    'metadata' => ['restricted_to' => 'insurance_payment', 'payment_method' => $payment['payment_method']],
-                ]
-            );
-        });
+        app(CustomerLegacyPaymentService::class)->record('insurance-deposit-'.$paymentId,$customerId,$amount,$payment['currency_code'],[
+            'payment_id'=>$paymentId,'payment_method'=>$payment['payment_method'],'base_amount'=>$credit,
+        ]);
     }
 }

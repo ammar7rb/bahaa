@@ -20,6 +20,17 @@ class CustomerRepository implements CustomerRepositoryInterface
 
     public function add(array $data): string|object
     {
+        $data['onboarding_journey'] ??= 'standard';
+        if (!empty($data['phone'])) {
+            $phones = app(\App\Services\EgyptPhoneService::class);
+            if ($phones->isValid($data['phone'])) {
+                if ($this->user->whereIn('phone', $phones->aliases($data['phone']))->orWhere('canonical_phone', $phones->normalizeLocal($data['phone']))->exists()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['phone' => 'هذا الرقم مسجل بالفعل. سجّل الدخول إلى حسابك.']);
+                }
+                $data['canonical_phone'] = $phones->normalizeLocal($data['phone']);
+                $data['phone'] = $data['canonical_phone'];
+            }
+        }
         return $this->user->create($data);
     }
 
@@ -30,6 +41,11 @@ class CustomerRepository implements CustomerRepositoryInterface
 
     public function getByIdentity(array $filters = []): ?Model
     {
+        $identity = $filters['identity'] ?? $filters['phone'] ?? null;
+        if ($identity && app(\App\Services\EgyptPhoneService::class)->isValid($identity)) {
+            return $this->user->whereIn('phone', app(\App\Services\EgyptPhoneService::class)->aliases($identity))
+                ->orWhere('canonical_phone', app(\App\Services\EgyptPhoneService::class)->normalizeLocal($identity))->first();
+        }
         return $this->user
             ->when(isset($filters['phone']) && $filters['phone'], function ($query) use ($filters) {
                 return $query->where(['phone' => $filters['phone']]);

@@ -35,7 +35,8 @@ class OrderCommerceContractService
                 'payment_due_at' => $insurance?->payment_due_at?->toIso8601String(),
                 'balance_use_policy' => $insurance?->balance_use_policy ?: 'insurance_only',
             ],
-            'order_is_suspended_until_insurance_payment' => true,
+            'order_is_suspended_until_insurance_payment' => false,
+            'customer_eligibility' => app(CustomerPurchaseEligibilityService::class)->orderPayload($order),
             'support_available' => true,
             'purchase_refund' => [
                 'status' => $insurance?->purchase_refund_status,
@@ -86,6 +87,7 @@ class OrderCommerceContractService
     {
         return [
             'contract_version' => $this->features->contractVersion(),
+            'customer_eligibility' => app(CustomerPurchaseEligibilityService::class)->orderPayload($order),
             'flow_version' => $order->commerce_flow_version,
             'flow_status' => $order->commerce_flow_status,
             'order_reference' => $this->fullReference($order),

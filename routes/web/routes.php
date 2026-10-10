@@ -235,6 +235,15 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     // Customer-to-seller/delivery chat is intentionally unavailable. Customers
     // use the support-ticket center for administration communication.
 
+    Route::prefix('customer/subscription')->name('customer.subscription.')->middleware('customer')->controller('\App\Http\Controllers\Customer\MonthlySubscriptionController')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('checkout', 'checkout')->middleware('throttle:10,1')->name('checkout');
+        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1')->name('wallet');
+        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1')->name('offline');
+    });
+
+    Route::post('customer/orders/{order}/payment-proof/retry', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'submit'])->middleware(['customer', 'throttle:10,1'])->name('customer.order.payment-retry');
+
     Route::controller(UserWalletController::class)->group(function () {
         Route::get('customer-balances', 'balances')->name('customer-balances')->middleware('customer');
         Route::post('customer-balances/offline', [\App\Http\Controllers\Customer\CustomerBalanceDepositController::class, 'store'])->name('customer-balances.offline')->middleware(['customer', 'throttle:10,1']);
@@ -341,6 +350,8 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
         });
 
         Route::controller(RegisterController::class)->group(function () {
+            Route::get('checkout-register', [\App\Http\Controllers\Customer\Auth\CheckoutRegistrationController::class, 'show'])->name('checkout-register');
+            Route::post('checkout-register', [\App\Http\Controllers\Customer\Auth\CheckoutRegistrationController::class, 'store'])->middleware('throttle:5,1');
             Route::get('sign-up', 'getRegisterView')->name('sign-up');
             Route::post('sign-up', 'submitRegisterData');
             Route::get('check-verification', 'verificationCheckView')->name('check-verification');

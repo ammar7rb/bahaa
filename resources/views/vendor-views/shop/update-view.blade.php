@@ -186,7 +186,7 @@
                                 </div>
                             </div>
 
-                            @if (theme_root_path() == 'theme_aster')
+                            @if (theme_base_path() == 'theme_aster')
                                 <div class="col-md-12">
                                     <div class="bg-light p-3 rounded">
                                         <div class="d-flex flex-column gap-20">

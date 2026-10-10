@@ -95,7 +95,7 @@
 @include('theme-views.layouts.partials._alert-message')
 @include('theme-views.layouts.partials._header')
 @include('web-views.users-profile.partials.customer-activation-banner')
-@include('web-views.users-profile.partials.customer-insurance-balance-banner')
+@include('customer-subscription.expiry-banner')
 @include('theme-views.layouts.partials._settings-sidebar')
 @yield('content')
 @include('theme-views.layouts.partials._feature')
@@ -268,6 +268,7 @@
     }
 </script>
 @stack('script')
+@include('customer-checkout.entry')
 <script src="{{ theme_asset('assets/js/customer-dark-mode.js') }}?v=20260930.1"></script>
 
 </body>

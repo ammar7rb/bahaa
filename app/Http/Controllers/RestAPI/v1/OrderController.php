@@ -72,6 +72,12 @@ class OrderController extends Controller
             ], 403);
         }
 
+        $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+        if ($eligibility->enabled()) {
+            $state = $eligibility->status($user);
+            if (!$state['can_checkout']) return response()->json(['message'=>$state['message'],'code'=>'customer_purchase_restricted'], 403);
+        }
+
         if (app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {
             return null;
         }
@@ -412,6 +418,7 @@ class OrderController extends Controller
 
         $offlinePaymentInfo = [];
         $method = OfflinePaymentMethod::where(['id' => $request['method_id'], 'status' => 1])->first();
+        if (!$method) return response()->json(['message'=>translate('offline_payment_method_not_found')], 422);
 
         if (isset($method)) {
             $values = $this->decodeOfflinePaymentInformation($request['method_informations'] ?? null);
@@ -516,6 +523,7 @@ class OrderController extends Controller
 
     public function placeOrderByWallet(Request $request): JsonResponse
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
         $cartGroupIds = CartManager::get_cart_group_ids(request: $request, type: 'checked');
         $carts = Cart::whereHas('product', function ($query) {
             return $query->active();
@@ -537,7 +545,9 @@ class OrderController extends Controller
         ]);
         $paymentAmount = collect($vendorWiseCartList)->sum('first_payment_amount');
 
-        $user = Helpers::getCustomerInformation($request);
+        $identity = Helpers::getCustomerInformation($request);
+        abort_if($identity === 'offline', 401);
+        $user = \App\Models\User::lockForUpdate()->findOrFail($identity->id);
         if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForApiOrder($request, $user, $carts)) {
             return $purchaseLimitResponse;
         }
@@ -591,7 +601,7 @@ class OrderController extends Controller
                 'requestObj' => $request,
             ]);
 
-            CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment');
+            if (!CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment')) throw \Illuminate\Validation\ValidationException::withMessages(['wallet' => 'تعذر تأكيد الخصم. لم يتم إنشاء الطلب.']);
             $postPurchaseInvoices = \App\Models\PostPurchaseInvoice::query()->whereIn('order_id', $orderIds)->get();
             return response()->json([
                 'messages' => translate('order_placed_successfully'),
@@ -600,6 +610,8 @@ class OrderController extends Controller
                 'next_action' => $postPurchaseInvoices->isNotEmpty() ? 'pay_post_purchase_invoice' : 'order_review',
             ], 200);
         }
+
+        }, 3);
     }
 
     public function refund_request(Request $request): JsonResponse

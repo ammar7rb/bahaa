@@ -34,7 +34,37 @@ if (!function_exists('theme_base_path')) {
 if (!function_exists('theme_root_path')) {
     function theme_root_path(): string
     {
-        return env('WEB_THEME') == null ? 'default' : env('WEB_THEME');
+        $activeTheme = env('WEB_THEME') ?: 'default';
+        // A short-lived, encrypted admin preview changes only this browser's storefront.
+        // Theme selection for admin, APIs and the merchant portal stays unchanged.
+        if (app()->runningInConsole() || !is_string($_COOKIE['sigma_storefront_preview'] ?? null)) {
+            return $activeTheme;
+        }
+        return storefront_preview_theme($_COOKIE['sigma_storefront_preview'], request()->getPathInfo()) ?? $activeTheme;
+    }
+}
+
+if (!function_exists('storefront_preview_theme')) {
+    function storefront_preview_theme(string $cookie, string $requestPath): ?string
+    {
+        $path = '/' . trim($requestPath, '/');
+        if (preg_match('~^/(admin|api)(/|$)~', $path)
+            || (preg_match('~^/vendor(/|$)~', $path) && !str_starts_with($path, '/vendor/auth/registration'))) {
+            return null;
+        }
+        try {
+            $encrypter = app('encrypter');
+            $decrypted = $encrypter->decrypt($cookie, false);
+            $value = \Illuminate\Cookie\CookieValuePrefix::validate('sigma_storefront_preview', $decrypted, $encrypter->getAllKeys());
+            $preview = json_decode($value ?? '', true, flags: JSON_THROW_ON_ERROR);
+            if (($preview['theme'] ?? '') === 'theme_sigma_care' && ($preview['expires'] ?? 0) > time()
+                && is_file(base_path('resources/themes/theme_sigma_care/file_names.php'))) {
+                return 'theme_sigma_care';
+            }
+        } catch (\Throwable) {
+            // Invalid or expired preview cookies fall back to the actual active theme.
+        }
+        return null;
     }
 }
 

@@ -147,6 +147,7 @@ class CustomerController extends BaseController
     public function updateStatus(Request $request): JsonResponse
     {
         $this->customerRepo->update(id: $request['id'], data: ['is_active' => $request->get('is_active', 0)]);
+        app(\App\Services\CustomerPurchaseEligibilityService::class)->reevaluateCustomer((int) $request['id']);
         $this->customerRepo->deleteAuthAccessTokens(id: $request['id']);
         $customer = $this->customerRepo->getFirstWhere(params: ['id' => $request['id']]);
         $data = [

@@ -118,7 +118,7 @@
                                                         @else
                                                             <span
                                                                 class="badge text-primary border-primary-1 text-bg-primary rounded-1 fw-normal fs-12 bg-opacity-10">
-                                                            {{ translate($order['order_status']) }}
+                                                            {{ $order->customer_checkout_operation_id && $order->order_status === 'pending' ? app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order)['message'] : translate($order['order_status']) }}
                                                         </span>
                                                         @endif
 
@@ -145,18 +145,10 @@
                                                     <td>
                                                         <div
                                                             class="d-flex justify-content-center gap-2 align-items-center">
-                                                            @if($order->commerce_flow_status === 'customer_insurance_pending' && $order->insurance)
-                                                                <a href="{{ route('account-order-insurance.show', $order->insurance->id) }}"
-                                                                   class="btn btn-warning btn-action"
-                                                                   title="{{ translate('pay_order_insurance') }}"
-                                                                   onclick="event.stopPropagation();">
-                                                                    <i class="fi fi-sr-shield-check d-flex"></i>
-                                                                </a>
-                                                            @endif
                                                             @if($order->postPurchaseInvoice?->isPayable())
                                                                 <a href="{{ route('post-purchase-invoices.show', $order->postPurchaseInvoice->id) }}"
                                                                    class="btn btn-outline-warning btn-action"
-                                                                   title="{{ translate('complete_tax_and_insurance_payment') }}">
+                                                                   title="استكمال سداد الضريبة">
                                                                     <i class="fi fi-rr-credit-card"></i>
                                                                 </a>
                                                             @endif
@@ -249,7 +241,7 @@
                                                             </span>
                                                             @else
                                                                 <span class="text-center badge bg-info rounded-pill">
-                                                                {{translate($order['order_status'])}}
+                                                                {{ $order->customer_checkout_operation_id && $order->order_status === 'pending' ? app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order)['message'] : translate($order['order_status']) }}
                                                             </span>
                                                             @endif
 

@@ -34,10 +34,7 @@
                             <div class="col-md-12">
                                 <div class="row  g-3">
                                     <div class="col-12">
-                                        <div class="alert alert-info mb-0 d-flex flex-wrap justify-content-between gap-2 align-items-center">
-                                            <span>{{ translate('order_insurance_balance') }}: <strong>{{ webCurrencyConverter(amount: $insuranceBalanceSummary['available_balance'] ?? 0) }}</strong></span>
-                                            <small>{{ translate('insurance_balance_is_for_insurance_only_and_cannot_be_withdrawn') }}</small>
-                                        </div>
+
                                     </div>
                                     @if(!$addFundsToWalletStatus || count($addFundBonusList) <= 0)
                                         <div class="col-12">

@@ -143,6 +143,12 @@ Route::group(['prefix' => 'login'], function () {
 });
 
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', 'actch:admin_panel']], function () {
+    Route::prefix('customer/monthly-subscriptions')->name('customer.monthly-subscriptions.')->middleware('module:people')->controller('\App\Http\Controllers\Admin\Customer\MonthlySubscriptionController')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('pricing', 'pricing')->middleware('module:business_settings')->name('pricing');
+        Route::post('{payment}/review', 'review')->name('review');
+        Route::get('{payment}/proof', 'proof')->name('proof');
+    });
     Route::controller(\App\Http\Controllers\Admin\AdminWorkspaceController::class)->prefix('workspace')->name('workspace.')->group(function () {
         Route::get('snapshot', 'snapshot')->middleware('throttle:admin-workspace-snapshot')->name('snapshot');
         Route::get('search', 'search')->middleware('throttle:admin-workspace-search')->name('search');
@@ -197,6 +203,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::get('{activationCase}/print', 'print')->name('print');
             Route::post('{activationCase}/assign', 'assign')->name('assign');
             Route::post('{activationCase}/fields', 'storeField')->name('fields.store');
+            Route::post('{activationCase}/customer-profile', 'updateCustomerProfile')->middleware('throttle:20,1')->name('customer-profile');
             Route::post('{activationCase}/documents', 'storeDocument')->name('documents.store');
             Route::post('{activationCase}/documents/{document}/verify', 'verifyDocument')->name('documents.verify');
             Route::get('{activationCase}/documents/{document}/download', 'downloadDocument')->name('documents.download');
@@ -243,6 +250,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     // One review queue for the offline package and insurance payments that
     // are linked from vendor settings and the operational shortcuts.
     Route::controller(PaymentReviewController::class)->prefix('payment-reviews')->name('payment-reviews.')->group(function () {
+        Route::get('customer-order/{order}/retry-proof', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'proof'])->name('customer-order.retry-proof');
         Route::get('/', 'index')->name('index');
         Route::post('{type}/{id}/approve', 'approve')->name('approve');
         Route::post('{type}/{id}/reject', 'reject')->name('reject');
@@ -457,6 +465,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     Route::group(['prefix' => 'category', 'as' => 'category.', 'middleware' => ['module:catalog']], function () {
         Route::controller(CategoryController::class)->group(function () {
             Route::get('view', 'index')->name('view');
+            Route::get('medical-management', 'medicalIndex')->name('medical-management');
+            Route::post('medical-status', 'updateMedicalStatus')->name('medical-status');
+            Route::post('medical-priority', 'updateMedicalPriority')->name('medical-priority');
             Route::post('add-new', 'add')->name('store');
             Route::get('update', 'getUpdateView')->name('update');
             Route::post('update', 'update');
@@ -973,6 +984,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::group(['prefix' => 'theme', 'as' => 'theme.'], function () {
                 Route::controller(ThemeController::class)->group(function () {
                     Route::get('setup', 'index')->name('setup');
+                    Route::get('preview/{theme}', 'preview')->name('preview');
+                    Route::get('end-preview', 'endPreview')->name('end-preview');
                     Route::post('install', 'upload')->name('install');
                     Route::post('activation', 'activation')->name('activation');
                     Route::post('publish', 'publish')->name('publish');

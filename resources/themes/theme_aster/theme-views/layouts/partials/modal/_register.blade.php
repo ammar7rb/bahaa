@@ -109,18 +109,8 @@
                                 <input type="checkbox" id="input-checked" name="terms_accepted" value="1" required/>
                                 {{ translate('i_agree_with_the') }}
                                 <a href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}"
-                                   class="text-info text-capitalize">
-                                    {{ translate('terms_&_conditions') }}
-                                </a>
-                            </label>
-                        </div>
-                        <div class="d-flex justify-content-center mt-2">
-                            <label for="privacy-checked" class="d-flex gap-1 align-items-center mb-0 user-select-none">
-                                <input type="checkbox" id="privacy-checked" name="privacy_accepted" value="1" required/>
-                                {{ translate('i_agree_with_the') }}
-                                <a href="{{ route('business-page.view', ['slug' => 'privacy-policy']) }}"
-                                   class="text-info text-capitalize">
-                                    {{ translate('privacy_policy') }}
+                                   class="text-info text-capitalize" target="_blank" rel="noopener">
+                                    {{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}
                                 </a>
                             </label>
                         </div>
@@ -159,8 +149,8 @@
 @push('script')
     <script>
         "use strict";
-        $('#input-checked, #privacy-checked').change(function () {
-            if ($('#input-checked').is(':checked') && $('#privacy-checked').is(':checked')) {
+        $('#input-checked').change(function () {
+            if ($('#input-checked').is(':checked')) {
                 $('#customer-sign-up-btn').removeAttr('disabled');
             } else {
                 $('#customer-sign-up-btn').attr('disabled', 'disabled');

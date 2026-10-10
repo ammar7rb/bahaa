@@ -56,7 +56,7 @@ class InsuranceBalanceGovernanceService
         ?int $adminId,
         array $context = [],
     ): InsuranceBalanceAction {
-        return $this->confiscateInsuranceRecord('customer', $insurance->id, $amount, $reference, $reason, $adminId, $context);
+        throw new DomainException('تم إيقاف تأمين العملاء. تتم مطابقة المبالغ القديمة من الأرشيف.');
     }
 
     public function confiscateSellerInsurance(
@@ -92,6 +92,7 @@ class InsuranceBalanceGovernanceService
         ?int $adminId,
         array $context = [],
     ): InsuranceBalanceAction {
+        $this->assertSubject($hold->subject_type, (int) $hold->subject_id);
         $this->assertActionInput($amount, $reference, $reason);
 
         return DB::transaction(function () use ($hold, $amount, $reference, $reason, $adminId, $context): InsuranceBalanceAction {
@@ -243,6 +244,7 @@ class InsuranceBalanceGovernanceService
     ): InsuranceBalanceAction {
         $this->assertActionInput($amount, $reference, $reason);
 
+        $this->assertSubject($parent->subject_type, (int) $parent->subject_id);
         return DB::transaction(function () use ($parent, $action, $amount, $reference, $reason, $adminId, $context): InsuranceBalanceAction {
             if ($existing = InsuranceBalanceAction::query()->where('reference', $reference)->first()) {
                 $this->assertExistingMatches($existing, $parent->subject_type, (int) $parent->subject_id, $action, $amount, $parent->id);
@@ -379,6 +381,9 @@ class InsuranceBalanceGovernanceService
 
     private function assertSubject(string $subjectType, int $subjectId): void
     {
+        if ($subjectType === InsuranceBalanceAction::SUBJECT_CUSTOMER) {
+            throw new DomainException('تم إيقاف تأمين العملاء. تتم مطابقة المبالغ القديمة من الأرشيف.');
+        }
         if (! in_array($subjectType, [InsuranceBalanceAction::SUBJECT_CUSTOMER, InsuranceBalanceAction::SUBJECT_SELLER], true) || $subjectId <= 0) {
             throw new DomainException('invalid_insurance_balance_subject');
         }

@@ -109,6 +109,7 @@ class CustomerActivationService
             ?? LegacyUser::query()->findOrFail($ticket->customer_id);
 
         return DB::transaction(function () use ($ticket, $customer, $approved, $note, $adminId) {
+            $customer = User::lockForUpdate()->findOrFail($customer->id);
             $ticketUpdates = [
                 'review_status' => $approved ? 'approved' : 'rejected',
                 'review_note' => $note,
@@ -125,7 +126,6 @@ class CustomerActivationService
                 'activation_status' => $approved ? 'active' : 'rejected',
                 'activation_approved_at' => $approved ? now() : null,
                 'activation_approved_by' => $approved ? $adminId : null,
-                'is_active' => 1,
             ])->save();
 
             if (Schema::hasTable('support_ticket_convs')) {
@@ -139,6 +139,7 @@ class CustomerActivationService
                 ]);
             }
 
+            app(CustomerPurchaseEligibilityService::class)->reevaluateCustomer((int) $customer->id);
             return $ticket->fresh();
         });
     }
@@ -147,7 +148,7 @@ class CustomerActivationService
     {
         $hasActivationStatus = Schema::hasColumn('users', 'activation_status');
         $active = $hasActivationStatus
-            ? $customer->activation_status === 'active'
+            ? ($customer->activation_status === 'active' || (!$customer->activation_status && (bool) $customer->is_active))
             : (bool) $customer->is_active;
         $rejected = $hasActivationStatus && $customer->activation_status === 'rejected';
         $ticket = ($active || $rejected) ? null : $this->openOrCreateTicket($customer);

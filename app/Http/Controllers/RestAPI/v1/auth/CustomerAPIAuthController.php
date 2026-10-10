@@ -51,15 +51,14 @@ class CustomerAPIAuthController extends Controller
 
     public function register(Request $request): JsonResponse
     {
-        $request->merge(['phone' => app(EgyptPhoneService::class)->normalize($request->input('phone'))]);
+        $request->merge(['phone' => app(EgyptPhoneService::class)->normalizeLocal($request->input('phone'))]);
         $validator = Validator::make($request->all(), [
             'f_name' => 'required',
             'l_name' => 'required',
             'email' => 'required|unique:users',
-            'phone' => ['required', 'regex:/^\+201[0125]\d{8}$/', 'unique:users,phone'],
+            'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueCustomerPhone],
             'password' => 'required|min:6',
             'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
             'policy_version_ids' => 'nullable|array',
             'policy_version_ids.*' => 'integer',
         ], [
@@ -67,8 +66,6 @@ class CustomerAPIAuthController extends Controller
             'l_name.required' => translate('The last name field is required.'),
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ]);
 
         if ($validator->fails()) {
@@ -95,6 +92,8 @@ class CustomerAPIAuthController extends Controller
             'password' => bcrypt($request['password']),
             'temporary_token' => $temporaryToken,
             'activation_status' => 'pending_support',
+            'onboarding_journey' => 'standard',
+            'canonical_phone' => app(EgyptPhoneService::class)->normalizeLocal($request['phone']),
             'referral_code' => Helpers::generate_referer_code(),
             'referred_by' => $referUser?->id ?? null,
             'terms_accepted_at' => now(),
@@ -159,7 +158,7 @@ class CustomerAPIAuthController extends Controller
             }
 
             $data = [
-                'email' => $user['email'],
+                'id' => $user['id'],
                 'password' => $request['password'],
             ];
 
@@ -167,6 +166,9 @@ class CustomerAPIAuthController extends Controller
                 $temporaryToken = Str::random(40);
                 $phoneVerification = getLoginConfig(key: 'phone_verification') ?? 0;
                 $emailVerification = getLoginConfig(key: 'email_verification') ?? 0;
+                if ($user->onboarding_journey === 'checkout_first') {
+                    $phoneVerification = $emailVerification = 0;
+                }
                 $emailVerification = !$phoneVerification ? $emailVerification : 0;
 
                 if (
@@ -472,14 +474,11 @@ class CustomerAPIAuthController extends Controller
             'phone' => 'required|min:6|max:20|unique:users',
             'password' => 'required|min:6',
             'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
         ], [
             'f_name.required' => translate('The first name field is required.'),
             'l_name.required' => translate('The last name field is required.'),
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ]);
 
         if ($validator->fails()) {
@@ -652,12 +651,9 @@ class CustomerAPIAuthController extends Controller
             'email' => 'nullable|max:255',
             'phone' => 'required|string|min:6|max:15',
             'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
         ], [
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ]);
 
         if ($validator->fails()) {
@@ -833,12 +829,9 @@ class CustomerAPIAuthController extends Controller
             'email' => 'required|email|unique:users|max:255',
             'phone' => 'required|min:6|max:20',
             'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
         ], [
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ]);
 
         if ($validator->fails()) {

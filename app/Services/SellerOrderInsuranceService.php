@@ -62,6 +62,7 @@ class SellerOrderInsuranceService
 
     public function createFromAdminDecision(Order $order, Seller $seller, array $decision, ?int $adminId): SellerOrderInsurance
     {
+        if ($order->customer_checkout_operation_id) app(CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
         if ((int) $order->seller_id !== (int) $seller->id || $order->seller_is !== 'seller') {
             throw new DomainException('seller_order_insurance_order_not_found');
         }

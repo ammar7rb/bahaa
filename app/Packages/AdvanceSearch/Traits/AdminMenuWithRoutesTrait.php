@@ -1103,7 +1103,7 @@ trait  AdminMenuWithRoutesTrait
             ]
         ];
 
-        if (theme_root_path() == 'theme_aster') {
+        if (theme_base_path() == 'theme_aster') {
             $asterThemeRoutes = [
                 [
                     "page_title" => 'Promotional_banners',

@@ -126,5 +126,6 @@
         </script>
     @endif
 </body>
+<script src="{{ dynamicAsset(path: 'public/assets/front-end/js/egypt-phone-validation.js') }}" defer></script>
 
 </html>

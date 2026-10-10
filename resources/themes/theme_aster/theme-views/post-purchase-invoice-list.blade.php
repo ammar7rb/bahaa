@@ -13,7 +13,7 @@
                         <div class="card-body p-3 p-md-4">
                             <div class="mb-4">
                                 <h5 class="mb-1">{{ translate('suspended_orders') }}</h5>
-                                <p class="text-muted mb-0">{{ translate('complete_tax_and_insurance_payment_to_continue_your_order') }}</p>
+                                <p class="text-muted mb-0">استكمل سداد الضريبة لمتابعة طلبك.</p>
                             </div>
 
                             @forelse($invoices as $invoice)
@@ -23,8 +23,6 @@
                                         <strong>{{ translate('order') }} #{{ $invoice->order_id }}</strong>
                                         <div class="small text-muted mt-1">
                                             {{ translate('tax') }}: {{ webCurrencyConverter($invoice->tax_amount) }}
-                                            &middot;
-                                            {{ translate('order_insurance') }}: {{ webCurrencyConverter($invoice->insurance_amount) }}
                                         </div>
                                     </div>
                                     <div class="text-end ms-auto">

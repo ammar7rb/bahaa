@@ -23,6 +23,12 @@ class PhoneOrEmailVerificationRepository implements PhoneOrEmailVerificationRepo
 
     public function getFirstWhere(array $params, array $relations = []): ?Model
     {
+        $identity = $params['phone_or_email'] ?? null;
+        if ($identity && app(\App\Services\EgyptPhoneService::class)->isValid($identity)) {
+            unset($params['phone_or_email']);
+            return $this->phoneOrEmailVerification->with($relations)->where($params)
+                ->whereIn('phone_or_email',app(\App\Services\EgyptPhoneService::class)->aliases($identity))->latest('id')->first();
+        }
         return $this->phoneOrEmailVerification->with($relations)->where($params)->first();
     }
 

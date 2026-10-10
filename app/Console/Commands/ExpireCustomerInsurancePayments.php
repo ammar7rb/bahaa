@@ -12,7 +12,7 @@ class ExpireCustomerInsurancePayments extends Command
 
     public function handle(CustomerPostPurchaseInsuranceService $service): int
     {
-        $this->info((string) $service->expireDue((int) $this->option('limit')));
+        $this->info('Customer security deposits retired; no insurance expiry cancellations.');
         return self::SUCCESS;
     }
 }

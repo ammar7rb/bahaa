@@ -27,7 +27,7 @@ use App\Models\User;
 use App\Utils\CustomerManager;
 use App\Utils\Helpers;
 use App\Services\CustomerActivationService;
-use App\Services\CustomerInsuranceBalanceService;
+
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,18 +51,11 @@ class CustomerController extends Controller
         $user->email_verification_token = $getUser->email_verification_token;
         $user->email_verified_at = $getUser->email_verified_at;
         $user->activation = $activationService->payload($getUser);
-        $insuranceBalance = Schema::hasTable('customer_insurance_ledger_entries')
-            ? app(CustomerInsuranceBalanceService::class)->summary((int) $user->id)
-            : ['available_balance' => 0, 'held_balance' => 0, 'next_maturity_at' => null];
-        $user->insurance_available_balance = $insuranceBalance['available_balance'];
-        $user->insurance_balance_notice = [
-            'visible' => true,
-            'dismissible' => true,
-            'available_balance' => $insuranceBalance['available_balance'],
-            'held_balance' => $insuranceBalance['held_balance'],
-            'currency_code' => getCurrencyCode(type: 'default'),
-            'message' => 'رصيد التأمين الخاص بك هو ' . number_format((float) $insuranceBalance['available_balance'], 2) . ' ' . getCurrencyCode(type: 'default'),
-        ];
+        if (app(\App\Services\CustomerPurchaseEligibilityService::class)->enabled()) $user->purchase_eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class)->status($getUser);
+        // Suppress the retired notice for older app versions as well.
+        $user->insurance_available_balance = 0;
+        $user->insurance_enabled = false;
+        $user->insurance_balance_notice = ['visible' => false, 'dismissible' => false, 'message' => ''];
         return response()->json($user, 200);
     }
 
@@ -612,13 +605,16 @@ class CustomerController extends Controller
             $password = bcrypt($request['password']);
         }
 
-        User::where(['id' => $request->user()->id])->update([
+        $phones = app(\App\Services\EgyptPhoneService::class);
+        $effectivePhone = $phones->normalizeLocal($user['is_phone_verified'] ? $user['phone'] : $request['phone']);
+        $phoneChanged = $effectivePhone !== $phones->normalizeLocal($user['phone']);
+        $user->update([
             'f_name' => $request->f_name,
             'l_name' => $request->l_name,
             'image' => $imageName,
-            'phone' => $user['is_phone_verified'] ? $user['phone'] : $request['phone'],
+            'phone' => $effectivePhone,
             'email' => $request['email'],
-            'is_phone_verified' => $request['phone'] == $user['phone'] ? $user['is_phone_verified'] : 0,
+            'is_phone_verified' => $phoneChanged ? 0 : $user['is_phone_verified'],
             'is_email_verified' => $request['email'] == $user['email'] ? $user['is_email_verified'] : 0,
             'email_verified_at' => $request['email'] == $user['email'] ? $user['email_verified_at'] : null,
             'password' => $password,

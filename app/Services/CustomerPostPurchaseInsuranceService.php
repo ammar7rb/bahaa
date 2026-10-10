@@ -24,7 +24,7 @@ class CustomerPostPurchaseInsuranceService
 
     public function enabled(): bool
     {
-        return $this->features->enabled('customer_insurance_after_purchase');
+        return false; // Customer stage only; seller insurance remains enabled.
     }
 
     public function paymentDeadlineHours(): int
@@ -313,6 +313,7 @@ class CustomerPostPurchaseInsuranceService
 
     public function expireDue(int $limit = 100): int
     {
+        if (!$this->enabled()) return 0;
         $this->sendDueReminders($limit);
         $count = 0;
         OrderInsurance::query()
@@ -377,7 +378,7 @@ class CustomerPostPurchaseInsuranceService
     public function payload(Order $order): array
     {
         $order->loadMissing('insurance');
-        return $this->contract->customerInsurancePayload($order, $order->insurance);
+        return ['enabled'=>false,'required'=>false,'status'=>'retired'];
     }
 
     private function cancelAndScheduleRefund(OrderInsurance $insurance, string $status, string $reason): OrderInsurance
@@ -445,6 +446,7 @@ class CustomerPostPurchaseInsuranceService
 
     private function assertPayable(OrderInsurance $insurance, bool $allowPendingReview = false): void
     {
+        if (!$this->enabled()) throw new DomainException('customer_security_deposits_retired');
         if ($insurance->order()->where('commerce_flow_status', OrderCommerceState::UNDER_INVESTIGATION)->exists()) {
             throw new DomainException('order_is_frozen_for_admin_investigation');
         }

@@ -54,6 +54,7 @@ use Laravel\Passport\HasApiTokens;
  */
 class User extends Authenticatable
 {
+    use \App\Traits\CanonicalCustomerPhone;
     use Notifiable, HasApiTokens,StorageTrait, DemoMaskingTrait;
 
     /**
@@ -64,6 +65,9 @@ class User extends Authenticatable
     protected $fillable = [
         'id',
         'name',
+        'onboarding_journey',
+        'canonical_phone',
+        'initial_checkout_reference',
         'f_name',
         'l_name',
         'phone',

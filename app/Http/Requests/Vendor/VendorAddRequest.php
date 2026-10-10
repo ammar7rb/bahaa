@@ -26,7 +26,7 @@ class VendorAddRequest extends FormRequest
     {
         $this->merge([
             'email' => strtolower(trim((string) $this->input('email'))),
-            'phone' => app(EgyptPhoneService::class)->normalize($this->input('phone')),
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
         ]);
     }
 
@@ -38,9 +38,10 @@ class VendorAddRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'terms_accepted' => 'required|accepted',
             'f_name' => 'required|string|max:100',
             'l_name' => 'nullable|string|max:100',
-            'phone' => 'required|string|unique:sellers|max:20',
+            'phone' => ['required', 'string', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueSellerPhone],
             'email' => 'required|email|max:255|unique:sellers',
             'image' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
             'password' => 'required|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W)(?!.*\s).{8,}$/|same:confirm_password',
@@ -61,6 +62,7 @@ class VendorAddRequest extends FormRequest
             'f_name.required' => translate('The_first_name_field_is_required'),
             'l_name.required' => translate('The_last_name_field_is_required'),
             'phone.required' => translate('The_phone_field_is_required'),
+            'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'phone.unique' => translate('The_phone_number_has_already_been_taken'),
             'phone.max' => translate('please_ensure_your_phone_number_is_valid_and_does_not_exceed_20_characters'),
             'email.required' => translate('The_email_field_is_required'),
@@ -69,6 +71,8 @@ class VendorAddRequest extends FormRequest
             'password.required' => translate('The_password_field_is_required'),
             'password.same' => translate('The_password_and_confirm_password_must_match'),
             'password.regex' => translate('The_password_must_be_at_least_8_characters_long_and_contain_at_least_one_uppercase_letter') . ',' . translate('_one_lowercase_letter') . ',' . translate('_one_digit_') . ',' . translate('_one_special_character') . ',' . translate('_and_no_spaces') . '.',
+            'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
+            'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
             'shop_name.required' => translate('The_shop_name_field_is_required'),
             'logo.mimes' => translate('The_logo_type_must_be') . '.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',
             'banner.mimes' => translate('The_banner_type_must_be') . '.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',

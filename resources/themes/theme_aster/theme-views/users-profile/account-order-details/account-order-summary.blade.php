@@ -1,3 +1,4 @@
+@include('customer-checkout.order-state')
 @php
     use App\Utils\Helpers;
     use App\Utils\OrderManager;
@@ -17,12 +18,7 @@
                     <div class="card h-100">
                         <div class="card-body p-lg-4">
                             @include('theme-views.users-profile.account-order-details._order-details-head',['order'=>$order])
-                            @if($order->commerce_flow_status === 'customer_insurance_pending' && $order->insurance)
-                                <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
-                                    <div><strong>{{ translate('purchase_payment_completed') }}</strong><div class="fs-12">{{ translate('order_is_suspended_until_customer_insurance_is_paid') }}</div></div>
-                                    <a class="btn btn-primary" href="{{ route('account-order-insurance.show', $order->insurance->id) }}">{{ translate('pay_order_insurance') }}</a>
-                                </div>
-                            @elseif($order->insurance && in_array($order->insurance->purchase_refund_status, ['scheduled', 'completed'], true))
+                            @if($order->insurance && in_array($order->insurance->purchase_refund_status, ['scheduled', 'completed'], true))
                                 <div class="alert alert-info mt-3">{{ translate('purchase_refund_' . $order->insurance->purchase_refund_status) }}</div>
                             @endif
                             @if($order->order_status === 'delivered' && $order->customer_delivery_confirmation_status === 'pending')

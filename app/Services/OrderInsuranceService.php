@@ -13,7 +13,7 @@ class OrderInsuranceService
 
     public function isEnabled(): bool
     {
-        return (int) (BusinessSetting::where('type', 'customer_order_insurance_status')->value('value') ?? 0) === 1;
+        return false; // Customer deposits retired; seller insurance is independent.
     }
 
     public function isPrepaidMethod(string $paymentMethod): bool
@@ -98,47 +98,12 @@ class OrderInsuranceService
 
     public function createForOrder(int $orderId, int $customerId, array $calculation, string $paymentMethod, string $paymentStatus): OrderInsurance
     {
-        $maturityDays = (int) ($calculation['maturityDays'] ?? $this->maturityDays());
-        $attributes = [
-            'order_id' => $orderId, 'customer_id' => $customerId,
-            'amount' => $calculation['amount'],
-            'order_amount' => $calculation['orderAmount'],
-            'threshold_amount' => $calculation['threshold'], 'calculation_type' => $calculation['type'],
-            'calculation_value' => $calculation['value'], 'payment_method' => $paymentMethod,
-            'payment_status' => $paymentStatus, 'status' => $paymentStatus === 'paid' ? 'held' : 'pending_payment',
-            'maturity_days' => $maturityDays,
-            'matures_at' => $paymentStatus === 'paid' ? now()->addDays($maturityDays) : null,
-            'metadata' => [
-                'configured_at' => now()->toIso8601String(), 'maturity_days' => $maturityDays,
-                'incentive_snapshot' => $calculation['incentive_snapshot'] ?? null,
-                'withdrawable' => false, 'allowed_uses_after_maturity' => $calculation['allowed_uses_after_maturity'] ?? [],
-            ],
-        ];
-        if (Schema::hasColumn('order_insurances', 'balance_use_policy')) {
-            $attributes['balance_use_policy'] = 'insurance_only';
-        }
-        if (Schema::hasColumn('order_insurances', 'insurance_rule_id')) {
-            $attributes += [
-                'insurance_rule_id' => $calculation['rule_id'] ?? null,
-                'insurance_incentive_id' => $calculation['incentive_id'] ?? null,
-                'original_amount' => $calculation['original_amount'] ?? $calculation['amount'],
-                'discount_amount' => $calculation['discount_amount'] ?? 0,
-                'rule_snapshot' => $calculation['rule_snapshot'] ?? null,
-            ];
-        }
-        $insurance = OrderInsurance::create($attributes);
-
-        app(CustomerInsuranceIncentiveService::class)->recordDiscount($insurance);
-
-        if ($paymentStatus === 'paid') {
-            app(CustomerInsuranceBalanceService::class)->recordHold($insurance);
-        }
-
-        return $insurance;
+        throw new \DomainException('customer_security_deposits_retired');
     }
 
     public function markPaid(OrderInsurance $insurance, ?int $adminId = null, ?string $note = null): OrderInsurance
     {
+        if (!$this->isEnabled()) throw new \DomainException('customer_security_deposits_retired');
         $maturityDays = $insurance->maturity_days ?: $this->maturityDays();
         $insurance->update([
             'payment_status' => 'paid',

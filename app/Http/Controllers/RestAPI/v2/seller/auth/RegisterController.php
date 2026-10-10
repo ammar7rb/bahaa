@@ -18,7 +18,7 @@ class RegisterController extends Controller
     public function store(Request $request)
     {
         $request->merge([
-            'phone' => app(EgyptPhoneService::class)->normalize($request->input('phone')),
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($request->input('phone')),
         ]);
 
         $validator = Validator::make($request->all(), [
@@ -27,7 +27,7 @@ class RegisterController extends Controller
             'f_name'        => 'required',
             'l_name'        => 'required',
             'shop_name'     => 'required',
-            'phone'         => ['required', 'regex:/^\+201[0125]\d{8}$/', 'unique:sellers,phone'],
+            'phone'         => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueSellerPhone],
             'password'      => 'required|min:8',
             'image'         => 'nullable|mimes:jpg,jpeg,png,gif',
             'logo'          => 'nullable|mimes:jpg,jpeg,png,gif',

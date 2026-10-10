@@ -142,7 +142,7 @@
 @include('layouts.front-end.partials._header')
 @include('layouts.front-end.partials._alert-message')
 @include('web-views.users-profile.partials.customer-activation-banner')
-@include('web-views.users-profile.partials.customer-insurance-balance-banner')
+@include('customer-subscription.expiry-banner')
 
 @if(isset($isMobile) && $isMobile)
     <div id="app-banner" class="app-download-popup" style="--bottom: 30px;">
@@ -478,5 +478,6 @@
 @endif
 
 @stack('script')
+@include('customer-checkout.entry')
 </body>
 </html>

@@ -500,12 +500,26 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function update(string $id, array $data): bool
     {
-        return $this->order->where('id', $id)->update($data);
+        if (!in_array($data['order_status'] ?? '', ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) return $this->order->where('id', $id)->update($data);
+        $order = $this->order->findOrFail($id);
+        if (!$order->customer_checkout_operation_id) return $this->order->where('id', $id)->update($data);
+        return DB::transaction(function () use ($id, $data, $order) {
+            \App\Models\User::lockForUpdate()->findOrFail($order->customer_id);
+            $locked = $this->order->lockForUpdate()->findOrFail($id);
+            app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($locked);
+            return (bool) $this->order->where('id', $id)->update($data);
+        }, 3);
     }
 
     public function updateWhere(array $params, array $data): bool
     {
-        return $this->order->where($params)->update($data);
+        if (!in_array($data['order_status'] ?? '', ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) return $this->order->where($params)->update($data);
+        return DB::transaction(function () use ($params, $data) {
+            $customerIds = $this->order->where($params)->whereNotNull('customer_checkout_operation_id')->orderBy('customer_id')->pluck('customer_id')->unique();
+            foreach ($customerIds as $id) \App\Models\User::lockForUpdate()->findOrFail($id);
+            foreach ($this->order->where($params)->lockForUpdate()->get() as $order) app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
+            return (bool) $this->order->where($params)->update($data);
+        }, 3);
     }
 
     public function delete(array $params): bool
@@ -571,6 +585,7 @@ class OrderRepository implements OrderRepositoryInterface
     public function updateStockOnOrderStatusChange(string|int $orderId, string $status): bool
     {
         $order = $this->order->with('details.product')->find($orderId);
+        if (in_array($status, ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
         if ($status == 'returned' || $status == 'failed' || $status == 'canceled') {
             foreach ($order['details'] as $detail) {
                 if ($detail['is_stock_decreased'] == 1) {

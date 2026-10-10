@@ -274,8 +274,8 @@ function vendorRegiRecaptcha(url) {
 
 }
 
-$("#inputChecked, #privacyChecked").change(function () {
-    if ($("#inputChecked").is(":checked") && $("#privacyChecked").is(":checked")) {
+$("#inputChecked").change(function () {
+    if ($("#inputChecked").is(":checked")) {
         $("#sign-up").removeAttr("disabled");
     } else {
         $("#sign-up").attr("disabled", "disabled");

@@ -98,12 +98,15 @@ class UserProfileController extends Controller
     {
         $imageName = $request->file('image') ? ImageManager::update('profile/', auth('customer')->user()->image, 'webp', $request->file('image')) : auth('customer')->user()->image;
         $user = auth('customer')->user();
+        $phones = app(\App\Services\EgyptPhoneService::class);
+        $effectivePhone = $phones->normalizeLocal($user['is_phone_verified'] ? $user['phone'] : $request['phone']);
+        $phoneChanged = $effectivePhone !== $phones->normalizeLocal($user['phone']);
         User::find($user['id'])->update([
             'f_name' => $request['f_name'],
             'l_name' => $request['l_name'],
-            'phone' => $user['is_phone_verified'] ? $user['phone'] : $request['phone'],
+            'phone' => $effectivePhone,
             'email' => $request['email'],
-            'is_phone_verified' => $request['phone'] == $user['phone'] ? $user['is_phone_verified'] : 0,
+            'is_phone_verified' => $phoneChanged ? 0 : $user['is_phone_verified'],
             'is_email_verified' => $request['email'] == $user['email'] ? $user['is_email_verified'] : 0,
             'image' => $imageName,
             'password' => strlen($request['password']) > 5 ? bcrypt($request['password']) : auth('customer')->user()->password,
@@ -584,8 +587,17 @@ class UserProfileController extends Controller
         }
     }
 
-    public function submitSupportTicket(Request $request): RedirectResponse
+    public function submitSupportTicket(Request $request): RedirectResponse|JsonResponse
     {
+        if ($request->boolean('care_support_drawer')) {
+            abort_unless(auth('customer')->check(), 401);
+            $request->validate([
+                'ticket_subject' => 'required|string|max:160',
+                'ticket_description' => 'required|string|max:5000',
+                'ticket_type' => 'required|in:Website problem,Partner request,Complaint,Info inquiry',
+                'ticket_priority' => 'required|in:Urgent,High,Medium,Low',
+            ]);
+        }
         $request->validate([
             'ticket_subject' => 'required',
             'ticket_type' => 'required',
@@ -638,6 +650,9 @@ class UserProfileController extends Controller
                 'status' => \App\Models\AccountActivationCase::STATUS_PENDING,
                 'metadata' => ['created_from' => 'customer_web'],
             ]);
+        }
+        if ($request->boolean('care_support_drawer')) {
+            return response()->json(['ticket_id' => $ticketId, 'url' => route('support-ticket.index', $ticketId)], 201);
         }
         return back();
     }

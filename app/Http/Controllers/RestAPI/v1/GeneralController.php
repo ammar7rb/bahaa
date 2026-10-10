@@ -47,7 +47,7 @@ class GeneralController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
-        Contact::create([
+        $contact = Contact::create([
             'name' => $request['name'],
             'email' => $request['email'],
             'mobile_number' => $request['mobile_number'],
@@ -55,6 +55,9 @@ class GeneralController extends Controller
             'message' => $request['message']
         ]);
 
-        return response()->json(['message' => 'your_message_send_successfully'], 200);
+        return response()->json([
+            'message' => 'your_message_send_successfully',
+            'conversation_url' => \Illuminate\Support\Facades\URL::temporarySignedRoute('contact.conversation', now()->addMinutes(30), ['contact' => $contact->id]),
+        ], 200);
     }
 }

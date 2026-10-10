@@ -23,6 +23,7 @@
             </div>
         </div>
 
+        @if($order->customer && !$order->is_guest) @include('admin-views.customer.purchase-state', ['customer' => $order->customer]) @endif
         @include('admin-views.order.partials._admin-review-panel')
         <details class="mb-3"><summary class="card p-3 cursor-pointer">{{ translate('Shipping_promise,_settlement_and_proofs') }}</summary>
             @include('admin-views.order.partials._shipping-settlement-refund')

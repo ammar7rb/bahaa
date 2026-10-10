@@ -576,6 +576,9 @@ class OrderController extends Controller
         } catch (DomainException) {
             return response()->json(['success' => 0, 'message' => translate('order_status_transition_not_allowed')], 422);
         }
+        if ($order->customer_checkout_operation_id && in_array($request['order_status'], ['confirmed','processing','out_for_delivery','delivered'], true)) {
+            app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
+        }
         $previousStatus = (string) $order->order_status;
         event(new OrderStatusEvent(key: $request['order_status'], type: 'customer', order: $order));
         if ($request->order_status == 'canceled') {

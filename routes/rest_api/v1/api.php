@@ -48,6 +48,13 @@ use App\Http\Controllers\Customer\PaymentController;
  */
 
 Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
+    Route::post('customer/order/{order}/payment-proof/retry', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'submit'])->middleware(['auth:api','throttle:10,1']);
+    Route::prefix('customer/subscription')->middleware('auth:api')->controller('\App\Http\Controllers\Customer\MonthlySubscriptionController')->group(function () {
+        Route::get('/', 'index');
+        Route::post('checkout', 'checkout')->middleware('throttle:10,1');
+        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1');
+        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1');
+    });
     Route::get('customer/post-payment-refunds', [CustomerController::class, 'postPaymentRefunds'])
         ->middleware('auth:api');
 
@@ -75,6 +82,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
     });
 
     Route::group(['prefix' => 'auth'], function () {
+        Route::post('checkout-register', [\App\Http\Controllers\Customer\Auth\CheckoutRegistrationController::class, 'apiStore'])->middleware('throttle:5,1');
         Route::controller(PassportAuthController::class)->group(function () {
             Route::get('logout', 'logout')->middleware('auth:api');
         });

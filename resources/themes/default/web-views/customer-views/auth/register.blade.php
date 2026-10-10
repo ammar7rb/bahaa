@@ -159,18 +159,7 @@
                                         <span class="custom-control-label">
                                             <span>{{ translate('i_agree_to_Your') }}</span>
                                             <a class="font-size-sm text-primary text-force-underline" target="_blank"
-                                                href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}">{{ translate('terms_and_condition') }}</a>
-                                        </span>
-                                    </label>
-                                </div>
-                                <div class="rtl mt-2">
-                                    <label class="custom-control custom-checkbox m-0 d-flex">
-                                        <input type="checkbox" class="custom-control-input" name="privacy_accepted"
-                                            id="privacyChecked" value="1" required>
-                                        <span class="custom-control-label">
-                                            <span>{{ translate('i_agree_to_Your') }}</span>
-                                            <a class="font-size-sm text-primary text-force-underline" target="_blank"
-                                                href="{{ route('business-page.view', ['slug' => 'privacy-policy']) }}">{{ translate('privacy_policy') }}</a>
+                                                href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}">{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}</a>
                                         </span>
                                     </label>
                                 </div>

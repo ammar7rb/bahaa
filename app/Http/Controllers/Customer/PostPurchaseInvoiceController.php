@@ -47,7 +47,7 @@ class PostPurchaseInvoiceController extends Controller
             ->latest('id')
             ->paginate(20);
 
-        $view = theme_root_path() === 'theme_aster'
+        $view = theme_base_path() === 'theme_aster'
             ? 'theme-views.post-purchase-invoice-list'
             : 'web-views.post-purchase-invoice-list';
 
@@ -62,7 +62,7 @@ class PostPurchaseInvoiceController extends Controller
             return redirect()->route('account-oder');
         }
 
-        $view = theme_root_path() === 'theme_aster'
+        $view = theme_base_path() === 'theme_aster'
             ? 'theme-views.post-purchase-invoice'
             : 'web-views.post-purchase-invoice';
 

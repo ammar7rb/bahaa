@@ -26,6 +26,9 @@
                 </div>
             </div>
             <div class="widget-title">
+                <a class="{{ request()->routeIs('customer.subscription.*') ? 'active-menu' : '' }}" href="{{ route('customer.subscription.index') }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5 3 3 5-5"/></svg><span class="aside-link">الاشتراك الشهري</span></a>
+            </div>
+            <div class="widget-title">
                 <a class="{{ request()->routeIs('wallet', 'customer-balances') ? 'active-menu' : '' }}" href="{{ route('wallet') }}">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 7H5a2 2 0 0 1 0-4h13v4M3 5v14a2 2 0 0 0 2 2h15V7M20 11h-5v6h5"/><circle cx="16.5" cy="14" r=".7" fill="currentColor"/></svg>
                     <span class="aside-link">{{ translate('my_wallet') }}</span>

@@ -898,6 +898,7 @@ class WebController extends Controller
 
     public function checkout_complete_wallet(Request $request): View|RedirectResponse|JsonResponse
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
         if (!auth('customer')->check()) {
             return $this->redirectGuestCustomerToLogin($request);
         }
@@ -925,7 +926,9 @@ class WebController extends Controller
         ]);
         $paymentAmount = collect($vendorWiseCartList)->sum('first_payment_amount');
 
-        $user = Helpers::getCustomerInformation($request);
+        $identity = Helpers::getCustomerInformation($request);
+        abort_if($identity === 'offline', 401);
+        $user = \App\Models\User::lockForUpdate()->findOrFail($identity->id);
         if ($paymentAmount > $user->wallet_balance) {
             Toastr::warning(translate('purchase_balance_is_lower_than_invoice_total_deposit_or_choose_another_method'));
             return back();
@@ -964,7 +967,7 @@ class WebController extends Controller
                 OrderManager::generateReferBonusForFirstOrder(orderId: $order_id);
             }
 
-            CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment');
+            if (!CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment')) throw \Illuminate\Validation\ValidationException::withMessages(['wallet' => 'تعذر تأكيد الخصم. لم يتم إنشاء الطلب.']);
         }
 
         if (session()->has('payment_mode') && session('payment_mode') == 'app') {
@@ -983,6 +986,8 @@ class WebController extends Controller
             return redirect()->route('account-oder');
         }
         return redirect()->route('home');
+
+        }, 3);
     }
 
     public function order_placed(): View|RedirectResponse

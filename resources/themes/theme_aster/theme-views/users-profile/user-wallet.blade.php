@@ -55,7 +55,7 @@
                                             </h2>
 
                                             <p class="text-capitalize">{{ translate('total_balance') }}</p>
-                                            <p class="mb-0 fs-12">{{ translate('order_insurance_balance') }}: {{ webCurrencyConverter($insuranceBalanceSummary['available_balance'] ?? 0) }}</p>
+
                                         </div>
                                     </div>
 

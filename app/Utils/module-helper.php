@@ -35,6 +35,18 @@ if (!function_exists('digital_payment_success')) {
         if (isset($paymentData) && $paymentData['is_paid'] == 1) {
             $additionalData = json_decode($paymentData['additional_data'], true);
 
+            if (app(\App\Services\CustomerPurchaseEligibilityService::class)->enabled() && empty($additionalData['customer_checkout_operation_id'])) {
+                // A pre-update verified transfer must remain visible for reconciliation;
+                // it cannot create an account or bypass the new server eligibility rules.
+                app(\App\Services\CustomerLegacyPaymentService::class)->record(
+                    'legacy-order:'.$paymentData['id'],
+                    empty($additionalData['is_guest_in_order']) ? (int)($additionalData['customer_id'] ?? 0) ?: null : null,
+                    (float)$paymentData['payment_amount'], (string)$paymentData['currency_code'],
+                    ['kind'=>'legacy_order_payment','payment_request_id'=>$paymentData['id'], 'transaction_id'=>$paymentData['transaction_id'] ?? null]
+                );
+                return;
+            }
+
             $addCustomer = null;
             $newCustomerInfo = $additionalData['new_customer_info'] ?? null;
 
@@ -99,6 +111,7 @@ if (!function_exists('digital_payment_success')) {
                 'payment_method' => $paymentData['payment_method'],
                 'payment_status' => 'paid',
                 'transaction_ref' => $paymentData['transaction_id'],
+                'customer_checkout_operation_id' => $additionalData['customer_checkout_operation_id'] ?? null,
                 'new_customer_id' => $addCustomer ? $addCustomer['id'] : ($additionalData['new_customer_id'] ?? null),
                 'newCustomerRegister' => $addCustomer,
 

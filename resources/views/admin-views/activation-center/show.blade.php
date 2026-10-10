@@ -35,6 +35,21 @@
             </div>
         @endif
 
+        @if($activationCase->subject_type === 'customer' && $subject)
+            @include('admin-views.customer.purchase-state', ['customer' => $subject])
+            @unless($activationCase->isCompleted())
+                <form class="card p-3 mb-3" method="post" action="{{ route('admin.activation-center.customer-profile',$activationCase) }}" dir="rtl">
+                    @csrf
+                    <h3 class="fs-16 mb-3">استكمال بيانات العميل</h3>
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label" for="activation-customer-name">الاسم</label><input class="form-control" id="activation-customer-name" name="name" value="{{ old('name',$subject->name ?: $subject->f_name) }}" required maxlength="100" autocomplete="name"></div>
+                        <div class="col-md-4"><label class="form-label" for="activation-customer-phone">رقم الهاتف</label><input class="form-control" id="activation-customer-phone" name="phone" value="{{ old('phone',$subject->phone) }}" required type="tel" inputmode="tel" dir="ltr" autocomplete="tel-national"></div>
+                        <div class="col-md-4"><label class="form-label" for="activation-customer-email">البريد الإلكتروني</label><input class="form-control" id="activation-customer-email" name="email" value="{{ old('email',$subject->email) }}" type="email" dir="ltr" maxlength="254" autocomplete="email"></div>
+                    </div>
+                    <div class="mt-3"><button class="btn btn-primary" type="submit">حفظ البيانات</button></div>
+                </form>
+            @endunless
+        @endif
         <div class="row g-3">
             <div class="col-xl-8">
                 <div class="card mb-3">

@@ -21,6 +21,15 @@ class OfflinePayments extends Model
 {
     use HasFactory;
 
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+        if (is_array($data['payment_info'] ?? null)) {
+            unset($data['payment_info']['private_retry_proof'], $data['payment_info']['retry_key'], $data['payment_info']['retry_history']);
+        }
+        return $data;
+    }
+
     protected $guarded = ['id'];
 
     /**

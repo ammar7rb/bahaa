@@ -85,18 +85,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <div class="bg-light rounded p-3 h-100">
-                                            <div class="text-muted fs-12">{{ translate('monthly_insurance') }}</div>
-                                            <strong>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $pendingActivationInvoice->insurance_amount)) }}</strong>
-                                            @if($pendingActivationInvoice->insurance_discount_amount > 0)
-                                                <div class="small text-success mt-1">
-                                                    {{ translate('discount') }}:
-                                                    {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $pendingActivationInvoice->insurance_discount_amount)) }}
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
+
                                     <div class="col-md-4">
                                         <div class="bg-light rounded p-3 h-100">
                                             <div class="text-muted fs-12">{{ translate('order_group') }}</div>

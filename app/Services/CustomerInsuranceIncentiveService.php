@@ -14,14 +14,7 @@ class CustomerInsuranceIncentiveService
 {
     public function grantEligibleWelcomeCredits(int $customerId): float
     {
-        if (! $this->tablesReady()) return 0.0;
-        $customer = User::query()->find($customerId);
-        if (! $customer) return 0.0;
-        if (InsuranceIncentiveRedemption::query()->where('customer_id', $customerId)
-            ->where('redemption_type', 'welcome_credit')->exists()) return 0.0;
-
-        $incentive = $this->eligible('welcome_credit', $customer)->first();
-        return $incentive ? round($this->grant($incentive, $customer), 2) : 0.0;
+        return 0.0; // Customer security deposits retired.
     }
 
     public function discountFor(?int $customerId, float $originalAmount, array $excludedIncentiveIds = []): array

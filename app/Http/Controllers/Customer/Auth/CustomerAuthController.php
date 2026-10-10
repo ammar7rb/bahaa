@@ -39,6 +39,12 @@ class CustomerAuthController extends Controller
 
     public function loginView(): View|RedirectResponse
     {
+        if (theme_root_path() === 'theme_sigma_care') {
+            $this->customerAuthService->storeCustomerAuthReturnURL();
+            return view('theme-views.customer-views.auth.login', [
+                'keepCustomerLoginRedirectUrl' => session('keep_customer_login_redirect_url'),
+            ]);
+        }
         if (theme_root_path() == 'default') {
             $this->customerAuthService->storeCustomerAuthReturnURL();
             $keepCustomerLoginRedirectUrl = session('keep_customer_login_redirect_url');
@@ -199,6 +205,9 @@ class CustomerAuthController extends Controller
 
         $phoneVerification = getLoginConfig(key: 'phone_verification');
         $emailVerification = getLoginConfig(key: 'email_verification');
+        if ($user->onboarding_journey === 'checkout_first') {
+            $phoneVerification = $emailVerification = 0;
+        }
         $emailVerification = !$phoneVerification ? $emailVerification : 0;
 
         if ($phoneVerification && $user['phone'] && !$user['is_phone_verified'] || $emailVerification && $user['email'] && !$user['is_email_verified']) {

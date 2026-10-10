@@ -141,7 +141,7 @@
                                     {{ translate('i_agree_with_the') }}
                                     <a href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}"
                                         target="_blank" class="text-underline color-bs-primary-force">
-                                        {{ translate('terms_&_conditions') }}
+                                        {{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}
                                     </a>
                                 </span>
                             </label>

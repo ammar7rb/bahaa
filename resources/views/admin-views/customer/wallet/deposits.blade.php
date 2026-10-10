@@ -25,7 +25,7 @@
         <div class="card mb-3"><div class="card-body">
             <div class="d-flex justify-content-between flex-wrap gap-3">
                 <div>
-                    <h2 class="h5">#{{ $deposit->id }} — {{ $deposit->customer?->f_name }} {{ $deposit->customer?->l_name }}</h2>
+                    <h2 class="h5"><bdi>{{ $deposit->transaction_number }}</bdi> — {{ $deposit->customer?->f_name }} {{ $deposit->customer?->l_name }}</h2>
                     <p>{{ translate('balance_destination') }}: <strong>{{ translate($deposit->wallet_type . '_balance_title') }}</strong></p>
                     <p>{{ translate('amount') }}: <strong>{{ webCurrencyConverter($deposit->amount) }}</strong> ({{ $deposit->submitted_amount }} {{ $deposit->currency_code }})</p>
                     <p>{{ translate('payment_method') }}: {{ $deposit->method_name }}</p>

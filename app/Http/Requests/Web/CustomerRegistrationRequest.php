@@ -30,10 +30,9 @@ class CustomerRegistrationRequest extends FormRequest
         return [
             'f_name' => 'required',
             'email' => 'required|email|unique:users',
-            'phone' => ['required', 'regex:/^\+201[0125]\d{8}$/', 'unique:users,phone'],
+            'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueCustomerPhone],
             'password' => 'required|same:con_password',
             'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
             'policy_version_ids' => 'nullable|array',
             'policy_version_ids.*' => 'integer',
         ];
@@ -49,8 +48,6 @@ class CustomerRegistrationRequest extends FormRequest
             'phone.regex' => translate('please_provide_valid_phone_number'),
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ];
     }
 
@@ -66,7 +63,7 @@ class CustomerRegistrationRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'phone' => app(EgyptPhoneService::class)->normalize($this->input('phone')),
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
         ]);
     }
 

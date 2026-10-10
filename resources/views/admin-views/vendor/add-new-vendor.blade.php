@@ -310,7 +310,7 @@
                                 </div>
                             </div>
                         </div>
-                        @if (theme_root_path() == 'theme_aster')
+                        @if (theme_base_path() == 'theme_aster')
                             <div class="col-lg-6">
                                 <div class="d-flex align-items-center bg-section rounded-8 p-20 w-100 h-100">
                                     <div class="d-flex flex-column gap-20 w-100">

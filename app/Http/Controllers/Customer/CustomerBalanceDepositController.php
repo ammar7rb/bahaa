@@ -21,7 +21,7 @@ class CustomerBalanceDepositController extends Controller
             : redirect()->route('customer-balances')->with('deposit_message', translate('deposit_submitted_for_review'));
         abort_unless(getWebConfig('add_funds_to_wallet') == 1 && (getWebConfig('offline_payment')['status'] ?? 0), 403);
         $data = $request->validate([
-            'wallet_type' => 'required|in:purchase,insurance', 'amount' => 'required|numeric|gt:0',
+            'wallet_type' => 'required|in:purchase', 'amount' => 'required|numeric|gt:0',
             'method_id' => ['required', 'integer', Rule::exists('offline_payment_methods', 'id')->where(fn ($query) => $query->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay']))],
             'request_key' => 'required|uuid', 'payment_reference' => 'required|string|max:191',
             'payment_note' => 'nullable|string|max:1000', 'method_information' => 'nullable|array',

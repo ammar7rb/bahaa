@@ -1305,6 +1305,40 @@ class OrderManager
 
     public static function generateOrder(object|array|null $data = []): array
     {
+        $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+        if (!$eligibility->enabled()) return self::generateCustomerOrderInternal($data);
+        return DB::transaction(function () use ($data, $eligibility) {
+            $info = self::getCustomerInfoForOrder(data: [
+                'is_guest' => $data['is_guest'] ?? null, 'guest_id' => $data['guest_id'] ?? null,
+                'customer_id' => $data['customer_id'] ?? null, 'requestObj' => $data['requestObj'] ?? null,
+            ]);
+            if ($info['is_guest'] || !$info['customer_id']) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['customer_eligibility' => 'أنشئ حسابًا أو سجل الدخول لإتمام الشراء.']);
+            }
+            if (!empty($data['customer_checkout_operation_id'])) {
+                $groups = [];
+                $operation = $eligibility->reserve((int) $info['customer_id'], '', $data['customer_checkout_operation_id'], $data['payment_method'] ?? '');
+            } else {
+                $groups = self::processOrderGenerateData(data: ['requestObj' => $data['requestObj'] ?? null, 'coupon_code' => $data['coupon_code'] ?? session('coupon_code')]);
+                $fingerprint = hash('sha256', json_encode($groups));
+                $operation = $eligibility->reserve((int) $info['customer_id'], $fingerprint, null, $data['payment_method'] ?? '', json_decode(json_encode($groups), true));
+            }
+            if ($operation->consumed_at) return json_decode($operation->order_ids, true) ?: [];
+            if (empty($data['customer_checkout_operation_id']) && \App\Models\PaymentRequest::where('payer_id', $info['customer_id'])->where('additional_data->customer_checkout_operation_id', $operation->id)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['payment' => 'تابع عملية الدفع الإلكتروني المحفوظة لتجنب تحصيل المبلغ مرتين.']);
+            }
+            if (!$groups && empty($operation->cart_snapshot)) throw \Illuminate\Validation\ValidationException::withMessages(['cart' => 'السلة فارغة. أضف المنتجات للمتابعة.']);
+            $data['customer_checkout_operation_id'] = $operation->id;
+            $data['customer_checkout_cart_snapshot'] = isset($operation->cart_snapshot) ? json_decode($operation->cart_snapshot, true) : null;
+            $ids = self::generateCustomerOrderInternal($data);
+            DB::table('customer_checkout_operations')->where('id', $operation->id)->update(['consumed_at' => now(), 'order_ids' => json_encode($ids), 'updated_at' => now()]);
+            $eligibility->reevaluateCustomer((int) $info['customer_id']);
+            return $ids;
+        }, 3);
+    }
+
+    private static function generateCustomerOrderInternal(object|array|null $data = []): array
+    {
         $taxConfig = self::getTaxSystemType();
         $orderPlacedIds = [];
         $orderPlacedNotificationEvents = [];
@@ -1318,7 +1352,7 @@ class OrderManager
             'requestObj' => $data['requestObj'] ?? null,
         ]);
         $orderGroupId = OrderManager::generateUniqueOrderID();
-        $vendorWiseCartList = OrderManager::processOrderGenerateData(data: [
+        $vendorWiseCartList = $data['customer_checkout_cart_snapshot'] ?? OrderManager::processOrderGenerateData(data: [
             'coupon_code' => $data['coupon_code'] ?? (session('coupon_code') ?? ''),
             'address_id' => $data['address_id'] ?? session('address_id'),
             'billing_address_id' => $data['billing_address_id'] ?? session('billing_address_id'),
@@ -1376,6 +1410,11 @@ class OrderManager
                 cartData: $vendorWiseCart,
                 orderData: $data
             );
+            if (!empty($data['customer_checkout_operation_id'])) {
+                $ordersData['customer_checkout_operation_id'] = $data['customer_checkout_operation_id'];
+                $ordersData['customer_fulfillment_status'] = 'pending_requirements';
+                $ordersData['order_status'] = 'pending';
+            }
             DB::table('orders')->insertGetId($ordersData);
 
             if ($data['payment_method'] == 'offline_payment') {
@@ -1445,7 +1484,9 @@ class OrderManager
         foreach ($orderPlacedNotificationEvents as $orderPlacedEventGroup) {
             foreach ($orderPlacedEventGroup as $orderPlacedEvent) {
                 if (!empty($orderPlacedEvent)) {
-                    event(new OrderPlacedEvent(notification: $orderPlacedEvent['notificationData']));
+                    DB::afterCommit(function () use ($orderPlacedEvent) {
+                        try { event(new OrderPlacedEvent(notification: $orderPlacedEvent['notificationData'])); } catch (\Throwable $exception) { report($exception); }
+                    });
                 }
             }
         }
@@ -1453,7 +1494,9 @@ class OrderManager
         foreach ($orderPlacedMailEvents as $orderPlacedMailEventGroup) {
             foreach ($orderPlacedMailEventGroup as $orderPlacedMailEvent) {
                 try {
-                    event(new OrderPlacedEvent(email: $orderPlacedMailEvent['email'], data: $orderPlacedMailEvent['data']));
+                    DB::afterCommit(function () use ($orderPlacedMailEvent) {
+                        try { event(new OrderPlacedEvent(email: $orderPlacedMailEvent['email'], data: $orderPlacedMailEvent['data'])); } catch (\Throwable $exception) { report($exception); }
+                    });
                 } catch (Exception $exception) {
                 }
             }
@@ -2174,6 +2217,13 @@ class OrderManager
     {
         $response['status'] = 1;
         $response['physical_product_view'] = false;
+        $customer = Helpers::getCustomerInformation($request);
+        $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+        if ($customer !== 'offline' && $eligibility->enabled()) {
+            $state = $eligibility->status($customer);
+            if (!$state['can_checkout']) return ['status' => 0, 'physical_product_view' => false,
+                'message' => [$state['message']], 'redirect' => route('customer.subscription.index')];
+        }
         $message = [];
 
         $verifyStatus = OrderManager::verifyCartListMinimumOrderAmount($request);

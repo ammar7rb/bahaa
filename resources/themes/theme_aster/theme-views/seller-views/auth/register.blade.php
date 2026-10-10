@@ -93,6 +93,14 @@
                                                     <small class="text-danger confirm-password-error"></small>
                                                 </div>
                                             </div>
+                                            <div class="col-12 mb-4">
+                                                <label class="d-flex align-items-start gap-2" for="seller-combined-terms">
+                                                    <input type="checkbox" id="seller-combined-terms" name="terms_accepted" value="1" required>
+                                                    <span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'أقر بأنني موافق على' : 'I acknowledge that I agree to the' }}
+                                                        <a href="{{ route('business-page.view', ['slug'=>'terms-and-conditions']) }}" target="_blank" rel="noopener">{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}</a>
+                                                    </span>
+                                                </label>
+                                            </div>
                                             @if($requiredSellerPolicies->isNotEmpty())
                                                 <div class="col-12">
                                                     <div class="mb-4 border rounded p-3">

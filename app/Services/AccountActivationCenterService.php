@@ -298,6 +298,7 @@ class AccountActivationCenterService
     public function approve(AccountActivationCase $case, string|null $note, int $adminId): AccountActivationCase
     {
         return DB::transaction(function () use ($case, $note, $adminId) {
+            if ($case->subject_type === AccountActivationCase::SUBJECT_CUSTOMER) \App\Models\User::lockForUpdate()->findOrFail($case->subject_id);
             $locked = AccountActivationCase::query()->lockForUpdate()->findOrFail($case->id);
             $this->assertEditable($locked);
             $this->assertRequiredEvidenceIsVerified($locked);
@@ -467,11 +468,12 @@ class AccountActivationCenterService
 
     private function activateCustomer(int $customerId, int $adminId): void
     {
-        $updates = ['is_active' => 1];
+        $updates = [];
         if (Schema::hasColumn('users', 'activation_status')) $updates['activation_status'] = 'active';
         if (Schema::hasColumn('users', 'activation_approved_at')) $updates['activation_approved_at'] = now();
         if (Schema::hasColumn('users', 'activation_approved_by_admin_id')) $updates['activation_approved_by_admin_id'] = $adminId;
         DB::table('users')->where('id', $customerId)->update($updates);
+        app(CustomerPurchaseEligibilityService::class)->reevaluateCustomer($customerId);
     }
 
     private function updateSubjectActivationStatus(AccountActivationCase $case, string $status): void

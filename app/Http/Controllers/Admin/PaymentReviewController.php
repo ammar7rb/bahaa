@@ -50,10 +50,13 @@ class PaymentReviewController extends Controller
 
     public function approve(Request $request, string $type, int|string $id): RedirectResponse
     {
-        abort_unless(\App\Utils\Helpers::module_permission_check(str_starts_with($type, 'vendor_') ? 'people' : 'orders'), 403);
+        abort_unless(\App\Utils\Helpers::module_permission_check((str_starts_with($type, 'vendor_') || $type === 'customer_subscription') ? 'people' : 'orders'), 403);
         $request->validate(['payment_reference' => 'nullable|string|max:191', 'review_note' => 'nullable|string|max:1000']);
         try {
-            if ($type === 'vendor_balance_deposit') {
+            if ($type === 'customer_subscription') {
+                abort_unless(\App\Utils\Helpers::module_permission_check('people'),403);
+                app(\App\Services\CustomerMonthlySubscriptionService::class)->review((int)$id,'approve',(int)auth('admin')->id(),$request->get('review_note'));
+            } elseif ($type === 'vendor_balance_deposit') {
                 $deposit = SellerBalanceDeposit::query()->where('source', SellerBalanceDeposit::SOURCE_OFFLINE)->where('status', SellerBalanceDeposit::STATUS_PENDING)->findOrFail($id);
                 $this->balanceDeposits->markPaid($deposit, ['payment_method' => 'offline_payment', 'transaction_id' => $request->get('payment_reference') ?: 'seller-balance-offline-'.$deposit->id, 'payment_amount' => $deposit->amount, 'currency_code' => $deposit->currency_code], auth('admin')->id(), $request->get('review_note'));
             } elseif ($type === 'vendor_package') {
@@ -68,13 +71,8 @@ class PaymentReviewController extends Controller
                 $insurance = SellerOrderInsurance::query()->where('payment_method', 'offline_payment')->where('payment_status', 'unpaid')->where('status', SellerOrderInsurance::STATUS_PENDING_REVIEW)->findOrFail($id);
                 $this->sellerOrderInsuranceService->markPaid($insurance, 'offline_payment', $request->get('payment_reference') ?: 'unified-order-insurance-'.$insurance->id, auth('admin')->id(), $request->get('review_note'));
             } elseif ($type === 'customer_order') {
-                $order = Order::query()->where('payment_method', 'offline_payment')->where('payment_status', 'unpaid')->findOrFail($id);
-                \App\Utils\OrderManager::getStockUpdateOnOrderStatusChange($order, 'canceled');
-                $order->update([
-                    'payment_status' => 'paid',
-                    'transaction_ref' => $request->get('payment_reference') ?: ('offline-review-'.$order->id),
-                ]);
-                $this->postPurchaseInvoices->createForPaidOrderGroup([$order->id]);
+                $order = Order::query()->where('payment_method', 'offline_payment')->findOrFail($id);
+                app(\App\Services\CustomerPurchaseEligibilityService::class)->approveOrderPayment((int) $order->id, $request->get('payment_reference') ?: ('offline-review-'.$order->id));
             } else {
                 throw new DomainException('offline_payment_review_not_found');
             }
@@ -87,10 +85,13 @@ class PaymentReviewController extends Controller
 
     public function reject(Request $request, string $type, int|string $id): RedirectResponse
     {
-        abort_unless(\App\Utils\Helpers::module_permission_check(str_starts_with($type, 'vendor_') ? 'people' : 'orders'), 403);
+        abort_unless(\App\Utils\Helpers::module_permission_check((str_starts_with($type, 'vendor_') || $type === 'customer_subscription') ? 'people' : 'orders'), 403);
         $request->validate(['review_note' => 'required|string|max:1000']);
         try {
-            if ($type === 'vendor_balance_deposit') {
+            if ($type === 'customer_subscription') {
+                abort_unless(\App\Utils\Helpers::module_permission_check('people'),403);
+                app(\App\Services\CustomerMonthlySubscriptionService::class)->review((int)$id,'reject',(int)auth('admin')->id(),$request->get('review_note'));
+            } elseif ($type === 'vendor_balance_deposit') {
                 $deposit = SellerBalanceDeposit::query()->where('source', SellerBalanceDeposit::SOURCE_OFFLINE)->where('status', SellerBalanceDeposit::STATUS_PENDING)->findOrFail($id);
                 $this->balanceDeposits->reject($deposit, auth('admin')->id(), $request->get('review_note'));
             } elseif ($type === 'vendor_package') {
@@ -104,11 +105,15 @@ class PaymentReviewController extends Controller
                 $this->sellerOrderInsuranceService->rejectOfflinePayment($insurance, auth('admin')->id(), $request->get('review_note'));
             } elseif ($type === 'customer_order') {
                 $order = Order::query()->where('payment_method', 'offline_payment')->where('payment_status', 'unpaid')->findOrFail($id);
-                $order->update([
+                if ($order->customer_checkout_operation_id) {
+                    app(\App\Services\CustomerPurchaseEligibilityService::class)->rejectOrderPayment((int)$id, $request->get('review_note'));
+                } else {
+                    $order->update([
                     'order_status' => 'canceled',
                     'activation_status' => 'offline_payment_rejected',
                     'order_note' => trim(($order->order_note ? $order->order_note."\n" : '').'Offline payment rejected: '.$request->get('review_note')),
                 ]);
+                }
             } else {
                 throw new DomainException('offline_payment_review_not_found');
             }
@@ -126,6 +131,28 @@ class PaymentReviewController extends Controller
         $kind = $request->get('kind');
         $status = $request->get('status');
         $search = trim((string) $request->get('searchValue'));
+
+        if (\App\Utils\Helpers::module_permission_check('orders') && (!$audience || $audience === 'customer')
+            && (!$kind || $kind === 'order') && (!$status || $status === 'reconciliation')
+            && \Illuminate\Support\Facades\Schema::hasTable('customer_legacy_payment_receipts')) {
+            \Illuminate\Support\Facades\DB::table('customer_legacy_payment_receipts')
+                ->when($search !== '', fn($q)=>$q->where('reference','like','%'.$search.'%'))->orderByDesc('received_at')->get()->each(function($receipt) use (&$rows) {
+                    $rows->push(['id'=>$receipt->id,'type'=>'customer_legacy_receipt','kind'=>'order','audience'=>'customer',
+                        'status'=>'reconciliation','actor'=>\App\Models\User::find($receipt->customer_id),
+                        'label'=>'دفعة قديمة مؤكدة — تحتاج مطابقة مالية','amount'=>(float)$receipt->amount,'currency'=>$receipt->currency_code,
+                        'reference'=>$receipt->reference,'offline'=>['ملاحظة'=>'مبلغ مؤكد من النظام السابق، دون إنشاء طلب أو تأمين جديد.'], 'created_at'=>$receipt->received_at]);
+                });
+        }
+
+
+        if (\App\Utils\Helpers::module_permission_check('people') && (!$audience || $audience === 'customer') && (!$kind || $kind === 'subscription')) {
+            \App\Models\CustomerSubscriptionPayment::with('customer')->where('status','!=','draft')
+                ->when($status,fn($q)=>$q->where('status',$status === 'pending' ? 'pending_review' : $status))
+                ->when($search !== '',fn($q)=>$q->where(function($q) use($search){ $q->where('payment_reference','like','%'.$search.'%')->orWhereHas('customer',fn($c)=>$c->where('phone','like','%'.$search.'%')->orWhere('f_name','like','%'.$search.'%')); }))
+                ->latest('id')->get()->each(function($payment) use(&$rows) {
+                    $rows->push(['id'=>$payment->id,'type'=>'customer_subscription','kind'=>'subscription','audience'=>'customer','status'=>$payment->status === 'pending_review' ? 'pending' : $payment->status,'actor'=>$payment->customer,'label'=>'الاشتراك الشهري','amount'=>(float)$payment->quoted_amount,'currency'=>$payment->currency_code,'reference'=>$payment->payment_reference,'offline'=>$payment->method_information,'created_at'=>$payment->created_at]);
+                });
+        }
 
         if (\App\Utils\Helpers::module_permission_check('people') && (!$audience || $audience === 'vendor')) {
             if (!$kind || $kind === 'balance_deposit') {
@@ -194,6 +221,7 @@ class PaymentReviewController extends Controller
                         'status' => $status,
                         'actor' => $order->customer,
                         'label' => 'Order #'.$order->id,
+                        'customer_state' => app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order),
                         'amount' => (float) $order->order_amount,
                         'currency' => getCurrencyCode(type: 'default'),
                         'reference' => $order->transaction_ref ?: 'ORD-'.$order->id,

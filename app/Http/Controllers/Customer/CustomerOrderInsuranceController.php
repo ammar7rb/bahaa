@@ -33,7 +33,7 @@ class CustomerOrderInsuranceController extends Controller
     public function show(Request $request, int|string $id): View|RedirectResponse
     {
         [$order, $insurance] = $this->resolve($id);
-        if (! $insurance) {
+        if (! $this->service->enabled() || ! $insurance) {
             return redirect()->route('account-order-details', ['id' => $order->id]);
         }
 

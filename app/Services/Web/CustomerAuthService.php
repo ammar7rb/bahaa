@@ -82,6 +82,8 @@ class CustomerAuthService
             'phone' => $request['phone'],
             'is_active' => 1,
             'activation_status' => 'pending_support',
+            'onboarding_journey' => 'standard',
+            'canonical_phone' => app(\App\Services\EgyptPhoneService::class)->normalizeLocal($request['phone']),
             'password' => bcrypt($request['password']),
             'referral_code' => Helpers::generate_referer_code(),
             'referred_by' => $referUser ? $referUser['id'] : null,

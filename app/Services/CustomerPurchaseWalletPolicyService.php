@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 class CustomerPurchaseWalletPolicyService
 {
-    private const PURCHASE_DEBITS = ['order_place', 'due_payment_for_order'];
+    private const PURCHASE_DEBITS = ['order_place', 'due_payment_for_order', 'monthly_subscription'];
     private const PURCHASE_CREDITS = [
         'add_fund_by_admin', 'add_fund', 'order_refund', 'loyalty_point',
         'return_order_amount_by_admin',
@@ -33,7 +33,7 @@ class CustomerPurchaseWalletPolicyService
     {
         return [
             'wallet' => 'purchase_wallet',
-            'allowed_uses' => ['product_purchase', 'purchase_refund'],
+            'allowed_uses' => ['product_purchase', 'purchase_refund', 'monthly_subscription'],
             'insurance_payment_allowed' => false,
             'withdrawable' => false,
         ];

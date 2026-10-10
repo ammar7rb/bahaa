@@ -1,6 +1,4 @@
 @php
-    $insuranceDue = max(0, ($summary['insurance_amount'] ?? 0) - ($summary['insurance_balance_paid'] ?? 0));
-    $availableBalance = max(0, $insuranceBalance['available_balance'] ?? 0);
     $amountDue = max(0, $summary['external_amount_due'] ?? 0);
 @endphp
 <style>
@@ -44,12 +42,9 @@
         <h2 id="stage-summary-title">{{ translate('second_invoice_details') }}</h2>
         <p class="second-stage-muted mb-0">{{ translate('second_invoice_active_items') }}</p>
         <div class="second-stage-line"><span>{{ translate('second_invoice_purchases_shipping') }} <small class="second-stage-muted">({{ translate('second_invoice_first') }})</small></span><strong><bdi>{{ webCurrencyConverter($summary['first_payment_amount'] ?? 0) }}</bdi></strong></div>
-        @if(($summary['insurance_amount'] ?? 0) > 0)<div class="second-stage-line"><span>{{ translate('second_invoice_insurance') }}</span><strong><bdi>{{ webCurrencyConverter($summary['insurance_amount']) }}</bdi></strong></div>@endif
         @if(($summary['tax_amount'] ?? 0) > 0)<div class="second-stage-line"><span>{{ translate('second_invoice_tax') }}</span><strong><bdi>{{ webCurrencyConverter($summary['tax_amount']) }}</bdi></strong></div>@endif
         <div class="second-stage-line"><span>{{ translate('second_invoice_total') }}</span><strong><bdi>{{ webCurrencyConverter($summary['total_amount']) }}</bdi></strong></div>
-        @if(($summary['insurance_balance_paid'] ?? 0) > 0)<div class="second-stage-line"><span>{{ translate('second_invoice_balance_paid') }}</span><strong><bdi>{{ webCurrencyConverter($summary['insurance_balance_paid']) }}</bdi></strong></div>@endif
         <div class="second-stage-line second-stage-line-total"><span>{{ translate('second_invoice_remaining') }}</span><strong><bdi>{{ webCurrencyConverter($amountDue) }}</bdi></strong></div>
-        @if(($summary['insurance_amount'] ?? 0) > 0)<div class="second-stage-note second-stage-muted">{{ translate(($summary['tax_amount'] ?? 0) > 0 ? 'second_invoice_balance_notice' : 'second_invoice_balance_hint') }}</div>@endif
     </section>
     <section class="second-stage-panel" aria-labelledby="stage-payment-title">
         <h2 id="stage-payment-title">{{ translate('second_invoice_payment_title') }}</h2>
@@ -66,13 +61,6 @@
         @else
             <p class="second-stage-muted mb-0">{{ translate('second_invoice_choose') }}</p>
             <div class="second-stage-choices">
-                @if($insuranceDue > 0)
-                    <details class="second-stage-option"><summary><span class="second-stage-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="15" rx="2"/><path d="M2 9h20M16 15h3"/></svg></span><span><span class="second-stage-option-title">{{ translate('insurance_balance') }}</span><span class="second-stage-option-subtitle">{{ translate('second_invoice_balance_hint') }}</span></span></summary>
-                        <div class="second-stage-option-body"><div class="second-stage-transfer"><div><span>{{ translate('second_invoice_insurance_remaining') }}</span><bdi>{{ webCurrencyConverter($insuranceDue) }}</bdi></div><div><span>{{ translate('second_invoice_available_balance') }}</span><bdi>{{ webCurrencyConverter($availableBalance) }}</bdi></div></div>
-                            @if($availableBalance < $insuranceDue)<div class="alert alert-warning">{{ translate('insurance_balance_is_insufficient_deposit_or_use_transfer') }} <a href="{{ route('wallet') }}">{{ translate('deposit_into_insurance_balance') }}</a></div>
-                            @else<form method="post" action="{{ route('post-purchase-invoices.use-insurance-balance', $invoice->id) }}">@csrf<button class="btn btn--primary second-stage-action" type="submit">{{ translate('second_invoice_use_balance') }}</button></form>@if(($summary['tax_amount'] ?? 0) > 0)<p class="second-stage-muted mt-2 mb-0">{{ translate('second_invoice_tax_after_balance') }}</p>@endif @endif
-                        </div></details>
-                @endif
                 @if($amountDue > 0 && $offlinePaymentAvailable)
                     @foreach($offlinePaymentMethods as $method)
                         <details class="second-stage-option"><summary><span class="second-stage-option-icon" aria-hidden="true">@if($method->payment_channel === 'instapay')<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m22 2-7 20-4-9-9-4 20-7ZM11 13 22 2"/></svg>@else<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="15" rx="2"/><path d="M2 9h20M16 15h3"/></svg>@endif</span><span><span class="second-stage-option-title">{{ translate($method->payment_channel === 'instapay' ? 'second_invoice_instapay' : 'second_invoice_wallet') }}</span><span class="second-stage-option-subtitle">{{ translatePaymentText($method->method_name) }} · {{ translate('second_invoice_transfer_hint') }}</span></span></summary>

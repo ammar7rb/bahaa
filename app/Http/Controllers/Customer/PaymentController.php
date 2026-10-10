@@ -359,6 +359,16 @@ class PaymentController extends Controller
             'coupon_code' => $couponCode,
             'requestObj' => $request,
         ]);
+        $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+        if ($eligibility->enabled()) {
+            if ($customer === 'offline') throw \Illuminate\Validation\ValidationException::withMessages(['customer_eligibility' => 'سجل الدخول لإتمام الشراء.']);
+            $operation = $eligibility->reserve((int) $customer->id, hash('sha256', json_encode($vendorWiseCartList)), null, 'digital_payment', json_decode(json_encode($vendorWiseCartList), true));
+            if ($operation->cart_snapshot) $vendorWiseCartList = json_decode($operation->cart_snapshot, true);
+            $additionalData['customer_checkout_operation_id'] = $operation->id;
+            $additionalData['customer_id'] = $customer->id;
+            $additionalData['is_guest_in_order'] = 0;
+            $additionalData['new_customer_info'] = null;
+        }
         $postPurchaseInvoiceService = app(\App\Services\PostPurchaseInvoiceService::class);
         if ($postPurchaseInvoiceService->isEnabled()) {
             $paymentAmount = collect($vendorWiseCartList)->sum('first_payment_amount');
@@ -446,7 +456,7 @@ class PaymentController extends Controller
             'amount' => 'required|numeric|gt:0',
             'payment_method' => ['required', \Illuminate\Validation\Rule::in(\App\Utils\payment_gateways()->pluck('key_name')->all())],
             'payment_platform' => 'required|in:web,app',
-            'wallet_type' => 'sometimes|in:purchase,insurance',
+            'wallet_type' => 'sometimes|in:purchase',
         ]);
 
         if ($validator->fails()) {

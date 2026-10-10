@@ -18,6 +18,11 @@ class ContactConversationController extends Controller
 
     public function show(Request $request, int $contact)
     {
+        if ($request->hasValidSignature()) {
+            $ids = $request->session()->get('contact_conversation_ids', []);
+            $ids[] = $contact;
+            $request->session()->put('contact_conversation_ids', array_values(array_unique($ids)));
+        }
         $contact = $this->ownedContact($request, $contact);
         $messages = DB::table('contact_conversation_messages')->where('contact_id', $contact->id)->orderBy('id')->get();
         $messages->each(function ($message) {

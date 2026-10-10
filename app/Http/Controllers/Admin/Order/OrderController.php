@@ -646,6 +646,12 @@ class OrderController extends BaseController
     {
         $order = $this->orderRepo->getFirstWhere(params: ['id' => $request['id']], relations: ['customer', 'seller.shop', 'deliveryMan', 'latestEditHistory']);
 
+        if ($order->customer_checkout_operation_id && in_array($request['order_status'], ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) {
+            $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+            $eligibility->reevaluateCustomer((int) $order->customer_id);
+            $order->refresh();
+            if (!$order->customer_eligible_at || !$order->customer->is_active || $order->is_pause) return response()->json(['status' => 0, 'message' => (!$order->customer->is_active || $order->is_pause) ? $eligibility->message(['administrative_freeze']) : $eligibility->orderPayload($order)['message']]);
+        }
         if (!$order['is_guest'] && !isset($order['customer'])) {
             return response()->json([
                 'status' => 0,
@@ -1063,6 +1069,10 @@ class OrderController extends BaseController
                 'status' => 0,
                 'message' => translate('Please confirm the offline payment information before editing this order.'),
             ]);
+        }
+        if ($order->customer_checkout_operation_id && $request['payment_status'] === 'paid') {
+            app(\App\Services\CustomerPurchaseEligibilityService::class)->approveOrderPayment((int) $order->id, $order->transaction_ref ?: 'admin-order-'.$order->id);
+            return response()->json(['status' => 1, 'message' => 'تم اعتماد الدفع وتحديث أهلية الطلب.']);
         }
         $this->orderRepo->update(id: $request['id'], data: ['payment_status' => $request['payment_status']]);
         if ($request['payment_status'] === 'paid') {

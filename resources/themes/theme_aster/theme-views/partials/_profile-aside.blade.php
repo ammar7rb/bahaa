@@ -78,6 +78,7 @@
                         </a>
                     </li>
 
+                    <li class="{{ request()->routeIs('customer.subscription.*') ? 'active' : '' }}"><a href="{{ route('customer.subscription.index') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>الاشتراك الشهري</span></a></li>
                     @if ($web_config['wallet_status'] == 1)
                         <li class="{{Request::is('wallet') ? 'active' :''}}">
                             <a href="{{route('wallet')}}">

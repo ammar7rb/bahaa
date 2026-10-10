@@ -864,6 +864,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.customer.monthly-subscriptions.*') ? 'active' : '' }}" href="{{ route('admin.customer.monthly-subscriptions.index') }}">الاشتراكات الشهرية</a>
                             <a class="nav-link {{ request()->routeIs('admin.customer.wallet.deposits*') ? 'active' : '' }}" href="{{ route('admin.customer.wallet.deposits') }}">
                                 <span class="text-truncate">{{ translate('customer_deposit_requests') }}</span>
                             </a>

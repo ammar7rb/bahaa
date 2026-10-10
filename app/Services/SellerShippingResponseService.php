@@ -197,6 +197,8 @@ class SellerShippingResponseService
         if (! $this->isManagedOrder($order) || $order->seller_is !== 'seller' || (int) $order->seller_id !== (int) $seller->id) {
             throw new DomainException('seller_shipping_response_order_not_found');
         }
+        if ($order->customer_checkout_operation_id) app(CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
+
         if (($order->shipping_assignment_status ?? 'pending') !== 'assigned') {
             throw new DomainException('shipping_decision_is_required_before_seller_release');
         }

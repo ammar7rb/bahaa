@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AddFundBonusCategories;
 use App\Models\WalletTransaction;
 use App\Models\PostPurchaseInvoice;
-use App\Services\CustomerInsuranceBalanceService;
+
 use App\Utils\Helpers;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +19,7 @@ class UserWalletController extends Controller
     {
         $customer = $request->user('api');
         $customerId = (int) $customer->id;
-        $insurance = app(CustomerInsuranceBalanceService::class);
+
         $canDeposit = getWebConfig('add_funds_to_wallet') == 1;
         $pendingInvoicesQuery = PostPurchaseInvoice::query()
             ->where('customer_id', $customerId)
@@ -27,9 +27,9 @@ class UserWalletController extends Controller
         $pendingInvoicesCount = (clone $pendingInvoicesQuery)->count();
         return response()->json([
             'purchase_balance' => (float) $customer->wallet_balance,
-            'insurance' => $insurance->summary($customerId),
+            'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status($customerId),
             'purchase_enabled' => getWebConfig('wallet_status') == 1,
-            'insurance_enabled' => (int) (getWebConfig('customer_order_insurance_status') ?? 0) === 1,
+            'insurance_enabled' => false,
             'tax_enabled' => getWebConfig(name: 'customer_second_invoice_tax_enabled') == 1,
             'pending_invoices_count' => $pendingInvoicesCount,
             'pending_invoices' => $pendingInvoicesQuery->with('order:id,order_group_id,order_amount')
@@ -50,15 +50,11 @@ class UserWalletController extends Controller
                 ? \App\Models\OfflinePaymentMethod::where('status', 1)->get(['id', 'method_name', 'payment_channel', 'method_fields', 'method_informations']) : [],
             'digital_methods' => $canDeposit && (getWebConfig('digital_payment')['status'] ?? 0)
                 ? \App\Utils\payment_gateways()->map(fn ($gateway) => ['key' => $gateway->key_name])->values() : [],
-            'deposits' => \App\Models\CustomerBalanceDeposit::where('customer_id', $customerId)->latest('id')
+            'deposits' => \App\Models\CustomerBalanceDeposit::where('customer_id', $customerId)->where('wallet_type', 'purchase')->latest('id')
                 ->paginate(20, ['id', 'wallet_type', 'amount', 'status', 'method_name', 'payment_reference', 'review_note', 'created_at']),
             'purchase_entries' => WalletTransaction::where('user_id', $customerId)->latest('id')
                 ->paginate(20, ['id', 'transaction_type', 'transaction_id', 'reference', 'credit', 'debit', 'balance', 'created_at']),
-            'insurance_entries' => $insurance->recentEntries($customerId)->map(fn ($entry) => [
-                'order_id' => $entry->order_id, 'entry_type' => $entry->entry_type,
-                'transaction_number' => $entry->transaction_number,
-                'credit' => $entry->credit, 'debit' => $entry->debit, 'created_at' => $entry->created_at,
-            ])->values(),
+            'insurance_entries' => [],
             'orders' => \App\Models\Order::where('customer_id', $customerId)->where('is_guest', 0)
                 ->with(['insurance', 'postPurchaseInvoice'])->latest('id')->paginate(20)->through(fn ($order) => [
                     'id' => $order->id, 'amount' => $order->order_amount,
@@ -89,8 +85,8 @@ class UserWalletController extends Controller
         if ($walletStatus == 1) {
             $user = $request->user();
             $totalWalletBalance = $user->wallet_balance;
-            $insuranceBalanceService = app(CustomerInsuranceBalanceService::class);
-            $insuranceBalanceSummary = $insuranceBalanceService->summary((int) $user->id);
+
+
             $types = json_decode($request->get('transaction_types', ''), true) ?? [];
             $transactionTypes = $this->getSelectTransactionTypes(types: $types);
             if (request()->has('start_date') && request()->has('end_date') && !checkDateFormatInMDY($request['start_date']) && !checkDateFormatInMDY($request['end_date'])) {
@@ -132,18 +128,12 @@ class UserWalletController extends Controller
                 'limit' => (integer)$request['limit'],
                 'offset' => (integer)$request['offset'],
                 'total_wallet_balance' => $totalWalletBalance,
-                'insurance_available_balance' => $insuranceBalanceSummary['available_balance'],
-                'insurance_held_balance' => $insuranceBalanceSummary['held_balance'],
-                'insurance_next_maturity_at' => $insuranceBalanceSummary['next_maturity_at'],
-                'insurance_ledger_entries' => $insuranceBalanceService->recentEntries((int) $user->id)
-                    ->map(fn ($entry) => [
-                        'id' => $entry->id,
-                        'order_id' => $entry->order_id,
-                        'entry_type' => $entry->entry_type,
-                        'credit' => $entry->credit,
-                        'debit' => $entry->debit,
-                        'created_at' => $entry->created_at,
-                    ])->values(),
+                'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status((int) $user->id),
+                'insurance_enabled' => false,
+                'insurance_available_balance' => 0,
+                'insurance_held_balance' => 0,
+                'insurance_next_maturity_at' => null,
+                'insurance_ledger_entries' => [],
                 'total_size' => $walletTransactionList->total(),
                 'wallet_transaction_list' => $walletTransactionList->items(),
                 'filter_by' => $request['filter_by'],

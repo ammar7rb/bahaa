@@ -31,7 +31,7 @@ class UserWalletController extends Controller
 
         return view('web-views.users-profile.customer-balances', [
             'purchaseBalance' => (float) auth('customer')->user()->wallet_balance,
-            'insuranceSummary' => $service->summary($customerId),
+            'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status($customerId),
             'orders' => \App\Models\Order::query()->where('customer_id', $customerId)
                 ->where('is_guest', 0)->with('insurance')->latest('id')->paginate(10, ['*'], 'orders_page')->withQueryString(),
             'purchaseEntries' => WalletTransaction::query()->where('user_id', $customerId)
@@ -43,69 +43,21 @@ class UserWalletController extends Controller
             'purchaseWalletEnabled' => getWebConfig(name: 'wallet_status') == 1,
             'canDepositOffline' => getWebConfig('add_funds_to_wallet') == 1 && (getWebConfig('offline_payment')['status'] ?? 0),
             'offlinePaymentMethods' => \App\Models\OfflinePaymentMethod::where('status', 1)->get(),
-            'depositRequests' => \App\Models\CustomerBalanceDeposit::where('customer_id', $customerId)
+            'depositRequests' => \App\Models\CustomerBalanceDeposit::where('customer_id', $customerId)->where('wallet_type', 'purchase')
                 ->latest('id')->paginate(10, ['*'], 'deposits_page')->withQueryString(),
         ]);
     }
 
     public function index(Request $request): View|RedirectResponse
     {
-        if ((env('WEB_THEME') ?: 'default') === 'default') {
-            if (in_array($request->get('flag'), ['success', 'fail'], true)) {
-                $request->get('flag') === 'success'
-                    ? Toastr::success(translate('add_fund_to_wallet_success'))
-                    : Toastr::error(translate('add_fund_to_wallet_unsuccessful'));
-                return redirect()->route('wallet');
-            }
-            return $this->walletView();
+        if (in_array($request->get('flag'), ['success','fail'],true)) {
+            $request->get('flag') === 'success'
+                ? Toastr::success(translate('add_fund_to_wallet_success'))
+                : Toastr::error(translate('add_fund_to_wallet_unsuccessful'));
+            return redirect()->route('wallet');
         }
-
-        $walletStatus = getWebConfig(name: 'wallet_status');
-        if ($walletStatus == 1) {
-            $transactionTypes = $this->getSelectTransactionTypes(types: $request->get('types', []));
-            $totalWalletBalance = auth('customer')->user()->wallet_balance;
-            $insuranceBalanceService = app(CustomerInsuranceBalanceService::class);
-            $insuranceBalanceSummary = $insuranceBalanceService->summary((int) auth('customer')->id());
-            $insuranceLedgerEntries = $insuranceBalanceService->recentEntries((int) auth('customer')->id());
-
-            $walletTransactionList = $this->getWalletTransactionList(request: $request, types: $transactionTypes);
-            $paymentGatewayList = payment_gateways();
-            $addFundBonusList = $this->getAddFundBonusList();
-
-            $filterCount = count($request['types']??[]) + (int)!empty($request['transaction_range']) + (int)!empty($request['filter_by']);
-
-            if ($request->has('flag') && $request['flag'] == 'success') {
-                Toastr::success(translate('add_fund_to_wallet_success'));
-                return redirect()->route('wallet');
-            } else if ($request->has('flag') && $request['flag'] == 'fail') {
-                Toastr::error(translate('add_fund_to_wallet_unsuccessful'));
-                return redirect()->route('wallet');
-            }
-
-            $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
-            $addFundsToWallet = getWebConfig(name: 'add_funds_to_wallet');
-            $addFundsToWalletStatus = $addFundsToWallet && count($paymentGatewayList) > 0 && ($digitalPaymentStatus['status'] ?? 0);
-
-            return view(VIEW_FILE_NAMES['user_wallet'], [
-                'addFundsToWalletStatus' => $addFundsToWalletStatus,
-                'totalWalletBalance' => $totalWalletBalance,
-                'insuranceBalanceSummary' => $insuranceBalanceSummary,
-                'insuranceLedgerEntries' => $insuranceLedgerEntries,
-                'walletTransactionList' => $walletTransactionList,
-                'paymentGatewayList' => $paymentGatewayList,
-                'addFundBonusList' => $addFundBonusList,
-                'transactionTypes' => $request->get('types', []),
-                'filterCount' => $filterCount,
-                'filterBy' => $request['filter_by'] ?? '',
-                'transactionRange' => $request['transaction_range'] ?? '',
-            ]);
-
-        } else {
-            Toastr::warning(translate('access_denied!'));
-            return redirect()->route('home');
-        }
+        return $this->walletView();
     }
-
     public function myWalletAccount(): View
     {
         return view(VIEW_FILE_NAMES['wallet_account']);

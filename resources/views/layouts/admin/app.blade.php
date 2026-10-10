@@ -118,6 +118,7 @@
 <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/full-page-print.js') }}?v={{ filemtime(public_path('assets/back-end/js/full-page-print.js')) }}"></script>
 
 @stack('script')
+<script src="{{ dynamicAsset(path: 'public/assets/front-end/js/egypt-phone-validation.js') }}" defer></script>
 
 
 </body>

@@ -38,8 +38,8 @@ class UpdateProfileApiRequest extends FormRequest
             'phone' => [
                 'required',
                 'string',
-                'regex:/^\+201[0125]\d{8}$/',
-                Rule::unique('users', 'phone')->ignore($userId),
+                'regex:/^01[0125][0-9]{8}$/',
+                new \App\Rules\UniqueCustomerPhone((int) $userId),
             ],
             'email' => [
                 'nullable',
@@ -59,7 +59,7 @@ class UpdateProfileApiRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'phone' => app(EgyptPhoneService::class)->normalize($this->input('phone')),
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
         ]);
     }
 
@@ -69,6 +69,7 @@ class UpdateProfileApiRequest extends FormRequest
             'f_name.required' => translate('First name is required!'),
             'l_name.required' => translate('Last name is required!'),
             'phone.required' => translate('Phone is required!'),
+            'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'phone.unique' => translate('Phone_already_exists'),
             'email.email' => translate('Invalid_email_format'),
             'email.unique' => translate('Email_already_exists'),

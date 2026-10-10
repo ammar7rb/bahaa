@@ -125,10 +125,10 @@
                     <span>{{ translate('i_agree_to_Your') }}</span>
                     <a class="font-size-sm text--primary fw-bold d-inline" target="_blank"
                        href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}">
-                        {{ translate('terms_and_condition') }}
+                        {{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}
                     </a>
                     @foreach($web_config['business_pages']->where('default_status', 1) as $businessPage)
-                                @if($businessPage['slug'] == 'privacy-policy' || $businessPage['slug'] == 'refund-policy')
+                                @if($businessPage['slug'] == 'refund-policy')
                                     <a class="font-size-sm text--primary fw-bold d-inline" target="_blank"
                                        href="{{ route('business-page.view', ['slug' => $businessPage['slug']]) }}">
                             , {{ translate(str_replace('-', '_', $businessPage['slug'])) }}

@@ -28,7 +28,7 @@ class CustomerBalanceDepositService
         }
         return DB::transaction(function () use ($deposit, $decision, $adminId, $note) {
             $deposit = CustomerBalanceDeposit::query()->lockForUpdate()->findOrFail($deposit->id);
-            if ($deposit->status !== 'pending') {
+            if (!in_array($deposit->status, ['pending','legacy_review'],true)) {
                 throw new DomainException('deposit_already_reviewed');
             }
             if ($decision === 'reject' && !trim((string) $note)) {
@@ -39,17 +39,15 @@ class CustomerBalanceDepositService
                 if (!is_finite($deposit->amount) || $deposit->amount <= 0) throw new DomainException('invalid_deposit_amount');
                 $reference = 'customer-offline-deposit-' . $deposit->id;
                 if ($deposit->wallet_type === 'insurance') {
-                    CustomerInsuranceLedgerEntry::query()->create([
-                        'customer_id' => $customer->id, 'entry_type' => 'deposit',
-                        'credit' => $deposit->amount, 'debit' => 0, 'reference' => $reference,
-                        'metadata' => ['restricted_to' => 'insurance_payment', 'deposit_id' => $deposit->id, 'admin_id' => $adminId, 'payment_method' => 'offline'],
+                    app(CustomerLegacyPaymentService::class)->record($reference,(int)$customer->id,(float)$deposit->submitted_amount,$deposit->currency_code,[
+                        'deposit_id'=>$deposit->id,'base_amount'=>$deposit->amount,'reviewed_by'=>$adminId,
                     ]);
                 } elseif ($deposit->wallet_type === 'purchase') {
                     // Amounts are stored in the same base currency as wallet_balance.
                     $customer->wallet_balance = (float) $customer->wallet_balance + $deposit->amount;
                     $customer->save();
                     WalletTransaction::query()->create([
-                        'user_id' => $customer->id, 'transaction_id' => (string) Str::uuid(),
+                        'user_id' => $customer->id, 'transaction_id' => $deposit->transaction_number,
                         'transaction_type' => 'add_fund', 'reference' => $reference, 'payment_method' => 'offline',
                         'credit' => $deposit->amount, 'debit' => 0, 'admin_bonus' => 0, 'balance' => $customer->wallet_balance,
                     ]);

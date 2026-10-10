@@ -91,7 +91,7 @@
                                                                 @else
                                                                     <span
                                                                         class="status-badge rounded-pill __badge badge-soft-primary fs-12 font-semibold text-capitalize">
-                                                                    {{ translate($order['order_status']) }}
+                                                                    {{ $order->customer_checkout_operation_id && $order->order_status === 'pending' ? app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order)['message'] : translate($order['order_status']) }}
                                                                 </span>
                                                                 @endif
                                                             </div>
@@ -104,7 +104,7 @@
                                                             </button>
                                                             <ul class="dropdown-menu dropdown-menu-right p-2">
                                                                 @if($order->postPurchaseInvoice?->isPayable())
-                                                                    <li><div class="dropdown-item w-100"><a class="d-flex align-items-center justify-content-between w-100 fs-14 gap-2 text-warning" href="{{ route('post-purchase-invoices.show', $order->postPurchaseInvoice->id) }}">{{ translate('complete_tax_and_insurance_payment') }} <i class="fi fi-rr-credit-card"></i></a></div></li>
+                                                                    <li><div class="dropdown-item w-100"><a class="d-flex align-items-center justify-content-between w-100 fs-14 gap-2 text-warning" href="{{ route('post-purchase-invoices.show', $order->postPurchaseInvoice->id) }}">استكمال سداد الضريبة <i class="fi fi-rr-credit-card"></i></a></div></li>
                                                                 @endif
                                                                 <li>
                                                                     <div class="dropdown-item w-100">
@@ -158,12 +158,7 @@
                                                             {{ webCurrencyConverter(amount:  $orderTotalPriceSummary['totalAmount']) }}
                                                         </div>
                                                     </div>
-                                                    @if($order->commerce_flow_status === 'customer_insurance_pending' && $order->insurance)
-                                                        <div class="alert alert-warning mt-2 mb-0 py-2 px-3 fs-12 d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                                                            <span>{{ translate('order_is_suspended_until_customer_insurance_is_paid') }}</span>
-                                                            <a class="btn btn-sm btn-primary" href="{{ route('account-order-insurance.show', $order->insurance->id) }}">{{ translate('pay_order_insurance') }}</a>
-                                                        </div>
-                                                    @elseif($order->insurance && in_array($order->insurance->purchase_refund_status, ['scheduled', 'completed'], true))
+                                                    @if($order->insurance && in_array($order->insurance->purchase_refund_status, ['scheduled', 'completed'], true))
                                                         <div class="alert alert-info mt-2 mb-0 py-2 px-3 fs-12">
                                                             {{ translate('purchase_refund_' . $order->insurance->purchase_refund_status) }}
                                                             @if($order->insurance->purchase_refund_due_at)

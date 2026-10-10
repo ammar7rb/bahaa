@@ -32,8 +32,10 @@ class VendorRepository implements VendorRepositoryInterface
     {
         return $this->vendor->with($relations)
             ->when(isset($params['identity']), function ($query) use ($params) {
-                return $query->where(['email' => $params['identity']])
-                    ->orWhere(['phone' => $params['identity']]);
+                return $query->where(function ($identityQuery) use ($params) {
+                    $identityQuery->where('email', $params['identity'])
+                        ->orWhereIn('phone', app(\App\Services\EgyptPhoneService::class)->aliases($params['identity']));
+                });
             })
             ->when(isset($params['id']), function ($query) use ($params) {
                 return $query->where(['id' => $params['id']]);

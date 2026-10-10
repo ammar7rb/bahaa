@@ -21,6 +21,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AccountActivationCenterController extends BaseController
 {
+    public function updateCustomerProfile(Request $request, AccountActivationCase $activationCase): RedirectResponse
+    {
+        app(\App\Services\CustomerActivationProfileService::class)->update($activationCase, $request->only(['name','phone','email']), $this->adminId());
+        ToastMagic::success('تم تحديث بيانات العميل.');
+        return back();
+    }
     public function __construct(
         private readonly AccountActivationCenterService $activationCenter,
         private readonly WorkflowFeatureService $workflowFeatures,

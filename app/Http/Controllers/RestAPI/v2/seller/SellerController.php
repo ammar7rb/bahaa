@@ -117,13 +117,13 @@ class SellerController extends Controller
     public function shop_info_update(Request $request):JsonResponse
     {
         $request->merge([
-            'contact' => app(EgyptPhoneService::class)->normalize($request->input('contact')),
+            'contact' => app(EgyptPhoneService::class)->normalizeLocal($request->input('contact')),
         ]);
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'address' => 'required|string',
-            'contact' => ['required', 'regex:/^\+201[0125]\d{8}$/'],
+            'contact' => ['required', 'regex:/^01[0125][0-9]{8}$/'],
         ]);
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);

@@ -43,16 +43,6 @@
                                 @endif
 
                                 <div class="p-20">
-                                    @if($order_insurance_required ?? false)
-                                        <div class="alert alert-info fs-12 mb-3">
-                                            {{ translate(($order_insurance_after_purchase ?? false) ? 'insurance_will_be_requested_after_purchase_payment' : 'high_value_order_insurance_notice') }}
-                                            <strong>{{ webCurrencyConverter(amount: $order_insurance_total) }}</strong>
-                                            @if(($orderInsuranceSummary['discount_total'] ?? 0) > 0)
-                                                <br><small>{{ translate('Insurance_Original_Amount') }}: <del>{{ webCurrencyConverter(amount: $orderInsuranceSummary['original_total']) }}</del> · {{ translate('Promotional_Discount') }}: {{ webCurrencyConverter(amount: $orderInsuranceSummary['discount_total']) }}</small>
-                                            @endif
-                                            <br><small>{{ translate('insurance_balance_is_for_insurance_only_and_cannot_be_withdrawn') }}</small>
-                                        </div>
-                                    @endif
                                     @if (
                                         ($cashOnDeliveryBtnShow && $cash_on_delivery['status']) ||
                                             $digital_payment['status'] == 1 ||

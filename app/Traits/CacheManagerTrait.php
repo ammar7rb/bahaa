@@ -39,8 +39,8 @@ trait CacheManagerTrait
 
     public function cacheBannerTable($bannerType = null, $dataLimit = null)
     {
-        $banners = Cache::remember(CACHE_BANNER_TABLE, CACHE_FOR_3_HOURS, function () {
-            return Banner::with(['storage'])->where(['published' => 1, 'theme' => theme_root_path()])->orderBy('id', 'desc')->latest('created_at')->get();
+        $banners = Cache::remember(CACHE_BANNER_TABLE . '-' . theme_root_path(), CACHE_FOR_3_HOURS, function () {
+            return \App\Services\BannerService::publishedForTheme(theme_root_path());
         });
         if ($bannerType && $dataLimit) {
             return $banners?->where('banner_type', $bannerType)->take($dataLimit);
@@ -443,6 +443,9 @@ trait CacheManagerTrait
         $this->cacheBannerAllTypeKeys(cacheKey: $cacheKey);
 
         return Cache::remember($cacheKey, CACHE_FOR_3_HOURS, function () use ($themeName) {
+            if ($themeName === 'theme_sigma_care') {
+                return $this->cacheBannerTable()->where('banner_type', 'Main Banner')->values();
+            }
             return Banner::where(['banner_type' => 'Main Banner', 'published' => 1, 'theme' => $themeName])->latest()->get();
         });
     }
@@ -454,6 +457,9 @@ trait CacheManagerTrait
         $this->cacheBannerAllTypeKeys(cacheKey: $cacheKey);
 
         return Cache::remember($cacheKey, CACHE_FOR_3_HOURS, function () use ($themeName) {
+            if ($themeName === 'theme_sigma_care') {
+                return $this->cacheBannerTable()->firstWhere('banner_type', 'Sidebar Banner');
+            }
             return Banner::where(['banner_type' => 'Sidebar Banner', 'published' => 1, 'theme' => $themeName])->latest()->first();
         });
     }
@@ -465,6 +471,9 @@ trait CacheManagerTrait
         $this->cacheBannerAllTypeKeys(cacheKey: $cacheKey);
 
         return Cache::remember($cacheKey, CACHE_FOR_3_HOURS, function () use ($themeName) {
+            if ($themeName === 'theme_sigma_care') {
+                return $this->cacheBannerTable()->firstWhere('banner_type', 'Top Side Banner');
+            }
             return Banner::where(['banner_type' => 'Top Side Banner', 'published' => 1, 'theme' => $themeName])->orderBy('id', 'desc')->latest()->first();
         });
     }
@@ -476,6 +485,9 @@ trait CacheManagerTrait
         $this->cacheBannerAllTypeKeys(cacheKey: $cacheKey);
 
         return Cache::remember($cacheKey, CACHE_FOR_3_HOURS, function () use ($themeName) {
+            if ($themeName === 'theme_sigma_care') {
+                return $this->cacheBannerTable()->firstWhere('banner_type', 'Promo Banner Left');
+            }
             return Banner::where(['banner_type' => 'Promo Banner Left', 'published' => 1, 'theme' => $themeName])->first();
         });
     }
@@ -487,6 +499,9 @@ trait CacheManagerTrait
         $this->cacheBannerAllTypeKeys(cacheKey: $cacheKey);
 
         return Cache::remember($cacheKey, CACHE_FOR_3_HOURS, function () use ($themeName, $bannerType) {
+            if ($themeName === 'theme_sigma_care') {
+                return $this->cacheBannerTable()->firstWhere('banner_type', $bannerType);
+            }
             return Banner::where(['banner_type' => $bannerType, 'published' => 1, 'theme' => $themeName])->first();
         });
     }
