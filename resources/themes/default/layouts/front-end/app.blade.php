@@ -479,6 +479,6 @@
 
 @stack('script')
 @include('customer-checkout.entry')
-<script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.3" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>
 </html>
