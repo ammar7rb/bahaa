@@ -34,7 +34,11 @@ class PaymentReviewController extends Controller
 
     public function index(Request $request): View
     {
+        abort_unless(\App\Utils\Helpers::module_permission_check('people') || \App\Utils\Helpers::module_permission_check('orders'), 403);
+        $request->validate(['record_type' => 'nullable|string|max:40', 'record_id' => 'nullable|integer|min:1']);
         $rows = $this->rows($request)->sortByDesc('created_at')->values();
+        if ($request->filled('record_type')) $rows = $rows->where('type', $request->input('record_type'))->values();
+        if ($request->filled('record_id')) $rows = $rows->where('id', (int) $request->input('record_id'))->values();
         $perPage = (int) (getWebConfig(name: 'pagination_limit') ?: 20);
         $page = max(1, (int) $request->get('page', 1));
         $paginator = new LengthAwarePaginator($rows->forPage($page, $perPage)->values(), $rows->count(), $perPage, $page, [
@@ -46,6 +50,7 @@ class PaymentReviewController extends Controller
 
     public function approve(Request $request, string $type, int|string $id): RedirectResponse
     {
+        abort_unless(\App\Utils\Helpers::module_permission_check(str_starts_with($type, 'vendor_') ? 'people' : 'orders'), 403);
         $request->validate(['payment_reference' => 'nullable|string|max:191', 'review_note' => 'nullable|string|max:1000']);
         try {
             if ($type === 'vendor_balance_deposit') {
@@ -82,6 +87,7 @@ class PaymentReviewController extends Controller
 
     public function reject(Request $request, string $type, int|string $id): RedirectResponse
     {
+        abort_unless(\App\Utils\Helpers::module_permission_check(str_starts_with($type, 'vendor_') ? 'people' : 'orders'), 403);
         $request->validate(['review_note' => 'required|string|max:1000']);
         try {
             if ($type === 'vendor_balance_deposit') {
@@ -121,7 +127,7 @@ class PaymentReviewController extends Controller
         $status = $request->get('status');
         $search = trim((string) $request->get('searchValue'));
 
-        if (!$audience || $audience === 'vendor') {
+        if (\App\Utils\Helpers::module_permission_check('people') && (!$audience || $audience === 'vendor')) {
             if (!$kind || $kind === 'balance_deposit') {
                 SellerBalanceDeposit::query()->with(['seller:id,f_name,l_name,email,phone', 'offlinePaymentMethod:id,method_name'])
                     ->where('source', SellerBalanceDeposit::SOURCE_OFFLINE)
@@ -163,7 +169,7 @@ class PaymentReviewController extends Controller
                 });
             }
         }
-        if ((!$audience || $audience === 'customer') && (!$kind || $kind === 'order')) {
+        if (\App\Utils\Helpers::module_permission_check('orders') && (!$audience || $audience === 'customer') && (!$kind || $kind === 'order')) {
             Order::query()
                 ->with(['customer:id,f_name,l_name,email,phone', 'offlinePayments'])
                 ->where('payment_method', 'offline_payment')

@@ -34,4 +34,12 @@ class AdministrativeReferenceService
             default => '#' . $id,
         };
     }
+
+    public static function parseDeposit(?string $value): ?array
+    {
+        if (!preg_match('/^(ADC|AIC|ADM|AIM)\s*[-#]?\s*(\d+)$/i', trim((string) $value), $matches)) return null;
+        $prefix = strtoupper($matches[1]);
+        return ['table' => in_array($prefix, ['ADC', 'AIC']) ? 'customer_balance_deposits' : 'seller_balance_deposits',
+            'id' => (int) $matches[2], 'wallet' => in_array($prefix, ['AIC', 'AIM']) ? 'insurance' : 'purchase'];
+    }
 }

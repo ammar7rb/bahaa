@@ -798,7 +798,7 @@
 
   /* -------------------- header dropdowns -------------------- */
   function closeAllDropdowns(except) {
-    $$root('.v2-dropdown.v2-is-open').forEach(d => { if (d !== except) d.classList.remove('v2-is-open'); });
+    $$root('.v2-dropdown.v2-is-open').forEach(d => { if (d !== except) { d.classList.remove('v2-is-open'); d.querySelector('[data-v2-dropdown-toggle]')?.setAttribute('aria-expanded', 'false'); } });
   }
   function positionDropdownMenu(btn) {
     const menu = btn.closest('.v2-dropdown')?.querySelector(':scope > .v2-dropdown-menu');
@@ -827,6 +827,7 @@
         if (!isOpen) {
           positionDropdownMenu(btn);
           parent.classList.add('v2-is-open');
+          btn.setAttribute('aria-expanded', 'true');
           // On mobile/tablet the off-canvas sidebar overlaps the header
           // dropdowns visually — close the overlay so the popup isn't
           // hidden behind the sliding rail/ctxpanel.
@@ -837,6 +838,7 @@
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.v2-dropdown')) closeAllDropdowns();
     });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllDropdowns(); });
   }
 
   /* -------------------- command palette (⌘K) -------------------- */

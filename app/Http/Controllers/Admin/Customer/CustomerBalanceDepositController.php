@@ -11,9 +11,10 @@ class CustomerBalanceDepositController extends Controller
 {
     public function index(Request $request)
     {
-        $data = $request->validate(['status' => 'nullable|in:pending,paid,rejected']);
+        $data = $request->validate(['status' => 'nullable|in:pending,paid,rejected', 'record_id' => 'nullable|integer|min:1']);
         $deposits = CustomerBalanceDeposit::with('customer:id,f_name,l_name')
             ->when($data['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($data['record_id'] ?? null, fn ($query, $id) => $query->where('id', $id))
             ->latest('id')->paginate(20)->withQueryString();
         return view('admin-views.customer.wallet.deposits', compact('deposits'));
     }

@@ -577,8 +577,8 @@
             @if (Helpers::module_permission_check('people'))
                 <div class="v2-ctx-group">
                     <div class="v2-ctx-group-head"><span>{{ translate('support') }}</span></div>
-                    <a class="v2-nav-item {{ Request::is('admin/messages*') ? 'v2-is-active' : '' }}" data-item="inbox" href="{{ route('admin.messages.index', ['type' => 'customer']) }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('inbox') }}</span></span>
+                    <a class="v2-nav-item {{ Request::is('admin/workspace/communication*') ? 'v2-is-active' : '' }}" data-item="inbox" href="{{ route('admin.workspace.communication') }}">
+                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('workspace_communication_center') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="inbox" aria-label="Pin"></button></div>
                     </a>
                     <a class="v2-nav-item {{ Request::is('admin/support-ticket*') ? 'v2-is-active' : '' }}" data-item="support-ticket" href="{{ route('admin.support-ticket.view') }}">

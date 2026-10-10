@@ -143,6 +143,14 @@ Route::group(['prefix' => 'login'], function () {
 });
 
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', 'actch:admin_panel']], function () {
+    Route::controller(\App\Http\Controllers\Admin\AdminWorkspaceController::class)->prefix('workspace')->name('workspace.')->group(function () {
+        Route::get('snapshot', 'snapshot')->middleware('throttle:admin-workspace-snapshot')->name('snapshot');
+        Route::get('search', 'search')->middleware('throttle:admin-workspace-search')->name('search');
+        Route::get('communication', 'communication')->middleware('module:people')->name('communication');
+        Route::get('reviews/{kind}', 'reviews')->whereIn('kind', ['orders', 'payments'])->name('reviews');
+        Route::get('conversation/{kind}/{id}', 'conversation')->middleware('module:people')->whereNumber('id')->name('conversation');
+        Route::post('read', 'read')->middleware('module:people')->name('read');
+    });
     Route::get('operational-feed', [\App\Http\Controllers\Admin\System\OperationalFeedController::class, 'index'])->name('operational-feed.index');
     Route::group(['prefix' => 'insurance-center', 'as' => 'insurance-center.', 'middleware' => ['module:reports']], function () {
         Route::controller(InsuranceConfigurationController::class)->group(function () {

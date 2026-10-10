@@ -93,6 +93,7 @@ class SellerShippingSupportController extends Controller
             'email' => $seller->email ?? '',
             'mobile_number' => $seller->phone ?? '',
             'subject' => "اعتراض على مبلغ الشحن - طلب #{$order->id}",
+            'sender_type' => 'vendor',
             'message' => "أرغب في تقديم اعتراض على مبلغ الشحن للطلب #{$order->id}.",
             'seen' => false,
         ]);

@@ -20,6 +20,7 @@
 
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-v2.css') }}?v=20260910.7">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-dark-mode.css') }}?v=20260910.4">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-workspace.css') }}?v=20261010.2">
     <script>
         (function () {
             var storageKey = 'ba_admin_theme';
@@ -38,6 +39,7 @@
                 });
                 document.querySelectorAll('[data-admin-theme-toggle]').forEach(function (button) {
                     button.setAttribute('aria-pressed', resolvedTheme === 'dark' ? 'true' : 'false');
+                    button.setAttribute('aria-label', resolvedTheme === 'dark' ? '{{ translate('light_mode') }}' : '{{ translate('dark_mode') }}');
                     button.setAttribute('title', resolvedTheme === 'dark' ? '{{ translate('light_mode') }}' : '{{ translate('dark_mode') }}');
                 });
             };

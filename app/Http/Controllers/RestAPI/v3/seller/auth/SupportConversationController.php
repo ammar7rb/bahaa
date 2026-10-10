@@ -29,7 +29,7 @@ class SupportConversationController extends Controller
         ]);
         // The token identifies this conversation, never an account by email.
         // Repeated submissions with the same device token reuse its ticket.
-        $contact = Contact::firstOrCreate(['mobile_support_token_hash' => $hash], collect($data)->except('attachments')->all() + ['message' => $data['message'] ?? '', 'subject' => 'طلب إعادة تعيين كلمة المرور - تاجر', 'seen' => false]);
+        $contact = Contact::firstOrCreate(['mobile_support_token_hash' => $hash], collect($data)->except('attachments')->all() + ['sender_type' => 'vendor', 'message' => $data['message'] ?? '', 'subject' => 'طلب إعادة تعيين كلمة المرور - تاجر', 'seen' => false]);
         if ($contact->wasRecentlyCreated && $request->hasFile('attachments')) {
             $attachments = $this->storeAttachments($request);
             $message = ['contact_id' => $contact->id, 'sender' => 'requester', 'body' => '', 'created_at' => now(), 'updated_at' => now()];
