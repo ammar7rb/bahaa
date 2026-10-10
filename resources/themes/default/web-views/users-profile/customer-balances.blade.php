@@ -1,7 +1,7 @@
 @extends('layouts.front-end.app')
-@section('title', translate('my_wallet'))
+@section('title', 'الأرصدة')
 @push('css_or_js')
-    <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/customer-wallet.css') }}?v=20260906.1">
+    <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/customer-wallet.css') }}?v=20261010.2">
     <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-subscription.css') }}">
 @endpush
 @section('content')
@@ -14,12 +14,12 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="wallet-heading">
                     <span class="wallet-icon-tile">@include('web-views.users-profile.partials.wallet-icon', ['icon' => 'purchase'])</span>
-                    <div><h1 class="h4 mb-1">{{ translate('my_wallet') }}</h1><p class="text-muted mb-0 small">{{ translate('wallet_overview_subtitle') }}</p></div>
+                    <div><h1 class="h4 mb-1">{{ 'الأرصدة' }}</h1><p class="text-muted mb-0 small">{{ translate('wallet_overview_subtitle') }}</p></div>
                 </div>
                 <button type="button" class="profile-aside-btn btn btn--primary d-lg-none">{{ translate('profile_info') }}</button>
             </div>
-            @include('customer-subscription.entry')
-            <div class="row">
+            <div class="row align-items-stretch">
+                <div class="col-md-6 mb-3 wallet-subscription-column">@include('customer-subscription.entry')</div>
                 @foreach(['purchase'] as $walletType)
                     <div class="col-md-6 mb-3" id="{{ $walletType }}-balance">
                         <div class="card h-100 wallet-balance-card wallet-balance-{{ $walletType }}"><div class="card-body">
@@ -63,11 +63,12 @@
                     </div>
                 @endforeach
             </div>
-            @php($walletTab = in_array(request('wallet_tab'), ['deposits', 'orders'], true) ? request('wallet_tab') : 'deposits')
+            @php($requestedTab = request('wallet_tab') === 'orders' ? 'balances' : request('wallet_tab'))
+            @php($walletTab = in_array($requestedTab, ['deposits', 'balances'], true) ? $requestedTab : 'deposits')
             <div class="wallet-history-heading">@include('web-views.users-profile.partials.wallet-icon', ['icon' => 'history'])<h2 class="h5 mb-0">{{ translate('wallet_activity') }}</h2></div>
             <nav class="wallet-history-nav" aria-label="{{ translate('wallet_activity') }}">
-                @foreach(['deposits' => 'wallet_deposits_tab', 'orders' => 'wallet_orders_tab'] as $tab => $label)
-                    <a href="{{ route('wallet', ['wallet_tab' => $tab]) }}" @if($walletTab === $tab) aria-current="page" @endif>{{ translate($label) }}</a>
+                @foreach(['deposits' => 'wallet_deposits_tab', 'balances' => 'wallet_balances_tab'] as $tab => $label)
+                    <a href="{{ route('wallet', ['wallet_tab' => $tab]) }}" @if($walletTab === $tab) aria-current="page" @endif>{{ $tab === 'balances' ? 'الأرصدة' : translate($label) }}</a>
                 @endforeach
             </nav>
             <div class="card mb-3 wallet-history" @if($walletTab !== 'deposits') hidden @endif><div class="card-body">
@@ -87,29 +88,13 @@
                 @endforelse
                 </tbody></table></div>{{ $depositRequests->links() }}
             </div></div>
-            <div class="card mb-3 wallet-history" @if($walletTab !== 'orders') hidden @endif><div class="card-body">
-                <h2 class="h5">سجل المشتريات</h2>
-                <div class="table-responsive"><table class="table">
-                    <thead><tr>
-                        <th>{{ translate('balance_order_number') }}</th><th>{{ translate('date') }}</th>
-                        <th>{{ translate('purchase_amount') }}</th><th>{{ translate('payment_status') }}</th>
-
-                    </tr></thead>
-                    <tbody>
-                    @forelse($orders as $order)
-                        <tr>
-                            <td><a href="{{ route('account-order-details', ['id' => $order->id]) }}">#{{ $order->id }}</a></td>
-                            <td><bdi>{{ $order->created_at?->format('Y-m-d') ?? '—' }}</bdi></td>
-                            <td>{{ webCurrencyConverter($order->order_amount) }}</td>
-                            <td>{{ translate($order->payment_status) }}</td>
-
-                        </tr>
-                    @empty
-                        <tr><td colspan="4" class="text-center text-muted">{{ translate('no_orders_to_display') }}</td></tr>
-                    @endforelse
-                    </tbody>
-                </table></div>
-                {{ $orders->links() }}
+            <div class="card mb-3 wallet-history" @if($walletTab !== 'balances') hidden @endif><div class="card-body">
+                <h2 class="h5">حركة رصيد المشتريات</h2>
+                <div class="table-responsive"><table class="table"><thead><tr><th>التاريخ</th><th>العملية</th><th>إضافة</th><th>خصم</th><th>الرصيد</th></tr></thead><tbody>
+                @forelse($purchaseEntries as $entry)
+                    <tr><td><bdi>{{ $entry->created_at?->format('Y/m/d H:i') }}</bdi></td><td>{{ $entry->transaction_type === 'monthly_subscription' ? 'الاشتراك الشهري' : translate($entry->transaction_type) }}</td><td>{{ webCurrencyConverter($entry->credit) }}</td><td>{{ webCurrencyConverter($entry->debit) }}</td><td>{{ webCurrencyConverter($entry->balance) }}</td></tr>
+                @empty<tr><td colspan="5" class="text-center text-muted py-4">لا توجد حركات رصيد حتى الآن</td></tr>@endforelse
+                </tbody></table></div>{{ $purchaseEntries->links() }}
             </div></div>
         </section>
     </div>

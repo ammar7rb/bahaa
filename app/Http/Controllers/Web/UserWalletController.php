@@ -32,12 +32,8 @@ class UserWalletController extends Controller
         return view('web-views.users-profile.customer-balances', [
             'purchaseBalance' => (float) auth('customer')->user()->wallet_balance,
             'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status($customerId),
-            'orders' => \App\Models\Order::query()->where('customer_id', $customerId)
-                ->where('is_guest', 0)->with('insurance')->latest('id')->paginate(10, ['*'], 'orders_page')->withQueryString(),
             'purchaseEntries' => WalletTransaction::query()->where('user_id', $customerId)
                 ->latest('id')->paginate(10, ['*'], 'purchase_page')->withQueryString(),
-            'insuranceEntries' => \App\Models\CustomerInsuranceLedgerEntry::query()->where('customer_id', $customerId)
-                ->latest('id')->paginate(10, ['*'], 'insurance_page')->withQueryString(),
             'paymentGatewayList' => $gateways,
             'canDeposit' => getWebConfig(name: 'add_funds_to_wallet') == 1 && ($digitalPayment['status'] ?? 0) && $gateways->isNotEmpty(),
             'purchaseWalletEnabled' => getWebConfig(name: 'wallet_status') == 1,

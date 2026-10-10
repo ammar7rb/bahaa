@@ -62,6 +62,7 @@ class MonthlySubscriptionController extends Controller
             'method_id' => ['required','integer',Rule::exists('offline_payment_methods','id')->where(fn ($q) => $q->where('status',1)->whereIn('payment_channel',['wallet','instapay']))],
             'payment_reference' => 'required|string|max:191|unique:customer_subscription_payments,payment_reference',
             'payment_note' => 'nullable|string|max:1000',
+            'transferred_amount' => ['nullable','numeric','min:0.01','regex:/^[0-9]+(?:\.[0-9]{1,2})?$/'],
             'method_information' => 'nullable|array', 'method_information.*' => 'nullable|string|max:255',
             'payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);

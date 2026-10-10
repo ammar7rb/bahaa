@@ -62,7 +62,7 @@ class CustomerMonthlySubscriptionService
             if (getWebConfig('wallet_status') != 1) throw new DomainException('محفظة المشتريات غير متاحة حاليًا.');
             $amount = (int) round((float) $payment->wallet_debit_amount * 1000);
             $balance = (int) round((float) $customer->wallet_balance * 1000);
-            if ($balance < $amount) throw new DomainException('رصيد محفظة المشتريات غير كافٍ.');
+            if ($balance < $amount) throw new DomainException('عذرًا، رصيد محفظة المشتريات لا يكفي. برجاء الإيداع فيها أو استخدام طريقة أخرى.');
             $reference = 'customer-monthly-subscription-'.$payment->id;
             $customer->wallet_balance = ($balance - $amount) / 1000;
             $customer->save();
@@ -84,6 +84,9 @@ class CustomerMonthlySubscriptionService
             if ($payment->status !== 'draft') throw new DomainException('تم تقديم طلب الدفع بالفعل.');
             if (!$customer->is_active) throw new DomainException('الحساب موقوف إداريًا. تواصل مع الدعم.');
             $method = OfflinePaymentMethod::where('status', 1)->whereIn('payment_channel', ['wallet','instapay'])->findOrFail($method->id);
+            if (isset($data['transferred_amount']) && (int) round((float) $data['transferred_amount'] * 1000) !== (int) round((float) $payment->quoted_amount * 1000)) {
+                throw new DomainException('مبلغ التحويل يجب أن يساوي مبلغ الاشتراك المطلوب.');
+            }
             $information = [];
             foreach ($method->method_informations ?? [] as $field) {
                 $key = $field['customer_input'] ?? '';
@@ -97,6 +100,7 @@ class CustomerMonthlySubscriptionService
                 }
                 $information[$key] = $value;
             }
+            if (isset($data['transferred_amount'])) $information['transferred_amount'] = (string) $data['transferred_amount'];
             $payment->update([
                 'status' => 'pending_review', 'payment_method' => $method->payment_channel,
                 'offline_payment_method_id' => $method->id, 'method_name' => $method->method_name,

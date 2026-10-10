@@ -379,7 +379,7 @@ class UserProfileController extends Controller
 
             $array = ['pending', 'confirmed', 'out_for_delivery', 'processing'];
             $orders = $this->order->withSum('orderDetails', 'qty')
-                ->with('orderEditHistory', 'details', 'seller.shop', 'postPurchaseInvoice')
+                ->with('orderEditHistory', 'details.productAllStatus', 'seller.shop', 'postPurchaseInvoice')
                 ->where(['customer_id' => auth('customer')->id(), 'is_guest' => '0'])
                 ->when($show_order == 'ongoing', function ($query) use ($array) {
                     $query->whereIn('order_status', $array);
@@ -392,7 +392,7 @@ class UserProfileController extends Controller
                 })
                 ->orderBy('id', $order_by)->paginate(10)->appends(['show_order' => $show_order, 'search' => $request->search]);
         } else {
-            $orders = $this->order->with('orderEditHistory', 'details', 'seller.shop', 'postPurchaseInvoice')
+            $orders = $this->order->with('orderEditHistory', 'details.productAllStatus', 'seller.shop', 'postPurchaseInvoice')
                 ->withSum('orderDetails', 'qty')
                 ->where(['customer_id' => auth('customer')->id(), 'is_guest' => '0'])
                 ->orderBy('id', $order_by)
