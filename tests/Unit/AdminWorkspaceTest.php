@@ -163,6 +163,8 @@ class AdminWorkspaceTest extends TestCase
         $this->assertSame(4,substr_count($body,'data-workspace-total='));
         $this->assertStringContainsString('admin-global-search',$header);
         $this->assertStringContainsString('activation-heading',$body);
+        $script=\Illuminate\Support\Facades\Blade::render(file_get_contents(resource_path('views/layouts/admin/partials/v2/_workspace-script.blade.php')));
+        $this->assertStringContainsString('window.adminWorkspaceConfig = {',$script);
         if (getenv('ADMIN_WORKSPACE_QA')) {
             $dir=storage_path('app/admin-workspace-qa'); if (!is_dir($dir)) mkdir($dir,0777,true);
             $styles=['backend/libs/fonts/inter/inter.css','backend/libs/bootstrap/bootstrap.min.css','backend/webfonts/uicons-regular-rounded.css','backend/admin/css/style.css','back-end/css/admin-v2.css','back-end/css/admin-dark-mode.css','back-end/css/admin-workspace.css'];
