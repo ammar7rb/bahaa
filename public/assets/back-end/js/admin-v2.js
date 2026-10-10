@@ -812,7 +812,7 @@
       menu.style.right = 'auto';
       menu.style.left = Math.max(12, Math.min(rtl ? r.left : r.right - width, window.innerWidth - width - 12)) + 'px';
       menu.style.top = top + 'px';
-      menu.style.maxHeight = Math.max(100, window.innerHeight - top - 12) + 'px';
+      menu.style.maxHeight = Math.max(100, Math.min(480, window.innerHeight - top - 12)) + 'px';
       return;
     }
     // Orders menu on mobile uses full-width CSS positioning — skip JS override.

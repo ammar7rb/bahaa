@@ -24,7 +24,7 @@ test('mobile panel clears the complete header and fits remaining height',()=>{
  const result=place(390,844,'rtl',{left:14,right:58,bottom:140},164);
  assert.equal(result.left,'12px');
  assert.equal(result.top,'172px');
- assert.equal(result.maxHeight,'660px');
+ assert.equal(result.maxHeight,'480px');
 });
 
 test('failed photos recover once and then retain a category icon',()=>{

@@ -111,3 +111,8 @@ the authenticated production browser layout is still outside the capture scope.
 
 The follow-up reviewer marked both image recovery and brief corrections resolved,
 with no regressions, and returned ship for those fixes within supplied evidence.
+
+Compact notification follow-up: popup maximum 480px within viewport bounds; header
+12px/16px padding, 44px footer and images, rows 10px/16px with 3px text gaps.
+Review hints are omitted from product/order previews; message snippets use one line.
+Local populated message rows measured 102px with scrolling and a fixed View All.
