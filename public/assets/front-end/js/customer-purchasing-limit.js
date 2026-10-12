@@ -22,6 +22,8 @@
     element.querySelector('[role="progressbar"]').setAttribute('aria-valuenow',String(Math.round(percent)));
     status.textContent = projected < 0 ? 'الحد الائتماني غير كافٍ' : ratio > .5 ? 'الحد المتبقي متاح' : ratio > .1 ? 'انخفض الحد المتبقي' : 'الحد المتبقي منخفض';
     element.dataset.insufficient = String(projected < 0);
+    const help = element.querySelector('[data-limit-help]');
+    if (help) help.hidden = projected >= 0;
   }
   const update = changed => {
     document.querySelectorAll('[data-purchasing-limit]').forEach(element => calculate(element, changed));
@@ -65,7 +67,7 @@
       const input = document.querySelector(`input[data-cart-id="${id}"],input[data-cart="${id}"]`);
       if (input) update({id, quantity: Math.max(0, Number(input.value) + Number(quantity.dataset.increment ?? quantity.dataset.value))});
     }
-    const proceed = event.target.closest(checkoutSelector);
+    const proceed = event.target.closest(`${checkoutSelector},[data-limit-help]`);
     const strip = document.querySelector('[data-purchasing-limit][data-insufficient="true"]');
     if (proceed && strip) {
       event.preventDefault(); event.stopImmediatePropagation();
