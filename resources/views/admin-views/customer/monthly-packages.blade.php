@@ -21,7 +21,7 @@
             <div class="row g-3">
                 <label class="col-md-3">الاسم<input class="form-control" name="name" required maxlength="150" value="{{ $package?->name }}"></label>
                 <label class="col-md-3">السعر (ج.م)<input class="form-control" type="number" min="0.001" step="0.001" name="package_price" required value="{{ $package?->package_price }}"></label>
-                <label class="col-md-3">حد الشراء (ج.م)<input class="form-control" type="number" min="0.001" step="0.001" name="purchase_limit" required value="{{ $package?->purchase_limit }}"></label>
+                <label class="col-md-3">الحد الائتماني (ج.م)<input class="form-control" type="number" min="0.001" step="0.001" name="purchase_limit" required value="{{ $package?->purchase_limit }}"></label>
                 <label class="col-md-3">الحالة<select class="form-control" name="status"><option value="1" @selected($package?->status !== false)>متاحة</option><option value="0" @selected($package?->status === false)>معطّلة</option></select></label>
                 <label class="col-md-9">الوصف<textarea class="form-control" name="description" maxlength="2000">{{ $package?->description }}</textarea></label>
                 <label class="col-md-3">ترتيب العرض<input class="form-control" type="number" name="sort_order" min="0" value="{{ $package?->sort_order ?? 0 }}"></label>
