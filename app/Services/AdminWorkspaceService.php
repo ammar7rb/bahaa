@@ -47,6 +47,7 @@ class AdminWorkspaceService
     public function paymentSources(): array
     {
         return [
+            ['customer_subscription_payments', 'people', 'quoted_amount', ['status' => 'pending_review'], 'admin.payment-reviews.index', ['audience' => 'customer', 'kind' => 'subscription']],
             ['orders', 'orders', 'order_amount', ['payment_method' => 'offline_payment', 'payment_status' => 'unpaid'], 'admin.orders.details'],
             ['seller_balance_deposits', 'people', 'amount', ['source' => 'offline', 'status' => 'pending'], 'admin.payment-reviews.index', ['audience' => 'vendor', 'kind' => 'balance_deposit']],
             ['seller_package_subscriptions', 'people', 'paid_package_price', ['payment_method' => 'offline_payment', 'status' => 'pending_review'], 'admin.payment-reviews.index', ['audience' => 'vendor', 'kind' => 'package']],
@@ -72,6 +73,9 @@ class AdminWorkspaceService
             if (!Helpers::module_permission_check($module) || !Schema::hasTable($table)) continue;
             $q = DB::table($table)->where(collect($filters)->mapWithKeys(fn ($value, $column) => [$table.'.'.$column => $value])->all());
             if ($table === 'orders') $q->where(fn ($q) => $q->whereNull('orders.activation_status')->orWhere('orders.activation_status', '!=', 'offline_payment_rejected'));
+            if ($table === 'orders' && Schema::hasColumn('orders', 'customer_initial_payment_review_status')) {
+                $q->orWhere(fn ($q) => $q->where('orders.payment_status', 'paid')->where('orders.customer_initial_payment_review_status', 'pending'));
+            }
             $actorType = str_starts_with($table, 'seller_') ? 'vendor' : 'customer';
             $foreign = $actorType === 'vendor' ? 'seller_id' : 'customer_id';
             $q->selectRaw("'".$table."' as source, ".$table.".id, ".$table.".updated_at, COALESCE(".$table.".created_at, ".$table.".updated_at) as occurred_at, ".($table === 'post_purchase_invoices' ? $table.'.order_id' : 'NULL')." as order_id, '".$actorType."' as audience");
@@ -132,6 +136,7 @@ class AdminWorkspaceService
     public function paymentLabel(string $table): string
     {
         return translate(match ($table) {
+            'customer_subscription_payments' => 'Monthly_Packages',
             'orders' => 'purchase_payment',
             'seller_balance_deposits', 'customer_balance_deposits' => 'purchase_balance_deposit',
             'seller_package_subscriptions' => 'seller_package',
@@ -151,6 +156,7 @@ class AdminWorkspaceService
             if ($table === 'post_purchase_invoices') return route($source[4], $row->order_id);
             if ($table === 'customer_balance_deposits') return route($source[4], ['record_id' => $row->id]);
             $recordType = match ($table) {
+                'customer_subscription_payments' => 'customer_subscription',
                 'seller_balance_deposits' => 'vendor_balance_deposit',
                 'seller_package_subscriptions' => 'vendor_package',
                 'seller_insurances' => 'vendor_insurance',

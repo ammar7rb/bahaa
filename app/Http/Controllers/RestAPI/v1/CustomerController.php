@@ -91,19 +91,7 @@ class CustomerController extends Controller
 
     public function account_delete(Request $request, $id): JsonResponse
     {
-        if ($request->user()->id == $id) {
-            $user = User::find($id);
-            $ongoing = ['out_for_delivery', 'processing', 'confirmed', 'pending'];
-            $order = Order::where('customer_id', $user->id)->where('is_guest', 0)->whereIn('order_status', $ongoing)->count();
-            if ($order > 0) {
-                return response()->json(['message' => 'Due to ongoing orders, you are unable to delete your account.'], 403);
-            }
-            $this->delete('/profile/' . $user['image']);
-            $user->delete();
-            return response()->json(['message' => 'Your account deleted successfully'], 200);
-        } else {
-            return response()->json(['message' => 'access_denied!!'], 403);
-        }
+        abort(405, 'استخدم خطوات حذف الحساب الآمنة.');
     }
 
     public function reply_support_ticket(Request $request, $ticket_id)
@@ -691,3 +679,4 @@ class CustomerController extends Controller
         return response()->json(['message' => 'Successfully change'], 200);
     }
 }
+

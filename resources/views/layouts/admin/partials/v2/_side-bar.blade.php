@@ -35,6 +35,8 @@
                 </a>
             @endif
             @if (Helpers::module_permission_check('people'))
+                <div class="v2-ctx-group-head"><span>{{ translate('operations') }}</span></div>
+                <a class="v2-nav-item {{ request()->routeIs('admin.monthly-packages.*') ? 'v2-is-active' : '' }}" data-item="monthly-packages" href="{{ route('admin.monthly-packages.index') }}"><span class="v2-nav-btn"><span class="v2-nav-label">الباقات الشهرية</span></span></a>
                 <a class="v2-nav-item {{ request()->routeIs('admin.account-directory.*') ? 'v2-is-active' : '' }}" data-item="customer-list" href="{{ route('admin.account-directory.index') }}">
                     <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('directory_title') }}</span></span>
                 </a>

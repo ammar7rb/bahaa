@@ -97,7 +97,13 @@
 @include('web-views.users-profile.partials.customer-activation-banner')
 @include('customer-subscription.expiry-banner')
 @include('theme-views.layouts.partials._settings-sidebar')
+@if(request()->routeIs('user-profile','user-account'))
+@include('web-views.users-profile.partials.customer-profile-shortcuts')
+@elseif(request()->routeIs('home') || request()->is('products*','*-products','shopView*','category*','search*'))
+<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip')</div>
+@endif
 @yield('content')
+@include('web-views.users-profile.partials.customer-payment-notices')
 @include('theme-views.layouts.partials._feature')
 @include('theme-views.layouts.partials._footer')
 
@@ -268,6 +274,8 @@
     }
 </script>
 @stack('script')
+@include('web-views.users-profile.partials.profile-image-shortcut')
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}" defer></script>
 @include('customer-checkout.entry')
 <script src="{{ theme_asset('assets/js/customer-dark-mode.js') }}?v=20260930.1"></script>
 
@@ -275,3 +283,5 @@
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>
 </html>
+
+

@@ -33,7 +33,7 @@
                     alertBox.setAttribute('role', 'status');
                     alertBox.innerHTML = '<div><strong class="d-block">' + @json(translate('customer_account_activated')) + '</strong><span class="small">' + (message || @json(translate('customer_account_activated'))) + '</span></div>';
                     window.setTimeout(function () {
-                        notice.hidden = true;
+                        window.location.reload();
                     }, 1600);
                 }
 

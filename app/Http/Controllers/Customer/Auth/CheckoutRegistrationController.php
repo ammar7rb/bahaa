@@ -45,5 +45,10 @@ class CheckoutRegistrationController extends Controller
         if (!$guestId || !\App\Models\Cart::query()->where('customer_id', $guestId)->where('is_guest', 1)->exists()) {
             throw \Illuminate\Validation\ValidationException::withMessages(['cart' => 'أضف منتجات إلى السلة قبل التسجيل من الدفع.']);
         }
+        if (app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+            $cart = \App\Models\Cart::where('customer_id', $guestId)->where('is_guest', 1)->get();
+            $amount = app(\App\Services\CustomerPurchaseLimitService::class)->getCartProductTotal($cart);
+            app(\App\Services\CustomerMonthlyAllowanceService::class)->assertCart(0, $amount, true);
+        }
     }
 }

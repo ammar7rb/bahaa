@@ -138,7 +138,7 @@
                         </svg>
                     </span>
                         <span class="aside-link">
-                        {{translate('support_ticket')}}
+                        {{(getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'التواصل مع الدعم' : 'Contact Support')}}
                     </span>
                     </a>
                 </div>
@@ -191,8 +191,7 @@
 
         <div class="d-lg-none">
             <div class="widget-title">
-                <a class="d-flex align-items-center gap-2 customer-account-delete-by-route" href="javascript:"
-                    data-route="{{ route('account-delete',[auth('customer')->id()]) }}"
+                <a class="d-flex align-items-center gap-2" href="{{ route('customer.deletion.show') }}">id()]) }}"
                     data-message="{{translate('want_to_delete_this_account')}}?">
                     <span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="21" viewBox="0 0 20 21" fill="none">
@@ -205,6 +204,7 @@
         </div>
     </div>
 </div>
+
 
 
 

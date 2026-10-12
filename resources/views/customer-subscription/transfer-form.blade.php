@@ -10,7 +10,7 @@
     $action = $transferAction ?? route('customer.subscription.offline',$open->id);
 @endphp
 <div class="transfer-experience {{ $instapay ? 'transfer-instapay' : 'transfer-cash' }}" data-transfer>
-    <header class="transfer-hero"><span class="transfer-provider">{{ $instapay ? 'InstaPay' : $method->method_name }}</span><h3>{{ $instapay ? 'تحويل سريع، وخطوات واضحة' : 'ادفع من محفظتك الإلكترونية' }}</h3><p>{{ $isDeposit ? 'حدد مبلغ الإيداع، ثم حوّله إلى بيانات الاستقبال التالية.' : 'حوّل المبلغ المطلوب إلى بيانات الاستقبال التالية.' }}</p>@unless($isDeposit)<strong class="transfer-amount"><bdi>{{ number_format($amount,$digits) }}</bdi> <span>{{ $currency === 'EGP' ? 'ج.م' : $currency }}</span></strong>@endunless<small>{{ $transferMode === 'subscription' ? 'الاشتراك الشهري · 30 يومًا من اعتماد الدفع' : ($isDeposit ? 'إيداع في محفظة المشتريات' : 'المبلغ الإجمالي المطلوب سداده') }}</small></header>
+    <header class="transfer-hero"><span class="transfer-provider">{{ $instapay ? 'InstaPay' : $method->method_name }}</span><h3>{{ $instapay ? 'تحويل سريع، وخطوات واضحة' : 'ادفع من محفظتك الإلكترونية' }}</h3><p>{{ $isDeposit ? 'حدد مبلغ الإيداع، ثم حوّله إلى بيانات الاستقبال التالية.' : 'حوّل المبلغ المطلوب إلى بيانات الاستقبال التالية.' }}</p>@unless($isDeposit)<strong class="transfer-amount"><bdi>{{ number_format($amount,$digits) }}</bdi> <span>{{ $currency === 'EGP' ? 'ج.م' : $currency }}</span></strong>@endunless<small>{{ $transferMode === 'subscription' ? 'الاشتراك الشهري · 30 يومًا من اعتماد الدفع' : ($isDeposit ? 'إيداع في المحفظة' : 'المبلغ الإجمالي المطلوب سداده') }}</small></header>
     <div class="transfer-content">
         @include('customer-subscription.transfer-recipient')
         <button type="button" class="transfer-guide-button" data-show-proof>قم بالتحويل وأرفق صورة لإثبات الدفع <span aria-hidden="true">↓</span></button>
@@ -31,3 +31,4 @@
         @if(!$nested)</form>@else</div>@endif
     </div>
 </div>
+

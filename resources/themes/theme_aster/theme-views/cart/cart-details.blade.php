@@ -12,7 +12,7 @@
     $cart = CartManager::getCartListQuery()->groupBy('cart_group_id');
 @endphp
 <div class="container">
-    <h4 class="text-center mb-3 text-capitalize">{{ translate('cart_list') }}</h4>
+    <h4 class="text-center mb-3 text-capitalize">{{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart') }}</h4>
     <form action="javascript:">
         <div class="row gy-3">
             <div class="col-lg-8">
@@ -22,7 +22,7 @@
                             <ul class="cart-step-list">
                                 <li class="current cursor-pointer get-view-by-onclick"
                                     data-link="{{route('shop-cart')}}">
-                                    <span><i class="bi bi-check2"></i></span> {{ translate('cart') }}</li>
+                                    <span><i class="bi bi-check2"></i></span> {{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart') }}</li>
                                 <li class="cursor-pointer text-capitalize" data-link="{{ route('checkout-details') }}">
                                     <span><i class="bi bi-check2"></i></span> {{ translate('shopping_details') }}</li>
                                 <li><span><i class="bi bi-check2"></i></span> {{ translate('payment') }}</li>
@@ -571,19 +571,7 @@
                             </div>
                         @endif
 
-                        <form method="get">
-                            <div class="form-group mt-3">
-                                <div class="row">
-                                    <div class="col-12">
-                                        <label for="order_note"
-                                               class="form-label input-label">{{translate('order_note')}} <span
-                                                class="input-label-secondary">({{translate('optional')}})</span></label>
-                                        <textarea class="form-control w-100" rows="5" id="order_note"
-                                                  name="order_note">{{ session('order_note')}}</textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
+                        
                     </div>
                 </div>
             </div>

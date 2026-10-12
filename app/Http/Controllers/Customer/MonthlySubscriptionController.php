@@ -27,6 +27,8 @@ class MonthlySubscriptionController extends Controller
     {
         $id = $this->customer($request);
         $payload = [
+            'packages' => \Illuminate\Support\Facades\Schema::hasTable('customer_purchase_packages') ? \App\Models\CustomerPurchasePackage::where('status', 1)->where(fn ($q) => $q->where('is_custom', 0)->orWhere('customer_id', $id))->orderBy('sort_order')->get() : collect(),
+            'increase_offers' => \Illuminate\Support\Facades\Schema::hasTable('customer_credit_offers') ? \Illuminate\Support\Facades\DB::table('customer_credit_offers')->where('active', true)->get() : collect(),
             'subscription' => $this->subscriptions->status($id),
             'offline_methods' => (getWebConfig('offline_payment')['status'] ?? 0)
                 ? OfflinePaymentMethod::where('status', 1)->whereIn('payment_channel', ['wallet','instapay'])->get(['id','method_name','payment_channel','method_fields','method_informations']) : collect(),
@@ -34,14 +36,14 @@ class MonthlySubscriptionController extends Controller
             'purchase_balance' => (float) \App\Models\User::findOrFail($id)->wallet_balance,
             'payments' => CustomerSubscriptionPayment::where('customer_id', $id)->latest('id')->paginate(10),
         ];
-        return $request->is('api/*') ? response()->json($payload) : view('customer-subscription.index', $payload);
+        return $request->is('api/*') ? response()->json($payload) : view(app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled() ? 'customer-subscription.packages' : 'customer-subscription.index', $payload);
     }
 
     public function checkout(Request $request)
     {
-        $data = $request->validate(['request_key' => 'required|uuid']);
+        $data = $request->validate(['request_key' => 'required|uuid', 'package_id' => 'nullable|integer|min:1', 'offer_id' => 'nullable|integer|min:1', 'quantity' => 'sometimes|integer|min:1|max:5']);
         try {
-            return $this->result($request, $this->subscriptions->checkout($this->customer($request), $data['request_key']));
+            return $this->result($request, $this->subscriptions->checkout($this->customer($request), $data['request_key'], $data['package_id'] ?? null, $data['offer_id'] ?? null, $data['quantity'] ?? 1));
         } catch (DomainException $e) { throw ValidationException::withMessages(['subscription' => $e->getMessage()]); }
     }
 
@@ -50,6 +52,13 @@ class MonthlySubscriptionController extends Controller
         try {
             return $this->result($request, $this->subscriptions->payFromWallet($this->customer($request), $payment));
         } catch (DomainException $e) { throw ValidationException::withMessages(['subscription' => $e->getMessage()]); }
+    }
+
+    public function cancel(Request $request, int $payment)
+    {
+        try { $this->subscriptions->cancelDraft($this->customer($request), $payment); }
+        catch (DomainException $e) { throw ValidationException::withMessages(['subscription' => $e->getMessage()]); }
+        return $request->is('api/*') ? response()->json(['cancelled' => true]) : redirect()->route('customer.subscription.index');
     }
 
     public function offline(Request $request, int $payment)

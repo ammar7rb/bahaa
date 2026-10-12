@@ -76,6 +76,11 @@ class OrderController extends Controller
         if ($eligibility->enabled()) {
             $state = $eligibility->status($user);
             if (!$state['can_checkout']) return response()->json(['message'=>$state['message'],'code'=>'customer_purchase_restricted'], 403);
+            if (app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+                $summary = app(\App\Services\CustomerMonthlyAllowanceService::class)->summary((int)$user->id,
+                    app(CustomerPurchaseLimitService::class)->getCartProductTotal($carts), $state['initial_order_exception_available'] || $state['can_resume_initial_checkout']);
+                if (!$summary['can_checkout']) return response()->json(['message' => 'الحد الائتماني غير كافٍ. زد الحد أو اختر باقة أعلى أو قلل المنتجات.', 'code' => 'customer_purchase_limit_insufficient', 'limit' => $summary], 403);
+            }
         }
 
         if (app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {

@@ -12,7 +12,7 @@ class MonthlySubscriptionController extends Controller
 {
     public function index(Request $request)
     {
-        $request->validate(['status' => 'nullable|in:pending_review,approved,rejected,draft']);
+        $request->validate(['status' => 'nullable|in:pending_review,approved,rejected,draft,cancelled']);
         return view('admin-views.customer.subscriptions', [
             'pricing' => app(MonthlySubscriptionPricingService::class)->get(),
             'payments' => CustomerSubscriptionPayment::with('customer')->when($request->filled('status'), fn ($q) => $q->where('status',$request->status))->latest('id')->paginate(20)->withQueryString(),

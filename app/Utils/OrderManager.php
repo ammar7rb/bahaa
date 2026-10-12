@@ -433,6 +433,9 @@ class OrderManager
 
     public static function getTotalCouponAmount($request, $couponCode): array
     {
+        if (!auth('admin')->check() && !auth('seller')->check()) {
+            return ['status' => false, 'discount' => 0, 'total_cart_amount' => 0, 'messages' => 'أزيلت القسائم من سلة المشتريات.'];
+        }
         $user = Helpers::getCustomerInformation($request);
         if ($user == 'offline') {
             return [
@@ -1088,7 +1091,7 @@ class OrderManager
             'shipping_type' => $cartData['shipping_type'],
             'created_at' => now(),
             'updated_at' => now(),
-            'order_note' => $orderData['order_note'] ?? session('order_note'),
+            'order_note' => auth('admin')->check() ? ($orderData['order_note'] ?? session('order_note')) : null,
         ];
     }
 
@@ -1331,6 +1334,16 @@ class OrderManager
             $data['customer_checkout_operation_id'] = $operation->id;
             $data['customer_checkout_cart_snapshot'] = isset($operation->cart_snapshot) ? json_decode($operation->cart_snapshot, true) : null;
             $ids = self::generateCustomerOrderInternal($data);
+            if ($operation->first_exception && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'customer_initial_payment_review_status')) {
+                DB::table('orders')->whereIn('id', $ids)->update(['customer_initial_payment_review_status' => 'pending']);
+            }
+            if (!$operation->first_exception && app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+                foreach ($ids as $id) {
+                    if (!app(\App\Services\CustomerMonthlyAllowanceService::class)->reserveOrder(Order::findOrFail($id))) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['purchasing_limit' => 'الحد الائتماني غير كافٍ. أعد مراجعة سلة المشتريات.']);
+                    }
+                }
+            }
             DB::table('customer_checkout_operations')->where('id', $operation->id)->update(['consumed_at' => now(), 'order_ids' => json_encode($ids), 'updated_at' => now()]);
             $eligibility->reevaluateCustomer((int) $info['customer_id']);
             return $ids;
@@ -2225,6 +2238,13 @@ class OrderManager
                 'message' => [$state['message']], 'redirect' => route('customer.subscription.index')];
         }
         $message = [];
+        if (app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+            $limitCustomerId = $customer === 'offline' ? 0 : (int) $customer->id;
+            $provisional = !$limitCustomerId || ($state['initial_order_exception_available'] ?? false) || ($state['can_resume_initial_checkout'] ?? false);
+            $limitSummary = app(\App\Services\CustomerMonthlyAllowanceService::class)->summary($limitCustomerId,
+                app(\App\Services\CustomerPurchaseLimitService::class)->getCheckedCartProductTotal(), $provisional);
+            if (!$limitSummary['can_checkout']) return ['status' => 0, 'physical_product_view' => false, 'message' => ['الحد الائتماني المتاح '.number_format($limitSummary['available_limit'],2).' ج.م لا يغطي سلة المشتريات.'], 'redirect' => route('shop-cart')];
+        }
 
         $verifyStatus = OrderManager::verifyCartListMinimumOrderAmount($request);
         if ($verifyStatus['status'] == 0) {

@@ -1,4 +1,4 @@
-<h3 class="mt-4 mb-3 text-center text-lg-left mobile-fs-20 fs-18 font-bold">{{ translate('shopping_cart')}}</h3>
+<h3 class="mt-4 mb-3 text-center text-lg-left mobile-fs-20 fs-18 font-bold">{{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart')}}</h3>
 
 @php($shippingMethod=getWebConfig(name: 'shipping_method'))
 @php($automaticDistanceShipping=app(\App\Services\CustomerThreeStepShippingService::class)->isEnabled())
@@ -749,20 +749,7 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
 
 
         <div class="px-3 px-md-0 mt-3 mt-md-0">
-            <form method="get">
-                <div class="mb-lg-3">
-                    <div class="row">
-                        <div class="col-12">
-                            <label for="phoneLabel" class="form-label input-label fs-14 font-semibold">
-                                {{ translate('order_note') }}
-                                <span class="input-label-secondary">({{ translate('optional') }})</span>
-                            </label>
-                            <textarea class="form-control w-100 border-aliceblue h-100-200" id="order_note"
-                                      name="order_note">{{ session('order_note')}}</textarea>
-                        </div>
-                    </div>
-                </div>
-            </form>
+            
         </div>
     </section>
 

@@ -51,6 +51,12 @@ class Notification extends Model
         return $query->where('status', 1);
     }
 
+    public function scopeForCustomer($query, ?int $customerId): mixed
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('notifications', 'customer_id')) return $query;
+        return $query->where(fn ($q) => $q->whereNull('customer_id')->when($customerId, fn ($q) => $q->orWhere('customer_id', $customerId)));
+    }
+
     /* notification_seen_by -> notificationSeenBy */
     public function notificationSeenBy():HasOne
     {

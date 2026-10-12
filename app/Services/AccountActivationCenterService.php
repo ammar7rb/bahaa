@@ -298,7 +298,10 @@ class AccountActivationCenterService
     public function approve(AccountActivationCase $case, string|null $note, int $adminId): AccountActivationCase
     {
         return DB::transaction(function () use ($case, $note, $adminId) {
-            if ($case->subject_type === AccountActivationCase::SUBJECT_CUSTOMER) \App\Models\User::lockForUpdate()->findOrFail($case->subject_id);
+            if ($case->subject_type === AccountActivationCase::SUBJECT_CUSTOMER) {
+                $customer = \App\Models\User::lockForUpdate()->findOrFail($case->subject_id);
+                if ($customer->account_deleted_at) throw new DomainException('حساب العميل محذوف نهائيًا. لا يمكن إعادة تفعيله.');
+            }
             $locked = AccountActivationCase::query()->lockForUpdate()->findOrFail($case->id);
             $this->assertEditable($locked);
             $this->assertRequiredEvidenceIsVerified($locked);

@@ -116,22 +116,7 @@ class CustomerPurchasePackageController extends BaseController
 
     public function destroy(Request $request, int|string $id): RedirectResponse
     {
-        $package = CustomerPurchasePackage::query()->withCount('subscriptions')->find($id);
-
-        if (!$package) {
-            ToastMagic::error(translate('customer_purchase_package_not_found'));
-            return redirect()->back();
-        }
-
-        if ($package->subscriptions_count > 0) {
-            ToastMagic::error(translate('cannot_delete_package_assigned_to_customers'));
-            return redirect()->back();
-        }
-
-        $package->delete();
-
-        ToastMagic::success(translate('customer_purchase_package_deleted_successfully'));
-        return redirect()->back();
+        return app(MonthlyPackageController::class)->delete((int)$id);
     }
 
     public function offlinePaymentReviews(Request $request): RedirectResponse

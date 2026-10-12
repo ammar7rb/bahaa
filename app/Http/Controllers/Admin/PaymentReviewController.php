@@ -70,6 +70,8 @@ class PaymentReviewController extends Controller
             } elseif ($type === 'vendor_order_insurance') {
                 $insurance = SellerOrderInsurance::query()->where('payment_method', 'offline_payment')->where('payment_status', 'unpaid')->where('status', SellerOrderInsurance::STATUS_PENDING_REVIEW)->findOrFail($id);
                 $this->sellerOrderInsuranceService->markPaid($insurance, 'offline_payment', $request->get('payment_reference') ?: 'unified-order-insurance-'.$insurance->id, auth('admin')->id(), $request->get('review_note'));
+            } elseif ($type === 'customer_initial_order') {
+                app(\App\Services\CustomerPurchaseEligibilityService::class)->reviewInitialConfirmedPayment((int) $id, true, (int) auth('admin')->id(), $request->get('review_note'));
             } elseif ($type === 'customer_order') {
                 $order = Order::query()->where('payment_method', 'offline_payment')->findOrFail($id);
                 app(\App\Services\CustomerPurchaseEligibilityService::class)->approveOrderPayment((int) $order->id, $request->get('payment_reference') ?: ('offline-review-'.$order->id));
@@ -103,6 +105,8 @@ class PaymentReviewController extends Controller
             } elseif ($type === 'vendor_order_insurance') {
                 $insurance = SellerOrderInsurance::query()->where('payment_method', 'offline_payment')->where('payment_status', 'unpaid')->where('status', SellerOrderInsurance::STATUS_PENDING_REVIEW)->findOrFail($id);
                 $this->sellerOrderInsuranceService->rejectOfflinePayment($insurance, auth('admin')->id(), $request->get('review_note'));
+            } elseif ($type === 'customer_initial_order') {
+                app(\App\Services\CustomerPurchaseEligibilityService::class)->reviewInitialConfirmedPayment((int) $id, false, (int) auth('admin')->id(), $request->get('review_note'));
             } elseif ($type === 'customer_order') {
                 $order = Order::query()->where('payment_method', 'offline_payment')->where('payment_status', 'unpaid')->findOrFail($id);
                 if ($order->customer_checkout_operation_id) {
@@ -146,11 +150,11 @@ class PaymentReviewController extends Controller
 
 
         if (\App\Utils\Helpers::module_permission_check('people') && (!$audience || $audience === 'customer') && (!$kind || $kind === 'subscription')) {
-            \App\Models\CustomerSubscriptionPayment::with('customer')->where('status','!=','draft')
+            \App\Models\CustomerSubscriptionPayment::with('customer')->whereNotIn('status',['draft','cancelled'])
                 ->when($status,fn($q)=>$q->where('status',$status === 'pending' ? 'pending_review' : $status))
                 ->when($search !== '',fn($q)=>$q->where(function($q) use($search){ $q->where('payment_reference','like','%'.$search.'%')->orWhereHas('customer',fn($c)=>$c->where('phone','like','%'.$search.'%')->orWhere('f_name','like','%'.$search.'%')); }))
                 ->latest('id')->get()->each(function($payment) use(&$rows) {
-                    $rows->push(['id'=>$payment->id,'type'=>'customer_subscription','kind'=>'subscription','audience'=>'customer','status'=>$payment->status === 'pending_review' ? 'pending' : $payment->status,'actor'=>$payment->customer,'label'=>'الاشتراك الشهري','amount'=>(float)$payment->quoted_amount,'currency'=>$payment->currency_code,'reference'=>$payment->payment_reference,'offline'=>$payment->method_information,'created_at'=>$payment->created_at]);
+                    $rows->push(['id'=>$payment->id,'type'=>'customer_subscription','kind'=>'subscription','audience'=>'customer','status'=>$payment->status === 'pending_review' ? 'pending' : $payment->status,'actor'=>$payment->customer,'label'=>($payment->terms_name ?: 'اشتراك سابق').' · الحد الممنوح '.$payment->granted_allowance.' ج.م · '.($payment->method_name ?: $payment->payment_method),'amount'=>(float)$payment->quoted_amount,'currency'=>$payment->currency_code,'reference'=>$payment->payment_reference,'offline'=>$payment->method_information,'created_at'=>$payment->created_at]);
                 });
         }
 
@@ -230,6 +234,22 @@ class PaymentReviewController extends Controller
                     ]);
                 });
         }
+        if (\App\Utils\Helpers::module_permission_check('orders') && (!$audience || $audience === 'customer') && (!$kind || $kind === 'order')
+            && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'customer_initial_payment_review_status')) {
+            Order::with('customer')->where('payment_status', 'paid')->where('payment_method', '!=', 'offline_payment')
+                ->whereNotNull('customer_initial_payment_review_status')
+                ->when($status, fn($q) => $q->where('customer_initial_payment_review_status', $status))
+                ->latest('id')->get()->each(function (Order $order) use (&$rows, $search) {
+                    $text = implode(' ', [$order->id, $order->transaction_ref, $order->customer?->phone, $order->customer?->f_name]);
+                    if ($search !== '' && !str_contains(strtolower($text), strtolower($search))) return;
+                    $rows->push(['id' => $order->id, 'type' => 'customer_initial_order', 'kind' => 'order', 'audience' => 'customer',
+                        'status' => $order->customer_initial_payment_review_status, 'actor' => $order->customer,
+                        'label' => 'مراجعة دفع الطلب الأول #'.$order->id, 'amount' => (float) $order->order_amount,
+                        'currency' => getCurrencyCode(type: 'default'), 'reference' => $order->transaction_ref ?: 'ORD-'.$order->id,
+                        'offline' => ['method_name' => $order->payment_method, 'ملاحظة' => 'الدفع مؤكد ماليًا. الموافقة لا تخصم مرة أخرى، والرفض يبقي السجل المالي للمراجعة.'],
+                        'customer_state' => app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order), 'created_at' => $order->created_at]);
+                });
+        }
         return $rows;
     }
 
@@ -240,3 +260,4 @@ class PaymentReviewController extends Controller
     }
 
 }
+

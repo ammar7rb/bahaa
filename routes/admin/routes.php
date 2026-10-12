@@ -143,6 +143,12 @@ Route::group(['prefix' => 'login'], function () {
 });
 
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', 'actch:admin_panel']], function () {
+    Route::prefix('operations/monthly-packages')->name('monthly-packages.')->middleware('module:people')->controller('\App\Http\Controllers\Admin\Customer\MonthlyPackageController')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('packages/{package?}', 'save')->name('save');
+        Route::delete('packages/{package}', 'delete')->name('delete');
+        Route::post('offers/{offer?}', 'offer')->name('offer');
+    });
     Route::prefix('customer/monthly-subscriptions')->name('customer.monthly-subscriptions.')->middleware('module:people')->controller('\App\Http\Controllers\Admin\Customer\MonthlySubscriptionController')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('pricing', 'pricing')->middleware('module:business_settings')->name('pricing');

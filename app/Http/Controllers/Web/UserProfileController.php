@@ -74,6 +74,7 @@ class UserProfileController extends Controller
 
     public function user_profile(Request $request)
     {
+        if (empty(VIEW_FILE_NAMES['user_profile'])) return redirect()->route('user-account');
         $wishlists = $this->wishlist->whereHas('wishlistProduct', function ($q) {
             return $q;
         })->where('customer_id', auth('customer')->id())->count();
@@ -131,27 +132,7 @@ class UserProfileController extends Controller
 
     public function account_delete($id)
     {
-        if (auth('customer')->id() == $id) {
-            $user = User::find($id);
-
-            $ongoing = ['out_for_delivery', 'processing', 'confirmed', 'pending'];
-            $order = Order::where('customer_id', $user->id)->whereIn('order_status', $ongoing)->count();
-            if ($order > 0) {
-                Toastr::warning(translate('you_can_not_delete_account_due_ongoing_order'));
-                return redirect()->back();
-            }
-            auth()->guard('customer')->logout();
-
-            ImageManager::delete('/profile/' . $user['image']);
-            session()->forget('wish_list');
-
-            $user->delete();
-            Toastr::info(translate('Your_account_deleted_successfully!!'));
-            return redirect()->route('home');
-        }
-
-        Toastr::warning(translate('access_denied') . '!!');
-        return back();
+        abort(405, 'استخدم خطوات حذف الحساب الآمنة.');
     }
 
     public function account_address(): View|RedirectResponse
@@ -592,11 +573,9 @@ class UserProfileController extends Controller
         if ($request->boolean('care_support_drawer')) {
             abort_unless(auth('customer')->check(), 401);
             $request->validate([
-                'ticket_subject' => 'required|string|max:160',
-                'ticket_description' => 'required|string|max:5000',
-                'ticket_type' => 'required|in:Website problem,Partner request,Complaint,Info inquiry',
-                'ticket_priority' => 'required|in:Urgent,High,Medium,Low',
+                'ticket_description' => 'required|string|min:3|max:5000',
             ]);
+            $request->merge(['ticket_subject' => mb_substr(trim($request->ticket_description),0,100), 'ticket_type' => 'Website problem', 'ticket_priority' => 'Medium']);
         }
         $request->validate([
             'ticket_subject' => 'required',
@@ -1215,3 +1194,4 @@ class UserProfileController extends Controller
         return redirect()->route('user-restock-requests');
     }
 }
+

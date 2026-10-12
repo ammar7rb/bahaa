@@ -182,7 +182,13 @@
     <span class="loader"></span>
 </div>
 
+@if(request()->routeIs('user-profile','user-account'))
+@include('web-views.users-profile.partials.customer-profile-shortcuts')
+@elseif(request()->routeIs('home') || request()->is('products*','*-products','shopView*','category*','search*'))
+<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip')</div>
+@endif
 @yield('content')
+@include('web-views.users-profile.partials.customer-payment-notices')
 
 <span id="message-otp-sent-again" data-text="{{ translate('OTP_has_been_sent_again.') }}"></span>
 <span id="message-wait-for-new-code" data-text="{{ translate('please_wait_for_new_code.') }}"></span>
@@ -204,7 +210,7 @@
 <span id="message-item-has-been-removed-from-cart" data-text="{{ translate('item_has_been_removed_from_cart') }}"></span>
 <span id="message-sorry-stock-limit-exceeded" data-text="{{ translate('sorry_stock_limit_exceeded') }}"></span>
 <span id="message-sorry-the-minimum-order-quantity-not-match" data-text="{{ translate('sorry_the_minimum_order_quantity_does_not_match') }}"></span>
-<span id="message-cart" data-text="{{ translate('cart') }}"></span>
+<span id="message-cart" data-text="{{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart') }}"></span>
 
 {{-- Direct messages between customers, sellers and delivery staff are disabled.
      Keep the legacy hook for JavaScript, but point it to the official support
@@ -308,7 +314,7 @@
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/slick.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/sweet_alert.js') }}"></script>
 <script src="{{ theme_asset(path: "public/assets/back-end/js/toastr.js") }}"></script>
-<script src="{{ theme_asset(path: 'public/assets/front-end/js/custom.js') }}?v=20260906.3"></script>
+<script src="{{ theme_asset(path: 'public/assets/front-end/js/custom.js') }}?v=20261011.1"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/seller-filter.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/account-order-details.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/customer-dark-mode.js') }}?v=20260930.1"></script>
@@ -478,7 +484,11 @@
 @endif
 
 @stack('script')
+@include('web-views.users-profile.partials.profile-image-shortcut')
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}" defer></script>
 @include('customer-checkout.entry')
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>
 </html>
+
+

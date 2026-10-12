@@ -8,6 +8,7 @@
 
 @section('content')
     <div class="content container-fluid">
+        @if($customer->account_deleted_at)<div class="alert alert-warning" role="status">حساب محذوف منذ {{ $customer->account_deleted_at }}. تُحتفظ بهوية العميل وسجلاته المالية، والوصول للحساب مغلق.</div>@endif
         @include('admin-views.customer.purchase-state')
         <div class="d-print-none pb-2">
             <div class="row align-items-center">

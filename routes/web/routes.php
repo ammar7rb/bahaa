@@ -181,11 +181,9 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::controller(UserProfileController::class)->group(function () {
         Route::group(['prefix' => 'support-ticket', 'as' => 'support-ticket.', 'middleware' => 'customer'], function () {
             Route::get('activation-status', 'activationStatus')->name('activation-status');
-            Route::get('{id}', 'single_ticket')->name('index');
+            Route::get('{id}', [\App\Http\Controllers\Customer\SupportConversationController::class, 'show'])->name('index');
             Route::get('{id}/messages', 'ticketMessages')->name('messages');
             Route::post('{id}', 'comment_submit')->name('comment');
-            Route::get('delete/{id}', 'support_ticket_delete')->name('delete');
-            Route::get('close/{id}', 'support_ticket_close')->name('close');
         });
     });
 
@@ -221,10 +219,10 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('refund-request/{id}', 'refund_request')->name('refund-request');
         Route::get('refund-details/{id}', 'refund_details')->name('refund-details');
         Route::post('refund-store', 'store_refund')->name('refund-store');
-        Route::get('account-tickets', 'account_tickets')->name('account-tickets');
+        Route::get('account-tickets', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->name('account-tickets');
         Route::get('order-cancel/{id}', 'order_cancel')->name('order-cancel');
         Route::post('ticket-submit', 'submitSupportTicket')->name('ticket-submit');
-        Route::get('account-delete/{id}', 'account_delete')->name('account-delete');
+        Route::get('account-delete/{id}', [\App\Http\Controllers\Customer\AccountDeletionController::class, 'show'])->name('account-delete');
         Route::get('refer-earn', 'refer_earn')->name('refer-earn')->middleware('customer');
         Route::get('user-coupons', 'user_coupons')->name('user-coupons')->middleware('customer');
         Route::get('user-restock-requests', 'restockRequestsView')->name('user-restock-requests')->middleware('customer');
@@ -235,11 +233,21 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     // Customer-to-seller/delivery chat is intentionally unavailable. Customers
     // use the support-ticket center for administration communication.
 
+    Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['customer', 'throttle:10,1,customer-support-report:'])->name('customer.support.report');
+    Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show'])->name('customer.purchasing-limit');
+    Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['customer', 'throttle:10,1,customer-profile-image:'])->name('customer.profile-image');
+    Route::prefix('customer/account-deletion')->name('customer.deletion.')->middleware('customer')->controller('\App\Http\Controllers\Customer\AccountDeletionController')->group(function () {
+        Route::get('/', 'show')->name('show');
+        Route::post('begin', 'begin')->middleware('throttle:5,1,customer-deletion-password:')->name('begin');
+        Route::post('reason', 'reason')->middleware('throttle:10,1,customer-deletion-reason:')->name('reason');
+        Route::post('finish', 'finish')->middleware('throttle:5,1,customer-deletion-password:')->name('finish');
+    });
     Route::prefix('customer/subscription')->name('customer.subscription.')->middleware('customer')->controller('\App\Http\Controllers\Customer\MonthlySubscriptionController')->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::post('checkout', 'checkout')->middleware('throttle:10,1')->name('checkout');
-        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1')->name('wallet');
-        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1')->name('offline');
+        Route::post('{payment}/cancel', 'cancel')->middleware('throttle:10,1,customer-package-cancel:')->name('cancel');
+        Route::post('checkout', 'checkout')->middleware('throttle:10,1,customer-package-quote:')->name('checkout');
+        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1,customer-package-wallet:')->name('wallet');
+        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1,customer-package-transfer:')->name('offline');
     });
 
     Route::post('customer/orders/{order}/payment-proof/retry', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'submit'])->middleware(['customer', 'throttle:10,1'])->name('customer.order.payment-retry');

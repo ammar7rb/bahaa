@@ -25,6 +25,7 @@ class BannerController extends Controller
     {
         $banners = collect($this->cacheBannerTable());
         $theme = theme_root_path();
+        $theme = in_array($theme, HomepageSectionBuilderService::THEMES, true) ? $theme : 'default';
         if (in_array($theme, HomepageSectionBuilderService::THEMES, true)) {
             $layout = $this->homepageBuilder->layout($theme);
             $sectionMap = [
@@ -76,8 +77,16 @@ class BannerController extends Controller
     public function getHomepageLayout(): JsonResponse
     {
         $theme = theme_root_path();
-        return response()->json($this->homepageBuilder->layout(
+        $theme = in_array($theme, HomepageSectionBuilderService::THEMES, true) ? $theme : 'default';
+        $layout = $this->homepageBuilder->layout(
             in_array($theme, HomepageSectionBuilderService::THEMES, true) ? $theme : 'default'
-        ));
+        );
+        $catalog = collect($this->homepageBuilder->catalog($layout['theme'] ?? $theme))->keyBy('key');
+        $layout['product_sections'] = collect($layout['sections'])->filter(fn ($s, $key) => $s['is_visible'] && ($catalog[$key]['type'] ?? null) === 'product')
+            ->sortBy('sort_order')->map(function ($section, $key) use ($theme, $layout, $catalog) {
+                return ['key' => $key, 'title' => $key === 'savings_offers' ? (app()->getLocale() === 'ar' ? 'عروض التوفير' : 'Savings Offers') : translate($catalog[$key]['label']),
+                    'products' => Helpers::product_data_formatting($this->homepageBuilder->resolveProducts($theme, $key, collect(), $layout, false), true)];
+            })->values();
+        return response()->json($layout);
     }
 }

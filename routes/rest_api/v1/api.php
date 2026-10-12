@@ -48,12 +48,21 @@ use App\Http\Controllers\Customer\PaymentController;
  */
 
 Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
+    Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['auth:api', 'throttle:10,1,customer-support-report:']);
+    Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show']);
+    Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['auth:api', 'throttle:10,1,customer-profile-image:']);
+    Route::prefix('customer/account-deletion')->middleware('auth:api')->controller('\App\Http\Controllers\Customer\AccountDeletionController')->group(function () {
+        Route::post('begin', 'begin')->middleware('throttle:5,1,customer-deletion-password:');
+        Route::post('reason', 'reason')->middleware('throttle:10,1,customer-deletion-reason:');
+        Route::post('finish', 'finish')->middleware('throttle:5,1,customer-deletion-password:');
+    });
     Route::post('customer/order/{order}/payment-proof/retry', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'submit'])->middleware(['auth:api','throttle:10,1']);
     Route::prefix('customer/subscription')->middleware('auth:api')->controller('\App\Http\Controllers\Customer\MonthlySubscriptionController')->group(function () {
         Route::get('/', 'index');
-        Route::post('checkout', 'checkout')->middleware('throttle:10,1');
-        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1');
-        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1');
+        Route::post('{payment}/cancel', 'cancel')->middleware('throttle:10,1,customer-package-cancel:');
+        Route::post('checkout', 'checkout')->middleware('throttle:10,1,customer-package-quote:');
+        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1,customer-package-wallet:');
+        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1,customer-package-transfer:');
     });
     Route::get('customer/post-payment-refunds', [CustomerController::class, 'postPaymentRefunds'])
         ->middleware('auth:api');
@@ -303,7 +312,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::controller(CustomerController::class)->group(function () {
             Route::get('info', 'info');
             Route::put('update-profile', 'update_profile');
-            Route::get('account-delete/{id}', 'account_delete');
         });
 
         Route::group(['prefix' => 'address'], function () {
@@ -318,7 +326,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
                 Route::get('get', 'get_support_tickets');
                 Route::get('conv/{ticket_id}', 'get_support_ticket_conv');
                 Route::post('reply/{ticket_id}', 'reply_support_ticket');
-                Route::get('close/{id}', 'support_ticket_close');
                 Route::get('activation/status', 'activationStatus');
                 Route::post('activation/ticket', 'activationTicket');
             });

@@ -146,6 +146,7 @@ class CustomerController extends BaseController
 
     public function updateStatus(Request $request): JsonResponse
     {
+        if (\App\Models\User::findOrFail($request['id'])->account_deleted_at) return response()->json(['message' => 'حساب محذوف نهائيًا. لا يمكن إعادة تفعيله؛ السجل المالي محفوظ.'], 422);
         $this->customerRepo->update(id: $request['id'], data: ['is_active' => $request->get('is_active', 0)]);
         app(\App\Services\CustomerPurchaseEligibilityService::class)->reevaluateCustomer((int) $request['id']);
         $this->customerRepo->deleteAuthAccessTokens(id: $request['id']);

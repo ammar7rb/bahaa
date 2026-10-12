@@ -108,7 +108,13 @@
 @include('web-views.users-profile.partials.customer-activation-banner')
 @include('customer-subscription.expiry-banner')
 
+@if(request()->routeIs('user-profile','user-account'))
+@include('web-views.users-profile.partials.customer-profile-shortcuts')
+@elseif(request()->routeIs('home') || request()->is('products*','*-products','shopView*','category*','search*'))
+<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip')</div>
+@endif
 @yield('content')
+@include('web-views.users-profile.partials.customer-payment-notices')
 @include('theme-views.layouts.partials._feature')
 @include('theme-views.layouts.partials._footer')
 
@@ -276,8 +282,12 @@
 </script>
 <script src="{{ theme_asset('assets/js/care-home.js') }}?v=5" defer></script>
 @stack('script')
+@include('web-views.users-profile.partials.profile-image-shortcut')
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}" defer></script>
 
-<script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}" defer></script>
+<script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}?v=20261011.1" defer></script>
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>
 </html>
+
+
