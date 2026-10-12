@@ -1,4 +1,5 @@
 @php
+    session()->forget(['coupon_code','coupon_discount','coupon_type','coupon_bearer','coupon_seller_id','order_note']);
     use App\Utils\CartManager;
     use App\Utils\Helpers;
 @endphp
@@ -39,21 +40,7 @@
             <h4 class="text-capitalize mb-0">{{ translate('order_summary') }}</h4>
             @php($coupon_discount = 0)
             @php($coupon_dis = 0)
-            @if (auth('customer')->check() && !session()->has('coupon_discount'))
-                <form class="needs-validation" action="{{ route('coupon.apply') }}" method="post"
-                      id="submit-coupon-code">
-                    @csrf
-                    <div class="form-group mb-0">
-                        <div class="form-control focus-border pe-1 rounded d-flex align-items-center">
-                            <input type="text" name="code" id="promo-code"
-                                   class="w-100 text-dark bg-transparent border-0 focus-input"
-                                   placeholder="{{ translate('write_coupon_code_here') }}" required>
-                            <button class="btn btn-primary text-nowrap"
-                                    id="coupon-code-apply">{{ translate('apply') }}</button>
-                        </div>
-                    </div>
-                </form>
-            @endif
+            @include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'cart'])
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 fs-16">
                 <div class="opacity-75 text-capitalize">{{ translate('item_price') }}</div>
                 <div class="fw-semibold">{{ webCurrencyConverter($product_price_total) }}</div>
@@ -72,16 +59,8 @@
                 <div class="fw-semibold">{{ webCurrencyConverter($total_shipping_cost) }}</div>
             </div>
 
-            @php($coupon_discount = session()->has('coupon_discount') ? session('coupon_discount') : 0)
-            @php($coupon_dis = session()->has('coupon_discount') ? session('coupon_discount') : 0)
-            @if (auth('customer')->check() && session()->has('coupon_discount'))
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 fs-16">
-                    <div class="opacity-75 text-capitalize">{{ translate('coupon_discount') }}</div>
-                    <div class="fw-semibold">
-                        {{ '-' . webCurrencyConverter($coupon_discount) }}
-                    </div>
-                </div>
-            @endif
+            @php($coupon_discount = 0)
+            @php($coupon_dis = 0)
 
             <?php
             $totalAmount = $product_price_total + ($totalTax['item_tax'] + $totalTax['shipping_cost_tax']) + $total_shipping_cost - $coupon_dis - $total_discount_on_product;

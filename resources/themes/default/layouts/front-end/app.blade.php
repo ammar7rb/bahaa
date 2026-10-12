@@ -124,6 +124,7 @@
             })(window,document,'script','dataLayer','GTM-TTLMKMHQ');</script>
         <!-- End Google Tag Manager -->
     @endif
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013">
 </head>
 
 <body class="toolbar-enabled {{ env('APP_MODE')=='demo'?'demo':'' }}" id="demo">
@@ -182,8 +183,8 @@
     <span class="loader"></span>
 </div>
 
-@if(request()->routeIs('home') || request()->is('products*','*-products','shopView*','category*','search*'))
-<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip')</div>
+@if(!request()->routeIs('shop-cart') && !request()->is('checkout*','customer/checkout*'))
+<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'browsing'])</div>
 @endif
 @yield('content')
 @include('web-views.users-profile.partials.customer-payment-notices')
@@ -483,7 +484,7 @@
 
 @stack('script')
 @include('web-views.users-profile.partials.profile-image-shortcut')
-<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013" defer></script>
 @include('customer-checkout.entry')
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>

@@ -79,6 +79,7 @@
     <link rel="stylesheet" href="{{ theme_asset('assets/css/sigma-care.css') }}?v=25">
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013">
 </head>
 <body class="toolbar-enabled sigma-care" theme="light">
 @if(theme_root_path() !== (env('WEB_THEME') ?: 'default'))
@@ -108,8 +109,8 @@
 @include('web-views.users-profile.partials.customer-activation-banner')
 @include('customer-subscription.expiry-banner')
 
-@if(request()->routeIs('home') || request()->is('products*','*-products','shopView*','category*','search*'))
-<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip')</div>
+@if(!request()->routeIs('shop-cart') && !request()->is('checkout*','customer/checkout*'))
+<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'browsing'])</div>
 @endif
 @yield('content')
 @include('web-views.users-profile.partials.customer-payment-notices')
@@ -281,7 +282,7 @@
 <script src="{{ theme_asset('assets/js/care-home.js') }}?v=5" defer></script>
 @stack('script')
 @include('web-views.users-profile.partials.profile-image-shortcut')
-<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013" defer></script>
 
 <script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}?v=20261011.1" defer></script>
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>

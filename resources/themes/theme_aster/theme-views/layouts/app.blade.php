@@ -78,6 +78,7 @@
     </style>
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013">
 </head>
 <body class="toolbar-enabled">
 <script>
@@ -97,8 +98,8 @@
 @include('web-views.users-profile.partials.customer-activation-banner')
 @include('customer-subscription.expiry-banner')
 @include('theme-views.layouts.partials._settings-sidebar')
-@if(request()->routeIs('home') || request()->is('products*','*-products','shopView*','category*','search*'))
-<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip')</div>
+@if(!request()->routeIs('shop-cart') && !request()->is('checkout*','customer/checkout*'))
+<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'browsing'])</div>
 @endif
 @yield('content')
 @include('web-views.users-profile.partials.customer-payment-notices')
@@ -273,7 +274,7 @@
 </script>
 @stack('script')
 @include('web-views.users-profile.partials.profile-image-shortcut')
-<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013" defer></script>
 @include('customer-checkout.entry')
 <script src="{{ theme_asset('assets/js/customer-dark-mode.js') }}?v=20260930.1"></script>
 

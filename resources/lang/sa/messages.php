@@ -6882,7 +6882,7 @@ return [
 	"view_all_cart_items" => "عرض جميع عناصر السلة",
 	"view_all_hold_orders" => "عرض كافة الأوامر المعلقة",
 	"view_and_manage_your_saved_withdrawal_methods_with_account_details" => "عرض وإدارة طرق السحب المحفوظة الخاصة بك مع تفاصيل الحساب",
-	"view_cart" => "عرض العربة",
+	"view_cart" => "عرض سلة المشتريات",
 	"view_details" => "عرض التفاصيل",
 	"view_less" => "عرض أقل",
 	"view_live" => "عرض مباشر",
