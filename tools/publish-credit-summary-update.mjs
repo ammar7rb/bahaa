@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import cp from 'node:child_process';
+const root='E:/xampp/htdocs/ba',out='E:/project/deliverables/customer-packages';
+const env={...process.env,GIT_INDEX_FILE:`${out}/credit-summary-github.index`};
+const git=(...args)=>cp.execFileSync('git',args,{cwd:root,env,encoding:'utf8'}).trim();
+const manifest=JSON.parse(fs.readFileSync(`${out}/credit-summary-manifest.json`));
+const branch='codex/customer-updates-profile-payments',parent=git('rev-parse',branch);
+git('read-tree',parent);
+git('add','-f','--',...manifest.files,'tests/Unit/CustomerMonthlyPackagesTest.php','tests/Unit/CustomerPackageBladeSyntaxTest.php','tools/package-credit-summary-update.mjs','tools/deploy-credit-summary-update.php','tools/verify-credit-summary-update.php','tools/publish-credit-summary-update.mjs');
+console.log(git('diff','--cached',parent,'--stat'));
+const commit=git('commit-tree',git('write-tree'),'-p',parent,'-m','Show package and remaining credit in profile and enable safe offer deletion');
+git('update-ref',`refs/heads/${branch}`,commit,parent);
+git('update-ref','refs/heads/codex/customer-vps-release',manifest.commit,manifest.parent);
+console.log(JSON.stringify({parent,commit,branch}));

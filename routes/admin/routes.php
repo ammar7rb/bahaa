@@ -148,6 +148,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         Route::post('packages/{package?}', 'save')->name('save');
         Route::delete('packages/{package}', 'delete')->name('delete');
         Route::post('offers/{offer?}', 'offer')->name('offer');
+        Route::delete('offers/{offer}', 'deleteOffer')->name('offer-delete');
     });
     Route::prefix('customer/monthly-subscriptions')->name('customer.monthly-subscriptions.')->middleware('module:people')->controller('\App\Http\Controllers\Admin\Customer\MonthlySubscriptionController')->group(function () {
         Route::get('/', 'index')->name('index');

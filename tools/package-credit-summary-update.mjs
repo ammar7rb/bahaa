@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import cp from 'node:child_process';
+import {createHash} from 'node:crypto';
+const root='E:/xampp/htdocs/ba',out='E:/project/deliverables/customer-packages';
+const env={...process.env,GIT_INDEX_FILE:`${out}/credit-summary.index`};
+const git=(...args)=>cp.execFileSync('git',args,{cwd:root,env,encoding:'utf8'}).trim();
+const parent=git('rev-parse','codex/customer-vps-release');
+const files=['resources/views/customer-subscription/profile-overview.blade.php','resources/views/customer-subscription/packages.blade.php','resources/views/admin-views/customer/monthly-packages.blade.php','app/Http/Controllers/Admin/Customer/MonthlyPackageController.php','routes/admin/routes.php'];
+git('read-tree',parent);git('add','-f','--',...files);
+console.log(git('diff','--cached',parent,'--stat'));
+const commit=git('commit-tree',git('write-tree'),'-p',parent,'-m','Update original profile metrics and manage customer credit offers');
+const baseHashes=Object.fromEntries(files.map(file=>[file,createHash('sha256').update(cp.execFileSync('git',['show',`${parent}:${file}`],{cwd:root})).digest('hex')]));
+fs.writeFileSync(`${out}/credit-summary-manifest.json`,JSON.stringify({parent,commit,files,baseHashes},null,2));
+git('archive','--format=tar',`--output=${out}/credit-summary.tar`,commit,'--',...files);
+console.log(JSON.stringify({parent,commit}));

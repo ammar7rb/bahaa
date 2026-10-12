@@ -41,6 +41,28 @@ class CustomerMonthlyPackagesTest extends \Tests\TestCase
         CustomerPurchasePackage::create(['name' => 'Gold', 'package_price' => 200, 'purchase_limit' => 5000]);
     }
 
+    public function test_admin_can_delete_unused_offer_but_cannot_delete_payment_history(): void
+    {
+        $controller = app(\App\Http\Controllers\Admin\Customer\MonthlyPackageController::class);
+        $unused = DB::table('customer_credit_offers')->insertGetId(['name'=>'Unused', 'price'=>50, 'allowance'=>1000, 'active'=>true]);
+        $controller->deleteOffer($unused);
+        $this->assertFalse(DB::table('customer_credit_offers')->where('id',$unused)->exists());
+        $service = app(CustomerMonthlySubscriptionService::class);
+        $service->payFromWallet(1,$service->checkout(1,(string) Str::uuid(),1)->id);
+        $used = DB::table('customer_credit_offers')->insertGetId(['name'=>'Used', 'price'=>50, 'allowance'=>1000, 'active'=>true]);
+        $quote = $service->checkout(1,(string) Str::uuid(),null,$used);
+        try { $controller->deleteOffer($used); $this->fail('Referenced offer was deleted'); }
+        catch (\Illuminate\Validation\ValidationException $e) { $this->assertArrayHasKey('offer',$e->errors()); }
+        $this->assertTrue(DB::table('customer_credit_offers')->where('id',$used)->exists());
+        $this->assertEquals($used,DB::table('customer_subscription_payments')->where('id',$quote->id)->value('offer_id'));
+        $controller->offer(\Illuminate\Http\Request::create('/', 'POST', ['name'=>'Changed', 'price'=>75, 'allowance'=>2000, 'active'=>0]),$used);
+        $this->assertEquals(0,DB::table('customer_credit_offers')->where('id',$used)->value('active'));
+        $this->assertEquals(50,$quote->fresh()->quoted_amount);
+        $this->assertEquals(1000,$quote->fresh()->granted_allowance);
+        $service->payFromWallet(1,$quote->id);
+        $this->assertEquals(4000,$service->status(1)['allowance']['available_limit']);
+    }
+
     public function test_package_terms_are_snapshotted_and_wallet_is_only_debited_once(): void
     {
         $service = app(CustomerMonthlySubscriptionService::class);

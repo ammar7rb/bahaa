@@ -52,8 +52,26 @@ class MonthlyPackageController extends Controller
         $data = $request->validate(['name' => 'required|string|max:150', 'price' => 'required|numeric|gt:0|max:999999999|decimal:0,3',
             'allowance' => 'required|numeric|gt:0|max:999999999|decimal:0,3', 'active' => 'required|boolean']);
         $data['updated_at'] = now();
-        if ($offer) { abort_unless(DB::table('customer_credit_offers')->where('id', $offer)->exists(), 404); DB::table('customer_credit_offers')->where('id', $offer)->update($data); }
-        else DB::table('customer_credit_offers')->insert($data + ['created_at' => now()]);
+        DB::transaction(function () use ($offer, $data) {
+            if ($offer) {
+                abort_unless(DB::table('customer_credit_offers')->where('id', $offer)->lockForUpdate()->first(), 404);
+                DB::table('customer_credit_offers')->where('id', $offer)->update($data);
+            } else {
+                DB::table('customer_credit_offers')->insert($data + ['created_at' => now()]);
+            }
+        });
         return back()->with('subscription_message', 'تم حفظ عرض زيادة الحد. الزيادة ليست رصيد محفظة.');
+    }
+
+    public function deleteOffer(int $offer)
+    {
+        DB::transaction(function () use ($offer) {
+            abort_unless(DB::table('customer_credit_offers')->where('id', $offer)->lockForUpdate()->first(), 404);
+            if (DB::table('customer_subscription_payments')->where('offer_id', $offer)->exists()) {
+                throw ValidationException::withMessages(['offer' => 'هذا العرض مرتبط بسجل دفع. غيّر حالته إلى معطّل لإخفائه عن العملاء مع الاحتفاظ بالسجل المالي.']);
+            }
+            DB::table('customer_credit_offers')->where('id', $offer)->delete();
+        });
+        return back()->with('subscription_message', 'تم حذف عرض زيادة الحد الائتماني.');
     }
 }
