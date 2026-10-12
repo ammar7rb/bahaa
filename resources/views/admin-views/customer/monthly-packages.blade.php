@@ -16,7 +16,7 @@
         <a class="btn btn-outline-primary mb-4" href="{{ route('admin.customer.monthly-subscriptions.index') }}">سجل المدفوعات والمراجعة</a>
         <h2 class="h4">باقات العملاء</h2>
         @foreach($packages->concat([null]) as $package)
-        <form method="post" action="{{ route('admin.monthly-packages.save', $package?->id) }}" class="card card-body mb-3">@csrf
+        <form id="package-{{ $package?->id ?? 'new' }}" method="post" action="{{ route('admin.monthly-packages.save', $package?->id) }}" class="card card-body mb-3" style="scroll-margin-top:100px">@csrf
             <h3 class="h5">{{ $package ? $package->name : 'إضافة باقة' }}</h3>
             <div class="row g-3">
                 <label class="col-md-3">الاسم<input class="form-control" name="name" required maxlength="150" value="{{ $package?->name }}"></label>
@@ -29,15 +29,17 @@
         </form>
         @if($package)<form method="post" action="{{ route('admin.monthly-packages.delete',$package->id) }}" class="mb-4">@csrf @method('DELETE')<button class="btn btn-outline-danger" type="submit">حذف الباقة غير المستخدمة</button></form>@endif
         @endforeach
-        <h2 class="h4 mt-5">عروض زيادة الحد</h2><p>تحتفظ الزيادة بتاريخ انتهاء الباقة المرتبطة بها.</p>
+        <h2 id="credit-offers" class="h4 mt-5" style="scroll-margin-top:100px">عروض زيادة الحد الائتماني</h2><p>عدّل السعر والحد الأساسيين ثم اضغط حفظ العرض؛ تُحدّث الاختيارات الخمسة للعميل تلقائيًا. تحتفظ الزيادة بتاريخ انتهاء الباقة المرتبطة بها.</p>
         @foreach($offers->concat([null]) as $offer)
-        <form method="post" action="{{ route('admin.monthly-packages.offer',$offer?->id) }}" class="card card-body mb-3">@csrf
+        <form id="offer-{{ $offer?->id ?? 'new' }}" method="post" action="{{ route('admin.monthly-packages.offer',$offer?->id) }}" class="card card-body mb-3" style="scroll-margin-top:100px">@csrf
             <div class="row g-3">
                 <label class="col-md-3">الاسم<input class="form-control" name="name" required maxlength="150" value="{{ $offer?->name }}"></label>
                 <label class="col-md-3">سعر الدفع (ج.م)<input class="form-control" type="number" name="price" min="0.001" step="0.001" required value="{{ $offer?->price }}"></label>
                 <label class="col-md-3">الحد الإضافي (ج.م)<input class="form-control" type="number" name="allowance" min="0.001" step="0.001" required value="{{ $offer?->allowance }}"></label>
                 <label class="col-md-3">الحالة<select class="form-control" name="active"><option value="1" @selected($offer?->active !== 0)>متاح</option><option value="0" @selected($offer?->active === 0)>معطّل</option></select></label>
-            </div><button class="btn btn-primary mt-3 align-self-start" type="submit">حفظ العرض</button>
+            </div>
+            @if($offer)<div class="table-responsive mt-3"><table class="table table-sm mb-0"><caption class="text-start">الاختيارات الخمسة التي تظهر للعميل</caption><thead><tr><th>المضاعف</th><th>الزيادة في الحد الائتماني</th><th>سعر الدفع</th></tr></thead><tbody>@for($quantity=1;$quantity<=5;$quantity++)<tr><td>×{{ $quantity }}</td><td>{{ number_format($offer->allowance*$quantity,2) }} ج.م</td><td>{{ number_format($offer->price*$quantity,2) }} ج.م</td></tr>@endfor</tbody></table></div>@endif
+            <button class="btn btn-primary mt-3 align-self-start" type="submit">حفظ العرض</button>
         </form>
         @endforeach
     @endif
