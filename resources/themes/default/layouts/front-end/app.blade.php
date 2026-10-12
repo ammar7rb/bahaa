@@ -124,7 +124,7 @@
             })(window,document,'script','dataLayer','GTM-TTLMKMHQ');</script>
         <!-- End Google Tag Manager -->
     @endif
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013.2">
 </head>
 
 <body class="toolbar-enabled {{ env('APP_MODE')=='demo'?'demo':'' }}" id="demo">
@@ -484,7 +484,7 @@
 
 @stack('script')
 @include('web-views.users-profile.partials.profile-image-shortcut')
-<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013.2" defer></script>
 @include('customer-checkout.entry')
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>

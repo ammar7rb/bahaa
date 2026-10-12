@@ -78,7 +78,7 @@
     </style>
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013.2">
 </head>
 <body class="toolbar-enabled">
 <script>
@@ -274,7 +274,7 @@
 </script>
 @stack('script')
 @include('web-views.users-profile.partials.profile-image-shortcut')
-<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013.2" defer></script>
 @include('customer-checkout.entry')
 <script src="{{ theme_asset('assets/js/customer-dark-mode.js') }}?v=20260930.1"></script>
 

@@ -79,7 +79,7 @@
     <link rel="stylesheet" href="{{ theme_asset('assets/css/sigma-care.css') }}?v=25">
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013.2">
 </head>
 <body class="toolbar-enabled sigma-care" theme="light">
 @if(theme_root_path() !== (env('WEB_THEME') ?: 'default'))
@@ -282,7 +282,7 @@
 <script src="{{ theme_asset('assets/js/care-home.js') }}?v=5" defer></script>
 @stack('script')
 @include('web-views.users-profile.partials.profile-image-shortcut')
-<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013.2" defer></script>
 
 <script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}?v=20261011.1" defer></script>
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
