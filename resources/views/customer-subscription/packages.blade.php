@@ -2,7 +2,7 @@
 @section('title', 'الباقات الشهرية')
 @push('css_or_js')
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-subscription.css') }}">
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-transfer.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-transfer.css') }}?v=20261012.3">
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-packages.css') }}?v=20261012">
 @endpush
 @section('content')

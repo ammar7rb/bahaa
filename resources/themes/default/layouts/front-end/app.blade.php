@@ -182,9 +182,7 @@
     <span class="loader"></span>
 </div>
 
-@if(request()->routeIs('user-profile','user-account'))
-@include('web-views.users-profile.partials.customer-profile-shortcuts')
-@elseif(request()->routeIs('home') || request()->is('products*','*-products','shopView*','category*','search*'))
+@if(request()->routeIs('home') || request()->is('products*','*-products','shopView*','category*','search*'))
 <div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip')</div>
 @endif
 @yield('content')
