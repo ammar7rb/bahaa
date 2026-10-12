@@ -134,14 +134,14 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <form action="{{route('messages')}}" method="post" id="shop-view-chat-form">
+                    <form action="{{ route('account-tickets') }}" method="get" id="shop-view-chat-form">
                         @csrf
                         <input value="{{$shopInfoArray['seller_id']}}" name="vendor_id" hidden>
                         <textarea name="message" class="form-control min-height-100px max-height-200px" required
                                   placeholder="{{ translate('Write_here') }}..."></textarea>
                         <br>
                         <div class="justify-content-end gap-2 d-flex flex-wrap">
-                            <a href="{{route('chat', ['type' => 'vendor'])}}"
+                            <a href="{{ route('account-tickets') }}"
                                class="btn btn-soft-primary bg--secondary border">
                                 {{translate('go_to_chatbox')}}
                             </a>

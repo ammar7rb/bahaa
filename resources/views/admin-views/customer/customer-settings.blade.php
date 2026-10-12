@@ -309,10 +309,8 @@
                         <div class="p-12 p-sm-20 bg-section rounded">
                             <div class="d-flex justify-content-between align-items-center gap-3">
                                 <div>
-                                    <h2 class="text-capitalize">{{ translate('Three_Step_Shipping_Options') }}</h2>
-                                    <p class="mb-0">
-                                        {{ translate('control_same_day_next_day_and_normal_delivery_costs_for_customer_checkout') }}
-                                    </p>
+                                    <h2 class="text-capitalize">{{ translate('Sigma_and_Normal_Shipping') }}</h2>
+                                    <p class="mb-0">{{ translate('Set_a_fixed_business_day_or_a_range._Official_holidays_are_excluded_and_each_order_keeps_its_original_snapshot.') }}</p>
                                 </div>
                                 <label class="switcher" for="customer-three-step-shipping-status">
                                     <input class="switcher_input custom-modal-plugin" type="checkbox" value="1"
@@ -327,15 +325,15 @@
                         <div class="p-12 p-sm-20 bg-section rounded">
                             <div class="row g-4">
                                 @foreach([
-                                    'same_day' => ['label' => translate('Same_Day_Delivery'), 'default_title' => 'Same Day Delivery', 'default_duration' => 'Same day'],
-                                    'next_day' => ['label' => translate('Next_Day_Delivery'), 'default_title' => 'Next Day Delivery', 'default_duration' => 'Next day'],
-                                    'normal' => ['label' => translate('Normal_Delivery'), 'default_title' => 'Normal Delivery', 'default_duration' => '3 days'],
+                                    'sigma' => ['label' => translate('Sigma_Shipping'), 'default_title' => 'Sigma Shipping', 'default_mode' => 'fixed', 'default_min' => 1, 'default_max' => 1],
+                                    'normal' => ['label' => translate('Normal_Shipping'), 'default_title' => 'Normal Shipping', 'default_mode' => 'range', 'default_min' => 4, 'default_max' => 7],
                                 ] as $shippingKey => $shippingOption)
                                     @php($shippingStatus = getWebConfig(name: 'customer_shipping_'.$shippingKey.'_status'))
                                     @php($shippingTitle = getWebConfig(name: 'customer_shipping_'.$shippingKey.'_title') ?? $shippingOption['default_title'])
-                                    @php($shippingDuration = getWebConfig(name: 'customer_shipping_'.$shippingKey.'_duration') ?? $shippingOption['default_duration'])
-                                    @php($shippingCost = getWebConfig(name: 'customer_shipping_'.$shippingKey.'_cost') ?? 0)
-                                    <div class="col-xl-4">
+                                    @php($promiseMode = getWebConfig(name: 'shipping_promise_'.$shippingKey.'_mode') ?? $shippingOption['default_mode'])
+                                    @php($promiseMin = getWebConfig(name: 'shipping_promise_'.$shippingKey.'_min_days') ?? $shippingOption['default_min'])
+                                    @php($promiseMax = getWebConfig(name: 'shipping_promise_'.$shippingKey.'_max_days') ?? $shippingOption['default_max'])
+                                    <div class="col-xl-6">
                                         <div class="bg-white border rounded p-3 h-100">
                                             <label class="d-flex justify-content-between align-items-center gap-3 mb-3">
                                                 <span class="fw-semibold text-dark">{{ $shippingOption['label'] }}</span>
@@ -351,24 +349,67 @@
                                                 <label class="form-label">{{ translate('title') }}</label>
                                                 <input type="text" class="form-control" name="customer_shipping_{{ $shippingKey }}_title" value="{{ $shippingTitle }}">
                                             </div>
-                                            <div class="form-group">
-                                                <label class="form-label">{{ translate('duration') }}</label>
-                                                <input type="text" class="form-control" name="customer_shipping_{{ $shippingKey }}_duration" value="{{ $shippingDuration }}">
-                                            </div>
-                                            <div class="form-group mb-0">
-                                                <label class="form-label">{{ translate('cost') }} ({{ getCurrencySymbol(type: 'default') }})</label>
-                                                <input type="number" step="0.01" min="0" class="form-control" name="customer_shipping_{{ $shippingKey }}_cost" value="{{ Convert::default($shippingCost) ?? 0 }}">
-                                            </div>
-                                            @if($shippingKey == 'same_day')
-                                                @php($sameDayCutoff = getWebConfig(name: 'customer_shipping_same_day_cutoff') ?? '12:00')
-                                                <div class="form-group mb-0 mt-3">
-                                                    <label class="form-label">{{ translate('Cutoff_Time') }}</label>
-                                                    <input type="time" class="form-control" name="customer_shipping_same_day_cutoff" value="{{ $sameDayCutoff }}">
+                                            <div class="row g-3">
+                                                <div class="col-md-4 form-group">
+                                                    <label class="form-label">{{ translate('duration_type') }}</label>
+                                                    <select class="form-control" name="shipping_promise_{{ $shippingKey }}_mode">
+                                                        <option value="fixed" {{ $promiseMode === 'fixed' ? 'selected' : '' }}>{{ translate('fixed_day') }}</option>
+                                                        <option value="range" {{ $promiseMode === 'range' ? 'selected' : '' }}>{{ translate('from_to_range') }}</option>
+                                                    </select>
                                                 </div>
-                                            @endif
+                                                <div class="col-md-4 form-group">
+                                                    <label class="form-label">{{ translate('minimum_business_days') }}</label>
+                                                    <input type="number" min="1" max="60" class="form-control" name="shipping_promise_{{ $shippingKey }}_min_days" value="{{ $promiseMin }}">
+                                                </div>
+                                                <div class="col-md-4 form-group">
+                                                    <label class="form-label">{{ translate('maximum_business_days') }}</label>
+                                                    <input type="number" min="1" max="60" class="form-control" name="shipping_promise_{{ $shippingKey }}_max_days" value="{{ $promiseMax }}">
+                                                </div>
+                                            </div>
+                                            {{-- Product rates are maintained from the product form, not as a global option cost. --}}
+                                            <input type="hidden" name="customer_shipping_{{ $shippingKey }}_cost"
+                                                   value="{{ Convert::default(getWebConfig(name: 'customer_shipping_'.$shippingKey.'_cost') ?? 0) }}">
                                         </div>
                                     </div>
                                 @endforeach
+                            </div>
+                            @php($workingDays = (array) (json_decode(getWebConfig(name: 'commerce_working_days') ?: '[0,1,2,3,4]', true) ?: [0,1,2,3,4]))
+                            @php($holidayLines = \Illuminate\Support\Facades\Schema::hasTable('business_calendar_holidays') ? \App\Models\BusinessCalendarHoliday::where('active', true)->orderBy('holiday_date')->get()->map(fn($h) => $h->holiday_date->format('Y-m-d').' | '.$h->name)->implode("\n") : '')
+                            <div class="bg-white border rounded p-3 mt-4">
+                                <h3 class="h5 mb-2">{{ translate('Business_calendar_and_official_holidays') }}</h3>
+                                <p class="text-muted">{{ translate('Select_working_days_and_enter_one_holiday_per_line_as_YYYY-MM-DD_|_Holiday_name.') }}</p>
+                                <div class="d-flex flex-wrap gap-3 mb-3">
+                                    @foreach([0 => translate('Sunday'), 1 => translate('Monday'), 2 => translate('Tuesday'), 3 => translate('Wednesday'), 4 => translate('Thursday'), 5 => translate('Friday'), 6 => translate('Saturday')] as $dayValue => $dayLabel)
+                                        <label class="d-flex align-items-center gap-2"><input type="checkbox" name="commerce_working_days[]" value="{{ $dayValue }}" {{ in_array($dayValue, $workingDays) ? 'checked' : '' }}> {{ $dayLabel }}</label>
+                                    @endforeach
+                                </div>
+                                <textarea class="form-control" rows="4" name="commerce_holidays" dir="ltr" placeholder="2026-10-06 | Armed Forces Day">{{ $holidayLines }}</textarea>
+                            </div>
+                            @php($quantityThreshold = getWebConfig(name: 'customer_product_shipping_quantity_threshold') ?? 0)
+                            @php($extraChargeType = getWebConfig(name: 'customer_product_shipping_extra_charge_type') ?? 'percent')
+                            @php($extraChargeValue = getWebConfig(name: 'customer_product_shipping_extra_charge_value') ?? 0)
+                            <div class="bg-white border rounded p-3 mt-4">
+                                <h3 class="h5 mb-3">Product Shipping Quantity Rule</h3>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Quantity threshold per seller</label>
+                                        <input type="number" min="0" step="1" class="form-control"
+                                               name="customer_product_shipping_quantity_threshold" value="{{ $quantityThreshold }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Extra charge type</label>
+                                        <select class="form-control" name="customer_product_shipping_extra_charge_type">
+                                            <option value="percent" {{ $extraChargeType === 'percent' ? 'selected' : '' }}>Percentage</option>
+                                            <option value="fixed" {{ $extraChargeType === 'fixed' ? 'selected' : '' }}>Fixed amount</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Extra charge value</label>
+                                        <input type="number" min="0" step="0.01" class="form-control"
+                                               name="customer_product_shipping_extra_charge_value"
+                                               value="{{ $extraChargeType === 'fixed' ? Convert::default($extraChargeValue) : $extraChargeValue }}">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

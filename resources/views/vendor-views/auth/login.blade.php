@@ -2,7 +2,7 @@
     use App\Enums\DemoConstant;
 @endphp
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ session('direction') ?? 'ltr' }}">
 
 <head>
     <meta charset="utf-8">
@@ -23,7 +23,9 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/vendor/icon-set/style.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/theme.minc619.css?v=1.0') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/style.css') }}">
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.css') }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-dark-mode.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-dark-mode.css')) }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/sigma-auth.css') }}?v={{ filemtime(public_path('assets/back-end/css/sigma-auth.css')) }}">
+    @include('layouts.vendor.partials._dark-mode-preference')
 
     @if ($web_config['primary_color'])
         <style>
@@ -37,18 +39,18 @@
 </head>
 
 <body>
+    @include('layouts.vendor.partials._dark-mode-toggle')
     <main id="content" role="main" class="main">
         <div class="auth-wrapper">
-            <div class="auth-wrapper-left"
-                style="background: url('{{ dynamicAsset(path: 'public/assets/back-end/img/login-bg.webp') }}') no-repeat center center / cover">
+            <div class="auth-wrapper-left sigma-auth-panel"
+                style="background: url('{{ dynamicAsset(path: 'public/assets/back-end/img/sigma-medical-auth.webp') }}') no-repeat center center / cover">
                 <div class="auth-left-cont">
                     @php($eCommerceLogo = getWebConfig(name: 'company_web_logo'))
                     <a class="d-inline-flex mb-5" href="{{ route('home') }}">
-                        <img width="310" src="{{ getStorageImages(path: $eCommerceLogo, type: 'backend-logo') }}"
-                            alt="Logo">
+                        <img class="ba-platform-logo" width="310" src="{{ getStorageImages(path: $eCommerceLogo, type: 'backend-logo') }}"
+                            alt="SIGMA Medical Supplies">
                     </a>
-                    <h2 class="title">{{ translate('Make Your Business') }} <span
-                            class="font-weight-bold c1 d-block text-capitalize">{{ translate('Profitable...') }}</span>
+                    <h2 class="title">{{ in_array(app()->getLocale(), ['ar', 'sa']) ? 'مستلزمات طبية تثق بها' : 'Medical supplies you can trust' }}
                     </h2>
                 </div>
             </div>
@@ -124,28 +126,6 @@
                         </div>
 
 
-                        @if(isset($recaptcha) && $recaptcha['status'] == 1)
-                            <div class="dynamic-default-and-recaptcha-section">
-                                <input type="hidden" name="g-recaptcha-response" class="render-grecaptcha-response" data-action="login"
-                                       data-input="#login-default-captcha-section"
-                                       data-default-captcha="#login-default-captcha-section"
-                                >
-
-                                <div class="default-captcha-container d-none" id="login-default-captcha-section"
-                                     data-placeholder="{{ translate('enter_captcha_value') }}"
-                                     data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                     data-session="{{ 'vendorRecaptchaSessionKey' }}"
-                                >
-                                </div>
-                            </div>
-                        @else
-                            <div class="default-captcha-container"
-                                 data-placeholder="{{ translate('enter_captcha_value') }}"
-                                 data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                 data-session="{{ 'vendorRecaptchaSessionKey' }}"
-                            >
-                            </div>
-                        @endif
 
                         <button type="submit" id="vendorLoginBtn" class="btn btn-lg btn-block btn--primary">
                             {{ translate('sign_in') }}
@@ -180,15 +160,13 @@
         </div>
     </main>
 
-    <span id="message-please-check-recaptcha" data-text="{{ translate('please_check_the_recaptcha') }}"></span>
     <span id="message-copied_success" data-text="{{ translate('copied_successfully') }}"></span>
-    <span id="route-get-session-recaptcha-code" data-route="{{ route('get-session-recaptcha-code') }}"
-        data-mode="{{ env('APP_MODE') }}"></span>
 
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor.min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/theme.min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/toastr.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/login.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-dark-mode.js') }}"></script>
 
     {!! ToastMagic::scripts() !!}
 
@@ -201,13 +179,6 @@
         </script>
     @endif
 
-    @php($recaptcha = getWebConfig(name: 'recaptcha'))
-    <span id="get-google-recaptcha-key"
-          data-value="{{ isset($recaptcha) && $recaptcha['status'] == 1 ? $recaptcha['site_key'] : '' }}"></span>
-    @if (isset($recaptcha) && $recaptcha['status'] == 1)
-        <script src="https://www.google.com/recaptcha/api.js?render={{ $recaptcha['site_key'] }}"></script>
-    @endif
-    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.js') }}"></script>
 </body>
 
 </html>

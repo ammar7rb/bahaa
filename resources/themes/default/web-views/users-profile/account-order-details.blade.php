@@ -14,6 +14,16 @@
 
             <section class="col-lg-9">
                 @include('web-views.users-profile.account-details.partial')
+                @include('customer-checkout.order-state')
+                @if($order->insurance && in_array($order->insurance->purchase_refund_status, ['scheduled', 'completed'], true))
+                    <div class="alert alert-info">{{ translate('purchase_refund_' . $order->insurance->purchase_refund_status) }}</div>
+                @endif
+                @if($order->order_status === 'delivered' && $order->customer_delivery_confirmation_status === 'pending')
+                    <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span>{{ translate('customer_receipt_confirmation_notice') }}</span>
+                        <form method="post" action="{{ route('account-order-confirm-receipt', $order->id) }}">@csrf<button type="submit" class="btn btn--primary">{{ translate('confirm_receipt') }}</button></form>
+                    </div>
+                @endif
                 <?php $digitalProduct = false; ?>
                 @foreach ($order->details as $key=>$detail)
                     @if(isset($detail->product->digital_product_type))

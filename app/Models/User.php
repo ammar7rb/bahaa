@@ -54,6 +54,7 @@ use Laravel\Passport\HasApiTokens;
  */
 class User extends Authenticatable
 {
+    use \App\Traits\CanonicalCustomerPhone;
     use Notifiable, HasApiTokens,StorageTrait, DemoMaskingTrait;
 
     /**
@@ -64,6 +65,9 @@ class User extends Authenticatable
     protected $fillable = [
         'id',
         'name',
+        'onboarding_journey',
+        'canonical_phone',
+        'initial_checkout_reference',
         'f_name',
         'l_name',
         'phone',
@@ -82,6 +86,10 @@ class User extends Authenticatable
         'apartment_no',
         'cm_firebase_token',
         'is_active',
+        'activation_status',
+        'activation_requested_at',
+        'activation_approved_at',
+        'activation_approved_by',
         'payment_card_last_four',
         'payment_card_brand',
         'payment_card_fawry_token',
@@ -102,6 +110,10 @@ class User extends Authenticatable
         'monthly_insurance_started_at',
         'monthly_insurance_paid_until',
         'monthly_insurance_last_paid_at',
+        'activation_status',
+        'activation_requested_at',
+        'activation_approved_at',
+        'activation_approved_by_admin_id',
     ];
 
     /**
@@ -139,6 +151,10 @@ class User extends Authenticatable
         'apartment_no' => 'string',
         'cm_firebase_token' => 'string',
         'is_active' => 'boolean',
+        'activation_status' => 'string',
+        'activation_requested_at' => 'datetime',
+        'activation_approved_at' => 'datetime',
+        'activation_approved_by' => 'integer',
         'payment_card_last_four' => 'string',
         'payment_card_brand' => 'string',
         'payment_card_fawry_token' => 'string',
@@ -159,6 +175,10 @@ class User extends Authenticatable
         'monthly_insurance_started_at' => 'datetime',
         'monthly_insurance_paid_until' => 'datetime',
         'monthly_insurance_last_paid_at' => 'datetime',
+        'activation_status' => 'string',
+        'activation_requested_at' => 'datetime',
+        'activation_approved_at' => 'datetime',
+        'activation_approved_by_admin_id' => 'integer',
     ];
 
     // Old Relation: wish_list
@@ -170,6 +190,12 @@ class User extends Authenticatable
     public function orders(): hasMany
     {
         return $this->hasMany(Order::class, 'customer_id');
+    }
+
+    public function activationCases(): HasMany
+    {
+        return $this->hasMany(AccountActivationCase::class, 'subject_id')
+            ->where('subject_type', AccountActivationCase::SUBJECT_CUSTOMER);
     }
 
     public function customer(): BelongsTo
@@ -240,7 +266,17 @@ class User extends Authenticatable
         }
         return $this->storageLink('profile', $value, $storage['value'] ?? 'public');
     }
-    protected $appends = ['image_full_url'];
+    protected $appends = ['image_full_url', 'administrative_reference'];
+
+    public function getAdministrativeReferenceAttribute(): string
+    {
+        return 'C' . $this->id;
+    }
+
+    public function supportTickets(): HasMany
+    {
+        return $this->hasMany(SupportTicket::class, 'customer_id');
+    }
 
     protected static function boot(): void
     {

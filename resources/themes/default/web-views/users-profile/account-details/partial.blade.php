@@ -57,9 +57,6 @@
                 </span>
             @endif
         </div>
-        @if(isset($order['seller_id']) != 0)
-            @php($shopName=\App\Models\Shop::where('seller_id', $order['seller_id'])->first())
-        @endif
         <div class="date fs-12 font-semibold text-secondary-50 text-body mt-2">
             {{ date('d M, Y h:i A', strtotime($order['created_at'])) }}
         </div>
@@ -85,8 +82,6 @@
 <div class="order-details-nav overflow-auto nav-menu gap-3 gap-xl-30 mb-4 text-capitalize d-flex">
     <button data-link="{{ route('account-order-details', ['id'=>$order->id]) }}"
             class="get-view-by-onclick {{Request::is('account-order-details')  ? 'active' :''}}">{{translate('order_summary')}}</button>
-    <button data-link="{{ route('account-order-details-vendor-info', ['id'=>$order->id]) }}"
-            class="get-view-by-onclick {{Request::is('account-order-details-vendor-info')  ? 'active' :''}}">{{translate('vendor_info')}}</button>
     @if($order->order_type != 'POS')
         @if(!$isOrderOnlyDigital)
             <button data-link="{{ route('account-order-details-delivery-man-info', ['id'=>$order->id]) }}"

@@ -57,6 +57,14 @@
                 </div>
             </div>
         </div>
+        @include('admin-views.vendor.view.administrative-record', [
+            'seller' => $seller,
+            'activationCase' => $activationCase,
+            'sellerOverview' => $sellerOverview,
+        ])
+
+        {{-- Legacy shop overview and wallet are intentionally hidden. The unified administrative profile above is the single source of truth. --}}
+        @if(false)
         <div class="card card-top-bg-element mb-5">
             <div class="card-header">
                 <div class="d-flex flex-wrap gap-3 justify-content-between">
@@ -215,6 +223,17 @@
                                 </form>
                             </div>
                         @endif
+                        <div class="d-flex justify-content-sm-end flex-wrap gap-2 mb-3">
+                            <form class="d-inline-block" action="{{ route('admin.vendors.destroy', $seller['id']) }}" id="delete-vendor-form" method="POST">
+                                @csrf
+                                @method('DELETE')
+                                <button type="button" class="btn btn-outline-danger form-alert"
+                                    data-message="{{ translate('permanent_account_delete_warning') }}"
+                                    data-id="delete-vendor-form">
+                                    <i class="fi fi-rr-trash me-1"></i>{{ translate('delete_account_permanently') }}
+                                </button>
+                            </form>
+                        </div>
                         <div class="border rounded bg-white p-3 w-170">
                                 <div class="d-flex flex-column mb-1">
                                     <h5 class="fw-normal">{{translate('total_products')}} :</h5>
@@ -537,6 +556,7 @@
                     </div>
                 </div>
             </div>
+        @endif
         @endif
     </div>
 

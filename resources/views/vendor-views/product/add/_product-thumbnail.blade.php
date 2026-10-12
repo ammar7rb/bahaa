@@ -40,7 +40,7 @@
         <p class="fs-10 mb-0 text-center">
             {{ getFileUploadFormats(skip: '.svg,', asBladeMessage: true).' '. translate('Image_size'). ' : '. translate('Max').' '. getFileUploadMaxSize() . 'MB' }}
             <span class="text-dark fw-semibold">
-                {{ THEME_RATIO[theme_root_path()]['Product Image'] }}
+                {{ (THEME_RATIO[theme_root_path()]['Product Image'] ?? THEME_RATIO['default']['Product Image']) }}
             </span>
         </p>
     </div>

@@ -114,7 +114,7 @@ class SellerQuotaControlController extends BaseController
     public function adjust(Request $request, Seller $seller): RedirectResponse
     {
         $validated = $request->validate([
-            'quota_type' => 'required|in:product,search_promotion,homepage_promotion',
+            'quota_type' => 'required|in:product,search_promotion,homepage_promotion,coupon',
             'operation' => 'required|in:add,deduct',
             'amount' => 'required|integer|min:1|max:1000000',
             'reason' => 'required|string|max:1000',

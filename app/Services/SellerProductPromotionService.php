@@ -8,16 +8,14 @@ use App\Models\SellerPackageSubscription;
 use App\Models\SellerPackageTransaction;
 use App\Models\SellerProductEntitlement;
 use App\Models\SellerProductPromotion;
+use Carbon\Carbon;
 use DomainException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class SellerProductPromotionService
 {
-    public function __construct(
-        private readonly SellerInsuranceService $sellerInsuranceService,
-    ) {}
-
     public function getSearchSummary(Seller $seller): array
     {
         $summary = $this->getPromotionSummary($seller, SellerProductPromotion::TYPE_SEARCH);
@@ -50,19 +48,25 @@ class SellerProductPromotionService
 
     public function activateSearchPromotion(Product $product, Seller $seller): SellerProductPromotion
     {
-        return $this->activatePromotion($product, $seller, SellerProductPromotion::TYPE_SEARCH);
+        return $this->requestPromotion($product, $seller, SellerProductPromotion::TYPE_SEARCH);
     }
 
     public function activateHomepagePromotion(Product $product, Seller $seller): SellerProductPromotion
     {
-        return $this->activatePromotion($product, $seller, SellerProductPromotion::TYPE_HOMEPAGE);
+        return $this->requestPromotion($product, $seller, SellerProductPromotion::TYPE_HOMEPAGE);
     }
 
-    private function activatePromotion(Product $product, Seller $seller, string $promotionType): SellerProductPromotion
+    public function requestPromotion(
+        Product $product,
+        Seller $seller,
+        string $promotionType,
+        ?string $placementKey = null,
+        ?int $requestedPosition = null,
+    ): SellerProductPromotion
     {
         $config = $this->promotionConfig($promotionType);
 
-        return DB::transaction(function () use ($product, $seller, $promotionType, $config) {
+        return DB::transaction(function () use ($product, $seller, $promotionType, $config, $placementKey, $requestedPosition) {
             Seller::query()->whereKey($seller->id)->lockForUpdate()->firstOrFail();
             $product = Product::query()->withoutGlobalScopes()->whereKey($product->id)->lockForUpdate()->firstOrFail();
             $this->assertSellerOwnsProduct($seller, $product);
@@ -73,11 +77,18 @@ class SellerProductPromotionService
 
             $existing = $product->sellerProductPromotions()
                 ->where('promotion_type', $promotionType)
-                ->where('status', SellerProductPromotion::STATUS_ACTIVE)
+                ->where(function ($query) {
+                    $query->where('approval_status', SellerProductPromotion::APPROVAL_PENDING)
+                        ->orWhere(function ($query) {
+                            $query->where('approval_status', SellerProductPromotion::APPROVAL_APPROVED)
+                                ->where('status', SellerProductPromotion::STATUS_ACTIVE);
+                        });
+                })
                 ->latest('id')
                 ->lockForUpdate()
                 ->first();
-            if ($existing && (! $existing->expires_at || $existing->expires_at->isFuture())) {
+            if ($existing && ($existing->approval_status === SellerProductPromotion::APPROVAL_PENDING
+                || ! $existing->expires_at || $existing->expires_at->isFuture())) {
                 return $existing;
             }
             if ($existing) {
@@ -85,10 +96,6 @@ class SellerProductPromotionService
                     'status' => SellerProductPromotion::STATUS_EXPIRED,
                     'expired_at' => now(),
                 ]);
-            }
-
-            if (! $this->sellerInsuranceService->getSummary($seller)['active']) {
-                throw new DomainException('active_seller_insurance_is_required_before_promoting_products');
             }
 
             $subscription = $this->activeSubscriptionQuery($seller)->lockForUpdate()->first();
@@ -106,46 +113,168 @@ class SellerProductPromotionService
             }
 
             $entitlement = $this->getPublicationEntitlement($product);
-            $expiresAt = now()->addDays($durationDays);
-            if ($entitlement?->expires_at && $entitlement->expires_at->lt($expiresAt)) {
-                throw new DomainException($config['listing_duration_error']);
-            }
-
-            $subscription->increment($config['used_column']);
-            $subscription->refresh();
-            $promotion = SellerProductPromotion::create([
+            $defaultScope = $promotionType === SellerProductPromotion::TYPE_SEARCH
+                ? 'search_results'
+                : 'homepage_featured';
+            $promotionData = [
                 'seller_id' => $seller->id,
                 'product_id' => $product->id,
                 'seller_package_subscription_id' => $subscription->id,
                 'seller_product_entitlement_id' => $entitlement?->id,
                 'promotion_type' => $promotionType,
                 'duration_days' => $durationDays,
+                'status' => SellerProductPromotion::STATUS_RESERVED,
+                'approval_status' => SellerProductPromotion::APPROVAL_PENDING,
+                'requested_at' => now(),
+                'placement_scope' => $defaultScope,
+                'placement_key' => $placementKey ? trim($placementKey) : null,
+                'requested_position' => $requestedPosition ? max(1, $requestedPosition) : null,
+                'metadata' => [
+                    'requested_from' => $config['activated_from'],
+                    'package_search_priority_snapshot' => (int) ($subscription->search_priority ?: 100),
+                    'quota_consumed' => false,
+                ],
+            ];
+            if (Schema::hasColumn('seller_product_promotions', 'search_priority')) {
+                $promotionData['search_priority'] = (int) ($subscription->search_priority ?: 100);
+            }
+            return SellerProductPromotion::create($promotionData);
+        });
+    }
+
+    public function reviewPromotion(
+        SellerProductPromotion $promotion,
+        string $decision,
+        int $adminId,
+        string $reviewNote,
+        ?string $placementScope = null,
+        ?string $placementKey = null,
+        ?int $position = null,
+        Carbon|string|null $startsAt = null,
+        Carbon|string|null $expiresAt = null,
+        ?string $badgeLabel = null,
+    ): SellerProductPromotion {
+        return DB::transaction(function () use ($promotion, $decision, $adminId, $reviewNote, $placementScope, $placementKey, $position, $startsAt, $expiresAt, $badgeLabel) {
+            $promotion = SellerProductPromotion::query()->lockForUpdate()->findOrFail($promotion->id);
+            if ($promotion->approval_status !== SellerProductPromotion::APPROVAL_PENDING
+                || $promotion->status !== SellerProductPromotion::STATUS_RESERVED) {
+                throw new DomainException('promotion_request_is_not_pending_admin_review');
+            }
+            if (! in_array($decision, ['approve', 'reject'], true) || trim($reviewNote) === '') {
+                throw new DomainException('promotion_review_decision_and_reason_are_required');
+            }
+
+            if ($decision === 'reject') {
+                $promotion->update([
+                    'approval_status' => SellerProductPromotion::APPROVAL_REJECTED,
+                    'status' => SellerProductPromotion::STATUS_CANCELLED,
+                    'reviewed_by_admin_id' => $adminId,
+                    'reviewed_at' => now(),
+                    'review_note' => $reviewNote,
+                    'cancelled_at' => now(),
+                ]);
+
+                return $promotion->fresh();
+            }
+
+            $config = $this->promotionConfig($promotion->promotion_type);
+            $subscription = SellerPackageSubscription::query()
+                ->whereKey($promotion->seller_package_subscription_id)
+                ->where('status', SellerPackageSubscription::STATUS_ACTIVE)
+                ->where('payment_status', 'paid')
+                ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+                ->lockForUpdate()
+                ->first();
+            if (! $subscription) {
+                throw new DomainException('advertising_package_is_not_active_for_this_request');
+            }
+            $total = $this->quotaTotal($subscription, $config);
+            if ((int) $subscription->{$config['used_column']} >= $total) {
+                throw new DomainException($config['limit_error']);
+            }
+
+            $scope = $placementScope ?: $promotion->placement_scope;
+            $allowedScopes = $promotion->promotion_type === SellerProductPromotion::TYPE_SEARCH
+                ? ['search_results', 'category_search', 'keyword_search']
+                : ['homepage_featured', 'homepage_bestseller', 'homepage_latest', 'homepage_popular'];
+            if (! in_array($scope, $allowedScopes, true)) {
+                throw new DomainException('invalid_advertising_placement_scope');
+            }
+            $key = trim((string) ($placementKey ?? $promotion->placement_key));
+            $key = $key !== '' ? mb_strtolower($key) : null;
+            if (in_array($scope, ['category_search', 'keyword_search'], true) && $key === null) {
+                throw new DomainException('category_or_keyword_is_required_for_the_selected_advertising_scope');
+            }
+            $approvedPosition = max(1, (int) ($position ?: $promotion->requested_position ?: $subscription->search_priority ?: 100));
+            $start = $startsAt ? Carbon::parse($startsAt) : now();
+            $maximumEnd = $start->copy()->addDays((int) $promotion->duration_days);
+            $end = $expiresAt ? Carbon::parse($expiresAt) : $maximumEnd;
+            if ($end->lte($start) || $end->gt($maximumEnd)) {
+                throw new DomainException('promotion_period_exceeds_advertising_package_benefit');
+            }
+
+            $conflict = SellerProductPromotion::query()
+                ->where('id', '!=', $promotion->id)
+                ->whereIn('approval_status', [SellerProductPromotion::APPROVAL_APPROVED, SellerProductPromotion::APPROVAL_LEGACY])
+                ->where('status', SellerProductPromotion::STATUS_ACTIVE)
+                ->where('placement_scope', $scope)
+                ->where('approved_position', $approvedPosition)
+                ->when($key === null, fn ($query) => $query->whereNull('placement_key'), fn ($query) => $query->where('placement_key', $key))
+                ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', $start))
+                ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<', $end))
+                ->lockForUpdate()
+                ->exists();
+            if ($conflict) {
+                throw new DomainException('advertising_placement_conflicts_with_an_existing_campaign');
+            }
+
+            $subscription->increment($config['used_column']);
+            $subscription->refresh();
+            $metadata = $promotion->metadata ?: [];
+            $metadata['quota_consumed'] = true;
+            $metadata['badge_label'] = trim((string) $badgeLabel) ?: 'Featured_Ad';
+            $metadata['approved_snapshot'] = [
+                'scope' => $scope, 'key' => $key, 'position' => $approvedPosition,
+                'starts_at' => $start->toDateTimeString(), 'expires_at' => $end->toDateTimeString(),
+                'admin_id' => $adminId, 'badge_label' => $metadata['badge_label'],
+            ];
+            $promotion->update([
+                'approval_status' => SellerProductPromotion::APPROVAL_APPROVED,
                 'status' => SellerProductPromotion::STATUS_ACTIVE,
-                'starts_at' => now(),
-                'expires_at' => $expiresAt,
-                'activated_at' => now(),
-                'metadata' => ['activated_from' => $config['activated_from']],
+                'reviewed_by_admin_id' => $adminId,
+                'reviewed_at' => now(),
+                'review_note' => $reviewNote,
+                'placement_scope' => $scope,
+                'placement_key' => $key,
+                'approved_position' => $approvedPosition,
+                'sort_order' => $approvedPosition,
+                'starts_at' => $start,
+                'expires_at' => $end,
+                'activated_at' => $start,
+                'metadata' => $metadata,
             ]);
 
             SellerPackageTransaction::create([
-                'seller_id' => $seller->id,
+                'seller_id' => $promotion->seller_id,
                 'seller_package_subscription_id' => $subscription->id,
                 'seller_package_id' => $subscription->seller_package_id,
-                'product_id' => $product->id,
-                'seller_product_entitlement_id' => $entitlement?->id,
+                'product_id' => $promotion->product_id,
+                'seller_product_entitlement_id' => $promotion->seller_product_entitlement_id,
                 'seller_product_promotion_id' => $promotion->id,
                 'transaction_id' => (string) Str::uuid(),
                 'transaction_type' => SellerPackageTransaction::TYPE_QUOTA_USAGE,
                 'quota_type' => $config['quota_type'],
                 'debit' => 1,
-                'balance_after' => max(0, $total - $subscription->{$config['used_column']}),
+                'balance_after' => max(0, $total - (int) $subscription->{$config['used_column']}),
                 'paid_amount' => 0,
-                'note' => $config['transaction_note'],
+                'note' => $config['transaction_note'].' Approved by admin.',
+                'created_by_admin_id' => $adminId,
+                'metadata' => ['placement_scope' => $scope, 'placement_key' => $key, 'position' => $approvedPosition],
             ]);
 
             cacheRemoveByType(type: 'products');
 
-            return $promotion;
+            return $promotion->fresh();
         });
     }
 
@@ -154,19 +283,20 @@ class SellerProductPromotionService
         $config = $this->promotionConfig($promotionType);
         $this->expireDuePromotions($seller->id);
         $subscription = $this->activeSubscriptionQuery($seller)->first();
-        $insuranceSatisfied = $this->sellerInsuranceService->getSummary($seller)['active'];
         $total = $subscription ? $this->quotaTotal($subscription, $config) : 0;
         $used = $subscription ? (int) $subscription->{$config['used_column']} : 0;
         $duration = $subscription ? (int) $subscription->{$config['duration_column']} : 0;
 
         return [
-            'insurance_satisfied' => $insuranceSatisfied,
+            // Seller insurance is assessed per received order, not as a
+            // prerequisite for using an already purchased package benefit.
+            'insurance_satisfied' => true,
             'active_subscription' => $subscription,
             'promotion_limit' => $total,
             'used_promotion_limit' => $used,
             'remaining_promotion_limit' => max(0, $total - $used),
             'promotion_duration_days' => $duration,
-            'can_promote' => $insuranceSatisfied && $subscription && $duration > 0 && $used < $total,
+            'can_promote' => $subscription && $duration > 0 && $used < $total,
         ];
     }
 
@@ -191,23 +321,16 @@ class SellerProductPromotionService
 
     private function getPublicationEntitlement(Product $product): ?SellerProductEntitlement
     {
-        $hasManagedPublication = $product->sellerProductEntitlements()->exists();
-        if (! $hasManagedPublication) {
-            return null;
-        }
-
-        $entitlement = $product->sellerProductEntitlements()
+        // Product publication is no longer tied to an advertising package.
+        // Keep the historical entitlement reference only when a still-active
+        // legacy record exists; its absence must never block an ad request.
+        return $product->sellerProductEntitlements()
             ->where('status', SellerProductEntitlement::STATUS_ACTIVE)
             ->where(function ($query) {
                 $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
             })
             ->latest('id')
             ->first();
-        if (! $entitlement) {
-            throw new DomainException('seller_product_publication_is_not_active');
-        }
-
-        return $entitlement;
     }
 
     private function activeSubscriptionQuery(Seller $seller)

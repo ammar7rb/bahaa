@@ -6,7 +6,7 @@
             </div>
             <div class="modal-body px-4 px-lg-5">
                 <div class="mb-4 text-center">
-                    <img width="200" alt="" class="dark-support"
+                    <img width="200" alt="" class="dark-support ba-platform-logo"
                          src="{{ getStorageImages(path: $web_config['web_logo'], type: 'logo') }}">
                 </div>
                 <div class="mb-4">
@@ -27,7 +27,7 @@
                                 <div class="form-group mb-4">
                                     <label class="text-capitalize" for="f_name"> {{ translate('first_name') }}</label>
                                     <input type="text" id="f_name" name="f_name" class="form-control"
-                                           placeholder="{{ translate('ex') . ':' . translate('Jhone') }}"
+                                           placeholder="{{ translate('ex') . ': ' . translate('Jhone') }}"
                                            value="{{ old('f_name') }}" required/>
                                 </div>
                             </div>
@@ -36,7 +36,7 @@
                                     <label class="text-capitalize" for="l_name">{{ translate('last_name') }}</label>
                                     <input type="text" id="l_name" name="l_name" value="{{ old('l_name') }}"
                                            class="form-control"
-                                           placeholder="{{ translate('ex') . ':' . translate('doe') }}" required/>
+                                           placeholder="{{ translate('ex') . ': ' . translate('doe') }}" required/>
                                 </div>
                             </div>
                             <div class="col-sm-6">
@@ -104,47 +104,13 @@
                             @endif
                         </div>
 
-                        @php($recaptcha = getWebConfig(name: 'recaptcha'))
-
-                        @if ($web_config['firebase_otp_verification'] && $web_config['firebase_otp_verification']['status'])
-                            <div class="generate-firebase-auth-recaptcha" id="firebase-auth-recaptcha-{{ rand(111, 999) }}"></div>
-                        @elseif(isset($recaptcha) && $recaptcha['status'] == 1)
-                            <div class="dynamic-default-and-recaptcha-section">
-                                <input type="hidden" name="g-recaptcha-response" class="render-grecaptcha-response"
-                                       data-action="customer_auth" data-input="#register-default-captcha-section"
-                                       data-default-captcha="#register-default-captcha-section">
-
-                                <div class="default-captcha-container d-none" id="register-default-captcha-section"
-                                     data-placeholder="{{ translate('enter_captcha_value') }}"
-                                     data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                     data-session="{{ 'default_recaptcha_id_customer_auth' }}">
-                                </div>
-                            </div>
-                        @else
-                            <div class="default-captcha-container"
-                                 data-placeholder="{{ translate('enter_captcha_value') }}"
-                                 data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                 data-session="{{ 'default_recaptcha_id_customer_auth' }}">
-                            </div>
-                        @endif
-
                         <div class="d-flex justify-content-center mt-4">
                             <label for="input-checked" class="d-flex gap-1 align-items-center mb-0 user-select-none">
                                 <input type="checkbox" id="input-checked" name="terms_accepted" value="1" required/>
                                 {{ translate('i_agree_with_the') }}
                                 <a href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}"
-                                   class="text-info text-capitalize">
-                                    {{ translate('terms_&_conditions') }}
-                                </a>
-                            </label>
-                        </div>
-                        <div class="d-flex justify-content-center mt-2">
-                            <label for="privacy-checked" class="d-flex gap-1 align-items-center mb-0 user-select-none">
-                                <input type="checkbox" id="privacy-checked" name="privacy_accepted" value="1" required/>
-                                {{ translate('i_agree_with_the') }}
-                                <a href="{{ route('business-page.view', ['slug' => 'privacy-policy']) }}"
-                                   class="text-info text-capitalize">
-                                    {{ translate('privacy_policy') }}
+                                   class="text-info text-capitalize" target="_blank" rel="noopener">
+                                    {{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}
                                 </a>
                             </label>
                         </div>
@@ -183,8 +149,8 @@
 @push('script')
     <script>
         "use strict";
-        $('#input-checked, #privacy-checked').change(function () {
-            if ($('#input-checked').is(':checked') && $('#privacy-checked').is(':checked')) {
+        $('#input-checked').change(function () {
+            if ($('#input-checked').is(':checked')) {
                 $('#customer-sign-up-btn').removeAttr('disabled');
             } else {
                 $('#customer-sign-up-btn').attr('disabled', 'disabled');

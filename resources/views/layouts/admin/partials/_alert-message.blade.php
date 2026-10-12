@@ -1,5 +1,6 @@
 <div class="alert--container active">
-    <a href="{{ route((is_null(auth('seller')->id()) ? 'admin' : 'vendor').'.messages.index', ['type' => 'customer']) }}">
+    {{-- Direct customer/seller chat is disabled; route alerts to the support queue. --}}
+    <a href="{{ route('admin.support-ticket.view') }}">
         <div class="alert alert--message-2 alert-dismissible fade show" id="chatting-new-notification-check"
              role="alert">
             <img width="28" src="{{ dynamicAsset(path: 'public/assets/back-end/img/icons/chatting-notification.svg') }}"
@@ -96,4 +97,3 @@
         </button>
     </div>
 </div>
-

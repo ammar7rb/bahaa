@@ -27,13 +27,11 @@
     // business_settings → language row (the same source v1 uses).
     // Display name + flag code for the trigger both come from that row
     // so there's no client-side guessing.
-    $v2LocalFlag = $v2Local;
+    $v2LocalFlag = getLanguageFlagCode($v2Local);
     $v2LocalLangName = '';
     foreach ($v2Languages as $v2LangItem) {
         if (($v2LangItem['code'] ?? '') === $v2Local) {
-            $v2LocalFlag = \Illuminate\Support\Str::contains($v2LangItem['code'], '-')
-                ? strtolower(explode('-', $v2LangItem['code'])[0])
-                : strtolower($v2LangItem['code']);
+            $v2LocalFlag = getLanguageFlagCode($v2LangItem['code']);
             $v2LocalLangName = $v2LangItem['name'] ?? '';
         }
     }
@@ -42,254 +40,33 @@
 <header class="v2-header">
     <div class="v2-header-brand">
         <a class="v2-brand-logo" href="{{ route('vendor.dashboard.index') }}" title="{{ $v2BrandLogoAlt }}">
-            <img src="{{ $v2BrandLogoSrc }}" alt="{{ $v2BrandLogoAlt }}">
+            <img class="{{ $v2HasShopLogo ? '' : 'ba-platform-logo' }}" src="{{ $v2BrandLogoSrc }}" alt="{{ $v2BrandLogoAlt }}">
         </a>
         {{-- Compact "mini" mark shown only when the sidebar is collapsed.
              Uses the same shop image when available so the brand identity
              stays consistent in both expanded and collapsed states. --}}
         <a class="v2-brand-logo-mini" href="{{ route('vendor.dashboard.index') }}" title="{{ $v2BrandLogoAlt }}">
-            <img src="{{ $v2BrandLogoMiniSrc }}" alt="{{ $v2BrandLogoAlt }}">
+            <img class="{{ $v2HasShopLogo ? '' : 'ba-platform-logo' }}" src="{{ $v2BrandLogoMiniSrc }}" alt="{{ $v2BrandLogoAlt }}">
         </a>
         <button class="v2-sidebar-toggle" id="v2-sidebar-toggle" type="button"
                 data-v2-tooltip="{{ translate('Collapse_sidebar') }}" aria-label="{{ translate('Toggle_sidebar') }}"
                 data-v2-tip-expanded="{{ translate('Collapse_sidebar') }}"
-                data-v2-tip-collapsed="{{ translate('Expand_sidebar') }}">
-            {{-- Shown when sidebar is expanded → "collapse" arrow pointing inward --}}
-            <svg class="v2-sb-icon v2-sb-collapse" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M15 6l-6 6 6 6"/>
-                <path d="M21 4v16"/>
-            </svg>
-            {{-- Shown when sidebar is collapsed → "expand" arrow pointing outward --}}
-            <svg class="v2-sb-icon v2-sb-expand" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M9 6l6 6-6 6"/>
-                <path d="M3 4v16"/>
-            </svg>
-        </button>
+                data-v2-tip-collapsed="{{ translate('Expand_sidebar') }}"></button>
     </div>
 
     <nav class="v2-crumbs" id="v2-header-crumbs" aria-label="{{ translate('Breadcrumb') }}"></nav>
 
     <div class="v2-header-right">
-        {{-- Website shop view (vendor storefront) --}}
-        <a class="v2-icon-btn"
-           href="{{ !empty($v2Vendor?->shop) ? route('vendor-shop', ['slug' => $v2Vendor?->shop?->slug ?? '']) : 'javascript:;' }}"
-           target="_blank"
-           data-v2-tooltip="{{ translate('website_shop_view') }}"
-           aria-label="{{ translate('website_shop_view') }}">
+<button class="v2-icon-btn" type="button" onclick="window.baFullPagePrint();"
+                aria-label="{{ translate('print') }}" data-v2-tooltip="{{ translate('print') }}" data-smart-print-trigger>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"/>
-                <path d="M3 12h18"/>
-                <path d="M12 3a13.5 13.5 0 0 1 0 18"/>
-                <path d="M12 3a13.5 13.5 0 0 0 0 18"/>
+                <path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <path d="M6 14h12v7H6z"/>
             </svg>
-        </a>
+        </button>
 
-        {{-- Notifications. Class names notification-data-view /
-             notification_data_new_count / notification_data_new_badge{id}
-             are kept verbatim so the existing jQuery handler in
-             resources/views/layouts/vendor/partials/_script-partials.blade.php
-             continues to fire (mark-as-seen + badge fadeout + count update). --}}
-        @php
-            $v2VendorNotifBase = \App\Models\Notification::whereBetween('created_at', [
-                    auth('seller')->user()->created_at,
-                    \Carbon\Carbon::now(),
-                ])
-                ->where('sent_to', 'seller');
-            $v2VendorNotifList = (clone $v2VendorNotifBase)
-                ->with('notificationSeenBy')
-                ->latest()
-                ->get();
-            $v2VendorNotifNew = (clone $v2VendorNotifBase)
-                ->whereDoesntHave('notificationSeenBy')
-                ->count();
-        @endphp
-        <div class="v2-dropdown">
-            <button class="v2-icon-btn" type="button" data-v2-dropdown-toggle
-                    data-v2-tooltip="{{ translate('Notifications') }}"
-                    aria-label="{{ translate('Notifications') }}">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-                    <path d="M10 21a2 2 0 0 0 4 0"/>
-                </svg>
-                @if ($v2VendorNotifNew > 0)
-                    <span class="v2-badge-dot notification_data_new_count">{{ $v2VendorNotifNew > 99 ? '99+' : $v2VendorNotifNew }}</span>
-                @endif
-            </button>
-            <div class="v2-dropdown-menu v2-notif-menu">
-                @forelse ($v2VendorNotifList as $v2VendorNotifItem)
-                    <button type="button" class="v2-dropdown-item notification-data-view"
-                            data-id="{{ $v2VendorNotifItem->id }}">
-                        <span class="v2-notif-title">{{ translate($v2VendorNotifItem->title) }}</span>
-                        <span class="v2-notif-time">{{ $v2VendorNotifItem->created_at->diffforHumans() }}</span>
-                        @if ($v2VendorNotifItem->notification_seen_by == null)
-                            <span class="v2-notif-new notification_data_new_badge{{ $v2VendorNotifItem->id }}">
-                                {{ translate('new') }}
-                            </span>
-                        @endif
-                    </button>
-                @empty
-                    <div class="v2-dropdown-empty">{{ translate('no_notifications') }}</div>
-                @endforelse
-            </div>
-        </div>
-
-        {{-- Messages / Inbox. Vendor v1 splits unread into customer vs
-             delivery-man, each with its own count — preserved here as a
-             two-row dropdown. --}}
-        @php
-            $v2VendorMsgBase = \App\Models\Chatting::where([
-                'seen_by_seller' => 0,
-                'seller_id'      => auth('seller')->id(),
-            ]);
-            $v2VendorMsgTotal       = (clone $v2VendorMsgBase)->count();
-            $v2VendorMsgCustomer    = (clone $v2VendorMsgBase)->whereNotNull('user_id')->count();
-            $v2VendorMsgDeliveryMan = (clone $v2VendorMsgBase)->whereNotNull('delivery_man_id')->count();
-        @endphp
-        <div class="v2-dropdown">
-            <button class="v2-icon-btn" type="button" data-v2-dropdown-toggle
-                    data-v2-tooltip="{{ translate('Inbox') }}"
-                    aria-label="{{ translate('Inbox') }}">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M4 5h16a1 1 0 0 1 1 1v12a2 2 0 0 1-2 2H8l-4 3V6a1 1 0 0 1 1-1Z"/>
-                    <path d="M8 11h8M8 15h5"/>
-                </svg>
-                @if ($v2VendorMsgTotal > 0)
-                    <span class="v2-badge-dot">{{ $v2VendorMsgTotal > 99 ? '99+' : $v2VendorMsgTotal }}</span>
-                @endif
-            </button>
-            <div class="v2-dropdown-menu v2-msg-menu">
-                <a class="v2-dropdown-item" href="{{ route('vendor.messages.index', ['type' => 'customer']) }}">
-                    <span>{{ translate('customer') }}</span>
-                    @if ($v2VendorMsgCustomer > 0)
-                        <span class="v2-item-count">{{ $v2VendorMsgCustomer }}</span>
-                    @endif
-                </a>
-                <a class="v2-dropdown-item" href="{{ route('vendor.messages.index', ['type' => 'delivery-man']) }}">
-                    <span>{{ translate('delivery_man') }}</span>
-                    @if ($v2VendorMsgDeliveryMan > 0)
-                        <span class="v2-item-count">{{ $v2VendorMsgDeliveryMan }}</span>
-                    @endif
-                </a>
-            </div>
-        </div>
-
-        {{-- Pending orders. Vendor-scoped Order query + admin-v2 .v2-pop-*
-             popup design. The +N thumbnail chip and view-eye action mirror
-             the admin v2 header so both panels share the same visual. --}}
-        @php
-            $v2VendorPendingBase = \App\Models\Order::where([
-                'seller_is'    => 'seller',
-                'seller_id'    => auth('seller')->id(),
-                'order_status' => 'pending',
-            ]);
-            $v2VendorPendingCount = (clone $v2VendorPendingBase)->count();
-            $v2VendorPendingOrders = (clone $v2VendorPendingBase)
-                ->with('details.productAllStatus')
-                ->orderBy('id', 'desc')
-                ->take(5)
-                ->get();
-        @endphp
-        <div class="v2-dropdown">
-            <button class="v2-icon-btn" type="button" data-v2-dropdown-toggle
-                    data-v2-tooltip="{{ translate('pending_Orders') }}"
-                    aria-label="{{ translate('pending_Orders') }}">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M5 8h14l-1 12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 8Z"/>
-                    <path d="M9 8V6a3 3 0 0 1 6 0v2"/>
-                </svg>
-                @if ($v2VendorPendingCount > 0)
-                    <span class="v2-badge-dot">{{ $v2VendorPendingCount > 99 ? '99+' : $v2VendorPendingCount }}</span>
-                @endif
-            </button>
-            <div class="v2-dropdown-menu v2-orders-menu">
-                <div class="v2-pop">
-                    <div class="v2-pop-head">
-                        <div class="v2-pop-head-title">
-                            <h4>{{ translate('total_orders') }}</h4>
-                            <span>{{ $v2VendorPendingCount }}</span>
-                        </div>
-                        <a class="v2-pop-view-all" href="{{ route('vendor.orders.list', ['pending']) }}">
-                            {{ translate('view_all') }}
-                            <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M5 10h10"/><path d="m11 6 4 4-4 4"/>
-                            </svg>
-                        </a>
-                    </div>
-                    <div class="v2-pop-scroll">
-                        <table class="v2-pop-table">
-                            <tbody>
-                                @forelse ($v2VendorPendingOrders as $v2VendorOrder)
-                                    @php
-                                        $v2VendorThumbs = [];
-                                        foreach ($v2VendorOrder->details as $v2OrderDetail) {
-                                            $v2OrderImg = $v2OrderDetail?->productAllStatus?->thumbnail_full_url;
-                                            if ($v2OrderImg && ($v2OrderImg['status'] ?? 0) === 200) {
-                                                $v2VendorThumbs[] = $v2OrderImg;
-                                            }
-                                        }
-                                    @endphp
-                                    <tr>
-                                        <td>
-                                            <div class="v2-pop-thumbs">
-                                                @if (count($v2VendorThumbs))
-                                                    @foreach ($v2VendorThumbs as $v2VendorThumbIdx => $v2VendorThumb)
-                                                        <div class="v2-pop-thumb-wrap{{ $v2VendorThumbIdx > 2 ? ' is-hidden' : '' }}">
-                                                            <img src="{{ getStorageImages(path: $v2VendorThumb, type: 'backend-product') }}" alt="product image">
-                                                            @if ($v2VendorThumbIdx == 2 && count($v2VendorThumbs) > 3)
-                                                                <div class="v2-pop-thumb-more">
-                                                                    <span>+ {{ count($v2VendorThumbs) - 3 }}</span>
-                                                                </div>
-                                                            @endif
-                                                        </div>
-                                                    @endforeach
-                                                @else
-                                                    <img src="{{ getStorageImages(path: '', type: 'backend-product') }}" alt="placeholder">
-                                                @endif
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="v2-pop-info">
-                                                <div class="v2-pop-row">
-                                                    <div class="v2-pop-label">{{ translate('Order_id') }}</div>
-                                                    :
-                                                    <span class="v2-pop-value">{{ $v2VendorOrder->id }}</span>
-                                                </div>
-                                                <div class="v2-pop-row">
-                                                    <div class="v2-pop-label">{{ translate('Order_Amount') }}</div>
-                                                    :
-                                                    <span class="v2-pop-value">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $v2VendorOrder->order_amount), currencyCode: getCurrencyCode()) }}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="v2-pop-action-wrap">
-                                                <a class="v2-pop-action" href="{{ route('vendor.orders.details', ['id' => $v2VendorOrder->id]) }}"
-                                                   title="{{ translate('view') }}">
-                                                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                                                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                        <path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z"/><circle cx="10" cy="10" r="2.5"/>
-                                                    </svg>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="3" class="v2-pop-empty">{{ translate('no_pending_orders') }}</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        @include('layouts.vendor.partials.v2._account-navigation')
         {{-- Language switcher --}}
         <div class="v2-dropdown">
             <button class="v2-lang-btn" type="button" data-v2-dropdown-toggle
@@ -310,9 +87,7 @@
                 @foreach ($v2Languages as $v2Lang)
                     @php
                         $v2LangCode = $v2Lang['code'] ?? '';
-                        $v2LangFlagCode = \Illuminate\Support\Str::contains($v2LangCode, '-')
-                            ? strtolower(explode('-', $v2LangCode)[0])
-                            : strtolower($v2LangCode);
+                        $v2LangFlagCode = getLanguageFlagCode($v2LangCode);
                     @endphp
                     @if (($v2Lang['status'] ?? 0) == 1)
                         <a class="v2-dropdown-item change-language {{ $v2LangCode == $v2Local ? 'v2-is-active' : '' }}"
@@ -378,7 +153,7 @@
                     </div>
                 </div>
                 <a class="v2-dropdown-item"
-                   href="{{ route('vendor.profile.update', [$v2Vendor->id ?? '']) }}">
+                   href="{{ route('vendor.account') }}">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"/>

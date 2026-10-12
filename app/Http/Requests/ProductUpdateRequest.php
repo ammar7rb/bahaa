@@ -18,16 +18,41 @@ class ProductUpdateRequest extends FormRequest
 
     protected $stopOnFirstFailure = true;
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['no_production_expiry_dates' => $this->boolean('no_production_expiry_dates') ? 1 : 0]);
+        if ($this->boolean('no_production_expiry_dates')) $this->merge(['production_date' => null, 'expiry_date' => null]);
+        if ($this->input('category_id') === 'other') $this->merge(['sub_category_id' => null, 'sub_sub_category_id' => null]);
+        $submittedLanguages = (array) $this->input('lang', []);
+        $submittedNames = (array) $this->input('name', []);
+        $submittedDescriptions = (array) $this->input('description', []);
+        $arabicIndex = array_search('ar', $submittedLanguages, true);
+        $arabicIndex = $arabicIndex === false ? 0 : $arabicIndex;
+
+        $this->merge([
+            'product_type' => 'physical',
+            'tags' => $this->input('tags', $this->input('search_tags')),
+            // Product content is authored and stored in Arabic only.
+            'lang' => ['ar'],
+            'name' => [$submittedNames[$arabicIndex] ?? ''],
+            'description' => [$submittedDescriptions[$arabicIndex] ?? ''],
+        ]);
+
+        if (request()->routeIs('vendor.*') || auth('seller')->check()) {
+            $this->merge([
+                'shipping_cost' => 0,
+                'multiply_qty' => 'off',
+                'sub_sub_category_id' => null,
+            ]);
+        }
+    }
+
     public function __construct(
         private readonly ProductRepositoryInterface $productRepo
-    )
-    {
-    }
+    ) {}
 
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -36,23 +61,24 @@ class ProductUpdateRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
-     *
-     * @return array
      */
     public function rules(): array
     {
         $product = $this->productRepo->getFirstWhere(['id' => $this->route('id')]);
 
-        return [
+        $rules = [
             'name' => 'required',
-            'category_id' => 'required',
-            'product_type' => 'required',
-            'digital_product_type' => 'required_if:product_type,==,digital',
+            'category_id' => ['required', function ($attribute, $value, $fail) {
+                if ($value === 'other' && !auth('seller')->check()) { $fail(translate('category_is_required')); return; }
+                foreach (app(\App\Services\SellerProductCategoryService::class)->validate($this->all()) as $message) $fail(translate($message));
+            }],
+            'product_type' => 'required|in:physical',
+            'digital_product_type' => 'nullable',
             // 'digital_file_ready' => 'mimes:jpg,jpeg,png,gif,zip,pdf',
             'unit' => 'required_if:product_type,==,physical',
             'unit_price' => 'required|numeric|gt:0',
             'discount' => 'required|gt:-1',
-            'shipping_cost' => 'required_if:product_type,==,physical|gt:-1',
+            'shipping_cost' => 'nullable|numeric|min:0',
             'minimum_order_qty' => 'required|numeric|min:1',
             'code' => [
                 'required',
@@ -62,7 +88,20 @@ class ProductUpdateRequest extends FormRequest
                 Rule::unique('products', 'code')->ignore($product->id, 'id'),
             ],
             'video_url' => 'nullable|url',
+            'sale_unit_type' => 'required|in:piece,package,box',
+            'pieces_per_unit' => 'exclude_if:sale_unit_type,piece|required_if:sale_unit_type,package,box|nullable|integer|min:1',
+            'length' => 'nullable|numeric|gt:0',
+            'width' => 'nullable|numeric|gt:0',
+            'height' => 'nullable|numeric|gt:0',
+            'dimension_unit' => 'nullable|in:cm,m',
+            'weight' => 'nullable|numeric|gt:0',
+            'weight_unit' => 'nullable|in:g,kg',
+            'no_production_expiry_dates' => 'boolean',
+            'production_date' => 'exclude_if:no_production_expiry_dates,1|required|date',
+            'expiry_date' => 'exclude_if:no_production_expiry_dates,1|required|date|after_or_equal:production_date|after:today',
         ];
+
+        return $rules;
     }
 
     public function messages(): array
@@ -100,60 +139,75 @@ class ProductUpdateRequest extends FormRequest
 
                 if (empty($cleanedDescription)) {
                     $validator->errors()->add(
-                        'description', translate('Product_description_is_required') . '!'
+                        'description', translate('Product_description_is_required').'!'
                     );
                 }
 
-                if (!isset($this['existing_thumbnail']) && $this->file('image')) {
+                if (! isset($this['existing_thumbnail']) && $this->file('image')) {
                     $file = $this->file('image');
                     $extension = strtolower($file->getClientOriginalExtension());
 
                     if (in_array($extension, $disallowedExtensions)) {
                         $validator->errors()->add(
                             'image',
-                            translate('The_uploaded_image_file_type_is_not_supported'). '!'
+                            translate('The_uploaded_image_file_type_is_not_supported').'!'
                         );
                     }
                 }
 
                 $taxData = $this->getTaxSystemType();
-                $productWiseTax = $taxData['productWiseTax'] && !$taxData['is_included'];
-                if ($productWiseTax && (!isset($this['tax_ids']) || empty($this['tax_ids']))) {
+                $productWiseTax = $taxData['productWiseTax'] && ! $taxData['is_included'];
+                if ($productWiseTax && (! isset($this['tax_ids']) || empty($this['tax_ids']))) {
                     $validator->errors()->add(
-                        'tax', translate('Please_add_your_product_tax') . '!'
+                        'tax', translate('Please_add_your_product_tax').'!'
                     );
                 }
 
                 $product = $this->productRepo->getFirstWhere(params: ['id' => $this->route('id')], relations: ['digitalVariation']);
                 $productImages = json_decode($product['images']);
+                $storedColorImages = json_decode($product['color_image'] ?? '[]', true) ?: [];
+                $newImages = $this->file('images', []);
+                $newImageCount = is_array($newImages) ? count(array_filter($newImages)) : ($newImages ? 1 : 0);
+                $newColorCount = 0;
+                foreach ((array) $this->input('colors', []) as $color) {
+                    if ($this->file('color_image_'.str_replace('#', '', $color))) {
+                        $newColorCount++;
+                    }
+                }
+                $storedColorCount = collect($storedColorImages)->filter(fn ($item) => ! empty($item['image_name'] ?? null))->count();
+                if (count((array) $productImages) + $storedColorCount + $newImageCount + $newColorCount < 5) {
+                    $validator->errors()->add('images', translate('seller_product_minimum_images_required'));
+                }
 
-                if (!($this->has('colors_active') && $this->has('colors') && count($this['colors']) > 0) && !$this->file('images') && empty($productImages)) {
+                if (! ($this->has('colors_active') && $this->has('colors') && count($this['colors']) > 0) && ! $this->file('images') && empty($productImages)) {
                     $validator->errors()->add(
-                        'images', translate('product_images_is_required') . '!'
+                        'images', translate('product_images_is_required').'!'
                     );
                 }
 
                 if ($this['product_type'] == 'physical' && $this['unit_price'] <= $this->getDiscountAmount(price: $this['unit_price'], discount: $this['discount'], discountType: $this['discount_type'])) {
                     $validator->errors()->add(
-                        'unit_price', translate('discount_can_not_be_more_or_equal_to_the_price') . '!'
+                        'unit_price', translate('discount_can_not_be_more_or_equal_to_the_price').'!'
                     );
                 }
 
-                if (is_null($this['name'][array_search('EN', $this['lang'])])) {
+                $contentIndex = array_search('ar', (array) $this->input('lang', []), true);
+                $contentIndex = $contentIndex === false ? 0 : $contentIndex;
+                if (empty($this->input('name')[$contentIndex] ?? null)) {
                     $validator->errors()->add(
-                        'name', translate('name_field_is_required') . '!'
+                        'name', translate('name_field_is_required').'!'
                     );
                 }
 
                 if ($this->has('colors_active') && $this->has('colors') && count($this['colors']) > 0) {
                     $databaseColorImages = $product['color_image'] ? json_decode($product['color_image'], true) : [];
 
-                    $databaseColorImages =collect($databaseColorImages)
-                        ->filter(fn($item) => !is_null($item['color']))
+                    $databaseColorImages = collect($databaseColorImages)
+                        ->filter(fn ($item) => ! is_null($item['color']))
                         ->unique('color')
                         ->values()->toArray();
 
-                    if (!$databaseColorImages) {
+                    if (! $databaseColorImages) {
                         foreach ($productImages as $image) {
                             $databaseColorImages[] = ['color' => null, 'image_name' => $image];
                         }
@@ -174,7 +228,7 @@ class ProductUpdateRequest extends FormRequest
                     $colorImageRequired = [];
                     if ($databaseColorImages) {
                         foreach ($databaseColorImages as $colorImage) {
-                            if ($colorImage['color'] != null && !in_array($colorImage['color'], $differentColor)) {
+                            if ($colorImage['color'] != null && ! in_array($colorImage['color'], $differentColor)) {
                                 $colorImageRequired[] = [
                                     'color' => $colorImage['color'],
                                     'image_name' => $colorImage['image_name'],
@@ -184,8 +238,8 @@ class ProductUpdateRequest extends FormRequest
                     }
 
                     foreach ($inputColors as $color) {
-                        if (!in_array($color, $databaseColorImagesFinal)) {
-                            $colorImageIndex = 'color_image_' . $color;
+                        if (! in_array($color, $databaseColorImagesFinal)) {
+                            $colorImageIndex = 'color_image_'.$color;
                             if ($this->file($colorImageIndex)) {
                                 $colorImageRequired[] = ['color' => $color, 'image_name' => rand(11111, 99999)];
                             }
@@ -204,30 +258,30 @@ class ProductUpdateRequest extends FormRequest
                         if (str_contains($requestKey, 'sku_')) {
                             if (empty($this[$requestKey])) {
                                 $validator->errors()->add(
-                                    'sku_error', translate('Variation_SKU_are_required') . '!'
+                                    'sku_error', translate('Variation_SKU_are_required').'!'
                                 );
                             }
                         }
 
-                        if (str_contains($requestKey, 'choice_attributes') && !empty($this['choice_attributes']) && is_array($this['choice_attributes'])) {
+                        if (str_contains($requestKey, 'choice_attributes') && ! empty($this['choice_attributes']) && is_array($this['choice_attributes'])) {
                             foreach ($this['choice_attributes'] as $key => $value) {
                                 if (isset($this['choice_options_'.$value]) && empty($this['choice_options_'.$value])) {
                                     $validator->errors()->add(
-                                        'choice_attributes_error', translate('Attributes_data_are_required') . '!'
+                                        'choice_attributes_error', translate('Attributes_data_are_required').'!'
                                     );
                                 }
 
-                                if (isset($this['choice_options_'.$value]) && !empty($this['choice_options_'.$value])) {
+                                if (isset($this['choice_options_'.$value]) && ! empty($this['choice_options_'.$value])) {
 
                                     if (is_array($this['choice_options_'.$value])) {
                                         $choiceOptions = collect($this['choice_options_'.$value])
-                                            ->filter(fn ($value) => !is_null($value))
+                                            ->filter(fn ($value) => ! is_null($value))
                                             ->values()
                                             ->all();
 
                                         if (count($choiceOptions) <= 0) {
                                             $validator->errors()->add(
-                                                'choice_attributes_error', translate('Attributes_data_are_required') . '!'
+                                                'choice_attributes_error', translate('Attributes_data_are_required').'!'
                                             );
                                         }
                                     }
@@ -238,11 +292,11 @@ class ProductUpdateRequest extends FormRequest
                         if (str_contains($requestKey, 'price_')) {
                             if (empty($this[$requestKey]) || $this[$requestKey] < 0) {
                                 $validator->errors()->add(
-                                    'variation_price', translate('Variation_price_are_required') . '!'
+                                    'variation_price', translate('Variation_price_are_required').'!'
                                 );
-                            } else if ($this[$requestKey] <= $this->getDiscountAmount(price: $this[$requestKey] ?? 0, discount: $this['discount'], discountType: $this['discount_type'])) {
+                            } elseif ($this[$requestKey] <= $this->getDiscountAmount(price: $this[$requestKey] ?? 0, discount: $this['discount'], discountType: $this['discount_type'])) {
                                 $validator->errors()->add(
-                                    'variation_price', translate('discount_can_not_be_more_or_equal_to_the_variation_price') . '!'
+                                    'variation_price', translate('discount_can_not_be_more_or_equal_to_the_variation_price').'!'
                                 );
                             }
                         }
@@ -257,7 +311,7 @@ class ProductUpdateRequest extends FormRequest
                     $digitalVariationCombinations = [];
                     if ($this['extensions_type'] && count($this['extensions_type']) > 0) {
                         foreach ($this['extensions_type'] as $type) {
-                            $name = 'extensions_options_' . $type;
+                            $name = 'extensions_options_'.$type;
                             $my_str = implode('|', $this[$name]);
                             $fileTypeOptions[$type] = explode(',', $my_str);
                         }
@@ -278,7 +332,7 @@ class ProductUpdateRequest extends FormRequest
                             foreach ($newCombinations as $newCombination) {
                                 if (in_array($newCombination, $digitalVariationCombinations) && empty($this['digital_files'][str_replace('-', '_', $newCombination)])) {
                                     $validator->errors()->add(
-                                        'files', translate('Digital_files_are_required_for') . ' ' . str_replace(' ', '-', ucwords(str_replace('-', ' ', $newCombination)))
+                                        'files', translate('Digital_files_are_required_for').' '.str_replace(' ', '-', ucwords(str_replace('-', ' ', $newCombination)))
                                     );
                                 }
                             }
@@ -291,7 +345,7 @@ class ProductUpdateRequest extends FormRequest
                             $maxFileSize = 10 * 1024 * 1024; // 10 MB
 
                             foreach ($this->file('digital_files') as $index => $file) {
-                                if (!$file) {
+                                if (! $file) {
                                     continue;
                                 }
 
@@ -301,31 +355,31 @@ class ProductUpdateRequest extends FormRequest
                                 if ($fileSize > $maxFileSize) {
                                     $validator->errors()->add(
                                         "digital_files.$index",
-                                        translate('File_size_exceeds_the_maximum_limit_of_10MB') . '!'
+                                        translate('File_size_exceeds_the_maximum_limit_of_10MB').'!'
                                     );
                                 }
 
                                 if (in_array($extension, $disallowedExtensions)) {
-                                    $validator->errors()->add("digital_files.$index", $extension. translate('_file_type_is_not_supported')  . '!');
+                                    $validator->errors()->add("digital_files.$index", $extension.translate('_file_type_is_not_supported').'!');
                                 }
                             }
                         }
 
                         if ($digitalProductVariationCount == 0) {
                             $validator->errors()->add(
-                                'variation_error', translate('Digital_Product_variations_are_required') . '!'
+                                'variation_error', translate('Digital_Product_variations_are_required').'!'
                             );
                         }
 
                         if ($this->has('digital_product_sku') && empty($this['digital_product_sku'])) {
                             $validator->errors()->add(
-                                'sku_error', translate('Digital_SKU_are_required') . '!'
+                                'sku_error', translate('Digital_SKU_are_required').'!'
                             );
-                        } elseif ($this->has('digital_product_sku') && !empty($this['digital_product_sku'])) {
+                        } elseif ($this->has('digital_product_sku') && ! empty($this['digital_product_sku'])) {
                             foreach ($this['digital_product_sku'] as $digitalSKU) {
                                 if (empty($digitalSKU)) {
                                     $validator->errors()->add(
-                                        'sku_error', translate('Digital_SKU_are_required') . '!'
+                                        'sku_error', translate('Digital_SKU_are_required').'!'
                                     );
                                 }
                             }
@@ -336,27 +390,27 @@ class ProductUpdateRequest extends FormRequest
                         foreach ($product->digitalVariation as $variationItem) {
                             if ((empty($variationItem['file'])) && in_array($variationItem['variant_key'], $digitalVariationCombinations) && empty($this['digital_files'][str_replace('-', '_', $variationItem['variant_key'])])) {
                                 $validator->errors()->add(
-                                    'files', translate('Digital_files_are_required_for') . ' ' . str_replace(' ', '-', ucwords(str_replace('-', ' ', $variationItem['variant_key'])))
+                                    'files', translate('Digital_files_are_required_for').' '.str_replace(' ', '-', ucwords(str_replace('-', ' ', $variationItem['variant_key'])))
                                 );
                             }
                         }
 
                         if (count($product?->digitalVariation) <= 0 && empty($product['digital_file_ready']) && empty($this['digital_file_ready']) && empty($this['digital_files'])) {
                             $validator->errors()->add(
-                                'files', translate('Digital_files_are_required') . '!'
+                                'files', translate('Digital_files_are_required').'!'
                             );
                         }
 
                         if (empty($this['digital_file_ready']) && empty($product['digital_file_ready']) && empty($this['extensions_type'])) {
                             $validator->errors()->add(
-                                'files', translate('Digital_files_are_required') . '!'
+                                'files', translate('Digital_files_are_required').'!'
                             );
                         }
                     }
 
                     if ($this['product_type'] === 'digital' && $this['digital_product_type'] === 'ready_product' && $this->hasFile('digital_file_ready')) {
 
-                        $maxFileSize = getFileUploadMaxSize(type:'file', unit: 'kb');
+                        $maxFileSize = getFileUploadMaxSize(type: 'file', unit: 'kb');
                         $file = $this->file('digital_file_ready');
                         $extension = strtolower($file->getClientOriginalExtension());
                         $fileSize = $file->getSize() / 1024;
@@ -364,27 +418,27 @@ class ProductUpdateRequest extends FormRequest
                         if ($fileSize > $maxFileSize) {
                             $validator->errors()->add(
                                 'digital_file_ready',
-                                translate('File_size_exceeds_the_maximum_limit_of_').getFileUploadMaxSize(type:'file') . '!'
+                                translate('File_size_exceeds_the_maximum_limit_of_').getFileUploadMaxSize(type: 'file').'!'
                             );
                         }
 
                         if (in_array($extension, $disallowedExtensions)) {
                             $validator->errors()->add(
                                 'digital_file_ready',
-                                translate('The_uploaded_file_type_is_not_supported'). '!'
+                                translate('The_uploaded_file_type_is_not_supported').'!'
                             );
                         }
                     }
 
-                    if ($this->has('digital_product_price') && !empty($this['digital_product_price'])) {
+                    if ($this->has('digital_product_price') && ! empty($this['digital_product_price'])) {
                         foreach ($this['digital_product_price'] as $digitalPrice) {
                             if (empty($digitalPrice) || $digitalPrice < 0) {
                                 $validator->errors()->add(
-                                    'variation_price', translate('Digital_variation_price_are_required') . '!'
+                                    'variation_price', translate('Digital_variation_price_are_required').'!'
                                 );
-                            } else if ($digitalPrice <= $this->getDiscountAmount(price: $digitalPrice, discount: $this['discount'], discountType: $this['discount_type'])) {
+                            } elseif ($digitalPrice <= $this->getDiscountAmount(price: $digitalPrice, discount: $this['discount'], discountType: $this['discount_type'])) {
                                 $validator->errors()->add(
-                                    'variation_price', translate('discount_can_not_be_more_or_equal_to_the_digital_variation_price') . '!'
+                                    'variation_price', translate('discount_can_not_be_more_or_equal_to_the_digital_variation_price').'!'
                                 );
                             }
                         }
@@ -399,27 +453,27 @@ class ProductUpdateRequest extends FormRequest
                     if ($fileSize > $maxFileSize) {
                         $validator->errors()->add(
                             'files',
-                            translate('File_size_exceeds_the_maximum_limit_of_10MB') . '!'
+                            translate('File_size_exceeds_the_maximum_limit_of_10MB').'!'
                         );
                     } elseif (in_array($extension, $disallowedExtensions)) {
                         $validator->errors()->add(
                             'files',
-                            translate('Files_with_extensions_like') .
-                            ' (' . implode(', ', array_map(fn($ext) => '.' . $ext, $disallowedExtensions)) . ') ' .
-                            translate('are_not_supported') . '!'
+                            translate('Files_with_extensions_like').
+                            ' ('.implode(', ', array_map(fn ($ext) => '.'.$ext, $disallowedExtensions)).') '.
+                            translate('are_not_supported').'!'
                         );
                     }
                 }
 
                 if ($this['video_url']) {
-                    if (!str_contains($this['video_url'], 'youtube.com/embed/')) {
+                    if (! str_contains($this['video_url'], 'youtube.com/embed/')) {
                         $validator->errors()->add(
                             'video_url',
                             translate('Please_provide_valid_youtube_embed_link')
                         );
                     }
                 }
-            }
+            },
         ];
     }
 

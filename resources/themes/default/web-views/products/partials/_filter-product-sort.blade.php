@@ -10,12 +10,6 @@
         <option value="high-low" {{ request('sort_by') == 'high-low' ? 'selected':'' }}>
             {{ translate('Price') }} ({{ translate('High_to_Low') }})
         </option>
-        <option value="rating-low-high" {{ request('sort_by') == 'rating-low-high' ? 'selected':'' }}>
-            {{ translate('Rating') }} ({{ translate('Low_to_High') }})
-        </option>
-        <option value="rating-high-low" {{ request('sort_by') == 'rating-high-low' ? 'selected':'' }}>
-            {{ translate('Rating') }} ({{ translate('High_to_Low') }})
-        </option>
         <option value="a-z" {{ request('sort_by') == 'a-z' ? 'selected':'' }}>
             {{ translate('Alphabetical') }} ({{ 'A '.translate('to').' Z' }})
         </option>

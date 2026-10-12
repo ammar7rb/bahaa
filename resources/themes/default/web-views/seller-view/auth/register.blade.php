@@ -1,14 +1,14 @@
 @extends('layouts.front-end.app')
 
 @section('title', translate('vendor_Apply'))
-@php($recaptcha = getWebConfig(name: 'recaptcha'))
 @push('css_or_js')
+    @include('layouts.vendor.partials._dark-mode-preference')
     <link href="{{ theme_asset(path: 'public/assets/back-end/css/select2.min.css') }}" rel="stylesheet" />
     <link href="{{ theme_asset(path: 'public/assets/back-end/css/croppie.css') }}" rel="stylesheet">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="stylesheet"
-        href="{{ theme_asset(path: 'public/assets/front-end/plugin/intl-tel-input/css/intlTelInput.css') }}">
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/daterangepicker.css') }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-dark-mode.css') }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/front-end/css/vendor-registration-dark-mode.css') }}?v=20260829.2">
 @endpush
 
 
@@ -16,12 +16,12 @@
     <form id="seller-registration" action="{{ route('vendor.auth.registration.add') }}" method="POST" class="form-advance-validation form-advance-file-validation"
         enctype="multipart/form-data">
         @csrf
-        <div class="py-5">
+        <div class="py-5 seller-registration-page">
             <div class="first-el">
                 <section>
                     <div class="container">
                         <div class="create-an-account p-3 p-sm-4">
-                            <img src="{{ theme_asset('assets/img/media/form-bg.png') }}" alt=""
+                            <img src="{{ dynamicAsset(path: 'public/assets/front-end/img/media/sigma-medical-registration.webp') }}" alt=""
                                 class="create-an-account-bg-img">
                             <div class="row">
                                 @include('web-views.seller-view.auth.partial.header')
@@ -48,10 +48,16 @@
                                                         <span class="text-danger fs-12 phone-error"></span>
                                                     </label>
                                                     <div>
-                                                        <input
-                                                            class="form-control form-control-user phone-input-with-country-picker"
-                                                            type="tel" name="phone"
-                                                            placeholder="{{ translate('enter_phone_number') }}" required>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text" dir="ltr">+20</span>
+                                                            <input id="vendor-registration-phone"
+                                                                class="form-control form-control-user" type="tel"
+                                                                name="phone_local" inputmode="numeric" autocomplete="tel-national"
+                                                                maxlength="11" placeholder="01xxxxxxxxx"
+                                                                data-egypt-phone
+                                                                aria-label="{{ translate('enter_phone_number') }}" required>
+                                                            <input id="vendor-registration-phone-full" type="hidden" name="phone">
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -94,6 +100,34 @@
                                                     <small class="text-danger confirm-password-error"></small>
                                                 </div>
                                             </div>
+                                            <div class="col-12 mb-4">
+                                                <label class="d-flex align-items-start gap-2" for="seller-combined-terms">
+                                                    <input type="checkbox" id="seller-combined-terms" name="terms_accepted" value="1" required>
+                                                    <span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'أقر بأنني موافق على' : 'I acknowledge that I agree to the' }}
+                                                        <a href="{{ route('business-page.view', ['slug'=>'terms-and-conditions']) }}" target="_blank" rel="noopener">{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}</a>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            @if($requiredSellerPolicies->isNotEmpty())
+                                                <div class="col-12">
+                                                    <div class="mb-4 border rounded p-3">
+                                                        @foreach($requiredSellerPolicies as $policy)
+                                                            <div class="form-check mb-2">
+                                                                <input class="form-check-input" type="checkbox"
+                                                                    id="seller-policy-{{ $policy->id }}"
+                                                                    name="policy_version_ids[]" value="{{ $policy->id }}" required>
+                                                                <label class="form-check-label" for="seller-policy-{{ $policy->id }}">
+                                                                    {{ translate('i_agree_with_the') }} {{ $policy->title }} (v{{ $policy->version }})
+                                                                </label>
+                                                                <details class="mt-1 text-muted fs-12">
+                                                                    <summary>{{ $policy->title }}</summary>
+                                                                    <div class="mt-1">{!! nl2br(e($policy->content)) !!}</div>
+                                                                </details>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endif
                                             <div class="col-12">
                                                 <div class="d-flex justify-content-end">
                                                     <button type="button"
@@ -112,6 +146,8 @@
                 @include('web-views.seller-view.auth.partial.download-app')
                 @include('web-views.seller-view.auth.partial.faq')
             </div>
+            {{-- The details step belongs to the same form.  Keeping it here is
+                essential: the first step only collects the login details. --}}
             @include('web-views.seller-view.auth.partial.vendor-information-form')
         </div>
     </form>
@@ -140,17 +176,21 @@
     <span id="get-confirm-and-cancel-button-text" data-sure ="{{ translate('are_you_sure') . '?' }}"
         data-message="{{ translate('want_to_apply_as_a_vendor') . '?' }}" data-confirm="{{ translate('yes') }}"
         data-cancel="{{ translate('no') }}"></span>
+    <span id="registration-availability-endpoint" data-url="{{ route('vendor.auth.registration.check-availability') }}"></span>
     <span id="proceed-to-next-validation-message" data-mail-error="{{ translate('please_enter_your_email') . '.' }}"
         data-phone-error="{{ translate('please_enter_your_phone_number') . '.' }}"
+        data-invalid-phone="{{ translate('please_ensure_your_phone_number_is_valid_and_does_not_exceed_20_characters') . '.' }}"
         data-valid-mail="{{ translate('please_enter_a_valid_email_address') . '.' }}"
         data-enter-password="{{ translate('please_enter_your_password') . '.' }}"
         data-enter-confirm-password="{{ translate('please_enter_your_confirm_password') . '.' }}"
-        data-password-not-match="{{ translate('passwords_do_not_match') . '.' }}">
+        data-password-not-match="{{ translate('passwords_do_not_match') . '.' }}"
+        data-availability-error="{{ translate('something_went_wrong!') }}">
     </span>
 @endsection
 
 @push('script')
-    <script src="{{ theme_asset(path: 'public/assets/front-end/js/vendor-registration.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-dark-mode.js') }}?v=20260829.1"></script>
+    <script src="{{ theme_asset(path: 'public/assets/front-end/js/vendor-registration.js') }}?v={{ filemtime(public_path('assets/front-end/js/vendor-registration.js')) }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/min/moment.min.js"></script>
     <script src="{{ theme_asset(path: 'public/assets/front-end/js/daterangepicker.min.js') }}"></script>
     <script src="{{ theme_asset(path: 'public/assets/front-end/js/file-upload/pdf.min.js') }}"></script>

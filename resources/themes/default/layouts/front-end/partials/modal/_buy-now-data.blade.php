@@ -16,10 +16,11 @@
     <div class="form-group">
         <div class="border rounded p-3 d-flex flex-column gap-2">
             @foreach($shipping_method_list as $shippingMethodKey => $shippingMethod)
+                @php($promise = app(\App\Services\ShippingPromiseService::class)->forMethod($shippingMethod['id']))
             <div class="d-flex gap-2 align-items-center">
                 <input type="radio" class="show" name="shipping_method_id" id="shipping_method_id-{{ $shippingMethod['id'] }}" value="{{ $shippingMethod['id'] }}" {{ $shippingMethodKey == 0 ? 'checked':'' }}>
                 <label class="mb-0" for="shipping_method_id-{{ $shippingMethod['id'] }}">
-                    {{ ucfirst($shippingMethod['title']) }} ({{ $shippingMethod['duration'] }}) {{ webCurrencyConverter($shippingMethod['cost']) }}
+                    {{ ucfirst($shippingMethod['title']) }} — {{ $promise['display_date'] }} — {{ webCurrencyConverter($shippingMethod['cost']) }}
                 </label>
             </div>
             @endforeach

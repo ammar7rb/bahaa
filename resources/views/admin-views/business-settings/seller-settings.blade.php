@@ -189,6 +189,117 @@
                 </div>
             </div>
 
+            <div class="card" id="seller-order-insurance-settings">
+                <div class="card-body d-flex flex-column gap-3 gap-sm-20">
+                    @php($sellerOrderInsuranceStatus = getWebConfig(name: 'seller_order_insurance_status') ?? 0)
+                    @php($sellerOrderInsurancePercentage = getWebConfig(name: 'seller_order_insurance_percentage') ?? 0)
+                    @php($sellerOrderInsuranceCalculationType = getWebConfig(name: 'seller_order_insurance_calculation_type') ?? 'percentage')
+                    @php($sellerOrderInsuranceCalculationValue = getWebConfig(name: 'seller_order_insurance_calculation_value') ?? $sellerOrderInsurancePercentage)
+                    @php($sellerOrderInsurancePendingDays = getWebConfig(name: 'seller_order_insurance_pending_days') ?? 3)
+                    @php($sellerOrderInsuranceReuseAfterDays = getWebConfig(name: 'seller_order_insurance_reuse_after_days') ?? 90)
+                    @php($sellerOrderInsuranceExpiryAction = getWebConfig(name: 'seller_order_insurance_expiry_action') ?? 'admin_review')
+                    <div class="p-12 p-sm-20 bg-section rounded">
+                        <div class="d-flex justify-content-between align-items-center gap-3">
+                            <div>
+                                <h3 class="mb-1 text-capitalize">{{ translate('Seller_Order_Insurance') }}</h3>
+                                <p class="mb-0 fs-12">{{ translate('seller_order_insurance_configuration_note') }}</p>
+                            </div>
+                            <label class="switcher" for="seller-order-insurance-status">
+                                <input class="switcher_input" type="checkbox" value="1" name="seller_order_insurance_status" id="seller-order-insurance-status" {{ $sellerOrderInsuranceStatus == 1 ? 'checked' : '' }}>
+                                <span class="switcher_control"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="p-12 p-sm-20 bg-section rounded">
+                        <div class="row g-4">
+                            <div class="col-xl-3 col-md-6">
+                                <label class="form-label" for="seller-order-insurance-calculation-type">{{ translate('Insurance_Calculation_Type') }}</label>
+                                <select class="form-select" name="seller_order_insurance_calculation_type" id="seller-order-insurance-calculation-type">
+                                    <option value="percentage" @selected($sellerOrderInsuranceCalculationType === 'percentage')>{{ translate('percentage') }}</option>
+                                    <option value="fixed" @selected($sellerOrderInsuranceCalculationType === 'fixed')>{{ translate('fixed_amount') }}</option>
+                                </select>
+                            </div>
+                            <div class="col-xl-3 col-md-6">
+                                <label class="form-label" for="seller-order-insurance-calculation-value">{{ translate('Insurance_Calculation_Value') }}</label>
+                                <input type="number" step="0.01" min="0.01" class="form-control" name="seller_order_insurance_calculation_value" id="seller-order-insurance-calculation-value" value="{{ $sellerOrderInsuranceCalculationValue }}">
+                            </div>
+                            <div class="col-xl-4 col-md-6">
+                                <label class="form-label" for="seller-order-insurance-pending-days">{{ translate('Seller_Order_Insurance_Pending_Days') }}</label>
+                                <input type="number" min="1" max="90" class="form-control" name="seller_order_insurance_pending_days" id="seller-order-insurance-pending-days" value="{{ $sellerOrderInsurancePendingDays }}">
+                            </div>
+                            <div class="col-xl-4 col-md-6">
+                                <label class="form-label" for="seller-order-insurance-reuse-after-days">{{ translate('Seller_Order_Insurance_Reuse_After_Days') }}</label>
+                                <input type="number" min="1" max="365" class="form-control" name="seller_order_insurance_reuse_after_days" id="seller-order-insurance-reuse-after-days" value="{{ $sellerOrderInsuranceReuseAfterDays }}">
+                                <small class="text-muted">{{ translate('Seller_Order_Insurance_Reuse_Credit_Only_Note') }}</small>
+                            </div>
+                            <div class="col-xl-4 col-md-6">
+                                <label class="form-label" for="seller-order-insurance-expiry-action">{{ translate('Seller_Order_Insurance_Expiry_Action') }}</label>
+                                <select class="form-select" name="seller_order_insurance_expiry_action" id="seller-order-insurance-expiry-action">
+                                    <option value="admin_review" @selected($sellerOrderInsuranceExpiryAction === 'admin_review')>{{ translate('Admin_Manual_Review') }}</option>
+                                    <option value="suspend" @selected($sellerOrderInsuranceExpiryAction === 'suspend')>{{ translate('Move_To_Suspended_Orders') }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap justify-content-between gap-2 mt-3">
+                            <p class="text-muted fs-12 mb-0">{{ translate('seller_order_insurance_details_hidden_notice') }}</p>
+                            @if(Route::has('admin.insurance-center.index'))
+                                <a href="{{ route('admin.insurance-center.index', ['tab' => 'sellers', 'section' => 'rules']) }}" class="btn btn-outline-primary btn-sm">{{ translate('Advanced_Insurance_Rules') }}</a>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="seller-settlement-settings">
+                <div class="card-body d-flex flex-column gap-3 gap-sm-20">
+                    @php($settlementHoldDays = getWebConfig(name: 'seller_settlement_hold_days') ?? 45)
+                    @php($settlementWorkingDays = getWebConfig(name: 'seller_settlement_working_days'))
+                    @php($settlementWorkingDays = is_string($settlementWorkingDays) ? json_decode($settlementWorkingDays, true) : $settlementWorkingDays)
+                    @php($settlementWorkingDays = is_array($settlementWorkingDays) ? $settlementWorkingDays : [0, 1, 2, 3, 4])
+                    @php($settlementHolidays = getWebConfig(name: 'seller_settlement_holidays'))
+                    @php($settlementHolidays = is_string($settlementHolidays) ? json_decode($settlementHolidays, true) : $settlementHolidays)
+                    <div>
+                        <h3 class="mb-1 text-capitalize">{{ translate('Seller_Settlement_Schedule') }}</h3>
+                        <p class="mb-0 fs-12">{{ translate('seller_settlement_settings_snapshot_note') }}</p>
+                    </div>
+                    <div class="p-12 p-sm-20 bg-section rounded">
+                        <div class="row g-4">
+                            <div class="col-xl-4 col-md-6">
+                                <label class="form-label" for="seller-settlement-hold-days">{{ translate('Settlement_Hold_Working_Days') }}</label>
+                                <input type="number" min="0" max="45" class="form-control" name="seller_settlement_hold_days" id="seller-settlement-hold-days" value="{{ old('seller_settlement_hold_days', $settlementHoldDays) }}" required>
+                                <small class="text-muted">{{ translate('maximum_45_working_days') }}</small>
+                            </div>
+                            <div class="col-xl-8 col-md-6">
+                                <label class="form-label d-block">{{ translate('Settlement_Working_Days') }}</label>
+                                <div class="d-flex flex-wrap gap-3">
+                                    @foreach([0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'] as $dayValue => $dayLabel)
+                                        <label class="form-check d-flex align-items-center gap-2 mb-0">
+                                            <input class="form-check-input" type="checkbox" name="seller_settlement_working_days[]" value="{{ $dayValue }}" @checked(in_array($dayValue, old('seller_settlement_working_days', $settlementWorkingDays), true))>
+                                            <span>{{ translate($dayLabel) }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="seller-settlement-holidays">{{ translate('Settlement_Holidays') }}</label>
+                                <textarea class="form-control" rows="3" name="seller_settlement_holidays" id="seller-settlement-holidays" placeholder="2026-01-07, 2026-04-13">{{ old('seller_settlement_holidays', is_array($settlementHolidays) ? implode(', ', $settlementHolidays) : '') }}</textarea>
+                                <small class="text-muted">{{ translate('settlement_holidays_yyyy_mm_dd_hint') }}</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="seller-settlement-pre-due-alert-days">{{ translate('settlement_pre_due_alert_days') }}</label>
+                                <input type="number" min="1" max="30" class="form-control" name="seller_settlement_pre_due_alert_days" id="seller-settlement-pre-due-alert-days" value="{{ old('seller_settlement_pre_due_alert_days', getWebConfig(name: 'seller_settlement_pre_due_alert_days') ?? 5) }}" required>
+                                <small class="text-muted">{{ translate('settlement_pre_due_alert_days_hint') }}</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="seller-settlement-overdue-escalation-days">{{ translate('settlement_overdue_escalation_days') }}</label>
+                                <input type="number" min="1" max="30" class="form-control" name="seller_settlement_overdue_escalation_days" id="seller-settlement-overdue-escalation-days" value="{{ old('seller_settlement_overdue_escalation_days', getWebConfig(name: 'seller_settlement_overdue_escalation_days') ?? 2) }}" required>
+                                <small class="text-muted">{{ translate('settlement_timezone_snapshot_hint') }}: {{ getWebConfig(name: 'timezone') ?: config('app.timezone') }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card" id="vendor-insurance-settings">
                 <div class="card-body d-flex flex-column gap-3 gap-sm-20">
                     @php($sellerInsuranceStatus = getWebConfig(name: 'seller_insurance_status') ?? 0)
@@ -260,7 +371,7 @@
                         <i class="fi fi-sr-info mt-1"></i>
                         <span class="fs-12">
                             {{ translate('online_payments_activate_after_verified_gateway_callback_while_every_offline_payment_requires_admin_review') }}.
-                            <a href="{{ route('admin.vendors.insurance-payments.index') }}" class="text-decoration-underline fw-semibold">
+                            <a href="{{ route('admin.payment-reviews.index', ['audience' => 'vendor', 'kind' => 'insurance']) }}" class="text-decoration-underline fw-semibold">
                                 {{ translate('Open_Offline_Reviews') }}
                             </a>
                         </span>

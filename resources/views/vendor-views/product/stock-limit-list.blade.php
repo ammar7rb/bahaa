@@ -4,8 +4,8 @@
 
 @section('content')
     <div class="content container-fluid">
-        <div class="mb-3 d-flex flex-column gap-1">
-            <h2 class="h1 text-capitalize d-flex gap-2 align-items-center">
+        <div class="mb-3 d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div class="d-flex flex-column gap-1"><h2 class="h1 text-capitalize d-flex gap-2 align-items-center">
                 <img src="{{ asset('public/assets/back-end/img/inhouse-product-list.png') }}" class="mb-1 mr-1" alt="">
                 {{ translate('limited_Stocked_Products_List') }}
                 <span class="badge badge-soft-dark radius-50 fz-14 ml-1">
@@ -15,6 +15,8 @@
             <p class="d-flex">
                 {{ translate('the_products_are_shown_in_this_list,_which_quantity_is_below') }} {{ $stockLimit }}
             </p>
+            </div>
+            <a href="{{ route('vendor.products.stock-violations') }}" class="btn btn-outline--primary"><i class="tio-document-text mr-1"></i>{{ translate('stock_violation_history') }}</a>
         </div>
         <div class="row mt-30">
             <div class="col-md-12">

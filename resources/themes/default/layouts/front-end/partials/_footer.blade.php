@@ -1,94 +1,5 @@
 <div class="__inline-9 rtl">
-    <div class="text-center pb-4">
-        <div class="max-w-1160px mx-auto footer-slider-container">
-            <div class="container">
-                <div class="row g-4" data-item="{{ Route::has('frontend.blog.index') && getWebConfig(name: 'blog_feature_active_status') ? 4 : 3 }}">
-                    @if($web_config['business_pages']?->firstWhere('slug', 'about-us'))
-                   <div class="{{ Route::has('frontend.blog.index') && getWebConfig(name: 'blog_feature_active_status') ? 'col-6 col-md-3' : 'col-6 col-md-4' }}">
-                       <div class="footer-slide-item bg-white">
-                           <div>
-                               <a href="{{ route('business-page.view', ['slug' => 'about-us']) }}">
-                                   <div class="text-center text-primary mb-lg-3 mb-2">
-                                       <img class="object-contain svg" width="36" height="36"
-                                            src="{{ theme_asset(path: "public/assets/front-end/img/icons/about-us.svg")}}"
-                                            alt="{{ translate('about_us') }}">
-                                   </div>
-                                   <div class="text-center">
-                                       <h2 class="m-0 mt-2 heading">
-                                           {{ translate('about_us') }}
-                                       </h2>
-                                       <p class="d-none d-sm-block des mb-0">{{ translate('Know_about_our_company_more.') }}</p>
-                                   </div>
-                               </a>
-                           </div>
-                       </div>
-                   </div>
-                   @endif
-
-                   <div class="{{ Route::has('frontend.blog.index') && getWebConfig(name: 'blog_feature_active_status') ? 'col-6 col-md-3' : 'col-6 col-md-4' }}">
-                       <div class="footer-slide-item bg-white">
-                           <div>
-                               <a href="{{ route('contacts') }}">
-                                   <div class="text-center text-primary mb-lg-3 mb-2">
-                                       <img class="object-contain svg" width="36" height="36"
-                                           src="{{ theme_asset(path: "public/assets/front-end/img/icons/contact-us.svg") }}"
-                                           alt="{{ translate('contact_Us') }}">
-                                   </div>
-                                   <div class="text-center">
-                                       <p class="m-0 mt-2">
-                                           {{ translate('contact_Us') }}
-                                       </p>
-                                       <small class="d-none d-sm-block">{{ translate('We_are_Here_to_Help') }}</small>
-                                   </div>
-                               </a>
-                           </div>
-                       </div>
-                   </div>
-                   <div class="{{ Route::has('frontend.blog.index') && getWebConfig(name: 'blog_feature_active_status') ? 'col-6 col-md-3' : 'col-6 col-md-4' }}">
-                       <div class="footer-slide-item bg-white">
-                           <div>
-                               <a href="{{ route('helpTopic') }}">
-                                   <div class="text-center text-primary mb-lg-3 mb-2">
-                                       <img class="object-contain svg" width="36" height="36"
-                                           src="{{ theme_asset(path: "public/assets/front-end/img/icons/faq-icon.svg") }}"
-                                           alt="{{ translate('FAQ') }}">
-                                   </div>
-                                   <div class="text-center">
-                                       <p class="m-0 mt-2">
-                                           {{ translate('FAQ') }}
-                                       </p>
-                                       <small class="d-none d-sm-block">{{ translate('Get_all_Answers') }}</small>
-                                   </div>
-                               </a>
-                           </div>
-                       </div>
-                   </div>
-
-                   @if(Route::has('frontend.blog.index') && getWebConfig(name: 'blog_feature_active_status'))
-                   <div class="{{ Route::has('frontend.blog.index') && getWebConfig(name: 'blog_feature_active_status') ? 'col-6 col-md-3' : 'col-6 col-md-4' }}">
-                       <div class="footer-slide-item bg-white">
-                           <div>
-                               <a href="{{ route('frontend.blog.index') }}">
-                                   <div class="text-center text-primary mb-lg-3 mb-2">
-                                       <img class="object-contain svg" width="36" height="36"
-                                           src="{{ theme_asset(path: "public/assets/front-end/img/icons/blog-icon.svg")}}"
-                                           alt="{{ translate('Blog') }}">
-                                   </div>
-                                   <div class="text-center">
-                                       <p class="m-0 mt-2">
-                                           {{ translate('Blog') }}
-                                       </p>
-                                       <small class="d-none d-sm-block">{{ translate('Check_Latest_Blogs') }}</small>
-                                   </div>
-                               </a>
-                           </div>
-                       </div>
-                   </div>
-                   @endif
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('layouts.front-end.partials._support-links')
 
     <footer class="page-footer font-small mdb-color rtl">
         <div class="pt-4 custom-light-primary-color-20">
@@ -98,7 +9,7 @@
                     class="row mt-3 pb-3 ">
                     <div class="col-md-3 footer-web-logo text-center text-md-start ">
                         <a class="d-block" href="{{ route('home') }}">
-                            <img class="{{Session::get('direction') === "rtl" ? 'right-align' : ''}}"
+                            <img class="ba-platform-logo {{Session::get('direction') === "rtl" ? 'right-align' : ''}}"
                                  src="{{ getStorageImages(path: $web_config['footer_logo'], type: 'logo') }}"
                                  alt="{{ $web_config['company_name'] }}"/>
                         </a>
@@ -205,7 +116,7 @@
                                             <li class="widget-list-item">
                                                 <a class="widget-list-link"
                                                    href="{{ route('business-page.view', ['slug' => $businessPage['slug']]) }}">
-                                                    {{ Str::limit($businessPage['title'], 25, '...') }}
+                                                    {{ Str::limit(translate($businessPage['title']), 25, '...') }}
                                                 </a>
                                             </li>
                                     @endforeach
@@ -261,10 +172,10 @@
                                 </div>
                                 <div>
                                     <a class="widget-list-link"
-                                       href="{{ 'mailto:'.getWebConfig(name: 'company_email') }}">
+                                       href="mailto:ammvr.rady@gmail.com">
                                         <span>
                                             <i class="fa fa-envelope  me-2 mt-2 mb-2"></i>
-                                            {{ getWebConfig(name: 'company_email') }}
+                                            ammvr.rady@gmail.com
                                         </span>
                                     </a>
                                 </div>
@@ -307,10 +218,12 @@
                         <div class="max-sm-100 justify-content-center d-flex flex-wrap mt-md-3 mt-0 mb-md-3">
                             @if($web_config['social_media'])
                                 @foreach ($web_config['social_media'] as $item)
+                                    {{-- Replace only legacy platform links; valid configured social links remain unchanged. --}}
+                                    @php($socialLink = (str_contains(strtolower((string) $item->link), '6valley') || str_contains(strtolower((string) $item->link), '6amtech') || str_contains(strtolower((string) $item->link), 'codecanyon')) ? 'https://wa.me/201064174547' : $item->link)
                                     <span class="social-media ">
                                         @if ($item->name == "twitter")
                                             <a class="social-btn text-white sb-light sb-{{ $item->name}} me-2 mb-2 d-flex justify-content-center align-items-center"
-                                               target="_blank" href="{{ $item->link}}">
+                                               target="_blank" href="{{ $socialLink }}">
                                                 <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="16"
                                                      height="16" viewBox="0 0 24 24">
                                                     <g opacity=".3">
@@ -337,7 +250,7 @@
                                             </a>
                                         @else
                                             <a class="social-btn text-white sb-light sb-{{ $item->name }} me-2 mb-2"
-                                               target="_blank" href="{{ $item->link }}">
+                                               target="_blank" href="{{ $socialLink }}">
                                                 <i class="{{ $item->icon }}" aria-hidden="true"></i>
                                             </a>
                                         @endif
@@ -357,7 +270,7 @@
                     <div class="col-md-10">
                         <div class="d-flex flex-column gap-3">
                             <div>
-                                <p class="fs-14 text-center m-0">{{ $web_config['copyright_text'] }}</p>
+                                <p class="fs-14 text-center m-0">© {{ date('Y') }} Ammar Rady</p>
                             </div>
                             @if(count($web_config['business_pages']->where('default_status', 0)) > 0)
                                 <ul class="d-flex fs-12 flex-wrap flex-column flex-sm-row justify-content-center align-content-center gap-2 column-gap-4 mb-0 p-0">

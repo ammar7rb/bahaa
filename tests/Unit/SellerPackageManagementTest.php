@@ -37,7 +37,10 @@ class SellerPackageManagementTest extends TestCase
             $table->unsignedInteger('search_promotion_duration_days')->default(0);
             $table->unsignedInteger('homepage_promotion_limit')->default(0);
             $table->unsignedInteger('homepage_promotion_duration_days')->default(0);
+            $table->unsignedInteger('coupon_limit')->default(0);
             $table->unsignedInteger('package_validity_days')->nullable();
+            $table->string('duration_unit', 20)->nullable();
+            $table->unsignedInteger('duration_value')->nullable();
             $table->boolean('status')->default(true);
             $table->integer('sort_order')->default(0);
             $table->unsignedBigInteger('created_by_admin_id')->nullable();
@@ -56,7 +59,16 @@ class SellerPackageManagementTest extends TestCase
             $table->unsignedInteger('search_promotion_duration_days')->default(0);
             $table->unsignedInteger('homepage_promotion_limit')->default(0);
             $table->unsignedInteger('homepage_promotion_duration_days')->default(0);
+            $table->unsignedInteger('coupon_limit')->default(0);
+            $table->unsignedInteger('used_coupon_limit')->default(0);
+            $table->integer('coupon_adjustment_limit')->default(0);
             $table->string('status')->default('active');
+            $table->string('payment_status')->default('unpaid');
+            $table->timestamp('starts_at')->nullable();
+            $table->timestamp('started_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
+            $table->string('duration_unit', 20)->nullable();
+            $table->unsignedInteger('duration_value')->nullable();
             $table->timestamps();
         });
 
@@ -112,6 +124,7 @@ class SellerPackageManagementTest extends TestCase
             'search_promotion_limit' => 1,
             'search_promotion_duration_days' => 7,
             'homepage_promotion_limit' => 0,
+            'coupon_limit' => 0,
             'homepage_promotion_duration_days' => 0,
             'status' => 'active',
             'created_at' => now(),
@@ -180,6 +193,7 @@ class SellerPackageManagementTest extends TestCase
             'product_duration_days' => 30,
             'search_promotion_limit' => 0,
             'homepage_promotion_limit' => 0,
+            'coupon_limit' => 0,
             'status' => 1,
             'sort_order' => 1,
         ];

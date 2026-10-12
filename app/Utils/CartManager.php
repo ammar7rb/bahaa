@@ -23,29 +23,45 @@ class CartManager
     public static function cartListSessionToDatabase($request = null): void
     {
         $user = Helpers::getCustomerInformation($request);
+        if (!is_object($user) || !$user->id) {
+            return;
+        }
         if (session()->has('guest_id') || (!is_null($request) && !is_null($request->guest_id)) ) {
             $guestId = session('guest_id') ?? $request->guest_id;
-            $cartList = Cart::where(['is_guest' => 1, 'customer_id' => $guestId])->get();
+            \Illuminate\Support\Facades\DB::transaction(function () use ($user, $guestId) {
+            \App\Models\User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $cartList = Cart::where(['is_guest' => 1, 'customer_id' => $guestId])->lockForUpdate()->get();
             foreach ($cartList as $cart) {
                 $databaseCart = Cart::where([
                     'customer_id' => $user['id'],
+                    'is_guest' => 0,
                     'seller_id' => $cart['seller_id'],
                     'seller_is' => $cart['seller_is']
                 ])->first();
 
-                Cart::where([
+                $matchingCart = Cart::where([
                     'customer_id' => $user['id'],
+                    'is_guest' => 0,
                     'product_id' => $cart['product_id'],
                     'variant' => $cart['variant'],
                     'seller_id' => $cart['seller_id'],
                     'seller_is' => $cart['seller_is']
-                ])->delete();
+                ])->lockForUpdate()->first();
+
+                if ($matchingCart) {
+                    $matchingCart->quantity += $cart->quantity;
+                    $matchingCart->is_checked = $matchingCart->is_checked || $cart->is_checked;
+                    $matchingCart->save();
+                    $cart->delete();
+                    continue;
+                }
 
                 $cart->cart_group_id = isset($databaseCart) ? $databaseCart['cart_group_id'] : str_replace('guest', $user['id'], $cart['cart_group_id']);
                 $cart->customer_id = $user['id'];
                 $cart->is_guest = 0;
                 $cart->save();
             }
+            });
         }
     }
 
@@ -255,6 +271,14 @@ class CartManager
 
     public static function updateProductShippingCost($cartList): void
     {
+        $threeStepShipping = app(CustomerThreeStepShippingService::class);
+        if ($threeStepShipping->isEnabled()) {
+            // A distance quote is valid only for the delivery address that was
+            // selected at checkout. Reading the cart does not include that
+            // address, so it must never overwrite a confirmed quote.
+            return;
+        }
+
         $shippingMethod = getWebConfig(name: 'shipping_method');
         $adminShipping = ShippingType::where('seller_id', 0)->first();
         $cartListGroup = $cartList?->groupBy('cart_group_id');
@@ -488,6 +512,12 @@ class CartManager
             $cart = Cart::where(['id' => $cartID])->first();
         }
 
+        // Product or quantity changes require the customer to select a new
+        // distance quote after confirming the delivery address.
+        if (app(CustomerThreeStepShippingService::class)->isEnabled()) {
+            CartShipping::where('cart_group_id', $cart['cart_group_id'])->delete();
+        }
+
         if ($request['buy_now'] == 1) {
             $productTotalPrice = ($price * $request['quantity']) - ($getProductDiscount * $request['quantity']);
             $verifyStatus = OrderManager::checkSingleProductMinimumOrderAmountVerify(request: $request, product: $product, totalAmount: $productTotalPrice);
@@ -522,13 +552,21 @@ class CartManager
                     if (!isset($shipping)) {
                         $shipping = new CartShipping();
                     }
-                    $getShippingCost = app(CustomerThreeStepShippingService::class)->resolveSelectableMethod($request['shipping_method_id']);
+                    $shippingService = app(CustomerThreeStepShippingService::class);
+                    $getShippingCost = $shippingService->resolveSelectableMethod($request['shipping_method_id']);
                     if (!$getShippingCost) {
                         return ['status' => 0, 'message' => translate('Selected_shipping_method_not_found')];
                     }
+                    $shippingCost = $shippingService->isEnabled()
+                        ? $shippingService->calculateCartGroupCost($cart['cart_group_id'], $getShippingCost)
+                        : $getShippingCost->cost;
+                    if ($shippingCost === null) {
+                        // Checkout is blocked until admin completes per-product shipping rates.
+                        return ['status' => 0, 'message' => translate('Shipping_rates_are_not_configured_for_all_products')];
+                    }
                     $shipping['cart_group_id'] = $cart['cart_group_id'];
                     $shipping['shipping_method_id'] = $request['shipping_method_id'];
-                    $shipping['shipping_cost'] = $getShippingCost->cost ?? 0;
+                    $shipping['shipping_cost'] = $shippingCost;
                     $shipping->save();
 
                     $cart['free_delivery_order_amount'] = OrderManager::getFreeDeliveryOrderAmountArray($cart['cart_group_id']);
@@ -537,7 +575,7 @@ class CartManager
                         'status' => 1,
                         'redirect_to' => 'checkout',
                         'cart' => $cart,
-                        'cart_shipping_cost' => $getShippingCost->cost ?? 0,
+                        'cart_shipping_cost' => $shippingCost,
                         'message' => translate('successfully_added') . '!',
                     ];
                 }
@@ -760,6 +798,10 @@ class CartManager
         }
 
         $cart->save();
+
+        if ($status && $cart->product_type === 'physical' && app(CustomerThreeStepShippingService::class)->isEnabled()) {
+            CartShipping::where('cart_group_id', $cart->cart_group_id)->delete();
+        }
 
         if ($request['buy_now'] == 1) {
             Cart::where(['customer_id' => ($user == 'offline' ? $guest_id : $user['id']), 'is_guest' => ($user == 'offline' ? 1 : 0)])

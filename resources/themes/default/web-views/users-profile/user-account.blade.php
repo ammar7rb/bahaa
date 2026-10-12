@@ -30,9 +30,7 @@
                                         <i class="tio-more-vertical"></i>
                                     </button>
                                     <div class="dropdown-menu delete-account-dropdown-menu">
-                                        <a class="dropdown-item call-route-alert" href="javascript:"
-                                           data-route="{{ route('account-delete',[$customerDetail['id']]) }}"
-                                           data-message="{{translate('want_to_delete_this_account')}}?">
+                                        <a class="dropdown-item" href="{{ route('customer.deletion.show') }}">
                                             {{translate('delete_account')}}
                                         </a>
                                     </div>

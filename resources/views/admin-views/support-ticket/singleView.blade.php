@@ -7,14 +7,40 @@
 @endpush
 
 @section('content')
+    @php($ticket = $supportTicket->first())
     <div class="content container-fluid">
-        <div class="mb-3">
+        <div class="mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h2 class="h1 mb-0 text-capitalize d-flex align-items-center gap-2">
                 <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/support_ticket.png') }}"
                     alt="">
                 {{ translate('support_ticket') }}
             </h2>
+            @if($ticket)
+                <a class="btn btn-outline-secondary" target="_blank" href="{{ route('admin.support-ticket.print', $ticket->id) }}"><i class="fi fi-sr-print"></i> {{ translate('print_conversation') }}</a>
+            @endif
         </div>
+
+        @if(($ticket ?? null)?->purpose === \App\Services\CustomerActivationService::PURPOSE)
+            <div class="card card-body mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h5 class="mb-1">{{ translate('customer_account_activation') }}</h5>
+                        <div>{{ $ticket->customer?->administrative_reference }} — {{ $ticket->customer?->email }} — {{ $ticket->customer?->phone }}</div>
+                    </div>
+                    <span class="badge badge-soft-warning">{{ translate($ticket->review_status ?? 'pending') }}</span>
+                </div>
+                @if($ticket->review_status !== 'approved')
+                    <form method="post" action="{{ route('admin.support-ticket.activation-decision', $ticket->id) }}">
+                        @csrf
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3"><label class="form-label">{{ translate('decision') }}</label><select class="form-select" name="decision" required><option value="approve">{{ translate('approve') }}</option><option value="request_completion">{{ translate('request_completion') }}</option><option value="reject">{{ translate('reject') }}</option></select></div>
+                            <div class="col-md-7"><label class="form-label">{{ translate('note') }}</label><input class="form-control" name="note" maxlength="1000" placeholder="{{ translate('required_for_rejection_or_completion') }}"></div>
+                            <div class="col-md-2"><button class="btn btn--primary w-100">{{ translate('save_changes') }}</button></div>
+                        </div>
+                    </form>
+                @endif
+            </div>
+        @endif
 
         <div class="card card-body card-chat justify-content-center Chat pt-3 px-0 pb-0">
             <div class="bg-section border-0 d-flex flex-wrap gap-3 justify-content-between align-items-center border px-3 py-2 rounded-8 mb-4 mx-3">
@@ -298,7 +324,7 @@
             <div class="type_msg">
                 <div class="input_msg_write">
                     @foreach ($supportTicket as $reply)
-                        <form class="mt-4 needs-validation form-advance-validation form-advance-inputs-validation form-advance-file-validation non-ajax-form-validate" href="{{ route('admin.support-ticket.replay', $reply['id']) }}"
+                        <form id="admin-ticket-live-form" class="mt-4 needs-validation form-advance-validation form-advance-inputs-validation form-advance-file-validation non-ajax-form-validate" action="{{ route('admin.support-ticket.replay', $reply['id']) }}"
                             method="post" enctype="multipart/form-data" novalidate="novalidate">
                             @csrf
                             <input type="hidden" name="id" value="{{ $reply['id'] }}">
@@ -367,7 +393,7 @@
         $('#msgInputValue').on('input', updateCharCount);
         updateCharCount();
 
-       $(document).ready(function () {
+        $(document).ready(function () {
 
             function toggleSupportSendBtn() {
                 const isEmpty = $('#msgInputValue').val().trim() === '';
@@ -392,6 +418,16 @@
 
             toggleSupportSendBtn();
         });
+
+        (function () {
+            const box=document.getElementById('show_msg'), form=document.getElementById('admin-ticket-live-form');
+            const endpoint=@json(route('admin.support-ticket.messages', $ticket->id)); let ready=false, seen=new Set();
+            const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
+            function append(m){if(!box||seen.has(String(m.id)))return;seen.add(String(m.id));const admin=m.sender_type==='admin',el=document.createElement('div');el.className=admin?'outgoing_msg':'incoming_msg';el.innerHTML=admin?'<div class="sent_msg w-100"><div class="d-flex justify-content-end"><p class="bg-F1F7FF text-dark rounded-10 px-3 py-2 mb-1 overflow-wrap-anywhere">'+esc(m.body).replace(/\n/g,'<br>')+'</p></div></div>':'<div class="received_msg"><div class="d-flex justify-content-start"><p class="bg-body text-dark rounded-10 px-3 py-2 mb-1 overflow-wrap-anywhere">'+esc(m.body).replace(/\n/g,'<br>')+'</p></div></div>';box.prepend(el);}
+            async function refresh(){try{const r=await fetch(endpoint,{headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});if(!r.ok)return;const d=await r.json();if(!ready){d.messages.forEach(m=>seen.add(String(m.id)));ready=true;return}d.messages.forEach(append)}catch(_){}}
+            if(form)form.addEventListener('submit',async e=>{e.preventDefault();const b=form.querySelector('button[type="submit"]');if(b)b.disabled=true;try{const r=await fetch(form.action,{method:'POST',body:new FormData(form),headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});if(!r.ok)throw 0;const d=await r.json();ready=true;d.messages.forEach(append);form.reset()}catch(_){form.submit()}finally{if(b)b.disabled=false}});
+            refresh();setInterval(refresh,7000);
+        })();
 
     </script>
     <script src="{{ dynamicAsset(path: 'public/assets/new/back-end/libs/owl-carousel/owl.carousel.min.js') }}"></script>

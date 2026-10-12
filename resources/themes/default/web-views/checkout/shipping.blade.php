@@ -9,7 +9,7 @@
 
 @section('content')
     @php($billingInputByCustomer=getWebConfig(name: 'billing_input_by_customer'))
-    <div class="container py-4 pt-3 rtl __inline-56 px-0 px-md-3 text-align-direction">
+    <div class="container py-4 pt-3 rtl __inline-56 px-0 px-md-3 text-align-direction checkout-shipping-page">
         <div class="row mx-max-md-0">
             <section class="col-lg-8 px-max-md-0">
                 <div class="checkout_details">
@@ -101,15 +101,18 @@
                                                             <div class="form-group">
                                                                 <label>{{ translate('country')}}
                                                                     <span class="text-danger">*</span></label>
-                                                                <select name="country" id="country" class="form-control selectpicker" data-live-search="true" required>
-                                                                    <option value="" readonly>
-                                                                        {{ translate('Select Your Country') }}
-                                                                    </option>
-                                                                    @forelse($countries as $country)
-                                                                        <option value="{{ $country['name'] }}">{{ $country['name'] }}</option>
-                                                                    @empty
-                                                                        <option value="">{{ translate('no_country_to_deliver') }}</option>
-                                                                    @endforelse
+                                                                <input type="hidden" name="country" value="Egypt">
+                                                                <input type="text" class="form-control" value="Egypt" readonly>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="form-group">
+                                                                <label>{{ translate('governorate')}}<span class="text-danger">*</span></label>
+                                                                <select class="form-control" name="state" id="state" {{$shippingAddresses->count()==0?'required':''}}>
+                                                                    <option value="" selected disabled>{{ translate('select')}} {{ translate('governorate') }}</option>
+                                                                    @foreach(config('egypt.governorates') as $governorate)
+                                                                        <option value="{{ $governorate }}">{{ $governorate }}</option>
+                                                                    @endforeach
                                                                 </select>
                                                             </div>
                                                         </div>
@@ -121,10 +124,40 @@
                                                         </div>
                                                         <div class="col-6">
                                                             <div class="form-group">
-                                                                <label>{{ translate('zip_code')}}
-                                                                    <span class="text-danger">*</span></label>
+                                                                <label>الحي أو القسم (اختياري)</label>
+                                                                <input type="text" class="form-control" name="district" id="district">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="form-group">
+                                                                <label>المنطقة (اختياري)</label>
+                                                                <input type="text" class="form-control" name="area" id="area">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="form-group">
+                                                                <label>الشارع (اختياري)</label>
+                                                                <input type="text" class="form-control" name="street" id="street">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="form-group">
+                                                                <label>رقم العقار (اختياري)</label>
+                                                                <input type="text" class="form-control" name="building_number" id="building-number">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="form-group">
+                                                                <label>أقرب علامة مميزة</label>
+                                                                <input type="text" class="form-control" name="landmark" id="landmark">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <div class="form-group">
+                                                                <label>{{ translate('zip_code')}} ({{ translate('optional') }})</label>
                                                                 @if($zip_restrict_status == 1)
-                                                                    <select name="zip" class="form-control selectpicker" data-live-search="true" id="select2-zip-container" required>
+                                                                    <select name="zip" class="form-control selectpicker" data-live-search="true" id="select2-zip-container">
+                                                                        <option value="">{{ translate('optional') }}</option>
                                                                         @forelse($zip_codes as $code)
                                                                             <option value="{{ $code->zipcode }}">{{ $code->zipcode }}</option>
                                                                         @empty
@@ -133,7 +166,7 @@
                                                                     </select>
                                                                 @else
                                                                     <input type="text" class="form-control"
-                                                                           name="zip" id="zip" {{$shippingAddresses->count()==0?'required':''}}>
+                                                                           name="zip" id="zip">
                                                                 @endif
                                                             </div>
                                                         </div>
@@ -146,14 +179,16 @@
                                                                 </span>
                                                             </div>
                                                         </div>
+                                                        @if($physical_product_view)
+                                                            <div class="col-12 mb-3">
+                                                                <strong class="d-block mb-2">اختر طريقة الشحن لهذا العنوان</strong>
+                                                                <div class="d-flex flex-wrap gap-2">
+                                                                    <label class="border rounded p-3 flex-fill cursor-pointer"><input type="radio" name="preferred_shipping_option" value="normal"> شحن عادي</label>
+                                                                    <label class="border rounded p-3 flex-fill cursor-pointer"><input type="radio" name="preferred_shipping_option" value="sigma"> شحن سيجما <small class="d-block text-primary">موثّق وموصى به من سيجما، ويُضاف تلقائيًا إلى الفاتورة.</small></label>
+                                                                </div>
+                                                            </div>
+                                                        @endif
                                                     </div>
-                                                    @if(getWebConfig('map_api_status') ==1 )
-                                                        <div class="form-group location-map-canvas-area map-area-alert-border">
-                                                            <input id="pac-input" class="controls rounded __inline-46 location-search-input-field" title="{{translate('search_your_location_here')}}" type="text" placeholder="{{translate('search_here')}}"/>
-                                                            <div class="__h-200px" id="location_map_canvas"></div>
-                                                        </div>
-                                                    @endif
-
                                                     <div class="d-flex gap-3 align-items-center">
                                                         <label class="form-check-label d-flex gap-2 align-items-center" id="save_address_label">
                                                             <input type="hidden" name="shipping_method_id" id="shipping_method_id" value="0">
@@ -328,12 +363,17 @@
                                                             <div class="col-6">
                                                                 <div class="form-group">
                                                                     <label>{{ translate('country')}}<span class="text-danger">*</span></label>
-                                                                    <select name="billing_country" class="form-control selectpicker" data-live-search="true" id="billing_country">
-                                                                        <option value="" readonly>
-                                                                            {{ translate('Select Your Country') }}
-                                                                        </option>
-                                                                        @foreach($countries as $country)
-                                                                            <option value="{{ $country['name'] }}">{{ $country['name'] }}</option>
+                                                                    <input type="hidden" name="billing_country" value="Egypt">
+                                                                    <input type="text" class="form-control" value="Egypt" readonly>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <div class="form-group">
+                                                                    <label>{{ translate('governorate')}}<span class="text-danger">*</span></label>
+                                                                    <select class="form-control" name="billing_state" id="billing_state" {{$billingAddresses->count()==0?'required':''}}>
+                                                                        <option value="" selected disabled>{{ translate('select')}} {{ translate('governorate') }}</option>
+                                                                        @foreach(config('egypt.governorates') as $governorate)
+                                                                            <option value="{{ $governorate }}">{{ $governorate }}</option>
                                                                         @endforeach
                                                                     </select>
                                                                 </div>
@@ -358,7 +398,7 @@
                                                                         </select>
                                                                     @else
                                                                         <input type="text" class="form-control" id="billing_zip"
-                                                                               name="billing_zip" {{ $billingAddresses->count()==0 ? 'required' : '' }}>
+                                                                               name="billing_zip">
                                                                     @endif
                                                                 </div>
                                                             </div>
@@ -372,7 +412,7 @@
                                                             {{ translate('note') }}: {{ translate('you_need_to_select_address_from_your_selected_country') }}
                                                         </span>
                                                         </div>
-                                                        @if(getWebConfig('map_api_status') ==1 )
+                                                        @if(false)
                                                             <div class="form-group map-area-alert-border location-map-billing-canvas-area">
                                                                 <input id="pac-input-billing" class="controls rounded __inline-46 location-search-input-field"
                                                                        title="{{translate('search_your_location_here')}}"
@@ -454,6 +494,41 @@
                         @endif
                     @endif
                 </div>
+            @if($physical_product_view && !empty($shipping_quote_options))
+                <div class="card __card mt-3" id="automatic-shipping-options">
+                    <div class="card-body">
+                        <h5 class="mb-1">اختر طريقة الشحن</h5>
+                        <p class="text-muted mb-3">اختر الشحن المناسب لعنوانك. تُضاف تكلفة الشحن تلقائيًا إلى الفاتورة.</p>
+                        <div class="row g-3">
+                            @foreach(['normal', 'sigma'] as $shippingOptionKey)
+                                @php($shippingOption = $shipping_quote_options[$shippingOptionKey] ?? null)
+                                @if($shippingOption)
+                                    @php($optionSelected = $automatic_shipping_selected && \App\Models\CartShipping::whereIn('cart_group_id', \App\Utils\CartManager::get_cart_group_ids(type: 'checked'))->where('shipping_method_id', $shippingOption['method_id'])->exists())
+                                    <div class="col-md-6">
+                                        <button type="button" aria-pressed="{{ $optionSelected ? 'true' : 'false' }}" class="btn btn-outline-primary w-100 text-start p-3 select-automatic-shipping {{ $optionSelected ? 'is-selected' : '' }}"
+                                                data-method-id="{{ $shippingOption['method_id'] }}" data-address-id="{{ $selected_shipping_address_id }}" data-shipping-option="{{ $shippingOptionKey }}">
+                                            <div class="d-flex justify-content-between align-items-center gap-2">
+                                                <strong>{{ $shippingOptionKey === 'sigma' ? 'شحن سيجما' : 'شحن عادي' }}</strong>
+                                            </div>
+                                            @if($shippingOptionKey === 'sigma')
+                                                <div class="small text-primary mt-2">شحن موثّق وموصى به من سيجما، ويُضاف تلقائيًا إلى الفاتورة.</div>
+                                            @endif
+                                            <div class="small text-muted mt-2">
+                                                مدة التوصيل:
+                                                @if($shippingOption['minimum_business_days'] === $shippingOption['maximum_business_days'])
+                                                    {{ $shippingOption['minimum_business_days'] }} يوم عمل
+                                                @else
+                                                    {{ $shippingOption['minimum_business_days'] }} - {{ $shippingOption['maximum_business_days'] }} يوم عمل
+                                                @endif
+                                            </div>
+                                        </button>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endif
             </section>
             @include('web-views.partials._order-summary')
         </div>
@@ -465,6 +540,9 @@
     <span id="default-longitude-address" data-value="{{ $defaultLocation ? $defaultLocation['lng']:'151.2195' }}"></span>
     <span id="route-action-checkout-function" data-route="checkout-details"></span>
     <span id="system-country-restrict-status" data-value="{{ $country_restrict_status }}"></span>
+    <span id="route-set-automatic-shipping" data-url="{{ route('customer.set-shipping-method') }}"></span>
+    <span id="route-checkout-payment" data-url="{{ route('checkout-payment') }}"></span>
+    <span id="automatic-shipping-selected" data-value="{{ $automatic_shipping_selected ? 1 : 0 }}"></span>
 @endsection
 
 @push('script')
@@ -491,11 +569,81 @@
             }
         });
     </script>
+    <script>
+        let shippingAddressDirty = false;
+        document.querySelectorAll('.select-automatic-shipping').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const buttons = document.querySelectorAll('.select-automatic-shipping');
+                buttons.forEach(item => item.disabled = true);
+                document.querySelectorAll('.action-checkout-function').forEach(item => item.classList.add('custom-disabled'));
+                try {
+                if (shippingAddressDirty) {
+                    await $.ajax({
+                        url: $('#route-customer-choose-shipping-address-other').data('url'),
+                        method: 'POST',
+                        headers: {'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content')},
+                        data: {
+                            physical_product: 'yes', shipping: $('#address-form').serialize(),
+                            billing: $('#billing-address-form').serialize(), billing_addresss_same_shipping: true,
+                            is_check_create_account: $('#is_check_create_account').prop('checked') ? 1 : 0,
+                            customer_password: $('#customer_password').val(),
+                            customer_confirm_password: $('#customer_confirm_password').val()
+                        }
+                    }).then(data => {
+                        if (data.errors) throw new Error(typeof data.errors === 'string' ? data.errors : 'راجع بيانات العنوان');
+                    });
+                    shippingAddressDirty = false;
+                }
+                const url = document.getElementById('route-set-automatic-shipping').dataset.url;
+                const params = new URLSearchParams({id: button.dataset.methodId, cart_group_id: 'all_cart_group'});
+                const response = await fetch(`${url}?${params.toString()}`, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+                const data = await response.json();
+                if (!response.ok || !data.status) throw new Error(data.message || 'تعذر تحديث الشحن، حاول مرة أخرى');
+                const page = await fetch(window.location.href, {cache: 'no-store'});
+                if (!page.ok) throw new Error('تعذر تحديث الإجمالي');
+                const updated = new DOMParser().parseFromString(await page.text(), 'text/html');
+                for (const selector of ['.order-summery-aside', '.bottom-sticky3']) {
+                    const current = document.querySelector(selector);
+                    const replacement = updated.querySelector(selector);
+                    if (current && replacement) current.replaceWith(replacement);
+                }
+                $('#automatic-shipping-selected').attr('data-value', '1').data('value', 1);
+                buttons.forEach(item => {
+                    item.classList.toggle('is-selected', item === button);
+                    item.setAttribute('aria-pressed', item === button ? 'true' : 'false');
+                });
+                } catch (error) {
+                    toastr.error(typeof error.responseJSON?.errors === 'string' ? error.responseJSON.errors : (error.message || 'تعذر تحديث الشحن، حاول مرة أخرى'));
+                    $('#automatic-shipping-selected').attr('data-value', '0').data('value', 0);
+                } finally {
+                    buttons.forEach(item => item.disabled = false);
+                    document.querySelectorAll('.action-checkout-function').forEach(item => item.classList.remove('custom-disabled'));
+                }
+            });
+        });
+        const preferredShipping = sessionStorage.getItem('sigma_preferred_shipping');
+        if (preferredShipping) {
+            sessionStorage.removeItem('sigma_preferred_shipping');
+            document.querySelector(`.select-automatic-shipping[data-shipping-option="${preferredShipping}"]`)?.click();
+        }
+        const invalidateShippingQuote = () => {
+            shippingAddressDirty = true;
+            $('#automatic-shipping-selected').attr('data-value', '0').data('value', 0);
+            document.querySelectorAll('.select-automatic-shipping').forEach(button => {
+                button.classList.remove('is-selected');
+                button.setAttribute('aria-pressed', 'false');
+            });
+        };
+        document.getElementById('address-form')?.addEventListener('input', invalidateShippingQuote);
+        document.getElementById('address-form')?.addEventListener('change', invalidateShippingQuote);
+        document.querySelectorAll('.select_shipping_address').forEach(item => item.addEventListener('click', invalidateShippingQuote));
+    </script>
 
     <script src="{{ theme_asset(path: 'public/assets/front-end/js/bootstrap-select.min.js') }}"></script>
-    <script src="{{ theme_asset(path: 'public/assets/front-end/js/shipping.js') }}"></script>
+    <script src="{{ theme_asset(path: 'public/assets/front-end/js/shipping.js') }}?v=shipping-flow-20260929"></script>
 
-    @if(getWebConfig('map_api_status') ==1 )
+    {{-- Customer maps are intentionally disabled; address resolution runs on the server. --}}
+    @if(false)
         <script
             src="https://maps.googleapis.com/maps/api/js?key={{getWebConfig('map_api_key')}}&callback=mapsShopping&loading=async&libraries=places&v=3.56"
             defer>

@@ -9,6 +9,7 @@ use App\Http\Controllers\Customer\Auth\RegisterController;
 use App\Http\Controllers\Customer\Auth\SocialAuthController;
 use App\Http\Controllers\Customer\CustomerPurchasePackageController;
 use App\Http\Controllers\Customer\PaymentController;
+use App\Http\Controllers\Customer\PostPurchaseInvoiceController;
 use App\Http\Controllers\Customer\RewardPointController;
 use App\Http\Controllers\Customer\SystemController;
 use App\Http\Controllers\Payment_Methods\BkashPaymentController;
@@ -118,17 +119,20 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('checkout-complete-wallet', 'checkout_complete_wallet')->name('checkout-complete-wallet');
 
         Route::post('subscription', 'subscription')->name('subscription');
-        Route::get('search-shop', 'search_shop')->name('search-shop');
+        // Seller discovery is intentionally unavailable to customers on this platform.
+        Route::get('search-shop', 'search_shop')->middleware('hide_public_seller_information')->name('search-shop');
 
         Route::get('categories', 'getAllCategoriesView')->name('categories');
         Route::get('category-ajax/{id}', 'categories_by_category')->name('category-ajax');
 
         Route::get('brands', 'getAllBrandsView')->name('brands');
-        Route::get('vendors', 'getAllVendorsView')->name('vendors');
-        Route::get('seller-profile/{id}', 'seller_profile')->name('seller-profile');
+        Route::get('vendors', 'getAllVendorsView')->middleware('hide_public_seller_information')->name('vendors');
+        Route::get('seller-profile/{id}', 'seller_profile')->middleware('hide_public_seller_information')->name('seller-profile');
     });
 
     Route::controller(PageController::class)->group(function () {
+        Route::get('buy-now-pay-later', 'getPageView')->defaults('slug', 'buy-now-pay-later')->name('buy-now-pay-later');
+        Route::post('buy-now-pay-later/request', [\App\Http\Controllers\Web\CreditRequestController::class, 'store'])->middleware('throttle:6,1')->name('credit-request.store');
         Route::get('business-page/{slug}', 'getPageView')->name('business-page.view');
         Route::get('contacts', 'getContactView')->name('contacts');
         Route::get('helpTopic', 'getHelpTopicView')->name('helpTopic');
@@ -162,7 +166,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::controller(WebController::class)->group(function () {
         Route::post('/products-view-style', 'product_view_style')->name('product_view_style');
         Route::post('review-list-product', 'review_list_product')->name('review-list-product');
-        Route::post('review-list-shop', 'getShopReviewList')->name('review-list-shop'); // theme fashion
+        Route::post('review-list-shop', 'getShopReviewList')->middleware('hide_public_seller_information')->name('review-list-shop');
         Route::get('wishlists', 'viewWishlist')->name('wishlists')->middleware('customer');
         Route::post('store-wishlist', 'storeWishlist')->name('store-wishlist');
         Route::post('delete-wishlist', 'deleteWishlist')->name('delete-wishlist');
@@ -176,10 +180,10 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
 
     Route::controller(UserProfileController::class)->group(function () {
         Route::group(['prefix' => 'support-ticket', 'as' => 'support-ticket.', 'middleware' => 'customer'], function () {
-            Route::get('{id}', 'single_ticket')->name('index');
+            Route::get('activation-status', 'activationStatus')->name('activation-status');
+            Route::get('{id}', [\App\Http\Controllers\Customer\SupportConversationController::class, 'show'])->name('index');
+            Route::get('{id}/messages', 'ticketMessages')->name('messages');
             Route::post('{id}', 'comment_submit')->name('comment');
-            Route::get('delete/{id}', 'support_ticket_delete')->name('delete');
-            Route::get('close/{id}', 'support_ticket_close')->name('close');
         });
     });
 
@@ -207,7 +211,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('account-payment', 'account_payment')->name('account-payment');
         Route::get('account-oder', 'account_order')->name('account-oder')->middleware('customer');
         Route::get('account-order-details', 'account_order_details')->name('account-order-details')->middleware('customer');
-        Route::get('account-order-details-vendor-info', 'account_order_details_seller_info')->name('account-order-details-vendor-info')->middleware('customer');
+        Route::get('account-order-details-vendor-info', 'account_order_details_seller_info')->name('account-order-details-vendor-info')->middleware(['customer', 'hide_public_seller_information']);
         Route::get('account-order-details-delivery-man-info', 'account_order_details_delivery_man_info')->name('account-order-details-delivery-man-info')->middleware('customer');
         Route::get('account-order-details-reviews', 'getAccountOrderDetailsReviewsView')->name('account-order-details-reviews')->middleware('customer');
         Route::get('generate-invoice/{id}', 'generate_invoice')->name('generate-invoice');
@@ -215,10 +219,10 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('refund-request/{id}', 'refund_request')->name('refund-request');
         Route::get('refund-details/{id}', 'refund_details')->name('refund-details');
         Route::post('refund-store', 'store_refund')->name('refund-store');
-        Route::get('account-tickets', 'account_tickets')->name('account-tickets');
+        Route::get('account-tickets', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->name('account-tickets');
         Route::get('order-cancel/{id}', 'order_cancel')->name('order-cancel');
         Route::post('ticket-submit', 'submitSupportTicket')->name('ticket-submit');
-        Route::get('account-delete/{id}', 'account_delete')->name('account-delete');
+        Route::get('account-delete/{id}', [\App\Http\Controllers\Customer\AccountDeletionController::class, 'show'])->name('account-delete');
         Route::get('refer-earn', 'refer_earn')->name('refer-earn')->middleware('customer');
         Route::get('user-coupons', 'user_coupons')->name('user-coupons')->middleware('customer');
         Route::get('user-restock-requests', 'restockRequestsView')->name('user-restock-requests')->middleware('customer');
@@ -226,15 +230,45 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('user-all-restock-request-delete/{ids}', 'deleteAllRestockRequest')->name('user-all-restock-request-delete')->middleware('customer');
     });
 
-    Route::controller(ChattingController::class)->group(function () {
-        Route::get('chat/{type}', 'index')->name('chat')->middleware('customer');
-        Route::get('message', 'getMessageByUser')->name('messages')->middleware('customer');
-        Route::post('message', 'addMessage')->middleware('customer');
+    // Customer-to-seller/delivery chat is intentionally unavailable. Customers
+    // use the support-ticket center for administration communication.
+
+    Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['customer', 'throttle:10,1,customer-support-report:'])->name('customer.support.report');
+    Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show'])->name('customer.purchasing-limit');
+    Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['customer', 'throttle:10,1,customer-profile-image:'])->name('customer.profile-image');
+    Route::prefix('customer/account-deletion')->name('customer.deletion.')->middleware('customer')->controller('\App\Http\Controllers\Customer\AccountDeletionController')->group(function () {
+        Route::get('/', 'show')->name('show');
+        Route::post('begin', 'begin')->middleware('throttle:5,1,customer-deletion-password:')->name('begin');
+        Route::post('reason', 'reason')->middleware('throttle:10,1,customer-deletion-reason:')->name('reason');
+        Route::post('finish', 'finish')->middleware('throttle:5,1,customer-deletion-password:')->name('finish');
+    });
+    Route::prefix('customer/subscription')->name('customer.subscription.')->middleware('customer')->controller('\App\Http\Controllers\Customer\MonthlySubscriptionController')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('{payment}/cancel', 'cancel')->middleware('throttle:10,1,customer-package-cancel:')->name('cancel');
+        Route::post('checkout', 'checkout')->middleware('throttle:10,1,customer-package-quote:')->name('checkout');
+        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1,customer-package-wallet:')->name('wallet');
+        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1,customer-package-transfer:')->name('offline');
     });
 
+    Route::post('customer/orders/{order}/payment-proof/retry', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'submit'])->middleware(['customer', 'throttle:10,1'])->name('customer.order.payment-retry');
+
     Route::controller(UserWalletController::class)->group(function () {
+        Route::get('customer-balances', 'balances')->name('customer-balances')->middleware('customer');
+        Route::post('customer-balances/offline', [\App\Http\Controllers\Customer\CustomerBalanceDepositController::class, 'store'])->name('customer-balances.offline')->middleware(['customer', 'throttle:10,1']);
+        Route::get('customer-balances/{deposit}/proof', [\App\Http\Controllers\Customer\CustomerBalanceDepositController::class, 'proof'])->name('customer-balances.proof')->middleware('customer');
         Route::get('wallet-account', 'myWalletAccount')->name('wallet-account'); //theme fashion
         Route::get('wallet', 'index')->name('wallet')->middleware('customer');
+    });
+
+    // Commerce contract v3: this second invoice is reached after the
+    // merchandise payment and before an order can be released to its seller.
+    Route::group(['prefix' => 'post-purchase-invoices', 'as' => 'post-purchase-invoices.', 'middleware' => 'customer'], function () {
+        Route::get('/', [PostPurchaseInvoiceController::class, 'index'])->name('index');
+        Route::get('{invoice}', [PostPurchaseInvoiceController::class, 'show'])->name('show');
+        Route::get('{invoice}/state', [PostPurchaseInvoiceController::class, 'state'])->name('state');
+        Route::post('{invoice}/pay-digital', [PostPurchaseInvoiceController::class, 'payDigitally'])->name('pay-digital');
+        Route::post('{invoice}/use-insurance-balance', [PostPurchaseInvoiceController::class, 'useInsuranceBalance'])->name('use-insurance-balance');
+        Route::post('{invoice}/offline-payment', [PostPurchaseInvoiceController::class, 'submitOffline'])->name('offline-payment');
     });
 
     Route::controller(UserLoyaltyController::class)->group(function () {
@@ -250,18 +284,20 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     });
 
     Route::controller(ShopViewController::class)->group(function () {
-        Route::get('vendor-shop/{slug}', 'seller_shop')->name('vendor-shop');
+        Route::get('vendor-shop/{slug}', 'seller_shop')->middleware('hide_public_seller_information')->name('vendor-shop');
         Route::get('ajax-shop-vacation-check', 'ajax_shop_vacation_check')->name('ajax-shop-vacation-check');
     });
 
     Route::controller(WebController::class)->group(function () {
-        Route::post('vendor-shop/{id}', 'seller_shop_product');
+        Route::post('vendor-shop/{id}', 'seller_shop_product')->middleware('hide_public_seller_information');
         Route::get('top-rated', 'top_rated')->name('topRated');
         Route::get('best-sell', 'best_sell')->name('bestSell');
         Route::get('new-product', 'new_product')->name('newProduct');
     });
 
     Route::group(['prefix' => 'contact', 'as' => 'contact.'], function () {
+        Route::get('conversation/{contact}', [\App\Http\Controllers\Web\ContactConversationController::class, 'show'])->name('conversation');
+        Route::post('conversation/{contact}', [\App\Http\Controllers\Web\ContactConversationController::class, 'reply'])->middleware('throttle:15,1')->name('conversation.reply');
         Route::controller(WebController::class)->group(function () {
             Route::post('store', 'contact_store')->name('store');
             Route::get('/code/captcha/{tmp}', 'captcha')->name('default-captcha');
@@ -322,6 +358,8 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
         });
 
         Route::controller(RegisterController::class)->group(function () {
+            Route::get('checkout-register', [\App\Http\Controllers\Customer\Auth\CheckoutRegistrationController::class, 'show'])->name('checkout-register');
+            Route::post('checkout-register', [\App\Http\Controllers\Customer\Auth\CheckoutRegistrationController::class, 'store'])->middleware('throttle:5,1');
             Route::get('sign-up', 'getRegisterView')->name('sign-up');
             Route::post('sign-up', 'submitRegisterData');
             Route::get('check-verification', 'verificationCheckView')->name('check-verification');
@@ -358,14 +396,7 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
         Route::post('choose-billing-address', 'choose_billing_address')->name('choose-billing-address');
     });
 
-    Route::group(['prefix' => 'purchase-package', 'as' => 'purchase-package.', 'middleware' => ['auth:customer']], function () {
-        Route::get('/', [CustomerPurchasePackageController::class, 'index'])->name('index');
-        Route::post('purchase/{id}', [CustomerPurchasePackageController::class, 'purchase'])->name('purchase');
-        Route::post('purchase/{id}/offline-payment', [CustomerPurchasePackageController::class, 'purchaseByOfflinePayment'])->name('purchase.offline-payment');
-        Route::post('extra-credit/purchase', [CustomerPurchasePackageController::class, 'purchaseExtraCredit'])->name('extra-credit.purchase');
-        Route::post('activation-invoice/{id}/pay', [CustomerPurchasePackageController::class, 'payActivationInvoice'])->name('activation-invoice.pay');
-        Route::post('activation-invoice/{id}/pay-by-offline-payment', [CustomerPurchasePackageController::class, 'payActivationInvoiceByOfflinePayment'])->name('activation-invoice.offline-payment');
-    });
+    // Customer purchase packages are suspended. Historical data stays in the database.
 
     Route::group(['prefix' => 'reward-points', 'as' => 'reward-points.', 'middleware' => ['auth:customer']], function () {
         Route::get('convert', [RewardPointController::class, 'convert'])->name('convert');

@@ -2,15 +2,26 @@
 
 namespace App\Services;
 
+use App\Models\BusinessSetting;
 use App\Models\PhoneOrEmailVerification;
 use App\Models\Seller;
 use App\Utils\SMSModule;
+use InvalidArgumentException;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class SellerRegistrationVerificationService
 {
-    private const OTP_TTL_MINUTES = 10;
+    public const SETTING_VERIFICATION_MODE = 'seller_activation_verification_mode';
+    public const SETTING_OTP_TTL_MINUTES = 'seller_activation_otp_ttl_minutes';
+    public const SETTING_OTP_MAX_ATTEMPTS = 'seller_activation_otp_max_attempts';
+    public const SETTING_OTP_RESEND_SECONDS = 'seller_activation_otp_resend_seconds';
+    public const MODE_NONE = 'none';
+    public const MODE_OTP_ONLY = 'otp_only';
+    public const MODE_SUPPORT_TICKET_ONLY = 'support_ticket_only';
+    public const MODE_OTP_AND_SUPPORT_TICKET = 'otp_and_support_ticket';
+
+    private const DEFAULT_OTP_TTL_MINUTES = 10;
     private const DEFAULT_MAX_ATTEMPTS = 5;
     private const DEFAULT_RESEND_SECONDS = 60;
     private const DEFAULT_BLOCK_SECONDS = 600;
@@ -36,16 +47,92 @@ class SellerRegistrationVerificationService
 
     public function requiresPhoneVerification(Seller $seller): bool
     {
-        return !$this->isPhoneVerified($seller);
+        return $this->requiresOtp() && !$this->isPhoneVerified($seller);
+    }
+
+    public function verificationMode(): string
+    {
+        $value = BusinessSetting::query()
+            ->where('type', self::SETTING_VERIFICATION_MODE)
+            ->value('value');
+
+        if ($value === null) {
+            return self::MODE_SUPPORT_TICKET_ONLY;
+        }
+
+        $decoded = json_decode($value, true);
+        $mode = is_array($decoded) ? ($decoded['mode'] ?? null) : ($decoded ?? $value);
+
+        return in_array($mode, $this->allowedVerificationModes(), true)
+            ? $mode
+            : self::MODE_SUPPORT_TICKET_ONLY;
+    }
+
+    public function setVerificationMode(string $mode): void
+    {
+        if (!in_array($mode, $this->allowedVerificationModes(), true)) {
+            throw new InvalidArgumentException('Unsupported seller activation verification mode.');
+        }
+
+        BusinessSetting::query()->updateOrCreate(
+            ['type' => self::SETTING_VERIFICATION_MODE],
+            ['value' => $mode]
+        );
+    }
+
+    public function otpSettings(): array
+    {
+        return [
+            'ttl_minutes' => $this->settingInteger(self::SETTING_OTP_TTL_MINUTES, self::DEFAULT_OTP_TTL_MINUTES),
+            'max_attempts' => $this->settingInteger(self::SETTING_OTP_MAX_ATTEMPTS, self::DEFAULT_MAX_ATTEMPTS),
+            'resend_seconds' => $this->settingInteger(self::SETTING_OTP_RESEND_SECONDS, self::DEFAULT_RESEND_SECONDS),
+        ];
+    }
+
+    public function setOtpSettings(int $ttlMinutes, int $maxAttempts, int $resendSeconds): void
+    {
+        foreach ([self::SETTING_OTP_TTL_MINUTES => $ttlMinutes, self::SETTING_OTP_MAX_ATTEMPTS => $maxAttempts, self::SETTING_OTP_RESEND_SECONDS => $resendSeconds] as $type => $value) {
+            BusinessSetting::query()->updateOrCreate(['type' => $type], ['value' => $value]);
+        }
+    }
+
+    public function requiresOtp(): bool
+    {
+        return in_array($this->verificationMode(), [
+            self::MODE_OTP_ONLY,
+            self::MODE_OTP_AND_SUPPORT_TICKET,
+        ], true);
+    }
+
+    public function requiresSupportTicket(): bool
+    {
+        return in_array($this->verificationMode(), [
+            self::MODE_SUPPORT_TICKET_ONLY,
+            self::MODE_OTP_AND_SUPPORT_TICKET,
+        ], true);
+    }
+
+    public function registrationRequirements(Seller $seller): array
+    {
+        return [
+            'verification_mode' => $this->verificationMode(),
+            'otp_required' => $this->requiresOtp(),
+            // Activation is always completed through the admin case. The
+            // verification mode only controls phone OTP, not account access.
+            'support_ticket_required' => true,
+            'phone_verification_required' => $this->requiresPhoneVerification($seller),
+        ];
     }
 
     public function getEligibility(Seller $seller): array
     {
-        $phoneVerified = $this->isPhoneVerified($seller);
+        $phoneVerificationRequired = $this->requiresPhoneVerification($seller);
+        $phoneVerified = !$phoneVerificationRequired;
         $accountStatus = $seller->status;
 
         $nextStep = match (true) {
-            !$phoneVerified => 'verify_phone',
+            $phoneVerificationRequired => 'verify_phone',
+            $seller->activation_status !== 'active' => 'await_activation_ticket',
             $accountStatus === 'pending' => 'await_admin_approval',
             $accountStatus === 'approved' => 'ready_for_insurance',
             default => 'account_' . $accountStatus,
@@ -55,8 +142,10 @@ class SellerRegistrationVerificationService
             'phone_verified' => $phoneVerified,
             'phone_verified_at' => $seller->phone_verified_at?->toISOString(),
             'account_status' => $accountStatus,
+            'activation_status' => $seller->activation_status,
             'can_login' => $phoneVerified && $accountStatus === 'approved',
             'next_step' => $nextStep,
+            'verification' => $this->registrationRequirements($seller),
         ];
     }
 
@@ -94,7 +183,7 @@ class SellerRegistrationVerificationService
                 $token = $firebaseSessionInfo;
             } else {
                 try {
-                    $firebaseResponse = $this->firebaseService->sendOtp($seller->phone);
+                    $firebaseResponse = $this->firebaseService->sendOtp(app(EgyptPhoneService::class)->normalize($seller->phone));
                 } catch (Throwable) {
                     $firebaseResponse = ['status' => 'error', 'errors' => 'OTP_send_failed'];
                 }
@@ -111,7 +200,7 @@ class SellerRegistrationVerificationService
                 $token = $firebaseResponse['sessionInfo'];
             }
         } else {
-            $smsResponse = SMSModule::sendCentralizedSMS($seller->phone, $token);
+            $smsResponse = SMSModule::sendCentralizedSMS(app(EgyptPhoneService::class)->normalize($seller->phone), $token);
             if (env('APP_MODE') !== 'live') {
                 $smsResponse = 'success';
             }
@@ -133,7 +222,7 @@ class SellerRegistrationVerificationService
                 'otp_hit_count' => 0,
                 'is_temp_blocked' => 0,
                 'temp_block_time' => null,
-                'expires_at' => now()->addMinutes(self::OTP_TTL_MINUTES),
+                'expires_at' => now()->addMinutes($this->otpTtlMinutes()),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
@@ -145,7 +234,7 @@ class SellerRegistrationVerificationService
             'message' => translate('OTP_sent_successfully'),
             'delivery_method' => $deliveryMethod,
             'resend_after' => $this->resendSeconds(),
-            'expires_in' => self::OTP_TTL_MINUTES * 60,
+            'expires_in' => $this->otpTtlMinutes() * 60,
         ];
     }
 
@@ -192,7 +281,7 @@ class SellerRegistrationVerificationService
         $verified = false;
         if (strlen((string) $verification->token) > 6) {
             try {
-                $firebaseResponse = $this->firebaseService->verifyOtp($verification->token, $seller->phone, $otp);
+                $firebaseResponse = $this->firebaseService->verifyOtp($verification->token, app(EgyptPhoneService::class)->normalize($seller->phone), $otp);
                 $verified = ($firebaseResponse['status'] ?? 'error') === 'success';
             } catch (Throwable) {
                 $verified = false;
@@ -264,14 +353,23 @@ class SellerRegistrationVerificationService
 
     private function maxAttempts(): int
     {
-        $configured = (int) (getWebConfig(name: 'maximum_otp_hit') ?? 0);
-        return $configured > 0 ? $configured : self::DEFAULT_MAX_ATTEMPTS;
+        return $this->settingInteger(self::SETTING_OTP_MAX_ATTEMPTS, self::DEFAULT_MAX_ATTEMPTS);
     }
 
     private function resendSeconds(): int
     {
-        $configured = (int) (getWebConfig(name: 'otp_resend_time') ?? 0);
-        return $configured > 0 ? $configured : self::DEFAULT_RESEND_SECONDS;
+        return $this->settingInteger(self::SETTING_OTP_RESEND_SECONDS, self::DEFAULT_RESEND_SECONDS);
+    }
+
+    private function otpTtlMinutes(): int
+    {
+        return $this->settingInteger(self::SETTING_OTP_TTL_MINUTES, self::DEFAULT_OTP_TTL_MINUTES);
+    }
+
+    private function settingInteger(string $type, int $fallback): int
+    {
+        $value = (int) BusinessSetting::query()->where('type', $type)->value('value');
+        return $value > 0 ? $value : $fallback;
     }
 
     private function blockSeconds(): int
@@ -286,6 +384,16 @@ class SellerRegistrationVerificationService
             'status' => false,
             'code' => $code,
             'message' => $message,
+        ];
+    }
+
+    private function allowedVerificationModes(): array
+    {
+        return [
+            self::MODE_NONE,
+            self::MODE_OTP_ONLY,
+            self::MODE_SUPPORT_TICKET_ONLY,
+            self::MODE_OTP_AND_SUPPORT_TICKET,
         ];
     }
 }

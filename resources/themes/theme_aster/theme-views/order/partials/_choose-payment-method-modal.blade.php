@@ -37,7 +37,7 @@
                                         <div
                                             class="bg-primary-op-05 border border-white rounded text-start p-3 mx-3 my-2">
                                             <h6 class="fs-12 fw-semibold mb-1">
-                                                {{ translate('Change Amount') }} ($)
+                                                {{ translate('Change Amount') }} ({{ getCurrencySymbol(type: 'web') }})
                                             </h6>
                                             <p class="mb-2 fs-12 opacity-75 fw-normal text-transform-none">
                                                 {{ translate('insert_amount_of_you_need_deliveryman_to_bring') }}
@@ -169,5 +169,4 @@
                 class="btn btn-primary fw-semibold w-100 payment-proceed-btn">{{ translate('Proceed_To_Pay') }}</button>
     </div>
 </form>
-
 

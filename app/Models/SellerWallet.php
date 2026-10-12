@@ -25,6 +25,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SellerWallet extends Model
 {
 
+    protected static function booted(): void
+    {
+        static::updated(function (self $wallet): void {
+            app(\App\Services\SellerLedgerService::class)->syncWalletMutation($wallet);
+        });
+    }
+
     protected $fillable = [
         'seller_id',
         'total_earning',

@@ -19,6 +19,11 @@
             </div>
         </div>
 
+        <div class="alert alert-soft-info d-flex gap-2 align-items-start mb-3">
+            <i class="fi fi-sr-shield-check mt-1"></i>
+            <span>{{ translate('seller_insurance_balance_is_separate_and_operating_balance_cannot_pay_insurance') }}</span>
+        </div>
+
         @if(!$summary['settings']['enabled'])
             <div class="alert alert-soft-info d-flex gap-2 align-items-start" role="alert">
                 <i class="fi fi-sr-info mt-1"></i>
@@ -91,6 +96,7 @@
                                     {{ translate('online_payment_is_not_available_right_now') }}.
                                 </div>
                             @endif
+
                         </div>
                     </div>
                 </div>

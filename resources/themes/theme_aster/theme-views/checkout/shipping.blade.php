@@ -102,6 +102,13 @@
                                                                                                     <span
                                                                                                         class="shipping-contact-city d-none">{{ $address['city'] }}</span>
                                                                                                     <span
+                                                                                                        class="shipping-contact-state d-none">{{ $address['state'] ?? $address['city'] }}</span>
+                                                                                                    <span class="shipping-contact-district d-none">{{ $address['district'] }}</span>
+                                                                                                    <span class="shipping-contact-area d-none">{{ $address['area'] }}</span>
+                                                                                                    <span class="shipping-contact-street d-none">{{ $address['street'] }}</span>
+                                                                                                    <span class="shipping-contact-building-number d-none">{{ $address['building_number'] }}</span>
+                                                                                                    <span class="shipping-contact-landmark d-none">{{ $address['landmark'] }}</span>
+                                                                                                    <span
                                                                                                         class="shipping-contact-zip d-none">{{ $address['zip'] }}</span>
                                                                                                     <span class="shipping-contact-country d-none">{{ $address['country'] }}</span>
                                                                                                     <span class="shipping-contact-address-type d-none">{{ $address['address_type'] }}</span>
@@ -182,30 +189,59 @@
                                                         <div class="col-sm-6">
                                                             <div class="form-group mb-4">
                                                                 <label for="country">{{ translate('country') }} <span class="text-danger">*</span></label>
-                                                                <select name="country" id="country" class="form-select select_picker select2">
-                                                                    <option value="">
-                                                                        {{ translate('Select Your Country') }}
-                                                                    </option>
-                                                                    @forelse($countries as $country)
-                                                                        <option value="{{ $country['name'] }}">
-                                                                            {{ $country['name'] }}
-                                                                        </option>
-                                                                    @empty
-                                                                        <option value="">
-                                                                            {{ translate('no_country_to_deliver') }}
-                                                                        </option>
-                                                                    @endforelse
-                                                                </select>
+                                                                <input type="hidden" name="country" value="Egypt">
+                                                                <input type="text" class="form-control" value="Egypt" readonly>
                                                             </div>
                                                         </div>
                                                         <div class="col-sm-6">
                                                             <div class="form-group mb-4">
-                                                                <label for="city">{{ translate('city') }} <span class="text-danger">*</span></label>
-                                                                <input type="text" name="city" id="city"
-                                                                       placeholder="{{ translate('ex') }}: {{translate('dhaka')}}"
-                                                                       class="form-control" {{$shipping_addresses->count()==0?'required':''}}>
+                                                                <label for="state">{{ translate('governorate') }} <span class="text-danger">*</span></label>
+                                                                <select name="state" id="state" class="form-control" {{$shipping_addresses->count()==0?'required':''}}>
+                                                                    <option value="" selected disabled>{{ translate('select') }} {{ translate('governorate') }}</option>
+                                                                    @foreach(config('egypt.governorates') as $governorate)
+                                                                        <option value="{{ $governorate }}">{{ $governorate }}</option>
+                                                                    @endforeach
+                                                                </select>
                                                             </div>
                                                         </div>
+                                                         <div class="col-sm-6">
+                                                             <div class="form-group mb-4">
+                                                                 <label for="city">المدينة / المركز <span class="text-danger">*</span></label>
+                                                                 <input type="text" name="city" id="city"
+                                                                       placeholder="{{ translate('ex') }}: {{translate('dhaka')}}"
+                                                                       class="form-control" {{$shipping_addresses->count()==0?'required':''}}>
+                                                             </div>
+                                                         </div>
+                                                         <div class="col-sm-6">
+                                                             <div class="form-group mb-4">
+                                                                 <label for="district">الحي أو القسم <span class="text-danger">*</span></label>
+                                                                 <input type="text" name="district" id="district" class="form-control" required placeholder="مثال: مدينة نصر">
+                                                             </div>
+                                                         </div>
+                                                         <div class="col-sm-6">
+                                                             <div class="form-group mb-4">
+                                                                 <label for="area">المنطقة <span class="text-danger">*</span></label>
+                                                                 <input type="text" name="area" id="area" class="form-control" required placeholder="مثال: الحي العاشر">
+                                                             </div>
+                                                         </div>
+                                                         <div class="col-sm-6">
+                                                             <div class="form-group mb-4">
+                                                                 <label for="street">الشارع <span class="text-danger">*</span></label>
+                                                                 <input type="text" name="street" id="street" class="form-control" required placeholder="مثال: شارع أحمد الزمر">
+                                                             </div>
+                                                         </div>
+                                                         <div class="col-sm-6">
+                                                             <div class="form-group mb-4">
+                                                                 <label for="building-number">رقم العقار <span class="text-danger">*</span></label>
+                                                                 <input type="text" name="building_number" id="building-number" class="form-control" required placeholder="مثال: 12">
+                                                             </div>
+                                                         </div>
+                                                         <div class="col-sm-6">
+                                                             <div class="form-group mb-4">
+                                                                 <label for="landmark">أقرب علامة مميزة</label>
+                                                                 <input type="text" name="landmark" id="landmark" class="form-control" placeholder="مثال: بجوار مسجد السلام">
+                                                             </div>
+                                                         </div>
                                                         <div class="col-sm-6">
                                                             <div class="form-group mb-4">
                                                                 <label for="city"
@@ -229,55 +265,22 @@
                                                                 @endif
                                                             </div>
                                                         </div>
-                                                        <div class="col-sm-12">
-                                                            <div class="form-group mb-4">
-                                                                <div class="d-flex gap-2 align-items-center justify-content-between mb-2">
-                                                                    <label for="address" class="mb-0">{{ translate('address') }} <span class="text-danger">*</span></label>
-                                                                    @if(getWebConfig('map_api_status') == 1)
-                                                                        <a href="javascript:" type="button" data-bs-toggle="modal"
-                                                                        data-bs-target="#shippingMapModal"
-                                                                        class="btn-link text-primary text-capitalize">{{ translate('Set_Precise_Location') }}
-                                                                            <i class="fi fi-sr-land-layer-location d-flex"></i>
-                                                                        </a>
-                                                                        <div class="modal fade" id="shippingMapModal" tabindex="-1"
-                                                                            aria-hidden="true">
-                                                                            <div class="modal-dialog modal-lg modal-dialog-centered">
-                                                                                <div class="modal-content">
-                                                                                    <div class="modal-body">
-                                                                                        <div class="product-quickview">
-                                                                                            <button type="button" class="btn-close outside"
-                                                                                                    data-bs-dismiss="modal"
-                                                                                                    aria-label="Close"></button>
-                                                                                            <input id="pac-input"
-                                                                                                class="controls rounded __inline-46"
-                                                                                                title="{{translate('search_your_location_here')}}"
-                                                                                                type="text"
-                                                                                                placeholder="{{translate('search_here')}}"/>
-                                                                                            <div class="dark-support rounded w-100 __h-14rem"
-                                                                                                id="location_map_canvas"></div>
-                                                                                            <input type="hidden" id="latitude"
-                                                                                                name="latitude" class="form-control d-inline"
-                                                                                                placeholder="{{ translate('ex') }} : {{ translate('-94.22213') }}"
-                                                                                                value="{{$default_location?$default_location['lat']:0}}"
-                                                                                                required readonly>
-                                                                                            <input type="hidden"
-                                                                                                name="longitude" class="form-control"
-                                                                                                placeholder="{{ translate('ex') }} : {{ translate('103.344322') }}"
-                                                                                                id="longitude"
-                                                                                                value="{{$default_location?$default_location['lng']:0}}"
-                                                                                                required>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    @endif
+                                                         <div class="col-sm-12">
+                                                             <div class="form-group mb-4">
+                                                                 <label for="address" class="mb-2">تفاصيل إضافية للعنوان <span class="text-danger">*</span></label>
+                                                                 <p class="text-muted fs-12 mb-2">لن تظهر لك خريطة. يتحقق النظام من العنوان في الخلفية ويحسب مسافة الطريق من مركز الشحن.</p>
+                                                                 <textarea name="address" id="address" class="form-control" rows="3" placeholder="اكتب أي تفاصيل تساعد المندوب في الوصول" required></textarea>
+                                                             </div>
+                                                         </div>
+                                                        @if($physical_product_view)
+                                                            <div class="col-12 mb-3">
+                                                                <strong class="d-block mb-2">اختر طريقة الشحن لهذا العنوان</strong>
+                                                                <div class="d-flex flex-wrap gap-2">
+                                                                    <label class="border rounded p-3 flex-fill cursor-pointer"><input type="radio" name="preferred_shipping_option" value="normal"> شحن عادي</label>
+                                                                    <label class="border rounded p-3 flex-fill cursor-pointer"><input type="radio" name="preferred_shipping_option" value="sigma"> شحن سيجما <small class="d-block text-primary">موثّق وموصى به من سيجما، ويُضاف تلقائيًا إلى الفاتورة.</small></label>
                                                                 </div>
-                                                                <input type="text" name="address" id="address"
-                                                                       class="form-control"
-                                                                       placeholder="{{ translate('your_address') }}" {{$shipping_addresses->count()==0?'required':''}}>
                                                             </div>
-                                                        </div>
+                                                        @endif
 
                                                         <div class="col-sm-12">
                                                             <label class="custom-checkbox align-items-center fw-bold"
@@ -431,6 +434,8 @@
                                                                                             <span
                                                                                                 class="billing-contact-city d-none">{{ $address['city'] }}</span>
                                                                                             <span
+                                                                                                class="billing-contact-state d-none">{{ $address['state'] ?? $address['city'] }}</span>
+                                                                                            <span
                                                                                                 class="billing-contact-zip d-none">{{ $address['zip'] }}</span>
                                                                                             <span
                                                                                                 class="billing-contact-country d-none">{{ $address['country'] }}</span>
@@ -531,17 +536,18 @@
                                                                 <label for="billing-country">
                                                                     {{ translate('country') }} <span class="text-danger">*</span>
                                                                 </label>
-                                                                <select name="billing_country" id="billing-country" class="form-select select_picker select2">
-                                                                    <option value="">
-                                                                        {{ translate('Select Your Country') }}
-                                                                    </option>
-                                                                    @forelse($countries as $country)
-                                                                        <option
-                                                                            value="{{ $country['name'] }}">{{ $country['name'] }}</option>
-                                                                    @empty
-                                                                        <option
-                                                                            value="">{{ translate('no_country_to_deliver') }}</option>
-                                                                    @endforelse
+                                                                <input type="hidden" name="billing_country" value="Egypt">
+                                                                <input type="text" class="form-control" value="Egypt" readonly>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="form-group mb-4">
+                                                                <label for="billing-state">{{ translate('governorate') }} <span class="text-danger">*</span></label>
+                                                                <select name="billing_state" id="billing-state" class="form-control" {{$billing_addresses->count()==0?'required':''}}>
+                                                                    <option value="" selected disabled>{{ translate('select') }} {{ translate('governorate') }}</option>
+                                                                    @foreach(config('egypt.governorates') as $governorate)
+                                                                        <option value="{{ $governorate }}">{{ $governorate }}</option>
+                                                                    @endforeach
                                                                 </select>
                                                             </div>
                                                         </div>
@@ -578,56 +584,10 @@
                                                                 @endif
                                                             </div>
                                                         </div>
-                                                        <div class="col-sm-12">
-                                                            <div class="form-group mb-4">
-                                                                <div class="d-flex gap-2 align-items-center justify-content-between mb-2">
-                                                                    <label class="mb-0"
-                                                                        for="billing_address">{{ translate('address') }} <span class="text-danger">*</span></label>
-                                                                    @if(getWebConfig('map_api_status') == 1)
-                                                                        <a href="javascript:" data-bs-toggle="modal"
-                                                                        data-bs-target="#billingMapModal"
-                                                                        class="btn-link text-primary text-capitalize">
-                                                                            {{ translate('Set_Precise_Location') }}
-                                                                            <i class="fi fi-sr-land-layer-location d-flex"></i>
-                                                                        </a>
-                                                                        <div class="modal fade" id="billingMapModal" tabindex="-1"
-                                                                            aria-hidden="true">
-                                                                            <div class="modal-dialog modal-lg modal-dialog-centered">
-                                                                                <div class="modal-content">
-                                                                                    <div class="modal-body">
-                                                                                        <div class="product-quickview">
-                                                                                            <button type="button" class="btn-close outside"
-                                                                                                    data-bs-dismiss="modal"
-                                                                                                    aria-label="Close"></button>
-                                                                                            <input id="pac-input-billing"
-                                                                                                class="controls rounded __inline-46"
-                                                                                                title="{{translate('search_your_location_here')}}"
-                                                                                                type="text"
-                                                                                                placeholder="{{translate('search_here')}}"/>
-                                                                                            <div
-                                                                                                class="dark-support rounded w-100 __h-14rem"
-                                                                                                id="billing-location-map-canvas"></div>
-                                                                                            <input type="hidden" id="billing-latitude"
-                                                                                                name="billing_latitude"
-                                                                                                class="form-control d-inline"
-                                                                                                placeholder="{{translate('ex')}} : {{translate('-94.22213')}}"
-                                                                                                value="{{$default_location?$default_location['lat']:0}}"
-                                                                                                required readonly>
-                                                                                            <input type="hidden"
-                                                                                                name="billing_longitude"
-                                                                                                class="form-control"
-                                                                                                placeholder="{{ translate('ex') }} : {{translate('103.344322')}}"
-                                                                                                id="billing-longitude"
-                                                                                                value="{{$default_location?$default_location['lng']:0}}"
-                                                                                                required>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    @endif
-                                                                </div>
-                                                                <input type="text" name="billing_address"
+                                                         <div class="col-sm-12">
+                                                             <div class="form-group mb-4">
+                                                                 <label class="mb-2" for="billing_address">{{ translate('address') }} <span class="text-danger">*</span></label>
+                                                                 <input type="text" name="billing_address"
                                                                     id="billing_address"
                                                                     class="form-control"
                                                                     placeholder="{{ translate('your_address') }}" {{$shipping_addresses->count()==0?'required':''}}>
@@ -691,6 +651,43 @@
                         </div>
                     </div>
                 </div>
+                @if($physical_product_view && !empty($shipping_quote_options))
+                    <div class="card mt-3" id="automatic-shipping-options">
+                        <div class="card-body">
+                            <h5 class="mb-1">اختر طريقة الشحن</h5>
+                            <p class="text-muted mb-3">اختر الشحن المناسب لعنوانك. تُضاف تكلفة الشحن تلقائيًا إلى الفاتورة.</p>
+                            <div class="row g-3">
+                                @foreach(['normal', 'sigma'] as $shippingOptionKey)
+                                    @php($shippingOption = $shipping_quote_options[$shippingOptionKey] ?? null)
+                                    @if($shippingOption)
+                                        <div class="col-md-6">
+                                            <button type="button" class="btn btn-outline-primary w-100 text-start p-3 select-automatic-shipping"
+                                                    data-method-id="{{ $shippingOption['method_id'] }}" data-address-id="{{ $selected_shipping_address_id }}" data-shipping-option="{{ $shippingOptionKey }}">
+                                                <div class="d-flex justify-content-between align-items-center gap-2">
+                                                    <strong>{{ $shippingOptionKey === 'sigma' ? 'شحن سيجما' : 'شحن عادي' }}</strong>
+                                                </div>
+                                                @if($shippingOptionKey === 'sigma')
+                                                    <div class="small text-primary mt-2">شحن موثّق وموصى به من سيجما، ويُضاف تلقائيًا إلى الفاتورة.</div>
+                                                @endif
+                                                <div class="small text-muted mt-2">
+                                                    مدة التوصيل:
+                                                    @if($shippingOption['minimum_business_days'] === $shippingOption['maximum_business_days'])
+                                                        {{ $shippingOption['minimum_business_days'] }} يوم عمل
+                                                    @else
+                                                        {{ $shippingOption['minimum_business_days'] }} - {{ $shippingOption['maximum_business_days'] }} يوم عمل
+                                                    @endif
+                                                </div>
+                                            </button>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </div>
+                            @if($automatic_shipping_selected)
+                                <a href="{{ route('checkout-payment') }}" class="btn btn-primary w-100 mt-3">المتابعة إلى الدفع</a>
+                            @endif
+                        </div>
+                    </div>
+                @endif
                 @include('theme-views.partials._order-summery')
             </div>
         </div>
@@ -700,14 +697,29 @@
           data-latitude="{{ $default_location ? $default_location['lat'] : '' }}"
           data-longitude="{{ $default_location ? $default_location['lng'] : '' }}">
 </span>
+    <span id="route-set-automatic-shipping" data-url="{{ route('customer.set-shipping-method') }}"></span>
+    <span id="route-checkout-payment" data-url="{{ route('checkout-payment') }}"></span>
+    <span id="automatic-shipping-selected" data-value="{{ $automatic_shipping_selected ? 1 : 0 }}"></span>
 @endsection
 @push('script')
-    <script src="{{ theme_asset('assets/js/shipping-page.js') }}"></script>
+    <script src="{{ theme_asset('assets/js/shipping-page.js') }}?v=shipping-flow-20260929"></script>
+    <script>
+        document.querySelectorAll('.select-automatic-shipping').forEach((button) => {
+            button.addEventListener('click', async () => {
+                button.disabled = true;
+                const url = document.getElementById('route-set-automatic-shipping').dataset.url;
+                const params = new URLSearchParams({id: button.dataset.methodId, address_id: button.dataset.addressId, cart_group_id: 'all_cart_group'});
+                const response = await fetch(`${url}?${params.toString()}`, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+                const data = await response.json();
+                if (data.status) window.location.reload();
+                else button.disabled = false;
+            });
+        });
+        const preferredShipping = sessionStorage.getItem('sigma_preferred_shipping');
+        if (preferredShipping) {
+            sessionStorage.removeItem('sigma_preferred_shipping');
+            document.querySelector(`.select-automatic-shipping[data-shipping-option="${preferredShipping}"]`)?.click();
+        }
+    </script>
 
-    @if(getWebConfig('map_api_status') ==1 )
-        <script
-            src="https://maps.googleapis.com/maps/api/js?key={{getWebConfig('map_api_key')}}&callback=mapsLoading&loading=async&libraries=places&v=3.56"
-            defer>
-        </script>
-    @endif
 @endpush

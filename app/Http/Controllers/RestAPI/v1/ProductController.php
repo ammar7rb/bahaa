@@ -354,6 +354,7 @@ class ProductController extends Controller
             ->where(['slug' => $slug])->first();
 
         if (isset($product)) {
+            app(\App\Services\SellerPackagePerformanceService::class)->recordVisit($product);
             $restockRequestedIds = $this->restockProductRepo->getListWhere(filters: ['product_id' => $product['id']], dataLimit: 'all')?->pluck('id')->toArray() ?? [];
 
             $product = Helpers::product_data_formatting($product, false);

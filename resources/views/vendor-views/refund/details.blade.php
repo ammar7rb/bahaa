@@ -29,6 +29,9 @@
                         </button>
                     @endif
                 @endif
+                @if($refund['status'] === 'approved')
+                    <button class="btn btn-outline-danger min-w--100 p-2 px-3" data-toggle="modal" data-target="#refuseExecutionModal">{{ translate('refuse_approved_return_execution') }}</button>
+                @endif
             </div>
         </div>
         <div class="card p-4">
@@ -438,6 +441,20 @@
                 </div>
             </div>
         @endif
+    @endif
+
+    @if($refund['status'] === 'approved')
+        <div class="modal fade" id="refuseExecutionModal"><div class="modal-dialog"><div class="modal-content">
+            <form action="{{ route('vendor.refund.update-status') }}" method="post" id="submit-refuse-execution-form">@csrf
+                <div class="modal-body">
+                    <input type="hidden" name="id" value="{{ $refund->id }}"><input type="hidden" name="refund_status" value="refused_execution">
+                    <h4>{{ translate('refuse_approved_return_execution') }}</h4>
+                    <p class="text-muted">{{ translate('return_refusal_will_hold_settlement') }}</p>
+                    <textarea class="form-control" name="rejected_note" required rows="4" placeholder="{{ translate('refusal_reason') }}"></textarea>
+                    <div class="d-flex justify-content-end gap-2 mt-3"><button type="button" class="btn btn-secondary" data-dismiss="modal">{{ translate('close') }}</button><button type="button" class="btn btn-danger form-submit" data-form-id="submit-refuse-execution-form" data-message="{{ translate('confirm_return_execution_refusal') }}" data-redirect-route="{{ route('vendor.refund.index', ['status' => 'approved']) }}">{{ translate('confirm') }}</button></div>
+                </div>
+            </form>
+        </div></div></div>
     @endif
 
     @foreach ($refund?->refundStatus as $key => $status)

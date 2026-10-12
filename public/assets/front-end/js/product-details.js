@@ -139,6 +139,11 @@ function loadReviewOnDetailsPage() {
 $("#chat-form").on("submit", function (e) {
     e.preventDefault();
 
+    if ($("#route-messages-store").data("support-only")) {
+        window.location.assign($("#route-messages-store").data("url"));
+        return;
+    }
+
     $.ajaxSetup({
         headers: {
             "X-CSRF-TOKEN": $('meta[name="_token"]').attr("content"),

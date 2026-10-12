@@ -79,8 +79,6 @@
                     @include("admin-views.push-notification.partials._customer-notification")
                 @elseif(request('type') == 'vendor')
                     @include("admin-views.push-notification.partials._vendor-notification")
-                @elseif(request('type') == 'deliveryman')
-                    @include("admin-views.push-notification.partials._deliveryman-notification")
                 @endif
             </div>
         </div>
@@ -142,4 +140,3 @@
 @push('script')
     <script src="{{dynamicAsset(path: 'public/assets/back-end/js/admin/notification.js') }}"></script>
 @endpush
-

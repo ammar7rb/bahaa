@@ -45,6 +45,7 @@ class PushNotificationService
             'refund_request_status_changed_by_admin',
             'product_request_approved_message',
             'product_request_rejected_message',
+            'product_request_suspended_message',
         ];
 
         $delivery_man = [

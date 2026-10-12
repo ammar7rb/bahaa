@@ -76,6 +76,7 @@
                                     <tr>
                                         <th>{{ translate('SL') }}</th>
                                         <th>{{ translate('payment_Method_Name') }}</th>
+                                        <th>{{ app()->getLocale() === 'ar' ? 'نوع الوسيلة' : 'Channel' }}</th>
                                         <th>{{ translate('payment_Info') }}</th>
                                         <th>{{ translate('required_Info_From_Customer') }}</th>
                                         <th class="text-center">{{ translate('status') }}</th>
@@ -87,6 +88,7 @@
                                         <tr>
                                             <td>{{$methods->firstItem()+$key}}</td>
                                             <td>{{ $method->method_name }}</td>
+                                            <td>{{ match($method->payment_channel ?? 'other') { 'wallet' => app()->getLocale() === 'ar' ? 'محفظة إلكترونية' : 'Electronic wallet', 'instapay' => 'InstaPay', default => app()->getLocale() === 'ar' ? 'أخرى' : 'Other' } }}</td>
                                             <td>
                                                 <div class="d-flex flex-column gap-1">
                                                     @foreach ($method->method_fields as $item)

@@ -9,7 +9,6 @@ use App\Models\SellerPackage;
 use App\Models\SellerPackageSubscription;
 use App\Models\SellerPackageTransaction;
 use App\Services\SellerPackagePurchaseService;
-use DomainException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -48,13 +47,15 @@ class SellerPackagePurchaseServiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_package_purchase_is_blocked_without_active_insurance(): void
+    public function test_package_purchase_does_not_require_prepaid_insurance(): void
     {
-        $this->expectException(DomainException::class);
-        app(SellerPackagePurchaseService::class)->getOrCreatePendingSubscription(
+        $subscription = app(SellerPackagePurchaseService::class)->getOrCreatePendingSubscription(
             Seller::findOrFail(1),
             $this->createPackage()
         );
+
+        $this->assertSame(SellerPackageSubscription::STATUS_PENDING, $subscription->status);
+        $this->assertSame('unpaid', $subscription->payment_status);
     }
 
     public function test_pending_subscription_keeps_package_snapshot_after_admin_edits_package(): void
@@ -67,7 +68,11 @@ class SellerPackagePurchaseServiceTest extends TestCase
         $package->update(['product_limit' => 99, 'package_price' => 999]);
         $subscription->refresh();
 
-        $this->assertSame(10, $subscription->product_limit);
+        // Packages grant advertising/coupon benefits. Product creation itself
+        // no longer consumes a package quota.
+        $this->assertSame(0, $subscription->product_limit);
+        $this->assertSame(2, $subscription->search_promotion_limit);
+        $this->assertSame(1, $subscription->homepage_promotion_limit);
         $this->assertSame(250.0, (float) $subscription->paid_package_price);
     }
 
@@ -100,7 +105,7 @@ class SellerPackagePurchaseServiceTest extends TestCase
         $this->assertSame('paid', $result['subscription']->payment_status);
         $this->assertSame(SellerPackageSubscription::STATUS_REPLACED, $oldSubscription->fresh()->status);
         $this->assertNotNull($result['subscription']->expires_at);
-        $this->assertSame(4, SellerPackageTransaction::where('seller_package_subscription_id', $subscription->id)->count());
+        $this->assertSame(3, SellerPackageTransaction::where('seller_package_subscription_id', $subscription->id)->count());
         $this->assertSame(250.0, (float) SellerPackageTransaction::where('seller_package_subscription_id', $subscription->id)->sum('paid_amount'));
 
         $duplicate = $service->markPaid($result['subscription'], [
@@ -108,7 +113,7 @@ class SellerPackagePurchaseServiceTest extends TestCase
             'transaction_id' => 'manual-package-1',
         ], 8);
         $this->assertSame('already_paid', $duplicate['message']);
-        $this->assertSame(4, SellerPackageTransaction::where('seller_package_subscription_id', $subscription->id)->count());
+        $this->assertSame(3, SellerPackageTransaction::where('seller_package_subscription_id', $subscription->id)->count());
     }
 
     public function test_rejected_offline_payment_allows_a_new_purchase_attempt(): void
@@ -157,7 +162,7 @@ class SellerPackagePurchaseServiceTest extends TestCase
 
         $this->assertSame(SellerPackageSubscription::STATUS_ACTIVE, $subscription->status);
         $this->assertSame((string) $paymentRequest->id, $subscription->payment_request_id);
-        $this->assertSame(4, SellerPackageTransaction::where('seller_package_subscription_id', $subscription->id)->count());
+        $this->assertSame(3, SellerPackageTransaction::where('seller_package_subscription_id', $subscription->id)->count());
     }
 
     private function grantInsurance(): void
@@ -251,6 +256,9 @@ class SellerPackagePurchaseServiceTest extends TestCase
             $table->unsignedInteger('search_promotion_duration_days')->default(0);
             $table->unsignedInteger('homepage_promotion_limit')->default(0);
             $table->unsignedInteger('homepage_promotion_duration_days')->default(0);
+            $table->unsignedInteger('coupon_limit')->nullable();
+            $table->unsignedInteger('used_coupon_limit')->default(0);
+            $table->integer('coupon_adjustment_limit')->default(0);
             $table->unsignedInteger('package_validity_days')->nullable();
             $table->boolean('status')->default(true);
             $table->integer('sort_order')->default(0);
@@ -276,13 +284,19 @@ class SellerPackagePurchaseServiceTest extends TestCase
             $table->unsignedInteger('used_homepage_promotion_limit')->default(0);
             $table->integer('homepage_promotion_adjustment_limit')->default(0);
             $table->unsignedInteger('homepage_promotion_duration_days')->default(0);
+            $table->unsignedInteger('coupon_limit')->nullable();
+            $table->unsignedInteger('used_coupon_limit')->default(0);
+            $table->integer('coupon_adjustment_limit')->default(0);
             $table->unsignedInteger('package_validity_days')->nullable();
+            $table->string('duration_unit', 20)->nullable();
+            $table->unsignedInteger('duration_value')->nullable();
             $table->string('status')->default('pending');
             $table->string('payment_status')->default('unpaid');
             $table->string('payment_method')->nullable();
             $table->string('payment_reference')->nullable();
             $table->char('payment_request_id', 36)->nullable();
             $table->timestamp('starts_at')->nullable();
+            $table->timestamp('started_at')->nullable();
             $table->timestamp('expires_at')->nullable();
             $table->timestamp('activated_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();

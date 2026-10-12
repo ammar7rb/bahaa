@@ -14,17 +14,16 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form action="{{route('messages')}}" method="post" id="seller-chat-form">
+                <form action="{{ route('account-tickets') }}" method="get" id="seller-chat-form">
                     @csrf
 
                     <input value="{{ isset($user_type) && $user_type == 'admin' ? 0 : $seller->id}}" name="vendor_id" hidden>
                     <textarea name="message" class="form-control min-height-100px max-height-200px" required placeholder="{{ translate('Write_here') }}..."></textarea>
                     <br>
                     <div class="justify-content-end gap-2 d-flex flex-wrap">
-                        <a href="{{route('chat', ['type' => 'vendor'])}}" class="btn btn-soft-primary bg--secondary border">
-                            {{translate('go_to_chatbox')}}
+                        <a href="{{ route('account-tickets') }}" class="btn btn--primary text-white">
+                            {{ translate('contact_support') }}
                         </a>
-                        <button class="btn btn--primary text-white">{{translate('send')}}</button>
                     </div>
                 </form>
             </div>

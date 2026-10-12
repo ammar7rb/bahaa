@@ -7,19 +7,7 @@
 @endphp
 
 @php($direction = session('direction'))
-@if (env('APP_MODE')=='demo')
-    <div class="__announcement-bar" style="background-image: url({{ dynamicAsset(path: 'public/assets/website-top-header.png') }})">
-        <div class="container">
-            <div class="wrapper">
-                <div class="txt">
-                    This is a demo website - Buy genuine 6Valley using our official link !
-                </div>
-                <a href="https://codecanyon.net/item/6valley-multivendor-ecommerce-complete-ecommerce-mobile-app-web-and-admin-panel/31448597?s_rank=19" class="click" target="_blank">Click Now <img src="{{ asset('public/assets/arrowww.png') }}" alt=""></a>
-                <a href="https://codecanyon.net/item/6valley-multivendor-ecommerce-complete-ecommerce-mobile-app-web-and-admin-panel/31448597?s_rank=19" class="px-3 py-1 rounded" style="background-color: #FF7500; color:#ffffff" target="_blank">Buy Now</a>
-            </div>
-        </div>
-    </div>
-@endif
+{{-- The legacy vendor demo banner is intentionally omitted from the project preview. --}}
 
 <header class="header fixed-top navbar-fixed shadow-sm bg-white">
     <div class="d-flex align-items-center justify-content-between gap-3">
@@ -223,6 +211,24 @@
                     </li>
                 @endif
 
+                <li class="nav-item dropdown">
+                    <a class="btn-icon" href="javascript:" data-bs-toggle="dropdown" aria-label="{{ translate('operational_notifications') }}">
+                        <div class="position-relative lh-1 mt-1">
+                            <i class="fi fi-rr-bell fs-18"></i>
+                            <span id="operational-feed-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+                        </div>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end p-0" style="width:min(390px, calc(100vw - 24px)); max-height: 480px; overflow-y:auto;">
+                        <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                            <strong>{{ translate('operational_notifications') }}</strong>
+                            <a class="small" href="{{ route('admin.activation-center.index') }}">{{ translate('activation_center') }}</a>
+                        </div>
+                        <div id="operational-feed-items" class="py-1">
+                            <div class="text-center text-muted small p-3">{{ translate('no_new_notifications') }}</div>
+                        </div>
+                    </div>
+                </li>
+
                 @if (\App\Utils\Helpers::module_permission_check('people'))
                     <li class="nav-item">
                         <a class="btn-icon" href="{{ route('admin.contact.list') }}"
@@ -291,6 +297,41 @@
 
 @push('script')
     <script>
+        (function () {
+            const endpoint = @json(route('admin.operational-feed.index'));
+            const list = document.getElementById('operational-feed-items');
+            const badge = document.getElementById('operational-feed-count');
+            let cursor = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            let seen = new Set(), initialized = false;
+            const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
+            function render(event, prepend) {
+                if (!list || seen.has(event.id)) return;
+                seen.add(event.id);
+                const element = document.createElement('a');
+                element.href = event.url;
+                element.className = 'dropdown-item py-2 text-wrap border-bottom';
+                element.innerHTML = '<div class="fw-semibold fs-13">' + esc(event.title) + '</div><div class="small text-muted text-truncate">' + esc(event.body) + '</div><div class="small text-primary mt-1">' + esc(event.display_time) + '</div>';
+                const empty = list.querySelector('.text-center'); if (empty) empty.remove();
+                prepend ? list.prepend(element) : list.append(element);
+            }
+            function setBadge() {
+                const count = seen.size; if (!badge) return;
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.toggle('d-none', count === 0);
+            }
+            async function refresh() {
+                try {
+                    const response = await fetch(endpoint + '?after=' + encodeURIComponent(cursor), {headers: {'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest'}});
+                    if (!response.ok) return;
+                    const data = await response.json();
+                    data.events.forEach(event => render(event, true));
+                    if (initialized && data.events.length && document.getElementById('myAudio')) document.getElementById('myAudio').play().catch(() => {});
+                    initialized = true; cursor = data.server_time || new Date().toISOString(); setBadge();
+                } catch (_) {}
+            }
+            refresh(); window.setInterval(refresh, 10000);
+        })();
+
         let currentIndex = -1;
 
         function getItems() {

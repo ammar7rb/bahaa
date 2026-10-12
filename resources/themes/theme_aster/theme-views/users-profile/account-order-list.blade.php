@@ -69,16 +69,7 @@
                                                     <td>{{ $orders->firstItem() + $key }}</td>
                                                     <td>
                                                         <div class="media gap-3 align-items-center mn-w200">
-                                                            <div
-                                                                class="avatar rounded size-3-75rem aspect-1 overflow-hidden d-flex align-items-center">
-                                                                @if($order->seller_is == 'seller')
-                                                                    <img class="img-fit dark-support rounded" alt=""
-                                                                         src="{{ getStorageImages(path:$order?->seller?->shop->image_full_url, type:'shop') }}">
-                                                                @elseif($order->seller_is == 'admin')
-                                                                    <img class="img-fit dark-support rounded" alt=""
-                                                                         src="{{ getStorageImages(path: getInHouseShopConfig(key: 'image_full_url'), type:'shop') }}">
-                                                                @endif
-                                                            </div>
+                                                            {{-- Seller and store logos are hidden from customer order history. --}}
                                                             <div class="media-body">
                                                                 <h6 class="d-flex align-items-center gap-1">
                                                                     <a href="{{ route('account-order-details', ['id'=>$order->id]) }}">
@@ -127,7 +118,7 @@
                                                         @else
                                                             <span
                                                                 class="badge text-primary border-primary-1 text-bg-primary rounded-1 fw-normal fs-12 bg-opacity-10">
-                                                            {{ translate($order['order_status']) }}
+                                                            {{ $order->customer_checkout_operation_id && $order->order_status === 'pending' ? app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order)['message'] : translate($order['order_status']) }}
                                                         </span>
                                                         @endif
 
@@ -154,6 +145,13 @@
                                                     <td>
                                                         <div
                                                             class="d-flex justify-content-center gap-2 align-items-center">
+                                                            @if($order->postPurchaseInvoice?->isPayable())
+                                                                <a href="{{ route('post-purchase-invoices.show', $order->postPurchaseInvoice->id) }}"
+                                                                   class="btn btn-outline-warning btn-action"
+                                                                   title="استكمال سداد الضريبة">
+                                                                    <i class="fi fi-rr-credit-card"></i>
+                                                                </a>
+                                                            @endif
                                                             @if($order->edited_status == 1 && $order?->latestEditHistory?->order_due_payment_status == 'unpaid' && $order?->latestEditHistory?->order_due_payment_method != "offline_payment" && $order?->latestEditHistory?->order_due_payment_method != "cash_on_delivery" && $order?->latestEditHistory?->order_due_amount > 0)
                                                                 <button type="button"
                                                                         class="btn btn-outline-warning btn-action choose-payment-method-modal-btn"
@@ -191,15 +189,7 @@
                                                 class="d-flex gap-2 justify-content-between py-2 border-bottom d-sm-none">
                                                 <div class="media gap-2 mn-w200 get-view-by-onclick"
                                                      data-link="{{ route('account-order-details', ['id'=>$order->id]) }}">
-                                                    <div class="avatar rounded size-3-75rem">
-                                                        @if($order->seller_is == 'seller')
-                                                            <img class="img-fit dark-support rounded" alt=""
-                                                                 src="{{ getStorageImages(path: $order?->seller?->shop->image_full_url, type:'shop') }}">
-                                                        @elseif($order->seller_is == 'admin')
-                                                            <img class="img-fit dark-support rounded" alt=""
-                                                                 src="{{ getStorageImages(path: getInHouseShopConfig(key: 'image_full_url'), type:'shop') }}">
-                                                        @endif
-                                                    </div>
+                                                    {{-- Seller and store logos are hidden from customer order history. --}}
                                                     <div class="media-body">
                                                         <h6 class="d-flex align-items-center gap-1">
                                                             {{translate('order').'#'}}{{$order['id']}}
@@ -251,7 +241,7 @@
                                                             </span>
                                                             @else
                                                                 <span class="text-center badge bg-info rounded-pill">
-                                                                {{translate($order['order_status'])}}
+                                                                {{ $order->customer_checkout_operation_id && $order->order_status === 'pending' ? app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order)['message'] : translate($order['order_status']) }}
                                                             </span>
                                                             @endif
 

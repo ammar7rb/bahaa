@@ -25,6 +25,8 @@ class SellerPackageSubscription extends Model
 
     public const STATUS_REJECTED = 'rejected';
 
+    protected $appends = ['remaining_days', 'duration_status', 'duration_label'];
+
     protected $fillable = [
         'seller_id',
         'seller_package_id',
@@ -42,16 +44,29 @@ class SellerPackageSubscription extends Model
         'used_homepage_promotion_limit',
         'homepage_promotion_adjustment_limit',
         'homepage_promotion_duration_days',
+        'coupon_limit',
+        'used_coupon_limit',
+        'coupon_adjustment_limit',
         'package_validity_days',
+        'duration_unit',
+        'duration_value',
         'status',
         'payment_status',
         'payment_method',
         'payment_reference',
         'payment_request_id',
         'starts_at',
+        'started_at',
         'expires_at',
         'activated_at',
         'cancelled_at',
+        'search_priority',
+        'cancellation_effect',
+        'cancel_at_period_end',
+        'cancellation_requested_at',
+        'cancellation_reason',
+        'cancellation_requested_by_type',
+        'cancellation_requested_by_id',
         'metadata',
     ];
 
@@ -72,11 +87,20 @@ class SellerPackageSubscription extends Model
         'used_homepage_promotion_limit' => 'integer',
         'homepage_promotion_adjustment_limit' => 'integer',
         'homepage_promotion_duration_days' => 'integer',
+        'coupon_limit' => 'integer',
+        'used_coupon_limit' => 'integer',
+        'coupon_adjustment_limit' => 'integer',
         'package_validity_days' => 'integer',
+        'duration_value' => 'integer',
         'starts_at' => 'datetime',
+        'started_at' => 'datetime',
         'expires_at' => 'datetime',
         'activated_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'search_priority' => 'integer',
+        'cancel_at_period_end' => 'boolean',
+        'cancellation_requested_at' => 'datetime',
+        'cancellation_requested_by_id' => 'integer',
         'metadata' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -110,5 +134,28 @@ class SellerPackageSubscription extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(SellerPackageTransaction::class);
+    }
+
+    public function performanceMetrics(): HasMany
+    {
+        return $this->hasMany(SellerPackageProductMetric::class);
+    }
+
+    public function getRemainingDaysAttribute(): ?int
+    {
+        return $this->expires_at ? max(0, now()->diffInDays($this->expires_at, false)) : null;
+    }
+
+    public function getDurationStatusAttribute(): string
+    {
+        $unit = $this->duration_unit ?: ($this->package_validity_days ? 'days' : 'lifetime');
+        return $unit === 'lifetime' ? 'lifetime' : ($this->expires_at?->lte(now()) ? 'expired' : 'active');
+    }
+
+    public function getDurationLabelAttribute(): string
+    {
+        $unit = $this->duration_unit ?: ($this->package_validity_days ? 'days' : 'lifetime');
+        $value = $this->duration_value ?: $this->package_validity_days;
+        return $unit === 'lifetime' ? 'lifetime' : sprintf('%d_%s', (int) $value, $unit);
     }
 }

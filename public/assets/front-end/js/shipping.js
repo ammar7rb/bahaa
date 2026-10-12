@@ -32,7 +32,13 @@ function shipping_method_select(get_value){
     $('#name').val(shipping_value.contact_person_name);
     $('[name="phone"]').val(shipping_value.phone);
     $('#address').val(shipping_value.address);
+    $('#state').val(shipping_value.state || shipping_value.city);
     $('#city').val(shipping_value.city);
+    $('#district').val(shipping_value.district);
+    $('#area').val(shipping_value.area);
+    $('#street').val(shipping_value.street);
+    $('#building-number').val(shipping_value.building_number);
+    $('#landmark').val(shipping_value.landmark);
     $('#select2-zip-container').val(shipping_value.zip).selectpicker('refresh');
     $('#zip').val(shipping_value.zip);
     $('#country').val(shipping_value.country).selectpicker('refresh');
@@ -63,6 +69,7 @@ function billing_method_select(get_billing_value){
     $('#billing_contact_person_name').val(billing_value.contact_person_name);
     $('[name="billing_phone"]').val(billing_value.phone);
     $('#billing_address').val(billing_value.address);
+    $('#billing_state').val(billing_value.state || billing_value.city);
     $('#billing_city').val(billing_value.city);
     $('#billing_zip').val(billing_value.zip).selectpicker('refresh');
     $('#billing_country').val(billing_value.country).selectpicker('refresh');
@@ -81,8 +88,15 @@ $('.add-another-address').on('click', function (){
     $("#collapseThree").collapse();
 })
 
-let defaultLatitudeAddressValue = $('#default-latitude-address').data('value');
-let defaultLongitudeAddressValue = $('#default-longitude-address').data('value');
+const egyptMapBounds = {north: 31.7, south: 22.0, east: 36.9, west: 24.7};
+let defaultLatitudeAddressValue = parseFloat($('#default-latitude-address').data('value'));
+let defaultLongitudeAddressValue = parseFloat($('#default-longitude-address').data('value'));
+if (!Number.isFinite(defaultLatitudeAddressValue) || !Number.isFinite(defaultLongitudeAddressValue)
+    || defaultLatitudeAddressValue < egyptMapBounds.south || defaultLatitudeAddressValue > egyptMapBounds.north
+    || defaultLongitudeAddressValue < egyptMapBounds.west || defaultLongitudeAddressValue > egyptMapBounds.east) {
+    defaultLatitudeAddressValue = 30.0444;
+    defaultLongitudeAddressValue = 31.2357;
+}
 async function initAutocomplete() {
     var myLatLng = {
         lat: defaultLatitudeAddressValue,
@@ -97,6 +111,7 @@ async function initAutocomplete() {
         },
         zoom: 13,
         mapId: "roadmap",
+        restriction: {latLngBounds: egyptMapBounds, strictBounds: true},
     });
 
     var marker = new AdvancedMarkerElement({
@@ -156,6 +171,11 @@ async function initAutocomplete() {
             if (!place.geometry || !place.geometry.location) {
                 return;
             }
+            const country = (place.address_components || []).find((component) => component.types.includes('country'));
+            if (!country || country.short_name.toUpperCase() !== 'EG') {
+                $('#address').val('');
+                return;
+            }
             var mrkr = new AdvancedMarkerElement({
                 map,
                 title: place.name,
@@ -199,6 +219,7 @@ async function initAutocompleteBilling() {
         },
         zoom: 13,
         mapId: "roadmap",
+        restriction: {latLngBounds: egyptMapBounds, strictBounds: true},
     });
 
     var marker = new AdvancedMarkerElement({
@@ -260,6 +281,11 @@ async function initAutocompleteBilling() {
             if (!place.geometry || !place.geometry.location) {
                 return;
             }
+            const country = (place.address_components || []).find((component) => component.types.includes('country'));
+            if (!country || country.short_name.toUpperCase() !== 'EG') {
+                $('#billing_address').val('');
+                return;
+            }
             var mrkr = new AdvancedMarkerElement({
                 map,
                 title: place.name,
@@ -291,6 +317,10 @@ $(document).on("keydown", "input", function (e) {
 
 function checkoutFromShipping() {
     let physical_product = $('#physical_product').val();
+    if (physical_product === 'yes' && Number($('#automatic-shipping-selected').data('value')) === 1) {
+        location.href = $('#route-checkout-payment').data('url');
+        return;
+    }
     let billing_address_same_shipping;
 
     if(physical_product === 'yes') {
@@ -364,7 +394,12 @@ function checkoutFromShipping() {
                     });
                 }
             } else {
-                location.href = $('#route-checkout-payment').data('url');
+                // Save the address first, then remain on this page so the
+                // customer can review the distance quote and choose a method.
+                const preferredShipping = $('#address-form input[name="preferred_shipping_option"]:checked').val();
+                if (preferredShipping) sessionStorage.setItem('sigma_preferred_shipping', preferredShipping);
+                window.location.hash = 'automatic-shipping-options';
+                location.reload();
             }
         },
         complete: function () {

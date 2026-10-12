@@ -1,28 +1,29 @@
 {{-- v1 body — wraps the rail + header + ctxpanel + @yield('content') in the grid shell.
      All shell markup uses v2- prefixed classes so no styling leaks into @yield('content'). --}}
-@if (env('APP_MODE') == 'demo')
-    <div class="__announcement-bar" style="background-image: url({{ dynamicAsset(path: 'public/assets/website-top-header.png') }})">
-        <div class="container">
-            <div class="wrapper">
-                <div class="txt">
-                    This is a demo website - Buy genuine 6Valley using our official link !
-                </div>
-                <a href="https://codecanyon.net/item/6valley-multivendor-ecommerce-complete-ecommerce-mobile-app-web-and-admin-panel/31448597?s_rank=19" class="click" target="_blank">Click Now <img src="{{ asset('public/assets/arrowww.png') }}" alt=""></a>
-                <a href="https://codecanyon.net/item/6valley-multivendor-ecommerce-complete-ecommerce-mobile-app-web-and-admin-panel/31448597?s_rank=19" class="px-3 py-1 rounded" style="background-color: #FF7500; color:#ffffff" target="_blank">Buy Now</a>
-            </div>
-        </div>
-    </div>
-@endif
+{{-- The legacy vendor demo banner is intentionally omitted from the project preview. --}}
 
 {{-- v2 sidebar/header chrome uses its own built-in colour palette (the
      defaults defined inside .app-v2 in vendor-v2.css). The system
      primary / secondary picker in business settings is intentionally
      NOT propagated here — v2 stays on its design colours. --}}
 
-<div class="app-v2" id="appV2">
+<div class="app-v2 vendor-shell" id="appV2">
+    @php
+        $vendorInbox = app(\App\Services\VendorInboxService::class)->snapshot(auth('seller')->user());
+        $vendorInboxCounts = $vendorInbox['counts'];
+    @endphp
+    <script>
+        // Apply the shell token set while the parser is still building it.
+        // This prevents a light shell frame before vendor-v2.js boots.
+        if (document.documentElement.dataset.vendorTheme === 'dark') {
+            document.getElementById('appV2').classList.add('v2-theme-dark');
+        }
+    </script>
+    {{-- activation-support-banner is rendered on the seller dashboard and remains
+         the single activation entry point for the seller/admin conversation. --}}
     @include('layouts.vendor.partials.v2._header')
-    @include('layouts.vendor.partials.v2._rail')
     @include('layouts.vendor.partials.v2._side-bar')
+    <button type="button" class="vendor-sidebar-backdrop" data-vendor-sidebar-close aria-label="{{ translate('close') }}"></button>
 
     {{-- Pre-paint sidebar hydration. Runs synchronously while the parser is
          still walking the document, so the rail's v2-is-active and the

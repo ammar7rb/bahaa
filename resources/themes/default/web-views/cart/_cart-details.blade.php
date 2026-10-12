@@ -1,6 +1,7 @@
-<h3 class="mt-4 mb-3 text-center text-lg-left mobile-fs-20 fs-18 font-bold">{{ translate('shopping_cart')}}</h3>
+<h3 class="mt-4 mb-3 text-center text-lg-left mobile-fs-20 fs-18 font-bold">{{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart')}}</h3>
 
 @php($shippingMethod=getWebConfig(name: 'shipping_method'))
+@php($automaticDistanceShipping=app(\App\Services\CustomerThreeStepShippingService::class)->isEnabled())
 @php($cart=\App\Utils\CartManager::getCartListGroupQuery())
 
 <?php
@@ -125,12 +126,12 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
 
                                 @php($chosenShipping=\App\Models\CartShipping::where(['cart_group_id'=>$cartItem['cart_group_id']])->first())
                                 <div class=" bg-white select-method-border rounded">
-                                    @if($isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
+                                    @if(!$automaticDistanceShipping && $isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
                                         @if(isset($chosenShipping)==false)
                                             @php($chosenShipping['shipping_method_id']=0)
                                         @endif
                                         @php($shippings=\App\Utils\Helpers::getShippingMethods($cartItem['seller_id'], $cartItem['seller_is']))
-                                        @if($isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
+                                        @if(!$automaticDistanceShipping && $isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
 
                                             <div class="d-sm-flex">
                                                 @isset($chosenShipping['shipping_cost'])
@@ -152,7 +153,8 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
                                                                     $shippingTitle = translate('choose_shipping_method');
                                                                     foreach ($shippings as $shipping) {
                                                                         if ($chosenShipping['shipping_method_id'] == $shipping['id']) {
-                                                                            $shippingTitle = ucfirst($shipping['title']) . ' ( ' . $shipping['duration'] . ' ) ' . webCurrencyConverter($shipping['cost']);
+                                                                            $promise = app(\App\Services\ShippingPromiseService::class)->forMethod($shipping['id']);
+                                                                            $shippingTitle = ucfirst($shipping['title']) . ' — ' . $promise['display_date'] . ' — ' . webCurrencyConverter($shipping['cost']);
                                                                         }
                                                                     }
                                                                     ?>
@@ -165,11 +167,14 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
                                                             <div class="dropdown-menu m-0 pb-0 w-100">
                                                                 <ul class="list-unstyled mb-0">
                                                                     @foreach($shippings as $shipping)
+                                                                        @php($promise = app(\App\Services\ShippingPromiseService::class)->forMethod($shipping['id']))
                                                                         <li class="cursor-pointer text-dark px-3 py-1 setShippingIdFunctionCartDetails font-semi-bold fs-14"
                                                                             data-id="{{$shipping['id']}}"
                                                                             data-cart-group="{{$cartItem['cart_group_id']}}"
                                                                         >
-                                                                            {{ucfirst($shipping['title']).' ( '.$shipping['duration'].' ) '.webCurrencyConverter($shipping['cost'])}}
+                                                                            <strong>{{ ucfirst($shipping['title']) }}</strong>
+                                                                            <small class="d-block text-muted">{{ $promise['display_date'] }}</small>
+                                                                            <span>{{ webCurrencyConverter($shipping['cost']) }}</span>
                                                                         </li>
                                                                     @endforeach
                                                                 </ul>
@@ -476,13 +481,13 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
                             @endif
 
                             <div class=" bg-white select-method-border rounded">
-                                @if($isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
+                                @if(!$automaticDistanceShipping && $isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
                                     @php($chosenShipping=\App\Models\CartShipping::where(['cart_group_id'=>$cartItem['cart_group_id']])->first())
                                     @if(isset($chosenShipping)==false)
                                         @php($chosenShipping['shipping_method_id']=0)
                                     @endif
                                     @php( $shippings=\App\Utils\Helpers::getShippingMethods($cartItem['seller_id'],$cartItem['seller_is']))
-                                    @if($isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
+                                    @if(!$automaticDistanceShipping && $isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
 
                                         @if(count($shippings) > 0)
                                             <div class="d-sm-flex">
@@ -699,7 +704,7 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
                 <?php
                 $shipping_type = isset($admin_shipping) == true ? $admin_shipping->shipping_type : 'order_wise';
                 ?>
-            @if ($shipping_type == 'order_wise' && $isPhysicalProductExist)
+            @if (!$automaticDistanceShipping && $shipping_type == 'order_wise' && $isPhysicalProductExist)
                 @php($shippings=\App\Utils\Helpers::getShippingMethods(1,'admin'))
                 @php($chosenShipping=\App\Models\CartShipping::where(['cart_group_id'=>$cartItem['cart_group_id']])->first())
 
@@ -744,20 +749,7 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
 
 
         <div class="px-3 px-md-0 mt-3 mt-md-0">
-            <form method="get">
-                <div class="mb-lg-3">
-                    <div class="row">
-                        <div class="col-12">
-                            <label for="phoneLabel" class="form-label input-label fs-14 font-semibold">
-                                {{ translate('order_note') }}
-                                <span class="input-label-secondary">({{ translate('optional') }})</span>
-                            </label>
-                            <textarea class="form-control w-100 border-aliceblue h-100-200" id="order_note"
-                                      name="order_note">{{ session('order_note')}}</textarea>
-                        </div>
-                    </div>
-                </div>
-            </form>
+            
         </div>
     </section>
 

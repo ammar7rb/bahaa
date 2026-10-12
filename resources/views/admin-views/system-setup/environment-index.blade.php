@@ -215,7 +215,7 @@
                                         <div class="form-group">
                                             <label class="form-label text-capitalize" for="">{{ translate('buyer_username') }}</label>
                                             <input type="text" value="{{ env('BUYER_USERNAME') }}" class="form-control"
-                                                placeholder="{{ translate('6valley-admin-demo-jhisdfhisufjifjfijqw5467') }}"
+                                                placeholder="Admin configuration value"
                                                 readonly
                                                 data-bs-toggle="tooltip"
                                                 data-bs-placement="top"

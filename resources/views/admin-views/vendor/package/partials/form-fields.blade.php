@@ -95,7 +95,7 @@
     </div>
 </div>
 
-<div class="p-12 p-sm-20 bg-section rounded">
+<div class="p-12 p-sm-20 bg-section rounded mb-3">
     <div class="mb-3">
         <h3 class="mb-1">{{ translate('Homepage_Featured_Allowance') }}</h3>
         <p class="mb-0 fs-12 text-muted">{{ translate('set_the_quota_to_zero_when_this_package_does_not_include_homepage_featured_offers') }}.</p>
@@ -115,6 +115,21 @@
                    value="{{ old('homepage_promotion_duration_days', ($package?->homepage_promotion_limit ?? 0) > 0 ? $package?->homepage_promotion_duration_days : null) }}"
                    min="1" max="3650">
             @error('homepage_promotion_duration_days') <div class="text-danger fs-12 mt-1">{{ $message }}</div> @enderror
+        </div>
+    </div>
+</div>
+
+<div class="p-12 p-sm-20 bg-section rounded">
+    <div class="mb-3">
+        <h3 class="mb-1">Coupon Allowance</h3>
+        <p class="mb-0 fs-12 text-muted">Set zero to keep coupon creation unavailable for sellers on this package.</p>
+    </div>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label" for="coupon-limit">Coupon creation quota <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="coupon-limit" name="coupon_limit"
+                   value="{{ old('coupon_limit', $package?->coupon_limit ?? 0) }}" min="0" max="1000000" required>
+            @error('coupon_limit') <div class="text-danger fs-12 mt-1">{{ $message }}</div> @enderror
         </div>
     </div>
 </div>

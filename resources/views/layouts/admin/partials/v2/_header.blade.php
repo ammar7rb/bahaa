@@ -2,31 +2,17 @@
     use App\Utils\Helpers;
     $v2Logo = getWebConfig(name: 'company_web_logo');
     $v2Favicon = getWebConfig(name: 'company_fav_icon');
-    $v2Local = session()->has('local') ? session('local') : 'en';
+    $v2Local = session('local', app()->getLocale());
     $v2Languages = getWebConfig(name: 'language') ?? [];
-    // Resolve the currently-active language entry from the DB-backed
-    // business_settings → language config (the same source v1 uses).
-    // Display name + flag code for the trigger both come from that row
-    // so there's no client-side guessing.
-    $v2LocalFlag = $v2Local;
-    $v2LocalLangName = '';
-    foreach ($v2Languages as $v2LangRow) {
-        if ($v2LangRow['code'] === $v2Local) {
-            $v2LocalFlag = \Illuminate\Support\Str::contains($v2LangRow['code'], '-')
-                ? strtolower(explode('-', $v2LangRow['code'])[0])
-                : strtolower($v2LangRow['code']);
-            $v2LocalLangName = $v2LangRow['name'] ?? '';
-        }
-    }
-    $v2PendingOrderCount = $sidebarOrderCounts['pending'] ?? 0;
-    $v2UnseenMessages = $sidebarUnseenMessages ?? 0;
-    $v2Last5Orders = \App\Models\Order::where('order_status', 'pending')
-        ->with('details.productAllStatus')
-        ->orderBy('id', 'desc')
-        ->take(5)
-        ->get();
+    $v2LocalFlag = getLanguageFlagCode($v2Local);
+    $workspaceSnapshot = app(\App\Services\AdminWorkspaceService::class)->snapshot();
+    $workspaceMenus = [
+        'payments' => ['payments_waiting_for_review', 'credit-card', route('admin.workspace.reviews', ['kind' => 'payments'])],
+        'orders' => ['pending_Orders', 'shopping-bag', route('admin.workspace.reviews', ['kind' => 'orders'])],
+        'products' => ['product_pending_review', 'box', route('admin.products.list', ['type' => 'vendor', 'request_status' => 0])],
+        'messages' => ['messages', 'comment', route('admin.workspace.communication')],
+    ];
 @endphp
-
 <header class="v2-header">
     <div class="v2-header-brand">
         <a class="v2-brand-logo" href="{{ route('admin.dashboard.index') }}" title="{{ translate('dashboard') }}">
@@ -55,151 +41,38 @@
         </button>
     </div>
 
-    <nav class="v2-crumbs" id="v2-header-crumbs" aria-label="{{ translate('Breadcrumb') }}"></nav>
 
+    <div class="admin-global-search" data-search-url="{{ route('admin.workspace.search') }}">
+        <i class="fi fi-rr-search" aria-hidden="true"></i>
+        <input id="admin-global-search" type="search" autocomplete="off" maxlength="100" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="admin-search-results" placeholder="{{ translate('workspace_search_placeholder') }}" aria-label="{{ translate('Search') }}">
+        <kbd>Ctrl K</kbd>
+        <div id="admin-search-results" class="admin-search-results" role="listbox" hidden></div>
+    </div>
     <div class="v2-header-right">
-        {{-- Search --}}
-        <button class="v2-search-btn" id="v2-header-search" type="button"
-                data-v2-tooltip="{{ translate('Search') }} · ⌘K" aria-label="{{ translate('Search') }}">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
-            </svg>
-            <span>{{ translate('Search') }}…</span>
-            <span class="v2-kbd-group"><span class="v2-kbd">⌘</span><span class="v2-kbd">K</span></span>
-        </button>
-
-        {{-- Website link --}}
-        <a class="v2-icon-btn" href="{{ route('home') }}" target="_blank"
-           data-v2-tooltip="{{ translate('Website') }}" aria-label="{{ translate('Website') }}">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"/>
-                <path d="M3 12h18"/>
-                <path d="M12 3a13.5 13.5 0 0 1 0 18"/>
-                <path d="M12 3a13.5 13.5 0 0 0 0 18"/>
-            </svg>
-        </a>
-
-        {{-- Pending orders --}}
-        @if (Helpers::module_permission_check('orders'))
-            <div class="v2-dropdown">
-                <button class="v2-icon-btn" type="button" data-v2-dropdown-toggle
-                        data-v2-tooltip="{{ translate('pending_Orders') }}" aria-label="{{ translate('pending_Orders') }}">
-                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M5 8h14l-1 12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 8Z"/>
-                        <path d="M9 8V6a3 3 0 0 1 6 0v2"/>
-                    </svg>
-                    @if ($v2PendingOrderCount > 0)
-                        <span class="v2-badge-dot">{{ $v2PendingOrderCount > 99 ? '99+' : $v2PendingOrderCount }}</span>
-                    @endif
-                </button>
-                {{-- 1:1 port of the v1 .dropdown-cart popup with v2-prefixed
-                     class names. Same <table>-based 3-column layout (thumbs /
-                     order info / action), same stacked-thumbnail pattern with
-                     +N overflow chip on the third tile. CSS lives in admin-v2.css
-                     under .v2-pop-* selectors so v2 doesn't depend on Bootstrap
-                     dropdown-cart, ms-n-6px, extra-images, btn-square, etc. --}}
-                <div class="v2-dropdown-menu v2-orders-menu">
-                    <div class="v2-pop">
-                        <div class="v2-pop-head">
-                            <div class="v2-pop-head-title">
-                                <h4>{{ translate('total_orders') }}</h4>
-                                <span>{{ $v2PendingOrderCount }}</span>
-                            </div>
-                            <a class="v2-pop-view-all" href="{{ route('admin.orders.list', ['status' => 'pending']) }}">
-                                {{ translate('view_all') }}
-                                <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M5 10h10"/><path d="m11 6 4 4-4 4"/>
-                                </svg>
-                            </a>
+        @foreach($workspaceMenus as $kind => [$label, $icon, $url])
+            @if(isset($workspaceSnapshot['categories'][$kind]) && ($kind !== 'payments' || Helpers::module_permission_check('orders') || Helpers::module_permission_check('people') || Helpers::module_permission_check('reports')))
+                @php
+                    $category = $workspaceSnapshot['categories'][$kind];
+                @endphp
+                <div class="v2-dropdown">
+                    <button class="v2-icon-btn admin-inbox-toggle" type="button" data-v2-dropdown-toggle data-workspace-label="{{ translate($label) }}" aria-expanded="false" aria-label="{{ translate($label) }} ({{ $category['count'] }})" title="{{ translate($label) }}">
+                        <i class="fi fi-rr-{{ $icon }}" aria-hidden="true"></i>
+                        <span class="v2-badge-dot {{ $category['count'] ? '' : 'd-none' }}" data-workspace-count="{{ $kind }}">{{ $category['count'] > 99 ? '99+' : $category['count'] }}</span>
+                    </button>
+                    <div class="v2-dropdown-menu admin-inbox">
+                        <div class="admin-inbox-heading"><span class="admin-inbox-heading-icon"><i class="fi fi-rr-{{ $icon }}" aria-hidden="true"></i></span><div><h4>{{ translate($label) }}</h4><span>{{ translate('workspace_notifications_hint') }}</span></div><span class="admin-inbox-total" data-workspace-preview-count="{{ $kind }}">{{ $category['count'] }}</span></div>
+                        <div class="v2-pop-scroll" data-workspace-items="{{ $kind }}">
+                            @forelse($category['items'] as $item)
+                                @include('layouts.admin.partials.v2._notification-item', ['item'=>$item, 'kind'=>$kind])
+                            @empty
+                                <p class="admin-empty">{{ translate('workspace_no_pending') }}</p>
+                            @endforelse
                         </div>
-                        <div class="v2-pop-scroll">
-                            <table class="v2-pop-table">
-                                <tbody>
-                                    @forelse ($v2Last5Orders as $v2Order)
-                                        @php
-                                            $v2Thumbs = [];
-                                            foreach ($v2Order->details as $d) {
-                                                $img = $d?->productAllStatus?->thumbnail_full_url;
-                                                if ($img && ($img['status'] ?? 0) === 200) {
-                                                    $v2Thumbs[] = $img;
-                                                }
-                                            }
-                                        @endphp
-                                        <tr>
-                                            <td>
-                                                <div class="v2-pop-thumbs">
-                                                    @if (count($v2Thumbs))
-                                                        @foreach ($v2Thumbs as $idx => $v2ThumbItem)
-                                                            <div class="v2-pop-thumb-wrap{{ $idx > 2 ? ' is-hidden' : '' }}">
-                                                                <img src="{{ getStorageImages(path: $v2ThumbItem, type: 'backend-product') }}" alt="product image">
-                                                                @if ($idx == 2 && count($v2Thumbs) > 3)
-                                                                    <div class="v2-pop-thumb-more">
-                                                                        <span>+ {{ count($v2Thumbs) - 3 }}</span>
-                                                                    </div>
-                                                                @endif
-                                                            </div>
-                                                        @endforeach
-                                                    @else
-                                                        <img src="{{ getStorageImages(path: '', type: 'backend-product') }}" alt="placeholder">
-                                                    @endif
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="v2-pop-info">
-                                                    <div class="v2-pop-row">
-                                                        <div class="v2-pop-label">{{ translate('Order_id') }}</div>
-                                                        :
-                                                        <span class="v2-pop-value">{{ $v2Order->id }}</span>
-                                                    </div>
-                                                    <div class="v2-pop-row">
-                                                        <div class="v2-pop-label">{{ translate('Order_Amount') }}</div>
-                                                        :
-                                                        <span class="v2-pop-value">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $v2Order->order_amount), currencyCode: getCurrencyCode()) }}</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="v2-pop-action-wrap">
-                                                    <a class="v2-pop-action" href="{{ route('admin.orders.details', ['id' => $v2Order->id]) }}"
-                                                       title="{{ translate('view') }}">
-                                                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                                                             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                            <path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z"/><circle cx="10" cy="10" r="2.5"/>
-                                                        </svg>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr><td colspan="3" class="v2-pop-empty">{{ translate('no_pending_orders') }}</td></tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
+                        <a class="admin-inbox-view-all" href="{{ $url }}">{{ translate('view_all') }}<i class="fi fi-rr-arrow-small-left" aria-hidden="true"></i></a>
                     </div>
                 </div>
-            </div>
-        @endif
-
-        {{-- Messages --}}
-        @if (Helpers::module_permission_check('people'))
-            <a class="v2-icon-btn" href="{{ route('admin.contact.list') }}"
-               data-v2-tooltip="{{ translate('message') }}" aria-label="{{ translate('message') }}">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M4 5h16a1 1 0 0 1 1 1v12a2 2 0 0 1-2 2H8l-4 3V6a1 1 0 0 1 1-1Z"/>
-                    <path d="M8 11h8M8 15h5"/>
-                </svg>
-                @if ($v2UnseenMessages > 0)
-                    <span class="v2-badge-dot">{{ $v2UnseenMessages > 99 ? '99+' : $v2UnseenMessages }}</span>
-                @endif
-            </a>
-        @endif
-
+            @endif
+        @endforeach
         {{-- Language switcher --}}
         <div class="v2-dropdown">
             <button class="v2-lang-btn" type="button" data-v2-dropdown-toggle
@@ -220,9 +93,7 @@
                 @foreach ($v2Languages as $v2Lang)
                     @php
                         $v2LangCode = $v2Lang['code'];
-                        $v2LangFlagCode = \Illuminate\Support\Str::contains($v2LangCode, '-')
-                            ? strtolower(explode('-', $v2LangCode)[0])
-                            : strtolower($v2LangCode);
+                        $v2LangFlagCode = getLanguageFlagCode($v2LangCode);
                     @endphp
                     @if (($v2Lang['status'] ?? 0) == 1)
                         <a class="v2-dropdown-item change-language {{ $v2LangCode == $v2Local ? 'v2-is-active' : '' }}"
@@ -239,27 +110,10 @@
             </div>
         </div>
 
-        {{-- Fullscreen toggle --}}
-        <button class="v2-icon-btn" type="button" id="v2-fullscreen-toggle"
-                data-v2-tooltip="{{ translate('Enter_fullscreen') }}" aria-label="{{ translate('Enter_fullscreen') }}"
-                data-v2-tip-enter="{{ translate('Enter_fullscreen') }}"
-                data-v2-tip-exit="{{ translate('Exit_fullscreen') }}">
-            <svg class="v2-fs-icon v2-fs-enter" width="19" height="19" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M4 9V5a1 1 0 0 1 1-1h4"/>
-                <path d="M15 4h4a1 1 0 0 1 1 1v4"/>
-                <path d="M20 15v4a1 1 0 0 1-1 1h-4"/>
-                <path d="M9 20H5a1 1 0 0 1-1-1v-4"/>
-            </svg>
-            <svg class="v2-fs-icon v2-fs-exit" style="display:none" width="19" height="19" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M9 4v4a1 1 0 0 1-1 1H4"/>
-                <path d="M15 4v4a1 1 0 0 0 1 1h4"/>
-                <path d="M15 20v-4a1 1 0 0 1 1-1h4"/>
-                <path d="M9 20v-4a1 1 0 0 0-1-1H4"/>
-            </svg>
-        </button>
 
+        <button class="v2-icon-btn v2-theme-toggle" type="button" data-admin-theme-toggle onclick="window.baToggleAdminTheme()" aria-label="{{ translate('dark_mode') }}" aria-pressed="false" title="{{ translate('dark_mode') }}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20.8 13A9 9 0 0 1 11 3.2 9 9 0 1 0 20.8 13Z"/></svg>
+        </button>
         {{-- Profile --}}
         <div class="v2-dropdown">
             <button class="v2-avatar-wrap" type="button" data-v2-dropdown-toggle

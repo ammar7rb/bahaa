@@ -5,6 +5,10 @@
             @php($shippingMethod = getWebConfig(name: 'shipping_method'))
             @php($subTotal = 0)
             @php($totalTax = \App\Utils\CartManager::getCartListTaxAmount())
+            @php($taxCollectedInSecondStage = app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled())
+            @if($taxCollectedInSecondStage)
+                @php($totalTax = array_merge($totalTax, ['item_tax' => 0, 'shipping_cost_tax' => 0]))
+            @endif
             @php($totalAmount = 0)
             @php($totalAmountAfterReferralDiscount = 0)
             @php($totalShippingCost = 0)
@@ -86,7 +90,7 @@
                     - {{ webCurrencyConverter(amount: $totalDiscountOnProduct) }}
                 </span>
             </div>
-            @if($systemTaxConfig['SystemTaxVat']['is_active'] && !$systemTaxConfig['is_included'])
+            @if(!$taxCollectedInSecondStage && $systemTaxConfig['SystemTaxVat']['is_active'] && !$systemTaxConfig['is_included'])
                 <div class="d-flex justify-content-between">
                     <span class="cart_title">{{ translate('tax') }}</span>
                     <span class="cart_value">
@@ -156,7 +160,7 @@
             <div class="d-flex justify-content-between">
                 <span class="cart_title text-primary font-weight-bold">
                     {{ translate('total') }}
-                    @if($systemTaxConfig['SystemTaxVat']['is_active'] && $systemTaxConfig['is_included'])
+                    @if(!$taxCollectedInSecondStage && $systemTaxConfig['SystemTaxVat']['is_active'] && $systemTaxConfig['is_included'])
                         <span class="fs-12 font-weight--600">({{ translate('Tax_:_Inc.') }})</span>
                     @endif
                 </span>
@@ -166,6 +170,9 @@
             </div>
         </div>
         @php($company_reliability = getWebConfig(name: 'company_reliability'))
+        @if($taxCollectedInSecondStage)
+            <p class="small text-muted mt-3">{{ translate('checkout_tax_second_stage_note') }}</p>
+        @endif
         @if ($company_reliability != null)
         <div class="light-box p--20 mt-20">
             <div class="">
@@ -195,10 +202,10 @@
                 <span>{{ translate('i_agree_to_Your') }}</span>
                 <a class="font-size-sm text-primary d-inline" target="_blank"
                    href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}">
-                    {{ translate('terms_and_condition') }}
+                    {{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}
                 </a>
                 @foreach($web_config['business_pages']->where('default_status', 1) as $businessPage)
-                            @if($businessPage['slug'] == 'privacy-policy' || $businessPage['slug'] == 'refund-policy')
+                            @if($businessPage['slug'] == 'refund-policy')
                                 <a class="font-size-sm text-primary d-inline" target="_blank"
                                    href="{{ route('business-page.view', ['slug' => $businessPage['slug']]) }}">
                             , {{ translate(str_replace('-', '_', $businessPage['slug'])) }}
@@ -238,10 +245,10 @@
                 <span>{{ translate('i_agree_to_Your') }}</span>
                 <a class="font-size-sm text-primary d-inline" target="_blank"
                    href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}">
-                    {{ translate('terms_and_condition') }}
+                    {{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}
                 </a>
                 @foreach($web_config['business_pages']->where('default_status', 1) as $businessPage)
-                    @if($businessPage['slug'] == 'privacy-policy' || $businessPage['slug'] == 'refund-policy')
+                    @if($businessPage['slug'] == 'refund-policy')
                         <a class="font-size-sm text-primary d-inline" target="_blank"
                            href="{{ route('business-page.view', ['slug' => $businessPage['slug']]) }}">
                             , {{ translate(str_replace('-', '_', $businessPage['slug'])) }}

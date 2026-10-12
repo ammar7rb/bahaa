@@ -47,145 +47,62 @@ class SellerProductEntitlementServiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_product_quota_is_reserved_once_and_limit_cannot_be_bypassed(): void
+    public function test_product_can_be_reserved_without_any_package_or_product_quota(): void
     {
-        $subscription = $this->createSubscription(productLimit: 1);
         $product = $this->createProduct();
         $service = app(SellerProductEntitlementService::class);
 
-        $first = $service->reserveForProduct($product, Seller::findOrFail(1));
-        $second = $service->reserveForProduct($product, Seller::findOrFail(1));
-
-        $this->assertSame($first->id, $second->id);
-        $this->assertSame(1, $subscription->fresh()->used_product_limit);
-        $this->assertDatabaseCount('seller_product_entitlements', 1);
-        $this->assertDatabaseHas('seller_package_transactions', [
-            'transaction_type' => 'quota_usage',
-            'debit' => 1,
-            'balance_after' => 0,
-        ]);
-
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('seller_package_product_limit_has_been_reached');
-        $service->reserveForProduct($this->createProduct(), Seller::findOrFail(1));
+        $this->assertNull($service->reserveForProduct($product, Seller::findOrFail(1)));
+        $this->assertNull($service->reserveForProduct($this->createProduct(), Seller::findOrFail(1)));
+        $this->assertDatabaseCount('seller_product_entitlements', 0);
+        $this->assertDatabaseCount('seller_package_transactions', 0);
     }
 
-    public function test_publication_starts_duration_only_once(): void
+    public function test_expired_or_exhausted_advertising_package_does_not_block_product_creation(): void
     {
-        $this->createSubscription(productLimit: 2, durationDays: 14);
-        $product = $this->createProduct(requestStatus: 1);
-        $service = app(SellerProductEntitlementService::class);
-        $service->reserveForProduct($product, Seller::findOrFail(1));
+        $subscription = $this->createSubscription(productLimit: 0, expiresAt: now()->subMinute());
 
-        $first = $service->activateForPublication($product, Seller::findOrFail(1));
-        $second = $service->activateForPublication($product, Seller::findOrFail(1));
-
-        $this->assertSame(SellerProductEntitlement::STATUS_ACTIVE, $first->status);
-        $this->assertSame($first->starts_at->toDateTimeString(), $second->starts_at->toDateTimeString());
-        $this->assertSame($first->expires_at->toDateTimeString(), $second->expires_at->toDateTimeString());
-        $this->assertSame(14.0, $first->starts_at->diffInDays($first->expires_at));
-    }
-
-    public function test_rejection_before_publication_restores_quota_only_once(): void
-    {
-        $subscription = $this->createSubscription(productLimit: 2);
-        $product = $this->createProduct();
-        $service = app(SellerProductEntitlementService::class);
-        $service->reserveForProduct($product, Seller::findOrFail(1));
-
-        $service->restoreAfterRejection($product);
-        $service->restoreAfterRejection($product);
-
-        $entitlement = SellerProductEntitlement::firstOrFail();
-        $this->assertSame(SellerProductEntitlement::STATUS_RESTORED, $entitlement->status);
-        $this->assertTrue($entitlement->quota_restored);
-        $this->assertSame(0, $subscription->fresh()->used_product_limit);
-        $this->assertSame(1, DB::table('seller_package_transactions')->where('transaction_type', 'quota_restore')->count());
-    }
-
-    public function test_deleting_published_product_does_not_restore_consumed_quota(): void
-    {
-        $subscription = $this->createSubscription(productLimit: 2);
-        $product = $this->createProduct(requestStatus: 1);
-        $service = app(SellerProductEntitlementService::class);
-        $service->reserveForProduct($product, Seller::findOrFail(1));
-        $service->activateForPublication($product, Seller::findOrFail(1));
-
-        $service->cancelForDeletion($product);
-
-        $this->assertSame(1, $subscription->fresh()->used_product_limit);
-        $this->assertSame(SellerProductEntitlement::STATUS_CANCELLED, SellerProductEntitlement::firstOrFail()->status);
-        $this->assertSame(0, DB::table('seller_package_transactions')->where('transaction_type', 'quota_restore')->count());
-    }
-
-    public function test_expired_publication_is_deactivated(): void
-    {
-        $this->createSubscription(productLimit: 2);
-        $product = $this->createProduct(requestStatus: 1, status: 1);
-        $service = app(SellerProductEntitlementService::class);
-        $entitlement = $service->reserveForProduct($product, Seller::findOrFail(1));
-        $entitlement->update([
-            'status' => SellerProductEntitlement::STATUS_ACTIVE,
-            'starts_at' => now()->subDays(2),
-            'expires_at' => now()->subMinute(),
-            'activated_at' => now()->subDays(2),
-        ]);
-
-        $this->assertSame(1, $service->expireDueEntitlements());
-        $this->assertSame(SellerProductEntitlement::STATUS_EXPIRED, $entitlement->fresh()->status);
-        $this->assertSame(0, $product->fresh()->status);
-    }
-
-    public function test_expired_package_cannot_reserve_new_product(): void
-    {
-        $this->createSubscription(productLimit: 2, expiresAt: now()->subMinute());
-
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('active_seller_package_is_required_before_adding_products');
-        app(SellerProductEntitlementService::class)->reserveForProduct(
+        $this->assertNull(app(SellerProductEntitlementService::class)->reserveForProduct(
             $this->createProduct(),
+            Seller::findOrFail(1)
+        ));
+        $this->assertSame(0, $subscription->fresh()->used_product_limit);
+    }
+
+    public function test_approved_product_can_be_published_without_creating_package_entitlement(): void
+    {
+        $product = $this->createProduct(requestStatus: 1);
+        $service = app(SellerProductEntitlementService::class);
+
+        $this->assertNull($service->activateForPublication($product, Seller::findOrFail(1)));
+        $this->assertDatabaseCount('seller_product_entitlements', 0);
+    }
+
+    public function test_unapproved_product_still_cannot_be_published(): void
+    {
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('product_must_be_approved_before_publication');
+        app(SellerProductEntitlementService::class)->activateForPublication(
+            $this->createProduct(requestStatus: 0),
             Seller::findOrFail(1)
         );
     }
 
-    public function test_active_scope_keeps_legacy_products_and_hides_expired_managed_products(): void
+    public function test_expired_legacy_entitlement_is_archived_without_unpublishing_product(): void
     {
-        $subscription = $this->createSubscription(productLimit: 3);
-        $legacyProduct = $this->createProduct(requestStatus: 1, status: 1);
-        $expiredProduct = $this->createProduct(requestStatus: 1, status: 1);
-        $activeProduct = $this->createProduct(requestStatus: 1, status: 1);
-
-        SellerProductEntitlement::create([
-            'seller_id' => 1,
-            'product_id' => $expiredProduct->id,
-            'seller_package_subscription_id' => $subscription->id,
-            'seller_package_id' => 1,
-            'duration_days' => 30,
-            'status' => SellerProductEntitlement::STATUS_ACTIVE,
-            'starts_at' => now()->subMonth(),
-            'expires_at' => now()->subMinute(),
-            'activated_at' => now()->subMonth(),
-        ]);
-        SellerProductEntitlement::create([
-            'seller_id' => 1,
-            'product_id' => $activeProduct->id,
-            'seller_package_subscription_id' => $subscription->id,
-            'seller_package_id' => 1,
-            'duration_days' => 30,
-            'status' => SellerProductEntitlement::STATUS_ACTIVE,
-            'starts_at' => now(),
-            'expires_at' => now()->addMonth(),
-            'activated_at' => now(),
+        $subscription = $this->createSubscription(productLimit: 1);
+        $product = $this->createProduct(requestStatus: 1, status: 1);
+        $entitlement = SellerProductEntitlement::create([
+            'seller_id' => 1, 'product_id' => $product->id,
+            'seller_package_subscription_id' => $subscription->id, 'seller_package_id' => 1,
+            'duration_days' => 30, 'status' => SellerProductEntitlement::STATUS_ACTIVE,
+            'starts_at' => now()->subMonth(), 'expires_at' => now()->subMinute(), 'activated_at' => now()->subMonth(),
         ]);
 
-        $visibleIds = Product::query()
-            ->withoutGlobalScope('translate')
-            ->active()
-            ->pluck('id');
-
-        $this->assertTrue($visibleIds->contains($legacyProduct->id));
-        $this->assertTrue($visibleIds->contains($activeProduct->id));
-        $this->assertFalse($visibleIds->contains($expiredProduct->id));
+        $this->assertSame(1, app(SellerProductEntitlementService::class)->expireDueEntitlements());
+        $this->assertSame(SellerProductEntitlement::STATUS_EXPIRED, $entitlement->fresh()->status);
+        $this->assertSame(1, $product->fresh()->status);
+        $this->assertTrue(Product::query()->withoutGlobalScope('translate')->active()->pluck('id')->contains($product->id));
     }
 
     private function createSubscription(

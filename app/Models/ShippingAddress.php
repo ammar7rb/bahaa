@@ -45,12 +45,23 @@ class ShippingAddress extends Model
         'address_type',
         'address',
         'city',
+        'district',
+        'area',
+        'street',
+        'building_number',
+        'landmark',
         'zip',
         'phone',
         'state',
         'country',
         'latitude',
         'longitude',
+        'dispatch_point_id',
+        'shipping_zone_rate_id',
+        'distance_km',
+        'geocode_status',
+        'geocoded_address',
+        'geocoded_at',
         'is_billing',
     ];
 
@@ -62,5 +73,7 @@ class ShippingAddress extends Model
     protected $casts = [
         'is_guest' => 'boolean',
         'is_billing' => 'boolean',
+        'distance_km' => 'float',
+        'geocoded_at' => 'datetime',
     ];
 }

@@ -14,7 +14,7 @@
                 <a class="dropdown-item {{$template['user_type']=='admin' ? 'active' : ''}}" href="{{route('admin.system-setup.email-templates.view',['admin',EmailTemplateKey::ADMIN_EMAIL_LIST[0]])}}">{{translate('admin_mail_template')}}</a>
                 <a class="dropdown-item {{$template['user_type']=='vendor' ? 'active' : ''}}" href="{{route('admin.system-setup.email-templates.view',['vendor',EmailTemplateKey::VENDOR_EMAIL_LIST[0]])}}">{{translate('vendor_mail_template')}}</a>
                 <a class="dropdown-item {{$template['user_type']=='customer' ? 'active' : ''}}" href="{{route('admin.system-setup.email-templates.view',['customer',EmailTemplateKey::CUSTOMER_EMAIL_LIST[0]])}}">{{translate('customer_mail_template')}}</a>
-                <a class="dropdown-item {{$template['user_type']=='delivery-man' ? 'active' : ''}}" href="{{route('admin.system-setup.email-templates.view',['delivery-man',EmailTemplateKey::DELIVERY_MAN_EMAIL_LIST[0]])}}">{{translate('delivery_Man_mail_template')}}</a>
+                {{-- Delivery Man email templates are retained in storage but no longer exposed to admins. --}}
             </div>
         </div>
     </div>

@@ -13,6 +13,16 @@ use App\Contracts\Repositories\ProductRepositoryInterface;
 use App\Contracts\Repositories\RestockProductRepositoryInterface;
 use App\Contracts\Repositories\VendorRepositoryInterface;
 use App\Contracts\Repositories\VendorWalletRepositoryInterface;
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\SellerPackageSubscription;
+use App\Models\SellerProductPromotion;
+use App\Models\PlatformDailyMetric;
+use App\Models\SellerActivationTicket;
+use App\Models\AccountActivationCase;
+use App\Models\RefundRequest;
+use App\Models\Seller;
+use App\Models\User;
 use App\Http\Controllers\BaseController;
 use App\Services\DashboardService;
 use Carbon\Carbon;
@@ -22,6 +32,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends BaseController
 {
@@ -50,63 +62,10 @@ class DashboardController extends BaseController
      */
     public function index(Request|null $request, ?string $type = null): View|Collection|LengthAwarePaginator|null|callable|RedirectResponse
     {
-        $mostRatedProducts = $this->productRepo->getTopRatedList(filters: ['added_by' => 'admin'])->take(DASHBOARD_DATA_LIMIT);
-        $topSellProduct = $this->productRepo->getTopSellList(filters: ['added_by' => 'in_house'], relations: ['orderDetails', 'refundRequest'])->take(DASHBOARD_TOP_SELL_DATA_LIMIT);
-        $vendorMostRatedProducts = $this->productRepo->getTopRatedList(filters: ['added_by' => 'seller', 'request_status' => 1])->take(DASHBOARD_DATA_LIMIT);
-        $vendorTopSellProduct = $this->productRepo->getTopSellList(filters: ['added_by' => 'seller', 'request_status' => 1], relations: ['orderDetails', 'refundRequest'])->take(DASHBOARD_TOP_SELL_DATA_LIMIT);
-
-        $topCustomer = $this->customerRepo->getListWhereBetween(
-            filters: [
-                'is_active' => 1,
-                'sort_by' => 'order_amount',
-                'avoid_walking_customer' => 1,
-            ],
-            relations: ['orders'],
-            dataLimit: DASHBOARD_DATA_LIMIT,
-        );
-        $topRatedDeliveryMan = $this->deliveryManRepo->getTopRatedList(filters: ['seller_id' => 0, 'sort_by' => 'rating'], relations: ['deliveredOrders', 'rating', 'review'], dataLimit: 'all')->take(DASHBOARD_DATA_LIMIT);
-        $topVendorByEarning = $this->vendorWalletRepo->getListWhere(orderBy: ['total_earning' => 'desc'], filters: [['column' => 'total_earning', 'operator' => '>', 'value' => 0]], relations: ['seller.shop'])->take(DASHBOARD_DATA_LIMIT);
-        $topVendorListByWishlist = $this->vendorRepo->getTopVendorListByWishlist(relations: ['shop'], dataLimit: 'all')->take(DASHBOARD_DATA_LIMIT);
-
-        if (empty(session('statistics_type'))) {
-            session()->put('statistics_type', 'this_year');
-        }
-
-        $data = self::getOrderStatusData();
-        $admin_wallet = $this->adminWalletRepo->getFirstWhere(params: ['admin_id' => 1]);
-
-        $from = now()->startOfYear()->format('Y-m-d');
-        $to = now()->endOfYear()->format('Y-m-d');
-        $range = range(1, 12);
-        $label = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        $inHouseOrderEarningArray = $this->getOrderStatisticsData(from: $from, to: $to, range: $range, type: 'month', userType: 'admin');
-        $vendorOrderEarningArray = $this->getOrderStatisticsData(from: $from, to: $to, range: $range, type: 'month', userType: 'seller');
-        $inHouseEarning = $this->getEarning(from: $from, to: $to, range: $range, type: 'month', userType: 'admin');
-        $vendorEarning = $this->getEarning(from: $from, to: $to, range: $range, type: 'month', userType: 'seller');
-        $commissionEarn = $this->getAdminCommission(from: $from, to: $to, range: $range, type: 'month');
-        $dateType = 'yearEarn';
-        $getTotalCustomerCount = $this->customerRepo->getListWhereBetween(filters: ['avoid_walking_customer' => 1], dataLimit: 'all')->count();
-        $data += [
-            'order' => $this->orderRepo->getListWhere(dataLimit: 'all')->count(),
-            'brand' => $this->brandRepo->getListWhere(dataLimit: 'all')->count(),
-            'topSellProduct' => $topSellProduct,
-            'mostRatedProducts' => $mostRatedProducts,
-            'topVendorByEarning' => $topVendorByEarning,
-            'vendorTopSellProduct' => $vendorTopSellProduct,
-            'vendorMostRatedProducts' => $vendorMostRatedProducts,
-            'top_customer' => $topCustomer,
-            'topVendorListByWishlist' => $topVendorListByWishlist,
-            'topRatedDeliveryMan' => $topRatedDeliveryMan,
-            'inhouse_earning' => $admin_wallet['inhouse_earning'] ?? 0,
-            'commission_earned' => $admin_wallet['commission_earned'] ?? 0,
-            'delivery_charge_earned' => $admin_wallet['delivery_charge_earned'] ?? 0,
-            'pending_amount' => $admin_wallet['pending_amount'] ?? 0,
-            'total_tax_collected' => $admin_wallet['total_tax_collected'] ?? 0,
-            'getTotalCustomerCount' => $getTotalCustomerCount,
-            'getTotalVendorCount' => $this->vendorRepo->getListWhere(dataLimit: 'all')->count(),
-            'getTotalDeliveryManCount' => $this->deliveryManRepo->getListWhere(filters: ['seller_id' => 0], dataLimit: 'all')->count(),
-        ];
-        return view('admin-views.system.dashboard', compact('data', 'inHouseEarning', 'vendorEarning', 'commissionEarn', 'inHouseOrderEarningArray', 'vendorOrderEarningArray', 'label', 'dateType'));
+        $workspace = app(\App\Services\AdminWorkspaceService::class);
+        $totals = $workspace->totals();
+        $data = \App\Utils\Helpers::module_permission_check('people') ? $workspace->activation() : [];
+        return view('admin-views.system.dashboard', compact('totals', 'data'));
     }
 
     public function getOrderStatus(Request $request)
@@ -273,6 +232,10 @@ class DashboardController extends BaseController
     public function getRealTimeActivities(): JsonResponse
     {
         $newOrder = $this->orderRepo->getListWhere(filters: ['checked' => 0], dataLimit: 'all')->count();
+        $pendingProductReviewCount = Product::query()
+            ->where('added_by', 'seller')
+            ->where('request_status', 0)
+            ->count();
         $restockProductList = $this->restockProductRepo->getListWhere(filters: ['added_by' => 'in_house'], dataLimit: 'all')->groupBy('product_id');
         $restockProduct = [];
         if (count($restockProductList) == 1) {
@@ -307,6 +270,7 @@ class DashboardController extends BaseController
         return response()->json([
             'success' => 1,
             'new_order_count' => $newOrder,
+            'pending_product_review_count' => $pendingProductReviewCount,
             'restockProductCount' => $restockProductList->count(),
             'restockProduct' => $restockProduct,
             'newMessagesExist' => $chatting,

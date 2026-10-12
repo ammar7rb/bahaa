@@ -187,11 +187,15 @@ class CartController extends Controller
         }
 
         $user = Helpers::getCustomerInformation($request);
-        Cart::where([
+        $cartItem = Cart::where([
             'id' => $request->key,
             'customer_id' => ($user == 'offline' ? (session('guest_id') ?? $request->guest_id) : $user->id),
             'is_guest' => ($user == 'offline' ? 1 : '0'),
-        ])->delete();
+        ])->first();
+        if ($cartItem && app(\App\Services\CustomerThreeStepShippingService::class)->isEnabled()) {
+            CartShipping::where('cart_group_id', $cartItem->cart_group_id)->delete();
+        }
+        $cartItem?->delete();
         return response()->json(translate('successfully_removed'));
     }
 
@@ -221,6 +225,9 @@ class CartController extends Controller
             Cart::whereIn('id', $request['ids'])->update(['is_checked' => 0]);
         } elseif ($request['action'] == 'checked') {
             Cart::whereIn('id', $request['ids'])->update(['is_checked' => 1]);
+        }
+        if (app(\App\Services\CustomerThreeStepShippingService::class)->isEnabled()) {
+            CartShipping::whereIn('cart_group_id', Cart::whereIn('id', $request['ids'])->pluck('cart_group_id'))->delete();
         }
         return response()->json(translate('Successfully_Update'), 200);
     }
@@ -323,28 +330,8 @@ class CartController extends Controller
         $user = Helpers::getCustomerInformation($request);
         if ($user != 'offline') {
             if (isset($request['cart_guest_id']) && !is_null($request['cart_guest_id'])) {
-                $cartList = Cart::where(['is_guest' => 1, 'customer_id' => $request['cart_guest_id']])->get();
-                foreach ($cartList as $cart) {
-                    $databaseCart = Cart::where([
-                        'customer_id' => $user->id,
-                        'seller_id' => $cart['seller_id'],
-                        'seller_is' => $cart['seller_is']
-                    ])->first();
-
-                    Cart::where([
-                        'customer_id' => $user->id,
-                        'product_id' => $cart['product_id'],
-                        'variant' => $cart['variant'],
-                        'seller_id' => $cart['seller_id'],
-                        'seller_is' => $cart['seller_is']
-                    ])->delete();
-
-                    Cart::where(['id' => $cart['id']])->update([
-                        'cart_group_id' => isset($databaseCart) ? $databaseCart['cart_group_id'] : str_replace('guest', $user['id'], $cart['cart_group_id']),
-                        'customer_id' => $user['id'],
-                        'is_guest' => 0,
-                    ]);
-                }
+                $request->merge(['guest_id' => $request['cart_guest_id']]);
+                \App\Utils\CartManager::cartListSessionToDatabase($request);
             }
             return response()->json(['message' => translate('Cart_update_successfully')], 200);
         }

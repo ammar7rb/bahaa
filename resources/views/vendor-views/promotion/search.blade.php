@@ -69,6 +69,7 @@
                     <tbody>
                     @forelse($products as $product)
                         @php($promotion = $product->activeSearchPromotion)
+                        @php($latestPromotion = $product->latestSearchPromotion)
                         <tr>
                             <td>
                                 <div class="d-flex align-items-center gap-2">
@@ -82,7 +83,9 @@
                                 </div>
                             </td>
                             <td>
-                                @if($promotion)
+                                @if($latestPromotion?->approval_status === 'pending_admin_review')
+                                    <span class="badge badge-soft-warning">{{ translate('Pending_Admin_Review') }}</span>
+                                @elseif($promotion)
                                     <span class="badge badge-soft-success">{{ translate('Featured_Search') }}</span>
                                 @else
                                     <span class="badge badge-soft-secondary">{{ translate('Not_Promoted') }}</span>
@@ -91,7 +94,9 @@
                             <td>{{ $promotion?->starts_at ?? '-' }}</td>
                             <td>{{ $promotion?->expires_at ?? '-' }}</td>
                             <td class="text-center">
-                                @if($promotion)
+                                @if($latestPromotion?->approval_status === 'pending_admin_review')
+                                    <button type="button" class="btn btn-sm btn-warning" disabled><i class="tio-time"></i> {{ translate('Pending_Admin_Review') }}</button>
+                                @elseif($promotion)
                                     <button type="button" class="btn btn-sm btn-success" disabled>
                                         <i class="tio-checkmark-circle"></i> {{ translate('Active') }}
                                     </button>
@@ -100,7 +105,7 @@
                                         @csrf
                                         <input type="hidden" name="product_id" value="{{ $product->id }}">
                                         <button type="submit" class="btn btn-sm btn--primary" {{ !$summary['can_promote'] ? 'disabled' : '' }}>
-                                            <i class="tio-trending-up"></i> {{ translate('Promote_In_Search') }}
+                                            <i class="tio-trending-up"></i> {{ translate('Request_Search_Ad') }}
                                         </button>
                                     </form>
                                 @endif
@@ -126,7 +131,7 @@
                     @forelse($history as $promotion)
                         <tr>
                             <td>{{ $promotion->product?->name ?? '#'.$promotion->product_id }}</td>
-                            <td><span class="badge badge-soft-{{ $promotion->status === 'active' ? 'success' : 'secondary' }}">{{ translate($promotion->status) }}</span></td>
+                            <td><span class="badge badge-soft-{{ $promotion->approval_status === 'approved' ? 'success' : ($promotion->approval_status === 'rejected' ? 'danger' : 'warning') }}">{{ translate($promotion->approval_status) }}</span>@if($promotion->review_note)<div class="fs-11 text-muted">{{ $promotion->review_note }}</div>@endif</td>
                             <td>{{ $promotion->duration_days }} {{ translate('days') }}</td>
                             <td>{{ $promotion->starts_at }}</td>
                             <td>{{ $promotion->expires_at }}</td>

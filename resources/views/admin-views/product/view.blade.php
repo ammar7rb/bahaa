@@ -3,6 +3,7 @@
 @section('title', translate('product_Preview'))
 
 @section('content')
+@if($product->category_review_required)<div class="alert alert-warning m-3" role="alert">{{ translate('other_category_review') }} · {{ translate('category_assignment_required_before_publish') }}</div>@endif
     <div class="content container-fluid text-start">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
             <div class="flex-grow-1">
@@ -14,20 +15,6 @@
                 </p>
             </div>
             <div class="d-flex align-items-stretch justify-content-end flex-wrap gap-3">
-                @if ($product['added_by'] == 'seller' && ($product['request_status'] == 0 || $product['request_status'] == 1))
-                <button class="btn btn-danger min-w-120" data-bs-toggle="modal" data-bs-target="#publishNoteModal">
-                    <i class="fi fi-sr-cross-circle"></i>
-                    {{ translate('denied') }}
-                </button>
-                @endif
-                @if ($product['request_status'] == 0)
-                <button class="btn btn-success min-w-120 update-status" data-id="{{ $product['id'] }}"
-                    data-redirect-route="{{ route('admin.products.list', ['vendor', 'status' => $product['request_status']]) }}"
-                    data-message="{{ translate('want_to_approve_this_product_request') . '?' }}" data-status="1">
-                    <i class="fi fi-sr-check-circle"></i>
-                    {{ translate('approve') }}
-                </button>
-                @endif
                 @if ($product['added_by'] == 'seller' && $product['request_status'] == 2)
                 <div class="bg-danger bg-opacity-10 fs-12 px-2 py-1 rounded max-w-500">
                     <span>
@@ -80,6 +67,40 @@
                 <a href="{{ route('admin.products.update', [$product['id']]) }}" class="btn btn-primary min-w-120"><i class="fi fi-sr-pencil"></i>{{$buttonText}}</a>
             </div>
         </div>
+        @if($product['added_by'] === 'seller')
+            <div class="card mb-4" id="seller-product-review">
+                <div class="card-header"><h3 class="mb-0">{{ translate('seller_product_review_decision') }}</h3></div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('seller_identifier') }}</span><a href="{{ route('admin.vendors.view', $product->user_id) }}" class="fw-bold">M{{ $product->user_id }}</a></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('shop') }}</span><strong>{{ $product->seller?->shop?->name ?? translate('shop_not_found') }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('phone') }}</span><strong>{{ $product->seller?->phone ?? '—' }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('account_status') }}</span><strong>{{ translate($product->seller?->status ?? 'unknown') }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('price') }}</span><strong>{{ webCurrencyConverter($product->unit_price) }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('quantity') }}</span><strong>{{ $product->current_stock }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('production_date') }}</span><strong>{{ optional($product->production_date)->format('Y-m-d') ?? '—' }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('expiry_date') }}</span><strong>{{ optional($product->expiry_date)->format('Y-m-d') ?? '—' }}</strong></div>
+                    </div>
+                    <form method="post" action="{{ route('admin.products.review-decision') }}" class="row g-3 align-items-end">
+                        @csrf
+                        <input type="hidden" name="product_id" value="{{ $product->id }}">
+                        <div class="col-md-4"><label class="form-label">{{ translate('decision') }}</label><select name="decision" class="form-control" required><option value="approve">{{ translate('approve_and_publish') }}</option><option value="changes_requested">{{ translate('request_changes') }}</option><option value="suspend">{{ translate('suspend') }}</option><option value="reject">{{ translate('reject') }}</option></select></div>
+                        <div class="col-md-6"><label class="form-label">{{ translate('reason_or_comment') }}</label><textarea name="reason" class="form-control" rows="2" placeholder="{{ translate('reason_is_required_for_all_decisions_except_approval') }}"></textarea></div>
+                        <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">{{ translate('save_decision') }}</button></div>
+                        <div class="col-12">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="show-on-homepage" name="show_on_homepage" value="1" @checked((int) $product->is_homepage_visible === 1)>
+                                <label class="form-check-label fw-semibold" for="show-on-homepage">{{ translate('show_product_on_homepage') }}</label>
+                                <div class="text-muted fs-12">{{ translate('product_search_visibility_note') }}</div>
+                            </div>
+                        </div>
+                    </form>
+                    @if($product->reviewDecisions->isNotEmpty())
+                        <div class="table-responsive mt-4"><table class="table"><thead><tr><th>{{ translate('decision') }}</th><th>{{ translate('reason') }}</th><th>{{ translate('employee') }}</th><th>{{ translate('date') }}</th></tr></thead><tbody>@foreach($product->reviewDecisions as $item)<tr><td>{{ translate($item->decision) }}</td><td>{{ $item->reason ?: '—' }}</td><td>{{ $item->admin?->name ?? ('#'.$item->admin_id) }}</td><td>{{ $item->created_at }}</td></tr>@endforeach</tbody></table></div>
+                    @endif
+                </div>
+            </div>
+        @endif
         <div class="row g-4">
             <div class="col-12">
                 <div class="card card-top-bg-element">
@@ -449,11 +470,6 @@
                                             </div>
                                         @endif
 
-                                        <div>
-                                            <span class="key text-capitalize">{{ translate('product_type') }}</span>
-                                            <span>:</span>
-                                            <span class="value">{{ translate($product->product_type) }}</span>
-                                        </div>
                                         @if ($product->product_type == 'physical')
                                             <div>
                                                 <span class="key text-capitalize">{{ translate('product_unit') }}</span>

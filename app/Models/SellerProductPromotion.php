@@ -20,6 +20,11 @@ class SellerProductPromotion extends Model
     public const STATUS_CANCELLED = 'cancelled';
     public const STATUS_RESTORED = 'restored';
 
+    public const APPROVAL_PENDING = 'pending_admin_review';
+    public const APPROVAL_APPROVED = 'approved';
+    public const APPROVAL_REJECTED = 'rejected';
+    public const APPROVAL_LEGACY = 'legacy_auto_approved';
+
     protected $fillable = [
         'seller_id',
         'product_id',
@@ -28,7 +33,17 @@ class SellerProductPromotion extends Model
         'promotion_type',
         'duration_days',
         'sort_order',
+        'search_priority',
         'status',
+        'approval_status',
+        'requested_at',
+        'reviewed_by_admin_id',
+        'reviewed_at',
+        'review_note',
+        'placement_scope',
+        'placement_key',
+        'requested_position',
+        'approved_position',
         'quota_restored',
         'starts_at',
         'expires_at',
@@ -48,6 +63,12 @@ class SellerProductPromotion extends Model
         'seller_product_entitlement_id' => 'integer',
         'duration_days' => 'integer',
         'sort_order' => 'integer',
+        'search_priority' => 'integer',
+        'requested_at' => 'datetime',
+        'reviewed_by_admin_id' => 'integer',
+        'reviewed_at' => 'datetime',
+        'requested_position' => 'integer',
+        'approved_position' => 'integer',
         'quota_restored' => 'boolean',
         'starts_at' => 'datetime',
         'expires_at' => 'datetime',
@@ -84,6 +105,11 @@ class SellerProductPromotion extends Model
     public function createdByAdmin(): BelongsTo
     {
         return $this->belongsTo(Admin::class, 'created_by_admin_id');
+    }
+
+    public function reviewedByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'reviewed_by_admin_id');
     }
 
     public function transactions(): HasMany

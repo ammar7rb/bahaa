@@ -7,6 +7,42 @@
         href="{{ theme_asset(path: 'public/assets/front-end/plugin/intl-tel-input/css/intlTelInput.css') }}">
 @endpush
 
+@push('css_or_js')
+    <style>
+        /* Phone numbers remain LTR: keep the country selector on the left in both languages. */
+        [dir="rtl"] #customer-register-form .iti input.iti__tel-input {
+            padding-right: 16px !important;
+            padding-left: 100px !important;
+            direction: ltr !important;
+            text-align: left !important;
+        }
+
+        [dir="rtl"] #customer-register-form .iti input.iti__tel-input::placeholder {
+            direction: rtl;
+            text-align: right;
+        }
+
+        [dir="rtl"] #customer-register-form .iti__flag-container {
+            right: auto !important;
+            left: 0 !important;
+        }
+
+        [dir="rtl"] #customer-register-form .iti__selected-flag,
+        [dir="rtl"] #customer-register-form .iti__selected-dial-code {
+            direction: ltr;
+            unicode-bidi: isolate;
+        }
+
+        /* Bootstrap's validation glyph clashes with the country selector. Keep border validation only. */
+        #customer-register-form .iti input.iti__tel-input:valid,
+        #customer-register-form .iti input.iti__tel-input:invalid,
+        #customer-register-form .iti input.iti__tel-input.is-valid,
+        #customer-register-form .iti input.iti__tel-input.is-invalid {
+            background-image: none !important;
+        }
+    </style>
+@endpush
+
 @section('content')
     <div class="container py-4 __inline-7 text-align-direction">
         <div class="login-card">
@@ -123,47 +159,31 @@
                                         <span class="custom-control-label">
                                             <span>{{ translate('i_agree_to_Your') }}</span>
                                             <a class="font-size-sm text-primary text-force-underline" target="_blank"
-                                                href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}">{{ translate('terms_and_condition') }}</a>
+                                                href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}">{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}</a>
                                         </span>
                                     </label>
                                 </div>
-                                <div class="rtl mt-2">
-                                    <label class="custom-control custom-checkbox m-0 d-flex">
-                                        <input type="checkbox" class="custom-control-input" name="privacy_accepted"
-                                            id="privacyChecked" value="1" required>
-                                        <span class="custom-control-label">
-                                            <span>{{ translate('i_agree_to_Your') }}</span>
-                                            <a class="font-size-sm text-primary text-force-underline" target="_blank"
-                                                href="{{ route('business-page.view', ['slug' => 'privacy-policy']) }}">{{ translate('privacy_policy') }}</a>
-                                        </span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-sm-6">
-                                @if ($web_config['firebase_otp_verification'] && $web_config['firebase_otp_verification']['status'])
-                                    <div class="generate-firebase-auth-recaptcha" id="firebase-auth-recaptcha-{{ rand(111, 999) }}"></div>
-                                @elseif(isset($recaptcha) && $recaptcha['status'] == 1)
-                                    <div class="dynamic-default-and-recaptcha-section">
-                                        <input type="hidden" name="g-recaptcha-response" class="render-grecaptcha-response" data-action="customer_auth"
-                                               data-input="#login-default-captcha-section"
-                                               data-default-captcha="#login-default-captcha-section"
-                                        >
-
-                                        <div class="default-captcha-container d-none" id="login-default-captcha-section"
-                                             data-placeholder="{{ translate('enter_captcha_value') }}"
-                                             data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                             data-session="{{ 'default_recaptcha_id_customer_auth' }}"
-                                        >
-                                        </div>
+                                @foreach(($requiredPolicies ?? collect()) as $policy)
+                                    <div class="rtl mt-2">
+                                        <label class="custom-control custom-checkbox m-0 d-flex">
+                                            <input type="checkbox" class="custom-control-input required-policy-checkbox"
+                                                   name="policy_version_ids[]" value="{{ $policy->id }}" required>
+                                            <span class="custom-control-label">
+                                                {{ translate('i_agree_to_Your') }}
+                                                <button class="btn btn-link p-0 align-baseline text-primary text-force-underline"
+                                                        type="button" data-toggle="modal" data-target="#customerPolicy{{ $policy->id }}">
+                                                    {{ $policy->title }} (v{{ $policy->version }})
+                                                </button>
+                                            </span>
+                                        </label>
                                     </div>
-                                @else
-                                    <div class="default-captcha-container"
-                                         data-placeholder="{{ translate('enter_captcha_value') }}"
-                                         data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                         data-session="{{ 'default_recaptcha_id_customer_auth' }}"
-                                    >
+                                    <div class="modal fade" id="customerPolicy{{ $policy->id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+                                            <div class="modal-header"><h5 class="modal-title">{{ $policy->title }}</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+                                            <div class="modal-body">{!! nl2br(e($policy->content)) !!}</div>
+                                        </div></div>
                                     </div>
-                                @endif
+                                @endforeach
                             </div>
                         </div>
                     </div>

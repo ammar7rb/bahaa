@@ -52,11 +52,12 @@ class OfflinePaymentMethodService
         }
         return $methodInformation;
     }
-    public function getOfflinePaymentMethodData(string $methodName,array $methodFields,array $methodInformation,string $addOrUpdate):array
+    public function getOfflinePaymentMethodData(string $methodName,string $paymentChannel,array $methodFields,array $methodInformation,string $addOrUpdate):array
     {
         $addOrUpdate = $addOrUpdate == 'add' ? 'created_at' : 'updated_at';
         return [
             'method_name' => $methodName,
+            'payment_channel' => $paymentChannel,
             'method_fields' => $methodFields,
             'method_informations' => $methodInformation,
             $addOrUpdate => now(),

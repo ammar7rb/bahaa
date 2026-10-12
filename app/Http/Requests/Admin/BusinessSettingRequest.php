@@ -33,7 +33,7 @@ class BusinessSettingRequest extends FormRequest
             'cash_on_delivery' => 'required_without_all:digital_payment,offline_payment|boolean',
             'digital_payment' => 'required_without_all:cash_on_delivery,offline_payment|boolean',
             'offline_payment' => 'required_without_all:cash_on_delivery,digital_payment|boolean',
-            'timezone' => 'required',
+            'timezone' => 'required|timezone',
         ];
     }
 

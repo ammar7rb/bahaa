@@ -60,6 +60,7 @@ class OrderRepository implements OrderRepositoryInterface
     public function getListWhere(array $orderBy = [], ?string $searchValue = null, array $filters = [], array $relations = [], int|string $dataLimit = DEFAULT_DATA_LIMIT, ?int $offset = null): Collection|LengthAwarePaginator
     {
         $query = $this->order->with($relations)
+            ->when(!empty($filters['seller_visible_only']), fn ($query) => $query->sellerAccessible())
             ->when(isset($filters['seller_is']) && $filters['seller_is'] != 'all', function ($query) use ($filters) {
                 return $query->where('seller_is', $filters['seller_is']);
             })
@@ -207,6 +208,22 @@ class OrderRepository implements OrderRepositoryInterface
                 }
             )->when(isset($filters['seller_id']) && $filters['seller_id'] !== 'all', function ($query) use ($filters) {
                     $query->where('seller_id', $filters['seller_id']);
+                }
+            )->when(!empty($filters['seller_visible_only']), function ($query) {
+                    $query->sellerAccessible();
+                }
+            )->when(!empty($filters['exclude_seller_insurance_pending']), function ($query) {
+                    $query->where(fn ($flow) => $flow->whereNull('commerce_flow_status')->orWhereNotIn('commerce_flow_status', ['seller_insurance_pending', 'seller_insurance_under_review']));
+                }
+            )->when(!empty($filters['seller_disputed_only']), function ($query) {
+                    $query->where(function ($disputed) {
+                        $disputed->whereNotNull('seller_shipping_support_ticket_id')
+                            ->orWhereExists(function ($subQuery) {
+                                $subQuery->selectRaw('1')
+                                    ->from('seller_settlement_disputes')
+                                    ->whereColumn('seller_settlement_disputes.order_id', 'orders.id');
+                            });
+                    });
                 }
             )->when(isset($filters['order_type']) && $filters['order_type'] !== 'all', function ($query) use ($filters) {
                     $query->where('order_type', $filters['order_type']);
@@ -371,6 +388,12 @@ class OrderRepository implements OrderRepositoryInterface
             )->when(isset($filters['seller_id']) && $filters['seller_id'] !== 'all', function ($query) use ($filters) {
                     $query->where('seller_id', $filters['seller_id']);
                 }
+            )->when(!empty($filters['seller_visible_only']), function ($query) {
+                    $query->sellerAccessible();
+                }
+            )->when(!empty($filters['exclude_seller_insurance_pending']), function ($query) {
+                    $query->where(fn ($flow) => $flow->whereNull('commerce_flow_status')->orWhereNotIn('commerce_flow_status', ['seller_insurance_pending', 'seller_insurance_under_review']));
+                }
             )->when(isset($filters['customer_id']) && $filters['customer_id'] !== 'all', function ($query) use ($filters) {
                     $query->where('customer_id', $filters['customer_id']);
                 }
@@ -477,12 +500,26 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function update(string $id, array $data): bool
     {
-        return $this->order->where('id', $id)->update($data);
+        if (!in_array($data['order_status'] ?? '', ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) return $this->order->where('id', $id)->update($data);
+        $order = $this->order->findOrFail($id);
+        if (!$order->customer_checkout_operation_id) return $this->order->where('id', $id)->update($data);
+        return DB::transaction(function () use ($id, $data, $order) {
+            \App\Models\User::lockForUpdate()->findOrFail($order->customer_id);
+            $locked = $this->order->lockForUpdate()->findOrFail($id);
+            app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($locked);
+            return (bool) $this->order->where('id', $id)->update($data);
+        }, 3);
     }
 
     public function updateWhere(array $params, array $data): bool
     {
-        return $this->order->where($params)->update($data);
+        if (!in_array($data['order_status'] ?? '', ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) return $this->order->where($params)->update($data);
+        return DB::transaction(function () use ($params, $data) {
+            $customerIds = $this->order->where($params)->whereNotNull('customer_checkout_operation_id')->orderBy('customer_id')->pluck('customer_id')->unique();
+            foreach ($customerIds as $id) \App\Models\User::lockForUpdate()->findOrFail($id);
+            foreach ($this->order->where($params)->lockForUpdate()->get() as $order) app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
+            return (bool) $this->order->where($params)->update($data);
+        }, 3);
     }
 
     public function delete(array $params): bool
@@ -548,6 +585,7 @@ class OrderRepository implements OrderRepositoryInterface
     public function updateStockOnOrderStatusChange(string|int $orderId, string $status): bool
     {
         $order = $this->order->with('details.product')->find($orderId);
+        if (in_array($status, ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
         if ($status == 'returned' || $status == 'failed' || $status == 'canceled') {
             foreach ($order['details'] as $detail) {
                 if ($detail['is_stock_decreased'] == 1) {
@@ -613,6 +651,11 @@ class OrderRepository implements OrderRepositoryInterface
     }
 
     public function manageWalletOnOrderStatusChange(object $order, string $receivedBy): bool
+    {
+        return (bool) app(\App\Services\SellerDeliveredEarningService::class)->record($order, fn () => $this->calculateLegacyDeliveredWallet($order, $receivedBy));
+    }
+
+    private function calculateLegacyDeliveredWallet(object $order, string $receivedBy): bool
     {
         $order = $this->order->find($order['id']);
         $orderSummary = getOrderSummary(order: $order);

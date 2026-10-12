@@ -3,10 +3,8 @@
 namespace App\Http\Controllers\Vendor\Auth;
 
 use App\Enums\SessionKey;
-use App\Traits\RecaptchaTrait;
 use App\Services\VendorService;
 use App\Services\SellerRegistrationVerificationService;
-use App\Services\RecaptchaService;
 use Illuminate\Contracts\View\View;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
@@ -19,8 +17,6 @@ use App\Contracts\Repositories\VendorRepositoryInterface;
 
 class LoginController extends Controller
 {
-    use RecaptchaTrait;
-
     public function __construct(
         private readonly VendorRepositoryInterface $vendorRepo,
         private readonly VendorService             $vendorService,
@@ -34,20 +30,11 @@ class LoginController extends Controller
 
     public function getLoginView(): View
     {
-        $recaptchaBuilder = $this->generateDefaultReCaptcha(4);
-        $recaptcha = getWebConfig(name: 'recaptcha');
-        Session::put(SessionKey::VENDOR_RECAPTCHA_KEY, $recaptchaBuilder->getPhrase());
-        return view('vendor-views.auth.login', compact('recaptchaBuilder', 'recaptcha'));
+        return view('vendor-views.auth.login');
     }
 
     public function login(LoginRequest $request): RedirectResponse
     {
-        $result = RecaptchaService::verificationStatus(request: $request, session: SessionKey::VENDOR_RECAPTCHA_KEY, action: "login");
-        if ($result && !$result['status']) {
-            ToastMagic::error($result['message']);
-            return back();
-        }
-
         $vendor = $this->vendorRepo->getFirstWhere(['identity' => $request['email']]);
         if (!$vendor) {
             ToastMagic::error(translate('credentials_doesnt_match') . '!');
@@ -71,7 +58,7 @@ class LoginController extends Controller
             if ($this->vendorWalletRepo->getFirstWhere(params: ['id' => auth('seller')->id()]) === false) {
                 $this->vendorWalletRepo->add($this->vendorService->getInitialWalletData(vendorId: auth('seller')->id()));
             }
-            ToastMagic::info(translate('welcome_to_your_dashboard') . '.');
+            ToastMagic::success(translate('vendor_login_welcome'), translate('vendor_login_welcome_hint'));
             return redirect()->route('vendor.dashboard.index');
         } else {
             ToastMagic::error(translate('credentials_doesnt_match') . '!');

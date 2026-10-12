@@ -34,14 +34,10 @@
 
             @include('vendor-views.product.update._basic-setup')
             @include("vendor-views.product.update._general-setup")
+            @include('vendor-views.product.partials._seller-product-specification', ['product' => $product])
             @include("vendor-views.product.update._pricing-others")
             @include("vendor-views.product.update._product-variation-setup")
-            <div class="row product-image-wrapper gx-2 gy-3 mt-0">
-                @include("vendor-views.product.update._additional-images")
-                @include("vendor-views.product.update._digital-product-file")
-            </div>
-            @include("vendor-views.product.update._product-video")
-            @include("vendor-views.product.update._seo-section")
+            <input type="hidden" name="product_type" value="physical">
 
             @include('vendor-views.product.partials.ai-sidebar')
 
@@ -98,6 +94,9 @@
     <span id="system-session-direction" data-value="{{ Session::get('direction') }}"></span>
 
     <span id="message-file-size-too-big" data-text="{{ translate('file_size_too_big') }}"></span>
+    <span id="message-seller-product-minimum-images-required" data-text="{{ translate('seller_product_minimum_images_required') }}"></span>
+    <span id="message-seller-product-pieces-per-unit-required" data-text="{{ translate('seller_product_pieces_per_unit_required') }}"></span>
+    <span id="message-seller-product-measurement-invalid" data-text="{{ translate('seller_product_measurement_invalid') }}"></span>
     <span id="product-gallery-page" data-page="{{ request('product-gallery') ? 'product-gallery' : '' }}"></span>
 @endsection
 
@@ -382,15 +381,13 @@
         })
 
 
-        $(document).ready(function () {
-            setTimeout(function () {
-                let category = $("#category_id").val();
-                let sub_category = $("#sub-category-select").attr("data-id");
-                let sub_sub_category = $("#sub-sub-category-select").attr("data-id");
-                getRequestFunctionality('{{ route('vendor.products.get-categories') }}?parent_id=' + category + '&sub_category=' + sub_category, 'sub-category-select', 'select');
-                getRequestFunctionality('{{ route('vendor.products.get-categories') }}?parent_id=' + sub_category + '&sub_category=' + sub_sub_category, 'sub-sub-category-select', 'select');
-            }, 100)
-        });
+            $(document).ready(function () {
+                setTimeout(function () {
+                    let category = $("#category_id").val();
+                    let sub_category = $("#sub-category-select").attr("data-id");
+                    getRequestFunctionality('{{ route('vendor.products.get-categories') }}?parent_id=' + category + '&sub_category=' + sub_category, 'sub-category-select', 'select');
+                }, 100)
+            });
 
         updateProductQuantity();
     </script>

@@ -37,6 +37,12 @@
                     <div class="form-group p-12 p-sm-20 bg-section rounded">
                         <label for="method_name" class="form-label">{{ translate('payment_method_name') }}</label>
                         <input type="text" class="form-control" placeholder="{{ translate('ex').':'.translate('bkash') }}" name="method_name"  data-required-msg="{{ translate('method_name_is_required') }}"  value="{{ $method['method_name'] }}" >
+                        <label for="payment_channel" class="form-label mt-3">{{ app()->getLocale() === 'ar' ? 'نوع الوسيلة في تطبيق العميل' : 'Customer app payment channel' }}</label>
+                        <select class="form-control" id="payment_channel" name="payment_channel" required>
+                            <option value="wallet" @selected(($method['payment_channel'] ?? '') === 'wallet')>{{ app()->getLocale() === 'ar' ? 'محفظة إلكترونية' : 'Electronic wallet' }}</option>
+                            <option value="instapay" @selected(($method['payment_channel'] ?? '') === 'instapay')>InstaPay</option>
+                            <option value="other" @selected(($method['payment_channel'] ?? 'other') === 'other')>{{ app()->getLocale() === 'ar' ? 'أخرى (لا تظهر كخيار تحويل في التطبيق)' : 'Other (not shown as an app transfer option)' }}</option>
+                        </select>
                     </div>
 
                     <input type="hidden" name="id" value="{{ $method['id'] }}">

@@ -4,6 +4,25 @@
 @push('css_or_js')
     <link href="{{dynamicAsset(path: 'public/assets/back-end/vendor/datatables/dataTables.bootstrap4.min.css')}}"
           rel="stylesheet">
+    <style>
+        .vendor-orders-toolbar { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+        .vendor-orders-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+        .vendor-orders-insurance { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; white-space: normal; }
+        .vendor-orders-search { display: flex; flex: 1 1 360px; align-items: center; gap: 12px; min-width: 0; }
+        .vendor-orders-search-field { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; padding-inline: 16px; border: 1px solid #dce4f0; border-radius: 12px; background: #fff; transition: border-color .15s ease, box-shadow .15s ease; }
+        .vendor-orders-search-field:focus-within { border-color: #1d4287; box-shadow: 0 0 0 3px rgba(29,66,135,.1); }
+        .vendor-orders-search-field > i { color: #52627a; font-size: 20px; flex-shrink: 0; }
+        .vendor-orders-search-field > .form-control { min-width: 0; width: 100%; height: 48px; padding-inline: 0; border: 0 !important; background: transparent; box-shadow: none !important; }
+        .vendor-orders-search > .btn { min-height: 48px; padding-inline: 24px; flex-shrink: 0; border-radius: 12px; }
+        @media (max-width: 575px) {
+            .vendor-orders-toolbar { padding: 16px; }
+            .vendor-orders-tools { gap: 12px; }
+            .vendor-orders-insurance { width: 100%; }
+            .vendor-orders-search { flex-basis: 100%; gap: 8px; }
+            .vendor-orders-search-field { padding-inline: 12px; }
+            .vendor-orders-search > .btn { padding-inline: 16px; }
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -148,60 +167,75 @@
             </div>
         @endif
 
+        <div class="row g-3 mb-20">
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                            <h3 class="h5 mb-0">{{ translate('recent_orders') }}</h3>
+                            <a class="btn btn-outline--primary btn-sm" href="{{ route('vendor.orders.list', ['all', 'date_type' => 'this_month']) }}">
+                                {{ translate('view_current_month_orders') }}
+                            </a>
+                        </div>
+                        @forelse($recentOrders as $recentOrder)
+                            <div class="d-flex justify-content-between align-items-center gap-3 border-bottom py-2">
+                                <div>
+                                    <a class="title-color fw-semibold" href="{{ route('vendor.orders.details', $recentOrder->id) }}">#{{ $recentOrder->id }}</a>
+                                    <div class="fs-12 text-muted">{{ date('d M Y H:i', strtotime($recentOrder->created_at)) }}</div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge badge-soft-primary text-capitalize">{{ translate($recentOrder->order_status === 'processing' ? 'packaging' : $recentOrder->order_status) }}</span>
+                                    @if(($recentOrder->shipping_assignment_status ?? 'pending') !== 'assigned')
+                                        <div class="fs-12 text-warning mt-1">{{ translate('shipping_decision_pending') }}</div>
+                                    @else
+                                        <div class="fs-12 text-success mt-1">{{ translate('shipping_assigned') }}</div>
+                                    @endif
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center text-muted py-4">{{ translate('no_recent_orders') }}</div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column justify-content-between">
+                        <div>
+                            <h3 class="h5 mb-2">{{ translate('order_history_current_month') }}</h3>
+                            <p class="fs-12 text-muted mb-0">{{ date('01 M Y') }} - {{ date('t M Y') }}</p>
+                        </div>
+                        <div class="display-6 fw-semibold my-3">{{ $currentMonthOrders->total() }}</div>
+                        <a class="btn btn-primary w-100" href="{{ route('vendor.orders.list', ['all', 'date_type' => 'this_month']) }}">
+                            {{ translate('view_current_month_orders') }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-body">
-                <div class="px-3 py-4 light-bg">
-                    <div class="row g-2 align-items-center flex-grow-1">
-                        <div class="col-md-4">
-                            <h5 class="text-capitalize d-flex gap-1">
-                                {{translate('order_list')}}
-                                <span class="badge badge-soft-dark radius-50 fs-12">{{$orders->total()}}</span>
-                            </h5>
-                        </div>
-                        <div class="col-md-8 d-flex gap-3 flex-wrap flex-sm-nowrap justify-content-md-end">
-                            <form action="{{ url()->current() }}" method="GET">
-                                <div class="input-group input-group-merge input-group-custom">
-                                    <div class="input-group-prepend">
-                                        <div class="input-group-text">
-                                            <i class="tio-search"></i>
-                                        </div>
-                                    </div>
-                                    <input id="datatableSearch_" type="search" name="searchValue" class="form-control"
-                                           placeholder="{{translate('search_by_Order_ID')}}" aria-label="Search orders"
-                                           value="{{ $searchValue }}" required>
-                                    <button type="submit" class="btn btn--primary">{{translate('search')}}</button>
-                                </div>
-                            </form>
-                            <div class="dropdown">
-                                <a type="button" class="btn btn-outline--primary text-nowrap"
-                                   href="{{ route('vendor.orders.export-excel', [
-                                                'delivery_man_id' => request('delivery_man_id'),
-                                                'status' => $status, 'from' => $from, 'to' => $to,
-                                                'filter' => $filter, 'searchValue' => $searchValue,
-                                                'seller_id' => $vendorId, 'customer_id' => $customerId,
-                                                'date_type' => $dateType,
-                                                'payment_status' => request('payment_status'),
-                                                 'order_current_status' => request('order_current_status'),
-                                                  'order_amount_settlement' => request('order_amount_settlement')
-                                            ]) }}">
-                                    <img width="14" src="{{dynamicAsset(path: 'public/assets/back-end/img/excel.png')}}"
-                                         class="excel" alt="">
-                                    <span class="ps-2">{{ translate('export') }}</span>
-                                </a>
+                <div class="vendor-orders-toolbar">
+                    <h5 class="mb-0 d-flex align-items-center gap-2">
+                        {{ translate('order_list') }}
+                        <span class="badge badge-soft-dark radius-50 fs-12">{{ $orders->total() }}</span>
+                    </h5>
+                    <div class="vendor-orders-tools">
+                        <a class="btn btn-outline-warning vendor-orders-insurance" href="{{ route('vendor.orders.insurance-pending') }}">
+                            <i class="fi fi-sr-shield-exclamation" aria-hidden="true"></i>
+                            {{ translate('insurance_pending_orders') }}
+                        </a>
+                        <form class="vendor-orders-search" action="{{ url()->current() }}" method="GET" role="search">
+                            <div class="vendor-orders-search-field">
+                                <i class="tio-search" aria-hidden="true"></i>
+                                <input id="datatableSearch_" type="search" name="searchValue" class="form-control"
+                                       placeholder="{{ translate('search_by_Order_ID') }}"
+                                       aria-label="{{ translate('search_by_Order_ID') }}"
+                                       value="{{ $searchValue }}">
                             </div>
-                            <div class="position-relative">
-                                @if((request('delivery_man_id') || $from || $to || $filter || $searchValue || $vendorId || $customerId || $dateType))
-                                    <div
-                                        class="position-absolute inset-inline-end-0 top-0 mt-n1 me-n1 btn-circle bg-danger border border-white border-2 z-2"
-                                        style="--size: 12px;"></div>
-                                @endif
-                                <button type="button" class="btn btn--primary px-4" data-toggle="offcanvas"
-                                        data-target="#offcanvasOrderFilter">
-                                    <i class="fi fi-sr-settings-sliders"></i>
-                                    {{ translate('Filter') }}
-                                </button>
-                            </div>
-                        </div>
+                            <button type="submit" class="btn btn--primary">{{ translate('search') }}</button>
+                        </form>
                     </div>
                 </div>
 
@@ -225,7 +259,18 @@
                         </thead>
                         <tbody>
                         @foreach($orders as $key=>$order)
-                            <tr>
+                            @php($restrictedOrder = !app(\App\Services\SellerOrderVisibilityService::class)->canSellerView($order))
+                            @php($restrictedAccessReference = $restrictedOrder ? app(\App\Services\OrderCommerceContractService::class)->restrictedAccessToken($order) : null)
+                            <tr class="{{ $restrictedOrder ? 'opacity-75' : '' }}">
+                                @if($restrictedOrder)
+                                <td>{{ $orders->firstItem() + $key }}</td>
+                                <td><a class="title-color hover-c1" href="{{ route('vendor.orders.details', $restrictedAccessReference) }}">***{{ str_pad(substr((string) $order->id, -3), 3, '0', STR_PAD_LEFT) }}</a></td>
+                                <td>—</td>
+                                <td>{{ translate('Insurance_Amount') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->sellerOrderInsurance?->amount ?? 0)) }}</td>
+                                <td class="text-end fw-bold">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount), currencyCode: getCurrencyCode()) }}</td>
+                                <td>—</td>
+                                <td><a class="btn btn--primary" href="{{ route('vendor.orders.details', $restrictedAccessReference) }}">{{ translate('continue_to_pay_insurance') }}</a></td>
+                                @else
                                 <td>
                                     {{ $orders->firstItem() + $key}}
                                 </td>
@@ -233,7 +278,7 @@
                                     <div class="d-flex gap-1 flex-column">
                                         <div class="d-flex align-items-center gap-1">
                                             <a class="title-color hover-c1"
-                                               href="{{route('vendor.orders.details',$order['id'])}}">{{$order['id']}} {!! $order->order_type == 'POS' ? '<span class="text--primary">(POS)</span>' : '' !!}</a>
+                                               href="{{route('vendor.orders.details',$restrictedOrder ? ($order->seller_restricted_access_token ?: $order->id) : $order->id)}}">{{ $restrictedOrder ? '***'.str_pad(substr((string)$order->id,-3),3,'0',STR_PAD_LEFT) : $order->id }} {!! $order->order_type == 'POS' ? '<span class="text--primary">(POS)</span>' : '' !!}</a>
                                             @if( $order->edited_status == 1 && $order?->latestEditHistory?->order_due_payment_status == 'unpaid' && $order?->latestEditHistory?->order_due_payment_method != "offline_payment" && $order?->latestEditHistory?->order_due_payment_method != "cash_on_delivery" && $order?->latestEditHistory?->order_due_amount > 0)
                                                 <span class="flex-shrink-0" data-toggle="tooltip"
                                                       title="{{ translate('customer_will_pay_due_the_amount') }}">
@@ -255,6 +300,9 @@
                                             {{ translate('Edited') }}
                                         </span>
                                         @endif
+                                        @if($order->seller_queue_position)
+                                            <span class="badge badge-soft-warning w-max-content">{{ translate('seller_queue') }} #{{ $order->seller_queue_position }}{{ $order->seller_queue_position === 1 ? ' · '.translate('current_order') : '' }}</span>
+                                        @endif
                                     </div>
                                 </td>
                                 <td>
@@ -262,7 +310,9 @@
                                     <div>{{date('H:i A',strtotime($order['created_at']))}}</div>
                                 </td>
                                 <td>
-                                    @if($order->is_guest)
+                                    @if($restrictedOrder)
+                                        <span class="badge badge-soft-warning">{{ translate('details_locked_until_seller_insurance_payment') }}</span>
+                                    @elseif($order->is_guest)
                                         <strong class="title-name">{{translate('guest_customer')}}</strong>
                                     @elseif($order->customer_id == 0)
                                         <strong class="title-name">
@@ -290,58 +340,59 @@
                                 </td>
                                 <td class="text-end">
                                     <div>
-                                        @php($orderTotalPriceSummary = \App\Utils\OrderManager::getOrderTotalPriceSummary(order: $order))
-                                        {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount:  $orderTotalPriceSummary['totalAmount']), currencyCode: getCurrencyCode()) }}
+                                        @if($restrictedOrder)
+                                            <span class="text-warning fw-bold">{{ translate('Insurance_Amount') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->sellerOrderInsurance?->amount ?? 0), currencyCode: getCurrencyCode()) }}</span>
+                                        @else
+                                            @php($orderTotalPriceSummary = \App\Utils\OrderManager::getOrderTotalPriceSummary(order: $order))
+                                            {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount:  $orderTotalPriceSummary['totalAmount']), currencyCode: getCurrencyCode()) }}
+                                        @endif
                                     </div>
 
-                                    @if($order->payment_status=='paid')
-                                        <span class="badge badge-soft-success">{{translate('paid')}}</span>
-                                    @else
-                                        <span class="badge badge-soft-danger">{{translate('unpaid')}}</span>
-                                    @endif
+                                    @include('partials.order-payment-summary', ['order' => $order])
                                 </td>
                                 @if($status == 'all')
                                     <td class="text-capitalize d-flex justify-content-center align-items-center">
                                         @if($order->order_status=='pending')
                                             <label
-                                                class="badge badge-soft-primary">{{$order['order_status']}}</label>
+                                                class="badge badge-soft-primary">{{ translate($order['order_status']) }}</label>
                                         @elseif($order->order_status=='processing' || $order->order_status=='out_for_delivery')
                                             <label
-                                                class="badge badge-soft-warning">{{str_replace('_',' ',$order['order_status'] == 'processing' ? 'packaging' : $order['order_status'])}}</label>
+                                                class="badge badge-soft-warning">{{ translate($order['order_status'] == 'processing' ? 'packaging' : $order['order_status']) }}</label>
                                         @elseif($order->order_status=='delivered' || $order->order_status=='confirmed')
                                             <label
-                                                class="badge badge-soft-success">{{$order['order_status']}}</label>
+                                                class="badge badge-soft-success">{{ translate($order['order_status']) }}</label>
                                         @elseif($order->order_status=='returned')
                                             <label
-                                                class="badge badge-soft-danger">{{$order['order_status']}}</label>
+                                                class="badge badge-soft-danger">{{ translate($order['order_status']) }}</label>
                                         @elseif($order['order_status']=='failed')
                                             <span class="badge badge-danger fs-12">
                                                     {{translate('failed_to_deliver')}}
                                             </span>
                                         @else
                                             <label
-                                                class="badge badge-soft-danger">{{$order['order_status']}}</label>
+                                                class="badge badge-soft-danger">{{ translate($order['order_status']) }}</label>
                                         @endif
                                     </td>
                                 @else
                                     <td class="text-capitalize">
-                                        {{str_replace('_',' ',$order['payment_method'])}}
+                                        {{ translate($order['payment_method']) }}
                                     </td>
                                 @endif
                                 <td>
                                     <div class="d-flex justify-content-center gap-2">
                                         <a class="btn btn-outline--success icon-btn"
                                            title="{{translate('view')}}"
-                                           href="{{route('vendor.orders.details',[$order['id']])}}">
+                                           href="{{route('vendor.orders.details',[$restrictedOrder ? ($order->seller_restricted_access_token ?: $order->id) : $order->id])}}">
                                             <i class="fi fi-sr-eye d-flex"></i>
                                         </a>
-                                        <a class="btn btn-outline-info icon-btn" target="_blank"
+                                        @unless($restrictedOrder)<a class="btn btn-outline-info icon-btn" target="_blank"
                                            title="{{translate('invoice')}}"
                                            href="{{route('vendor.orders.generate-invoice',[$order['id']])}}">
                                             <i class="fi fi-sr-down-to-line d-flex"></i>
-                                        </a>
+                                        </a>@endunless
                                     </div>
                                 </td>
+                                @endif
                             </tr>
                         @endforeach
                         </tbody>

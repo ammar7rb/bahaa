@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Traits\PaginatorTrait;
+use App\Traits\PushNotificationTrait;
 use App\Services\CustomerService;
 use Illuminate\Http\JsonResponse;
 use App\Traits\EmailTemplateTrait;
@@ -24,6 +25,7 @@ use App\Http\Controllers\BaseController;
 use App\Models\CustomerPurchaseLimitTransaction;
 use App\Models\CustomerPurchasePackageSubscription;
 use App\Models\OfflinePaymentMethod;
+use App\Models\BusinessCalendarHoliday;
 use App\Services\CustomerPurchaseLimitService;
 use App\Services\CustomerThreeStepShippingService;
 use App\Services\ShippingAddressService;
@@ -42,10 +44,16 @@ use App\Contracts\Repositories\SubscriptionRepositoryInterface;
 use App\Contracts\Repositories\PasswordResetRepositoryInterface;
 use App\Contracts\Repositories\RefundRequestRepositoryInterface;
 use App\Contracts\Repositories\BusinessSettingRepositoryInterface;
+use App\Models\AccountActivationCase;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 
 class CustomerController extends BaseController
 {
-    use PaginatorTrait, EmailTemplateTrait;
+    use PaginatorTrait, EmailTemplateTrait, PushNotificationTrait;
 
     public function __construct(
         private readonly CustomerRepositoryInterface        $customerRepo,
@@ -138,7 +146,9 @@ class CustomerController extends BaseController
 
     public function updateStatus(Request $request): JsonResponse
     {
+        if (\App\Models\User::findOrFail($request['id'])->account_deleted_at) return response()->json(['message' => 'حساب محذوف نهائيًا. لا يمكن إعادة تفعيله؛ السجل المالي محفوظ.'], 422);
         $this->customerRepo->update(id: $request['id'], data: ['is_active' => $request->get('is_active', 0)]);
+        app(\App\Services\CustomerPurchaseEligibilityService::class)->reevaluateCustomer((int) $request['id']);
         $this->customerRepo->deleteAuthAccessTokens(id: $request['id']);
         $customer = $this->customerRepo->getFirstWhere(params: ['id' => $request['id']]);
         $data = [
@@ -204,6 +214,29 @@ class CustomerController extends BaseController
         return back();
     }
 
+    /** Reset a customer password after support has verified account ownership. */
+    public function resetPassword(Request $request, int $id): RedirectResponse
+    {
+        $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $customer = $this->customerRepo->getFirstWhere(params: ['id' => $id]);
+        if (!$customer) {
+            ToastMagic::error(translate('customer_Not_Found'));
+            return back();
+        }
+
+        $this->customerRepo->update(id: $id, data: [
+            'password' => Hash::make($request->input('password')),
+            'remember_token' => Str::random(60),
+        ]);
+        $this->customerRepo->deleteAuthAccessTokens(id: $id);
+
+        ToastMagic::success(translate('password_reset_by_administrator'));
+        return back();
+    }
+
     public function adjustPurchaseLimit(Request $request, $id): RedirectResponse
     {
         $request->validate([
@@ -261,10 +294,87 @@ class CustomerController extends BaseController
     public function deleteCustomer($id, CustomerService $customerService): RedirectResponse
     {
         $customer = $this->customerRepo->getFirstWhere(params: ['id' => $id]);
-        $customerService->deleteImage(data: $customer);
-        $this->customerRepo->delete(params: ['id' => $id]);
+        if (!$customer) {
+            ToastMagic::error(translate('customer_Not_Found'));
+            return back();
+        }
+
+        if ($this->hasCustomerOperationalHistory((int) $customer->id)) {
+            ToastMagic::error(translate('account_cannot_be_deleted_has_operational_history'));
+            return back();
+        }
+
+        DB::transaction(function () use ($customer, $customerService) {
+            $this->deleteActivationCases(
+                subjectType: AccountActivationCase::SUBJECT_CUSTOMER,
+                subjectId: (int) $customer->id,
+            );
+            $customerService->deleteImage(data: $customer);
+            $this->customerRepo->delete(params: ['id' => $customer->id]);
+        });
+
         ToastMagic::success(translate('customer_deleted_successfully'));
         return back();
+    }
+
+    /**
+     * An account with financial or ordering evidence must be suspended, not erased.
+     * This deliberately checks only tables/columns present in the running installation.
+     */
+    private function hasCustomerOperationalHistory(int $customerId): bool
+    {
+        $references = [
+            'orders' => ['customer_id'],
+            'wallet_transactions' => ['user_id', 'customer_id'],
+            'customer_insurance_ledger_entries' => ['customer_id'],
+            'customer_insurance_balances' => ['customer_id'],
+            'customer_purchase_balances' => ['customer_id'],
+            'customer_purchase_limit_transactions' => ['customer_id'],
+            'customer_purchase_package_subscriptions' => ['customer_id'],
+            'customer_activation_invoices' => ['customer_id'],
+            'post_purchase_invoices' => ['customer_id'],
+        ];
+
+        foreach ($references as $table => $columns) {
+            if (!Schema::hasTable($table)) {
+                continue;
+            }
+
+            foreach ($columns as $column) {
+                if (Schema::hasColumn($table, $column) && DB::table($table)->where($column, $customerId)->exists()) {
+                    return true;
+                }
+            }
+        }
+
+        return Schema::hasTable('insurance_balance_actions')
+            && Schema::hasColumn('insurance_balance_actions', 'subject_type')
+            && Schema::hasColumn('insurance_balance_actions', 'subject_id')
+            && DB::table('insurance_balance_actions')
+                ->where('subject_type', AccountActivationCase::SUBJECT_CUSTOMER)
+                ->where('subject_id', $customerId)
+                ->exists();
+    }
+
+    private function deleteActivationCases(string $subjectType, int $subjectId): void
+    {
+        AccountActivationCase::query()
+            ->where('subject_type', $subjectType)
+            ->where('subject_id', $subjectId)
+            ->with('documents')
+            ->get()
+            ->each(function (AccountActivationCase $case) {
+                foreach ($case->documents as $document) {
+                    if ($document->storage_path && Storage::disk($document->storage_disk ?: 'public')->exists($document->storage_path)) {
+                        Storage::disk($document->storage_disk ?: 'public')->delete($document->storage_path);
+                    }
+                }
+
+                $case->events()->delete();
+                $case->fields()->delete();
+                $case->documents()->delete();
+                $case->delete();
+            });
     }
 
     public function getSubscriberListView(Request $request): View|RedirectResponse
@@ -440,19 +550,58 @@ class CustomerController extends BaseController
         $this->businessSettingRepo->updateOrInsert(type: 'customer_monthly_insurance_period_days', value: $request->get('customer_monthly_insurance_period_days', 30));
         $this->businessSettingRepo->updateOrInsert(type: 'customer_activation_hold_message', value: $request->get('customer_activation_hold_message'));
         $this->businessSettingRepo->updateOrInsert(type: 'customer_three_step_shipping_status', value: $request->get('customer_three_step_shipping_status', 0));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_same_day_status', value: $request->get('customer_shipping_same_day_status', 0));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_same_day_title', value: $request->get('customer_shipping_same_day_title', 'Same Day Delivery'));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_same_day_duration', value: $request->get('customer_shipping_same_day_duration', 'Same day'));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_same_day_cost', value: currencyConverter(amount: $request->get('customer_shipping_same_day_cost', 0)));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_same_day_cutoff', value: $request->get('customer_shipping_same_day_cutoff', '12:00'));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_next_day_status', value: $request->get('customer_shipping_next_day_status', 0));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_next_day_title', value: $request->get('customer_shipping_next_day_title', 'Next Day Delivery'));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_next_day_duration', value: $request->get('customer_shipping_next_day_duration', 'Next day'));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_next_day_cost', value: currencyConverter(amount: $request->get('customer_shipping_next_day_cost', 0)));
+        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_sigma_status', value: $request->get('customer_shipping_sigma_status', 0));
+        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_sigma_title', value: $request->get('customer_shipping_sigma_title', 'Sigma Shipping'));
+        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_sigma_cost', value: currencyConverter(amount: $request->get('customer_shipping_sigma_cost', 0)));
         $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_normal_status', value: $request->get('customer_shipping_normal_status', 0));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_normal_title', value: $request->get('customer_shipping_normal_title', 'Normal Delivery'));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_normal_duration', value: $request->get('customer_shipping_normal_duration', '3 days'));
+        $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_normal_title', value: $request->get('customer_shipping_normal_title', 'Normal Shipping'));
         $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_normal_cost', value: currencyConverter(amount: $request->get('customer_shipping_normal_cost', 0)));
+        foreach (['sigma', 'normal'] as $shippingPromiseKey) {
+            $defaultMin = $shippingPromiseKey === 'sigma' ? 1 : 4;
+            $defaultMax = $shippingPromiseKey === 'sigma' ? 1 : 7;
+            $this->businessSettingRepo->updateOrInsert(
+                type: "shipping_promise_{$shippingPromiseKey}_mode",
+                value: $request->get("shipping_promise_{$shippingPromiseKey}_mode", $shippingPromiseKey === 'sigma' ? 'fixed' : 'range')
+            );
+            $this->businessSettingRepo->updateOrInsert(
+                type: "shipping_promise_{$shippingPromiseKey}_min_days",
+                value: $request->get("shipping_promise_{$shippingPromiseKey}_min_days", $defaultMin)
+            );
+            $this->businessSettingRepo->updateOrInsert(
+                type: "shipping_promise_{$shippingPromiseKey}_max_days",
+                value: $request->get("shipping_promise_{$shippingPromiseKey}_max_days", $defaultMax)
+            );
+        }
+        $this->businessSettingRepo->updateOrInsert(
+            type: 'commerce_working_days',
+            value: json_encode($request->input('commerce_working_days', [0, 1, 2, 3, 4]))
+        );
+        if (\Illuminate\Support\Facades\Schema::hasTable('business_calendar_holidays')) {
+            $holidayLines = preg_split('/\r\n|\r|\n/', (string) $request->input('commerce_holidays', ''));
+            $holidayDates = [];
+            foreach ($holidayLines as $holidayLine) {
+                [$holidayDate, $holidayName] = array_pad(array_map('trim', explode('|', $holidayLine, 2)), 2, 'Official holiday');
+                if ($holidayDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', $holidayDate)) {
+                    $holidayDates[] = $holidayDate;
+                    BusinessCalendarHoliday::updateOrCreate(
+                        ['holiday_date' => $holidayDate],
+                        ['name' => $holidayName ?: 'Official holiday', 'active' => true, 'created_by_admin_id' => auth('admin')->id()]
+                    );
+                }
+            }
+            BusinessCalendarHoliday::whereNotIn('holiday_date', $holidayDates ?: ['1900-01-01'])->update(['active' => false]);
+        }
+        $productShippingExtraChargeType = $request->get('customer_product_shipping_extra_charge_type', 'percent');
+        $productShippingExtraChargeValue = $request->get('customer_product_shipping_extra_charge_value', 0);
+        // The quantity rule is applied once per seller cart group by CustomerThreeStepShippingService.
+        $this->businessSettingRepo->updateOrInsert(type: 'customer_product_shipping_quantity_threshold', value: $request->get('customer_product_shipping_quantity_threshold', 0));
+        $this->businessSettingRepo->updateOrInsert(type: 'customer_product_shipping_extra_charge_type', value: $productShippingExtraChargeType);
+        $this->businessSettingRepo->updateOrInsert(
+            type: 'customer_product_shipping_extra_charge_value',
+            value: $productShippingExtraChargeType === 'fixed'
+                ? currencyConverter(amount: $productShippingExtraChargeValue)
+                : $productShippingExtraChargeValue
+        );
         app(CustomerThreeStepShippingService::class)->syncMethods();
         $this->businessSettingRepo->updateOrInsert(type: 'customer_manual_transfer_method_name', value: $request->get('customer_manual_transfer_method_name', 'Manual Transfer / Auto Payment Form'));
         $this->syncManualTransferOfflineMethod($request->get('customer_manual_transfer_method_name', 'Manual Transfer / Auto Payment Form'));
@@ -532,5 +681,55 @@ class CustomerController extends BaseController
         $this->customerRepo->updateWhere(['id' => $request['id']], data: $customerService->getCustomerProfileUpdateData(request: $request, customer: $customer));
         ToastMagic::success(translate('Update_successfully'));
         return redirect()->back();
+    }
+
+    /** Send a notification only to customers selected from the customer list. */
+    public function notifySelected(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:120'],
+            'message' => ['required', 'string', 'max:1000'],
+            'customer_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'customer_ids.*' => ['integer', 'distinct'],
+        ]);
+
+        $customers = User::query()
+            ->whereIn('id', $data['customer_ids'])
+            ->where(function ($query) {
+                $query->whereNull('email')->orWhere('email', '!=', 'walking@customer.com');
+            })
+            ->whereNotNull('cm_firebase_token')
+            ->where('cm_firebase_token', '!=', '')
+            ->get(['id', 'cm_firebase_token']);
+
+        if ($customers->isEmpty()) {
+            ToastMagic::error(translate('no_customer_device_available'));
+            return back();
+        }
+
+        $sentCount = 0;
+        foreach ($customers as $customer) {
+            try {
+                $this->sendPushNotificationToDevice($customer->cm_firebase_token, [
+                    'title' => $data['title'],
+                    'description' => $data['message'],
+                    'image' => '',
+                    'order_id' => '',
+                    'type' => 'admin_customer_notification',
+                    'notification_from' => 'admin',
+                ]);
+                $sentCount++;
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        if ($sentCount === 0) {
+            ToastMagic::error(translate('no_customer_device_available'));
+            return back();
+        }
+
+        ToastMagic::success(translate('customer_notification_sent_successfully'));
+        return back();
     }
 }

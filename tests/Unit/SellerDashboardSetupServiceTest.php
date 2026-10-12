@@ -38,7 +38,7 @@ class SellerDashboardSetupServiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_insurance_is_the_next_step_after_account_approval(): void
+    public function test_product_creation_is_next_after_account_approval_without_insurance_or_package_gate(): void
     {
         $service = $this->makeService(
             insurance: ['active' => false, 'pending_review' => false],
@@ -48,9 +48,10 @@ class SellerDashboardSetupServiceTest extends TestCase
 
         $summary = $service->getSummary($this->seller());
 
-        $this->assertSame('activate_insurance', $summary['next_step']);
+        $this->assertSame('add_first_product', $summary['next_step']);
         $this->assertSame(1, $summary['completed_steps']);
-        $this->assertSame(25, $summary['completion_percentage']);
+        $this->assertSame(50, $summary['completion_percentage']);
+        $this->assertTrue($summary['advertising_package_optional']);
     }
 
     public function test_ready_seller_sees_package_quotas_and_product_management_as_next_step(): void
@@ -75,7 +76,7 @@ class SellerDashboardSetupServiceTest extends TestCase
         $summary = $service->getSummary($this->seller());
 
         $this->assertSame('manage_products', $summary['next_step']);
-        $this->assertSame(4, $summary['completed_steps']);
+        $this->assertSame(2, $summary['completed_steps']);
         $this->assertSame(100, $summary['completion_percentage']);
         $this->assertSame(1, $summary['published_products_count']);
         $this->assertSame(7, $summary['products']['remaining_product_limit']);
@@ -86,6 +87,7 @@ class SellerDashboardSetupServiceTest extends TestCase
         $registrationService = Mockery::mock(SellerRegistrationVerificationService::class);
         $registrationService->shouldReceive('getEligibility')->once()->andReturn([
             'can_login' => true,
+            'activation_status' => 'active',
             'next_step' => 'ready_for_insurance',
         ]);
 

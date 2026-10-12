@@ -2,7 +2,6 @@
 
 namespace App\Console;
 
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
@@ -15,22 +14,6 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         //
     ];
-
-    /**
-     * Define the application's command schedule.
-     *
-     * @param Schedule $schedule
-     * @return void
-     */
-    protected function schedule(Schedule $schedule)
-    {
-        $schedule->command('seller-products:expire-entitlements')
-            ->everyFiveMinutes()
-            ->withoutOverlapping();
-        $schedule->command('seller-promotions:expire')
-            ->everyFiveMinutes()
-            ->withoutOverlapping();
-    }
 
     /**
      * Register the commands for the application.

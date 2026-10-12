@@ -17,6 +17,7 @@ use App\Repositories\BrandRepository;
 use App\Repositories\OrderTransactionRepository;
 use App\Services\DashboardService;
 use App\Services\SellerDashboardSetupService;
+use App\Services\SellerDashboardOverviewService;
 use App\Services\VendorWalletService;
 use App\Services\WithdrawRequestService;
 use Devrabiul\ToastMagic\Facades\ToastMagic;
@@ -47,6 +48,7 @@ class DashboardController extends BaseController
         private readonly RestockProductRepositoryInterface           $restockProductRepo,
         private readonly VendorWithdrawMethodInfoRepositoryInterface $vendorWithdrawMethodInfoRepo,
         private readonly SellerDashboardSetupService                 $sellerDashboardSetupService,
+        private readonly SellerDashboardOverviewService              $sellerDashboardOverviewService,
     )
     {
     }
@@ -99,7 +101,9 @@ class DashboardController extends BaseController
             'orderStatus' => $this->getOrderStatusArray(type: 'overall'),
             'customers' => $this->customerRepo->getList(dataLimit: 'all')->count(),
             'products' => $this->productRepo->getListWhere(filters: ['seller_id' => $vendorId, 'added_by' => 'seller'])->count(),
-            'orders' => $this->orderRepo->getListWhere(filters: ['seller_id' => $vendorId, 'seller_is' => 'seller'])->count(),
+            'orders' => app(\App\Services\SellerOrderVisibilityService::class)->accessible(
+                $this->orderRepo->getListWhere(filters: ['seller_id' => $vendorId, 'seller_is' => 'seller'], dataLimit: 'all')
+            )->count(),
             'brands' => $this->brandRepo->getListWhere(dataLimit: 'all')->count(),
             'topSell' => $topSell,
             'topRatedProducts' => $topRatedProducts,
@@ -142,6 +146,7 @@ class DashboardController extends BaseController
             'dateType' => $dateType,
             'label' => $label,
             'sellerSetup' => $this->sellerDashboardSetupService->getSummary(auth('seller')->user()),
+            'sellerOverview' => $this->sellerDashboardOverviewService->build(auth('seller')->user()),
         ]);
     }
 
@@ -189,28 +194,13 @@ class DashboardController extends BaseController
      */
     public function getWithdrawRequest(WithdrawRequest $request): RedirectResponse
     {
-        $vendorId = auth('seller')->id();
-        $withdrawMethod = $this->withdrawalMethodRepo->getFirstWhere(params: ['id' => $request['withdraw_method']]);
-        $wallet = $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => auth('seller')->id()]);
-        if (($wallet['total_earning'] ?? 0) >= currencyConverter($request['amount']) && $request['amount'] > 0) {
-            $this->withdrawRequestRepo->add($this->withdrawRequestService->getWithdrawRequestData(
-                withdrawMethod: $withdrawMethod,
-                request: $request,
-                addedBy: 'vendor',
-                vendorId: $vendorId
-            ));
-            $totalEarning = $wallet['total_earning'] - currencyConverter($request['amount']);
-            $pendingWithdraw = $wallet['pending_withdraw'] + currencyConverter($request['amount']);
-            $this->vendorWalletRepo->update(
-                id: $wallet['id'],
-                data: $this->vendorWalletService->getVendorWalletData(totalEarning: $totalEarning, pendingWithdraw: $pendingWithdraw)
-            );
+        try {
+            app(\App\Services\SellerWithdrawalService::class)->submit(auth('seller')->id(), (int) ($request->saved_method_id ?? $request->withdraw_method), (float) currencyConverter($request->amount), $request->request_key);
             ToastMagic::success(translate('withdraw_request_has_been_sent'));
-        } else {
-            ToastMagic::error(translate('invalid_request') . '!');
-        }
-        return redirect()->back();
+        } catch (\DomainException | \InvalidArgumentException $exception) { return back()->withErrors(['amount' => translate($exception->getMessage())]); }
+        return back();
     }
+
 
     /**
      * @param WithdrawRequest $request
@@ -219,40 +209,9 @@ class DashboardController extends BaseController
      */
     public function updateWithdrawRequest(WithdrawRequest $request): RedirectResponse
     {
-        $vendorId = auth('seller')->id();
-        $withdrawMethod = $this->withdrawalMethodRepo->getFirstWhere(params: ['id' => $request['withdraw_method']]);
-        $wallet = $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => auth('seller')->id()]);
-        $withdrawRequest = $this->withdrawRequestRepo->getFirstWhere(params: ['id' => $request['withdraw_request_id']]);
-
-        if ($withdrawRequest) {
-            $totalEarning = $wallet['total_earning'] + $withdrawRequest['amount'];
-            $pendingWithdraw = $wallet['pending_withdraw'] - $withdrawRequest['amount'];
-
-            if ($totalEarning >= currencyConverter($request['amount']) && $request['amount'] > 0) {
-                $this->withdrawRequestRepo->update(id: $withdrawRequest['id'], data: $this->withdrawRequestService->getWithdrawRequestData(
-                    withdrawMethod: $withdrawMethod,
-                    request: $request,
-                    addedBy: 'vendor',
-                    vendorId: $vendorId
-                ));
-
-                $this->vendorWalletRepo->update(
-                    id: $wallet['id'],
-                    data: [
-                        'total_earning' => $totalEarning - currencyConverter($request['amount']),
-                        'pending_withdraw' => $pendingWithdraw + currencyConverter($request['amount']),
-                    ],
-                );
-                ToastMagic::success(translate('withdraw_request_has_been_update'));
-            } else {
-                ToastMagic::error(translate('Currently this amount not withdrawable') . '!');
-            }
-            return redirect()->back();
-        }
-
-        ToastMagic::error(translate('invalid_request') . '!');
-        return redirect()->back();
+        return back()->withErrors(['amount' => translate('withdrawal_cancel_and_resubmit')]);
     }
+
 
     /**
      * @param string $type
@@ -265,15 +224,17 @@ class DashboardController extends BaseController
 
         $statusWiseOrders = [];
         foreach ($status as $key) {
-            $count = $this->orderRepo->getListWhereDate(
+            $orders = $this->orderRepo->getListWhereDate(
                 filters: [
                     'seller_is' => 'seller',
                     'seller_id' => $vendorId,
                     'order_status' => $key
                 ],
                 dateType: $type,
-            )->count();
-            $statusWiseOrders[$key] = $count;
+            );
+            $statusWiseOrders[$key] = app(\App\Services\SellerOrderVisibilityService::class)
+                ->accessible($orders)
+                ->count();
         }
         return $statusWiseOrders;
     }
@@ -339,7 +300,7 @@ class DashboardController extends BaseController
     public function getRealTimeActivities(): JsonResponse
     {
         $newOrder = $this->orderRepo->getListWhere(
-            filters: ['seller_is' => 'seller', 'seller_id' => auth('seller')->id(), 'checked' => 0],
+            filters: ['seller_is' => 'seller', 'seller_id' => auth('seller')->id(), 'checked' => 0, 'seller_visible_only' => true],
             dataLimit: 'all'
         )->count();
         $restockProductList = $this->restockProductRepo->getListWhere(filters: ['added_by' => 'seller', 'seller_id' => auth('seller')->id()], dataLimit: 'all')->groupBy('product_id');

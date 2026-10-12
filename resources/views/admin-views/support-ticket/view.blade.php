@@ -34,6 +34,13 @@
                             </div>
 
                             <div class="d-flex flex-wrap gap-3 align-items-center justify-content-start justify-content-md-end min-w-100-mobile">
+                                <div class="select-wrapper flex-grow-1 max-w-200 min-w-100-mobile">
+                                    <select class="form-select fs-12 filter-tickets" data-value="purpose">
+                                        <option value="all">{{ translate('all_ticket_types') }}</option>
+                                        <option value="account_activation" {{ request('purpose') === 'account_activation' ? 'selected' : '' }}>{{ translate('customer_account_activation') }}</option>
+                                        <option value="general" {{ request('purpose') === 'general' ? 'selected' : '' }}>{{ translate('general_support') }}</option>
+                                    </select>
+                                </div>
                                 @php($priority=request()->has('priority')?request()->input('priority'):'')
                                 <div class="select-wrapper flex-grow-1 max-w-200 min-w-100-mobile">
                                     <select class="form-select fs-12 filter-tickets" data-value="priority">
@@ -53,6 +60,12 @@
                                         <option value="close" {{$status=='close'?'selected':''}}>{{translate('close')}}</option>
                                     </select>
                                 </div>
+                                <div class="select-wrapper flex-grow-1 max-w-200 min-w-100-mobile">
+                                    <select class="form-select fs-12 filter-tickets" data-value="archived">
+                                        <option value="active" {{ request('archived', 'active') !== 'only' ? 'selected' : '' }}>{{ translate('active') }}</option>
+                                        <option value="only" {{ request('archived') === 'only' ? 'selected' : '' }}>{{ translate('archived') }}</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -66,6 +79,7 @@
 
                                         <div class="flex-grow-1">
                                             <h5 class="mb-0">{{$ticket->customer->f_name??""}} {{$ticket->customer->l_name??""}}</h5>
+                                            <div class="fs-12 fw-bold">{{ $ticket->customer->administrative_reference }}</div>
                                             <div class="mb-2 fs-12">{{$ticket->customer->email??""}}</div>
                                             <div class="d-flex flex-wrap gap-2 align-items-center">
                                                 <span class="badge text-bg-danger badge-danger badge-sm">
@@ -77,6 +91,9 @@
                                                 <h6 class="mb-0">
                                                     {{ translate(str_replace('_',' ',$ticket->type)) }}
                                                 </h6>
+                                                @if($ticket->purpose === \App\Services\CustomerActivationService::PURPOSE)
+                                                    <span class="badge badge-soft-warning">{{ translate($ticket->review_status ?? 'pending') }}</span>
+                                                @endif
                                             </div>
                                             <div class="text-nowrap fs-12 mt-2">
                                                 @if ($ticket->created_at->diffInDays(Carbon::now()) < 7)

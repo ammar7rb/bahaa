@@ -11,6 +11,7 @@
 
     <title>@yield('title')</title>
     <link rel="shortcut icon" href="{{ getStorageImages(path: getWebConfig(name: 'company_fav_icon'), type: 'backend-logo') }}">
+    @include('layouts.vendor.partials._dark-mode-preference')
 
     @include("layouts.vendor.partials._style-partials")
 
@@ -20,6 +21,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-v2.css') }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-dark-mode.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-dark-mode.css')) }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-account.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-account.css')) }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-workspace.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-workspace.css')) }}">
+    @include('layouts.partials._unified-print-styles')
 
     @stack('css_or_js')
 </head>
@@ -61,8 +66,11 @@
     @include("layouts.vendor.partials._translated-message-container")
     @include("layouts.vendor.partials._script-partials")
 
-    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-v2.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-v2.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-v2.js')) }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-account.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-account.js')) }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-workspace.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-workspace.js')) }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/v2-pjax.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/full-page-print.js') }}?v={{ filemtime(public_path('assets/back-end/js/full-page-print.js')) }}"></script>
 
     @stack("script")
     @stack("script_2")
@@ -118,5 +126,6 @@
         </script>
     @endif
 </body>
+<script src="{{ dynamicAsset(path: 'public/assets/front-end/js/egypt-phone-validation.js') }}" defer></script>
 
 </html>

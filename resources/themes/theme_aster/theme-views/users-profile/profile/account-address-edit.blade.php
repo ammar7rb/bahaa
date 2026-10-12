@@ -66,30 +66,26 @@
                                             </div>
                                             <div class="form-group mb-3">
                                                 <label for="country">{{translate('country')}}</label>
-                                                <select name="country" id="country"
-                                                        class="form-select select2 select_picker">
-                                                    <option value="" disabled selected>
-                                                        {{ translate('select_country') }}
-                                                    </option>
-                                                    @if($country_restrict_status)
-                                                        @foreach($delivery_countries as $country)
-                                                            <option
-                                                                value="{{ $country['name']}}" {{ $country['name'] == $shippingAddress['country']?'selected' : ''}}>{{ $country['name']}}</option>
-                                                        @endforeach
-                                                    @else
-                                                        @foreach(COUNTRIES as $country)
-                                                            <option
-                                                                value="{{ $country['name'] }}" {{ $shippingAddress['country'] == $country['name']? 'selected' : '' }}>{{ $country['name'] }}</option>
-                                                        @endforeach
+                                                <input type="hidden" name="country" value="Egypt">
+                                                <input type="text" class="form-control" value="Egypt" readonly>
+                                            </div>
+
+                                            <div class="form-group mb-3">
+                                                <label for="state">{{translate('governorate')}}</label>
+                                                <select class="form-select" id="state" name="state" required>
+                                                    @if($shippingAddress->state && !in_array($shippingAddress->state, config('egypt_governorates'), true))
+                                                        <option value="{{ $shippingAddress->state }}" selected>{{ $shippingAddress->state }}</option>
                                                     @endif
+                                                    <option value="">{{ translate('select') }} {{ translate('governorate') }}</option>
+                                                    @foreach(config('egypt_governorates') as $governorate)
+                                                        <option value="{{ $governorate }}" @selected(($shippingAddress->state ?: $shippingAddress->city) === $governorate)>{{ $governorate }}</option>
+                                                    @endforeach
                                                 </select>
                                             </div>
 
                                             <div class="form-group mb-3">
-                                                <label for="city">{{translate('city')}}</label>
-                                                <input class="form-control" type="text" id="address-city" name="city"
-                                                       value="{{ $shippingAddress->city }}" required
-                                                       placeholder="{{ translate('Ex') }}: {{ translate('Dhaka') }}">
+                                                <label for="city">المدينة / المركز</label>
+                                                <input class="form-control" type="text" id="city" name="city" value="{{ $shippingAddress->city }}" required>
                                             </div>
 
                                             <div class="form-group">
@@ -133,30 +129,23 @@
                                                     </label>
                                                 </div>
                                             </div>
-                                            @if(getWebConfig('map_api_status') ==1 )
-                                                <div class="mb-3 ">
-                                                    <input id="pac-input" class="controls rounded __inline-46"
-                                                           title="{{translate('search_your_location_here')}}"
-                                                           type="text"
-                                                           placeholder="{{translate('search_here')}}"/>
-                                                    <div class="dark-support rounded w-100 __h-14rem"
-                                                         id="location_map_canvas"></div>
-                                                </div>
-                                            @endif
                                             <div class="form-group">
-                                                <label for="address">{{translate('Address')}}</label>
+                                                <label for="district">الحي أو القسم</label>
+                                                <input name="district" id="district" class="form-control mb-3" required value="{{ $shippingAddress->district }}">
+                                                <label for="area">المنطقة</label>
+                                                <input name="area" id="area" class="form-control mb-3" required value="{{ $shippingAddress->area }}">
+                                                <label for="street">الشارع</label>
+                                                <input name="street" id="street" class="form-control mb-3" required value="{{ $shippingAddress->street }}">
+                                                <label for="building-number">رقم العقار</label>
+                                                <input name="building_number" id="building-number" class="form-control mb-3" required value="{{ $shippingAddress->building_number }}">
+                                                <label for="landmark">أقرب علامة مميزة</label>
+                                                <input name="landmark" id="landmark" class="form-control mb-3" value="{{ $shippingAddress->landmark }}">
+                                                <label for="address">تفاصيل إضافية للعنوان</label>
                                                 <textarea name="address" id="address" rows="5" class="form-control"
-                                                          placeholder="{{translate('Ex:_1216_Dhaka')}}">{{ $shippingAddress['address']}}</textarea>
+                                                          placeholder="اكتب تفاصيل تساعد المندوب في الوصول">{{ $shippingAddress['address']}}</textarea>
+                                                <p class="text-muted small mt-2 mb-0">يُتحقق من العنوان في الخلفية ولا تظهر خريطة للعميل.</p>
                                             </div>
                                         </div>
-                                        <input type="hidden" id="latitude"
-                                               name="latitude" class="form-control d-inline"
-                                               placeholder="{{ translate('ex').':'.'-94.22213' }}"
-                                               value="{{ $shippingAddress->latitude??0}}" required readonly>
-                                        <input type="hidden"
-                                               name="longitude" class="form-control"
-                                               placeholder="{{ translate('ex').':'.'103.344322' }}" id="longitude"
-                                               value="{{ $shippingAddress->longitude??0}}" required readonly>
                                         <div class="col-12">
                                             <div
                                                 class="d-flex flex-wrap gap-3 justify-content-between align-items-center">
@@ -179,16 +168,7 @@
             </div>
         </div>
     </main>
-    <span id="address-latitude" data-latitude="{{ $shippingAddress['latitude']??'-33.8688'}}" hidden></span>
-    <span id="address-longitude" data-longitude="{{ $shippingAddress['longitude']??'151.2195'}}" hidden></span>
 @endsection
 @push('script')
     <script src="{{ theme_asset('assets/plugins/select2/js/select2.min.js') }}"></script>
-    <script src="{{ theme_asset('assets/js/address.js') }}"></script>
-    @if(getWebConfig('map_api_status') ==1 )
-        <script
-            src="https://maps.googleapis.com/maps/api/js?key={{getWebConfig('map_api_key')}}&callback=callBackFunction&loading=async&libraries=places&v=3.56"
-            defer>
-        </script>
-    @endif
 @endpush

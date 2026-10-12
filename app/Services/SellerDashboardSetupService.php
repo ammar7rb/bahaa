@@ -32,21 +32,19 @@ class SellerDashboardSetupService
             ->where('request_status', 1)
             ->count();
 
+        // Account activation is the only commercial gate for ordinary product
+        // creation. Insurance is order-scoped and packages are advertising
+        // products, so neither belongs to the seller onboarding checklist.
         $steps = [
             [
                 'key' => 'account',
-                'completed' => $registration['can_login'],
-                'state' => $registration['next_step'],
-            ],
-            [
-                'key' => 'insurance',
-                'completed' => $insurance['active'],
-                'state' => $insurance['pending_review'] ? 'pending_review' : ($insurance['active'] ? 'active' : 'required'),
-            ],
-            [
-                'key' => 'package',
-                'completed' => (bool) $package['active_subscription'],
-                'state' => $package['pending_review'] ? 'pending_review' : ($package['active_subscription'] ? 'active' : 'required'),
+                // Login is intentionally available before activation. The
+                // onboarding check must therefore reflect the activation
+                // decision, not the ability to sign in.
+                'completed' => ($registration['activation_status'] ?? null) === 'active',
+                'state' => ($registration['activation_status'] ?? null) === 'active'
+                    ? 'active'
+                    : ($registration['next_step'] ?: 'await_activation_ticket'),
             ],
             [
                 'key' => 'products',
@@ -59,6 +57,7 @@ class SellerDashboardSetupService
             'registration' => $registration,
             'insurance' => $insurance,
             'package' => $package,
+            'advertising_package_optional' => true,
             'products' => $products,
             'search_promotions' => $searchPromotions,
             'homepage_promotions' => $homepagePromotions,
@@ -69,9 +68,6 @@ class SellerDashboardSetupService
             'completion_percentage' => (int) round(collect($steps)->where('completed', true)->count() / count($steps) * 100),
             'next_step' => $this->resolveNextStep(
                 registration: $registration,
-                insurance: $insurance,
-                package: $package,
-                products: $products,
                 publishedProducts: $publishedProducts,
             ),
         ];
@@ -79,25 +75,16 @@ class SellerDashboardSetupService
 
     private function resolveNextStep(
         array $registration,
-        array $insurance,
-        array $package,
-        array $products,
         int $publishedProducts,
     ): string {
+        if (($registration['activation_status'] ?? null) !== 'active') {
+            return 'await_activation_ticket';
+        }
         if (! $registration['can_login']) {
             return $registration['next_step'];
         }
-        if (! $insurance['active']) {
-            return $insurance['pending_review'] ? 'insurance_pending_review' : 'activate_insurance';
-        }
-        if (! $package['active_subscription']) {
-            return $package['pending_review'] ? 'package_pending_review' : 'choose_package';
-        }
-        if ($publishedProducts === 0 && $products['can_add_product']) {
+        if ($publishedProducts === 0) {
             return 'add_first_product';
-        }
-        if (! $products['can_add_product']) {
-            return 'product_limit_reached';
         }
 
         return 'manage_products';

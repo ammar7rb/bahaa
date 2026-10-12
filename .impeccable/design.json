@@ -1,0 +1,315 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-06T22:00:49.491Z",
+  "title": "Design System: SIGMA Vendor Workspace",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Medical Blue",
+        "tonalRamp": [
+          "oklch(15.00% 0.1285 261.04)",
+          "oklch(26.43% 0.1285 261.04)",
+          "oklch(37.86% 0.1285 261.04)",
+          "oklch(49.29% 0.1285 261.04)",
+          "oklch(60.71% 0.1285 261.04)",
+          "oklch(72.14% 0.1285 261.04)",
+          "oklch(83.57% 0.1285 261.04)",
+          "oklch(95.00% 0.1285 261.04)"
+        ]
+      },
+      "primary-dark": {
+        "role": "primary",
+        "displayName": "Deep Medical Blue",
+        "tonalRamp": [
+          "oklch(15.00% 0.1080 260.75)",
+          "oklch(26.43% 0.1080 260.75)",
+          "oklch(37.86% 0.1080 260.75)",
+          "oklch(49.29% 0.1080 260.75)",
+          "oklch(60.71% 0.1080 260.75)",
+          "oklch(72.14% 0.1080 260.75)",
+          "oklch(83.57% 0.1080 260.75)",
+          "oklch(95.00% 0.1080 260.75)"
+        ]
+      },
+      "primary-light": {
+        "role": "primary",
+        "displayName": "Pale Medical Blue",
+        "tonalRamp": [
+          "oklch(15.00% 0.0132 262.38)",
+          "oklch(26.43% 0.0132 262.38)",
+          "oklch(37.86% 0.0132 262.38)",
+          "oklch(49.29% 0.0132 262.38)",
+          "oklch(60.71% 0.0132 262.38)",
+          "oklch(72.14% 0.0132 262.38)",
+          "oklch(83.57% 0.0132 262.38)",
+          "oklch(95.00% 0.0132 262.38)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Blue Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.0523 256.83)",
+          "oklch(26.43% 0.0523 256.83)",
+          "oklch(37.86% 0.0523 256.83)",
+          "oklch(49.29% 0.0523 256.83)",
+          "oklch(60.71% 0.0523 256.83)",
+          "oklch(72.14% 0.0523 256.83)",
+          "oklch(83.57% 0.0523 256.83)",
+          "oklch(95.00% 0.0523 256.83)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Slate Text",
+        "tonalRamp": [
+          "oklch(15.00% 0.0434 258.35)",
+          "oklch(26.43% 0.0434 258.35)",
+          "oklch(37.86% 0.0434 258.35)",
+          "oklch(49.29% 0.0434 258.35)",
+          "oklch(60.71% 0.0434 258.35)",
+          "oklch(72.14% 0.0434 258.35)",
+          "oklch(83.57% 0.0434 258.35)",
+          "oklch(95.00% 0.0434 258.35)"
+        ]
+      },
+      "page": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "tonalRamp": [
+          "oklch(15.00% 0.0062 255.47)",
+          "oklch(26.43% 0.0062 255.47)",
+          "oklch(37.86% 0.0062 255.47)",
+          "oklch(49.29% 0.0062 255.47)",
+          "oklch(60.71% 0.0062 255.47)",
+          "oklch(72.14% 0.0062 255.47)",
+          "oklch(83.57% 0.0062 255.47)",
+          "oklch(95.00% 0.0062 255.47)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White Surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.0000 89.88)",
+          "oklch(26.43% 0.0000 89.88)",
+          "oklch(37.86% 0.0000 89.88)",
+          "oklch(49.29% 0.0000 89.88)",
+          "oklch(60.71% 0.0000 89.88)",
+          "oklch(72.14% 0.0000 89.88)",
+          "oklch(83.57% 0.0000 89.88)",
+          "oklch(95.00% 0.0000 89.88)"
+        ]
+      },
+      "row-unread": {
+        "role": "neutral",
+        "displayName": "Unread Paper",
+        "tonalRamp": [
+          "oklch(15.00% 0.0070 268.55)",
+          "oklch(26.43% 0.0070 268.55)",
+          "oklch(37.86% 0.0070 268.55)",
+          "oklch(49.29% 0.0070 268.55)",
+          "oklch(60.71% 0.0070 268.55)",
+          "oklch(72.14% 0.0070 268.55)",
+          "oklch(83.57% 0.0070 268.55)",
+          "oklch(95.00% 0.0070 268.55)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Panel Border",
+        "tonalRamp": [
+          "oklch(15.00% 0.0185 258.35)",
+          "oklch(26.43% 0.0185 258.35)",
+          "oklch(37.86% 0.0185 258.35)",
+          "oklch(49.29% 0.0185 258.35)",
+          "oklch(60.71% 0.0185 258.35)",
+          "oklch(72.14% 0.0185 258.35)",
+          "oklch(83.57% 0.0185 258.35)",
+          "oklch(95.00% 0.0185 258.35)"
+        ]
+      },
+      "divider": {
+        "role": "neutral",
+        "displayName": "Quiet Divider",
+        "tonalRamp": [
+          "oklch(15.00% 0.0155 257.20)",
+          "oklch(26.43% 0.0155 257.20)",
+          "oklch(37.86% 0.0155 257.20)",
+          "oklch(49.29% 0.0155 257.20)",
+          "oklch(60.71% 0.0155 257.20)",
+          "oklch(72.14% 0.0155 257.20)",
+          "oklch(83.57% 0.0155 257.20)",
+          "oklch(95.00% 0.0155 257.20)"
+        ]
+      },
+      "count-alert": {
+        "role": "semantic",
+        "displayName": "Alert Count",
+        "tonalRamp": [
+          "oklch(15.00% 0.1937 26.72)",
+          "oklch(26.43% 0.1937 26.72)",
+          "oklch(37.86% 0.1937 26.72)",
+          "oklch(49.29% 0.1937 26.72)",
+          "oklch(60.71% 0.1937 26.72)",
+          "oklch(72.14% 0.1937 26.72)",
+          "oklch(83.57% 0.1937 26.72)",
+          "oklch(95.00% 0.1937 26.72)"
+        ]
+      },
+      "count-success": {
+        "role": "semantic",
+        "displayName": "Success Count",
+        "tonalRamp": [
+          "oklch(15.00% 0.1169 162.07)",
+          "oklch(26.43% 0.1169 162.07)",
+          "oklch(37.86% 0.1169 162.07)",
+          "oklch(49.29% 0.1169 162.07)",
+          "oklch(60.71% 0.1169 162.07)",
+          "oklch(72.14% 0.1169 162.07)",
+          "oklch(83.57% 0.1169 162.07)",
+          "oklch(95.00% 0.1169 162.07)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Dashboard Greeting",
+        "purpose": "Dashboard welcome; 26px on compact screens."
+      },
+      "headline": {
+        "displayName": "Inbox Heading",
+        "purpose": "Page hierarchy; conversation titles use their own smaller role."
+      },
+      "body": {
+        "displayName": "Operational Body",
+        "purpose": "Readable descriptions and message copy."
+      }
+    },
+    "shadows": [
+      {
+        "name": "preview",
+        "value": "0 16px 48px rgba(23,41,66,.18)",
+        "purpose": "Floating inbox preview; cards remain flat."
+      }
+    ],
+    "motion": [
+      {
+        "name": "section-chevron",
+        "value": "transform .16s ease-out",
+        "purpose": "Section expansion feedback."
+      },
+      {
+        "name": "mobile-drawer",
+        "value": "transform .18s ease-out",
+        "purpose": "Drawer opening and closing; disabled with reduced-motion preference."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-header-max",
+        "value": "1200px"
+      },
+      {
+        "name": "mobile-drawer-max",
+        "value": "1023px"
+      },
+      {
+        "name": "compact-screen-max",
+        "value": "600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Real primary vendor action with a minimum touch target.",
+      "html": "<button class=\"ds-primary\" type=\"button\">حفظ التغييرات</button>",
+      "css": ".ds-primary{background:var(--v2-primary,#1a428a);color:#fff;border:1px solid var(--v2-primary,#1a428a);border-radius:12px;min-height:44px;font-family:VendorCare,Cairo,sans-serif;font-weight:650}.ds-primary:hover{background:var(--v2-primary-hover,#14356f)}.ds-primary:focus-visible,.ds-outline:focus-visible,.ds-field:focus-visible,.ds-nav:focus-visible{outline:3px solid var(--v2-primary,#1a428a);outline-offset:3px}"
+    },
+    {
+      "name": "Outlined Action",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action using pale-blue hover.",
+      "html": "<button class=\"ds-outline\" type=\"button\">عرض الكل</button>",
+      "css": ".ds-outline{background:#fff;color:var(--v2-primary,#1a428a);border:1px solid var(--v2-border,#dce4f0);border-radius:12px;min-height:44px;font-family:VendorCare,Cairo,sans-serif;font-weight:650}.ds-outline:hover{background:#edf2fb;border-color:#1a428a}.ds-primary:focus-visible,.ds-outline:focus-visible,.ds-field:focus-visible,.ds-nav:focus-visible{outline:3px solid var(--v2-primary,#1a428a);outline-offset:3px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Vendor field with visible focus and local typography.",
+      "html": "<label class=\"ds-label\" dir=\"rtl\">اسم المتجر <input class=\"ds-field\" value=\"سيجما\" /></label>",
+      "css": ".ds-label{display:flex;gap:8px;flex-direction:column;font-family:VendorCare,Cairo,sans-serif;color:#172942}.ds-field{background:#fff;color:#172942;caret-color:#1a428a;border:1px solid #dce4f0;border-radius:10px;min-height:44px;font-family:VendorCare,Cairo,sans-serif}.ds-primary:focus-visible,.ds-outline:focus-visible,.ds-field:focus-visible,.ds-nav:focus-visible{outline:3px solid var(--v2-primary,#1a428a);outline-offset:3px}"
+    },
+    {
+      "name": "Selected Navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "One labeled sidebar hierarchy with wrapping labels.",
+      "html": "<nav dir=\"rtl\"><a class=\"ds-nav\" href=\"#messages\" aria-current=\"page\">الرسائل</a></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;min-height:44px;padding-inline:12px 8px;border-radius:10px;background:#edf2fb;color:#1a428a;text-decoration:none;font-family:VendorCare,Cairo,sans-serif;font-size:13px;line-height:1.7;white-space:normal}.ds-nav:hover{background:#f4f7fb}.ds-primary:focus-visible,.ds-outline:focus-visible,.ds-field:focus-visible,.ds-nav:focus-visible{outline:3px solid var(--v2-primary,#1a428a);outline-offset:3px}"
+    },
+    {
+      "name": "Unread Count",
+      "kind": "chip",
+      "refersTo": "count",
+      "description": "Status indicator; not an independent interactive control.",
+      "html": "<span class=\"ds-count\" aria-label=\"3 رسائل غير مقروءة\">3</span>",
+      "css": ".ds-count{display:inline-block;background:#c62828;color:#fff;border-radius:6px;font-family:VendorCare,Cairo,sans-serif;font-size:11px;font-weight:700;line-height:1.5;min-width:24px;text-align:center}"
+    },
+    {
+      "name": "Operational Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White bordered containment without a resting shadow.",
+      "html": "<section class=\"ds-card\" dir=\"rtl\"><h2 class=\"ds-card-title\">رسائل الإدارة</h2><p class=\"ds-card-copy\">متابعة المحادثات الخاصة بمتجرك.</p></section>",
+      "css": ".ds-card{background:#fff;border:1px solid #dce4f0;border-radius:16px;padding:24px;box-shadow:none;font-family:VendorCare,Cairo,sans-serif;color:#172942}.ds-card-title{font-size:16px;font-weight:700}.ds-card-copy{font-size:14px;line-height:1.8;color:#52627a}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Sigma Care",
+    "overview": "The vendor workspace extends the established Sigma Care identity into daily operations: cool paper, white containment, medical blue actions, and readable Arabic typography. The shell uses one labeled sidebar and a quiet header so business data and the next action carry the hierarchy.\n\nThis root document applies only to the vendor workspace. Source authority is `public/assets/back-end/css/vendor-workspace.css`, loaded after the inherited vendor shell and `vendor-account.css`. The user approved this surface change on 7 October 2026 in PRODUCT.md. The storefront retains its separate authority at `resources/themes/theme_sigma_care/DESIGN.md`; that file's earlier merchant-preservation statements describe its original storefront scope. This document does not redesign the administration shell, Default, or Aster.",
+    "keyCharacteristics": [
+      "Fixed light appearance inherited from Sigma Care.",
+      "Locally served Arabic typography and logical RTL alignment.",
+      "A single labeled sidebar with a mobile drawer.",
+      "Flat cards, pale active rows, and elevated previews.",
+      "Visible focus and touch controls of at least 44px."
+    ],
+    "rules": [
+      {
+        "name": "The Care Palette Rule",
+        "body": "Keep this workspace light and use the inherited fixed Care palette; preserve semantic operational status colors.",
+        "section": "colors"
+      },
+      {
+        "name": "The Single Sidebar Rule",
+        "body": "Keep one labeled navigation hierarchy; use its drawer representation on mobile rather than adding a second icon rail.",
+        "section": "layout"
+      },
+      {
+        "name": "The Overlay Depth Rule",
+        "body": "Reserve the strong ambient shadow for floating previews; everyday operational cards remain flat.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** keep the vendor workspace light and preserve SIGMA's factual logo.",
+      "**Do** use local VendorCare typography, logical RTL spacing, and wrapping Arabic labels.",
+      "**Do** retain flat everyday cards, clear borders, pale active rows, and visible keyboard focus.",
+      "**Do** maintain 44px touch controls and the single sidebar's mobile drawer.",
+      "**Do** preserve real counts, statuses, permissions, and explicit acknowledgment actions."
+    ],
+    "donts": [
+      "**Don't** apply this vendor document to the administration shell or other storefront themes.",
+      "**Don't** reintroduce a second navigation rail or hover-only operational actions.",
+      "**Don't** use decorative elevation on everyday cards or entrance motion that hides content.",
+      "**Don't** turn an unread color treatment into an implicit acknowledgment when a page opens."
+    ]
+  }
+}

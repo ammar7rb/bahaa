@@ -1,81 +1,48 @@
 @extends('layouts.vendor.app')
 
-@section('title', translate($type == 'new-request' ? 'Pending_Products' : ($type == 'approved' ? 'Approved_Products' : 'Product_List')))
+@section('title', $type == 'new-request' ? translate('active') . ' ' . translate('products') : translate($type == 'approved' ? 'Approved_Products' : 'products'))
 
 @section('content')
-    <div class="content container-fluid">
+    <div class="content container-fluid vendor-products">
 
-        <div class="mb-3">
+        <div class="vendor-products-heading">
             <h2 class="h1 mb-0 text-capitalize d-flex gap-2 align-items-center">
-                <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/inhouse-product-list.png') }}" alt="">
-                {{ translate($type=='new-request'?'pending_for_approval_products':($type=='approved'?'approved_products':'product_list')) }}
+                @include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'products'])
+                {{ $type == 'new-request' ? translate('active') . ' ' . translate('products') : translate($type=='approved'?'approved_products':'products') }}
                 <span class="badge badge-soft-dark radius-50 fz-14 ml-1">
                     {{ $products->total() }}
                 </span>
             </h2>
+            <p>{{ translate('vendor_products_intro') }}</p>
         </div>
 
         <div class="row mt-20">
             <div class="col-md-12">
                 <div class="card">
-                    <div class="px-3 py-4">
+                    <div class="vendor-products-toolbar">
                         <div class="row align-items-center">
-                            <div class="col-lg-4">
+                            <div class="col-lg-8">
 
                                 <form action="{{ url()->current() }}" method="GET">
                                     <div class="input-group input-group-custom input-group-merge">
                                         <div class="input-group-prepend">
                                             <div class="input-group-text">
-                                                <i class="tio-search"></i>
+                                                @include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'search'])
                                             </div>
                                         </div>
                                         <input id="datatableSearch_" type="search" name="searchValue"
                                                class="form-control"
                                                placeholder="{{ translate('search_by_Product_Name') }}"
-                                               aria-label="Search orders"
+                                               aria-label="{{ translate('search_by_Product_Name') }}"
                                                value="{{ request('searchValue') }}">
-                                        <input type="hidden" value="{{ request('status') }}" name="status">
                                         <button type="submit" class="btn btn--primary">{{ translate('search') }}</button>
                                     </div>
                                 </form>
                             </div>
-                            <div class="col-lg-8 mt-3 mt-lg-0 d-flex flex-wrap gap-3 justify-content-lg-end">
-                                <div class="dropdown flex-grow-1 flex-grow-sm-0">
-                                    <a type="button" class="btn btn-outline--primary text-nowrap w-100"
-                                       href="{{ route('vendor.products.export-excel', [
-                                            'type' => $type,
-                                            'searchValue' => request('searchValue'),
-                                            'filter_sort_by' => request('filter_sort_by'),
-                                            'filter_product_types' => request('filter_product_types'),
-                                            'product_status' => request('product_status'),
-                                            'filter_brand_ids' => request('filter_brand_ids'),
-                                            'filter_category_ids' => request('filter_category_ids'),
-                                            ]) }}"
-                                        >
-                                        <i class="fi fi-sr-inbox-in"></i>
-                                        <span class="ps-1">{{ translate('export') }}</span>
-                                    </a>
-                                </div>
-
-                                <div class="position-relative flex-grow-1 flex-grow-sm-0">
-                                    @if(!empty(request('filter_sort_by')) || !empty(request('filter_product_types')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
-                                        <div class="position-absolute inset-inline-end-0 top-0 mt-n1 me-n1 btn-circle bg-danger border border-white border-2 z-2" style="--size: 12px;"></div>
-                                    @endif
-                                    <button type="button"
-                                            @if(!empty(request('filter_sort_by')) || !empty(request('filter_product_types')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
-                                                class="btn btn--primary px-4 w-100"
-                                            @else
-                                                class="btn btn-outline--primary px-4 w-100"
-                                            @endif
-                                            data-toggle="offcanvas" data-target="#offcanvasProductFilter">
-                                        <i class="fi fi-sr-settings-sliders"></i>
-                                        {{ translate('Filter') }}
-                                    </button>
-                                </div>
-
+                            <div class="col-lg-4 mt-3 mt-lg-0 d-flex flex-wrap gap-3 justify-content-lg-end">
                                 @if($type != 'new-request' )
                                 <a href="{{ route('vendor.products.add') }}" class="btn btn--primary flex-grow-1 flex-grow-sm-0">
-                                    <i class="tio-add"></i>
+                                    @include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'add'])
                                     <span class="text">{{ translate('add_new_product') }}</span>
                                 </a>
                                 @endif
@@ -88,18 +55,18 @@
                                class="table table-hover table-borderless table-thead-bordered table-nowrap table-align-middle card-table w-100 text-start">
                             <thead class="thead-light thead-50 text-capitalize">
                             <tr>
-                                <th>{{ translate('SL') }}</th>
+                                <th class="vendor-product-serial">#</th>
                                 <th class="text-capitalize">{{ translate('product_name') }}</th>
-                                <th class="text-center text-capitalize">{{ translate('product_type') }}</th>
-                                <th class="text-center text-capitalize">{{ translate('unit_price') }}</th>
+
+                                <th class="text-center text-capitalize">{{ translate('vendor_product_price') }}</th>
                                 <th class="text-center">{{ translate('stock') }}</th>
                                 @if ($productWiseTax)
                                     <th class="text-center">{{ translate('Vat/Tax') }}</th>
                                 @endif
-                                <th class="text-center">{{ translate('Package_Benefits') }}</th>
+
                                 <!-- <th class="text-center text-capitalize">{{ translate('verify_status') }}</th> -->
                                 @if($type != 'new-request' )
-                                <th class="text-center text-capitalize">{{ translate('active_status') }}</th>
+                                <th class="text-center text-capitalize">{{ translate('vendor_product_visibility') }}</th>
                                 @endif
                                 <th class="text-center">{{ translate('action') }}</th>
                             </tr>
@@ -116,7 +83,7 @@
                                             <div>
                                                 <div class="d-flex align-items-center gap-1">
                                                     <div class="media-body title-color mb-1 hover-c1" data-toggle="tooltip" title="{{ $product['name'] }}">
-                                                        {{ Str::limit($product['name'], 20) }}
+                                                        {{ $product['name'] }}
                                                     </div>
                                                     @if($product?->clearanceSale)
                                                         <span class="text-secondary-base fs-12" data-placement="right" data-toggle="tooltip" title="{{ translate('Clearance_Sale') }}">
@@ -125,21 +92,12 @@
                                                     @endif
                                                 </div>
                                                 <div class="d-flex gap-1">
-                                                    <span class="text-secondary">Id #{{$product['id']}}</span>
-                                                    @if($product->request_status == 0)
-                                                        <label class="badge badge-soft-warning m-0 font-weight-normal">{{translate('pending')}}</label>
-                                                    @elseif($product->request_status == 1)
-                                                        <label class="badge badge-soft-success m-0 font-weight-normal">{{translate('approved')}}</label>
-                                                    @elseif($product->request_status == 2)
-                                                        <label class="badge badge-soft-danger m-0 font-weight-normal">{{translate('denied')}}</label>
-                                                    @endif
+                                                    <span class="text-secondary">{{ translate('vendor_product_reference') }} {{ $product->administrative_reference }}</span>
                                                 </div>
                                             </div>
                                         </a>
                                     </td>
-                                    <td class="text-center">
-                                        {{ translate($product['product_type']) }}
-                                    </td>
+
                                     <td class="text-center">
                                         {{setCurrencySymbol(amount: usdToDefaultCurrency(amount: $product['unit_price']), currencyCode: getCurrencyCode()) }}
                                     </td>
@@ -181,32 +139,6 @@
                                                 </span>
                                         </td>
                                     @endif
-                                    <td class="text-center">
-                                        <div class="d-flex flex-wrap justify-content-center gap-1">
-                                            @if($product->request_status != 1)
-                                                <span class="badge badge-soft-warning">{{ translate('Listing_Not_Active_Yet') }}</span>
-                                            @elseif($product->activeSellerProductEntitlement)
-                                                <span class="badge badge-soft-success" data-toggle="tooltip"
-                                                      title="{{ translate('Listing_Expires_At') }}: {{ $product->activeSellerProductEntitlement->expires_at ?? translate('No_Expiry') }}">
-                                                    {{ translate('Package_Listing') }}
-                                                </span>
-                                            @else
-                                                <span class="badge badge-soft-secondary">{{ translate('Existing_Listing') }}</span>
-                                            @endif
-                                            @if($product->activeSearchPromotion)
-                                                <a href="{{ route('vendor.promotions.search.index') }}" class="badge badge-soft-primary"
-                                                   data-toggle="tooltip" title="{{ translate('Featured_Search_Expires_At') }}: {{ $product->activeSearchPromotion->expires_at }}">
-                                                    {{ translate('Featured_Search') }}
-                                                </a>
-                                            @endif
-                                            @if($product->activeHomepagePromotion)
-                                                <a href="{{ route('vendor.promotions.homepage.index') }}" class="badge badge-soft-info"
-                                                   data-toggle="tooltip" title="{{ translate('Homepage_Featured_Expires_At') }}: {{ $product->activeHomepagePromotion->expires_at }}">
-                                                    {{ translate('Homepage_Featured') }}
-                                                </a>
-                                            @endif
-                                        </div>
-                                    </td>
                                     @if($type != 'new-request' )
                                         <td class="text-center">
                                             @php($productName = str_replace("'",'`',$product['name']))
@@ -234,27 +166,20 @@
                                     @endif
                                     <td>
                                         <div class="d-flex justify-content-center gap-2">
-                                            @if($type != 'new-request' )
-                                                <a class="btn btn-outline-warning btn-sm square-btn"
-                                                   title="{{ translate('barcode') }}"
-                                                   href="{{ route('vendor.products.barcode', [$product['id']]) }}">
-                                                    <i class="tio-barcode"></i>
-                                                </a>
-                                            @endif
-                                            <a class="btn btn-outline--success icon-btn square-btn" title="{{ translate('view') }}"
+                                            <a class="btn btn-outline--success icon-btn square-btn" title="{{ translate('view') }}" aria-label="{{ translate('view') }}"
                                                href="{{ route('vendor.products.view', [$product['id']]) }}">
-                                                <i class="tio-invisible"></i>
+                                                @include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'view'])
                                             </a>
                                             <a class="btn btn-outline--primary btn-sm square-btn"
-                                               title="{{ translate('edit') }}"
+                                               title="{{ translate('edit') }}" aria-label="{{ translate('edit') }}"
                                                href="{{ route('vendor.products.update',[$product['id']]) }}">
-                                                <i class="tio-edit"></i>
+                                                @include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'edit'])
                                             </a>
-                                            <span class="btn btn-outline-danger btn-sm square-btn delete-data"
-                                                  title="{{ translate('delete') }}"
+                                            <button type="button" class="btn btn-outline-danger btn-sm square-btn delete-data"
+                                                  title="{{ translate('delete') }}" aria-label="{{ translate('delete') }}"
                                                   data-id="product-{{ $product['id']}}">
-                                                <i class="tio-delete"></i>
-                                            </span>
+                                                @include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'delete'])
+                                            </button>
                                         </div>
                                         <form action="{{ route('vendor.products.delete',[$product['id']]) }}"
                                               method="post" id="product-{{ $product['id']}}">
@@ -277,7 +202,7 @@
                         @include('layouts.vendor.partials._empty-state',['text'=>'no_product_found'],['image'=>'default'])
                     @endif
 
-                    @include('vendor-views.product.partials.offcanvas._filter-offcanvas')
+
                 </div>
             </div>
         </div>

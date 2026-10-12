@@ -10,6 +10,7 @@ use App\Models\Currency;
 use App\Models\CustomerActivationInvoice;
 use App\Models\CustomerPurchaseLimitTransaction;
 use App\Models\CustomerPurchasePackage;
+use App\Services\SubscriptionDurationService;
 use App\Models\OfflinePaymentMethod;
 use App\Services\CustomerActivationInvoiceService;
 use App\Services\CustomerPurchaseLimitService;
@@ -46,7 +47,14 @@ class CustomerPurchasePackageController extends Controller
         $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
 
         return response()->json([
-            'packages' => $packages,
+            'packages' => $packages->map(function (CustomerPurchasePackage $package) {
+                $duration = app(SubscriptionDurationService::class)->fromPackage($package);
+                return array_merge($package->toArray(), [
+                    'duration_unit' => $duration['unit'],
+                    'duration_value' => $duration['value'],
+                    'duration_label' => app(SubscriptionDurationService::class)->label($duration['unit'], $duration['value']),
+                ]);
+            })->values(),
             'limit_summary' => $purchaseLimitService->getLimitSummary($customer),
             'extra_credit_settings' => $purchaseLimitService->getExtraCreditSettings(),
             'digital_payment_available' => count($paymentGatewayList) > 0 && ($digitalPaymentStatus['status'] ?? 0),
@@ -192,7 +200,7 @@ class CustomerPurchasePackageController extends Controller
             'payment_request_from' => 'app',
             'customer_id' => $customer->id,
             'activation_invoice_id' => $invoice->id,
-            'invoice_no' => $invoice->invoice_no,
+            'invoice_no' => $invoice->invoice_number,
             'order_group_id' => $invoice->order_group_id,
             'package_id' => $invoice->customer_purchase_package_id,
             'package_name' => $invoice->package_name,
@@ -547,7 +555,7 @@ class CustomerPurchasePackageController extends Controller
 
         return [
             'id' => $invoice->id,
-            'invoice_no' => $invoice->invoice_no,
+            'invoice_no' => $invoice->invoice_number,
             'order_id' => $invoice->order_id,
             'order_group_id' => $invoice->order_group_id,
             'package' => [
@@ -555,6 +563,11 @@ class CustomerPurchasePackageController extends Controller
                 'name' => $invoice->package_name,
                 'price' => (float) $invoice->package_price,
                 'purchase_limit' => (float) $invoice->package_purchase_limit,
+                'duration_unit' => data_get($invoice->metadata, 'package_duration.unit', 'lifetime'),
+                'duration_value' => data_get($invoice->metadata, 'package_duration.value'),
+                'duration_label' => data_get($invoice->metadata, 'package_duration.unit') === 'lifetime'
+                    ? 'lifetime'
+                    : sprintf('%d_%s', (int) data_get($invoice->metadata, 'package_duration.value'), data_get($invoice->metadata, 'package_duration.unit')),
             ],
             'insurance' => [
                 'original_amount' => (float) $invoice->insurance_original_amount,

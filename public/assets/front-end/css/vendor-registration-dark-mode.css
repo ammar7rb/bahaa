@@ -1,0 +1,101 @@
+/* Restricted to the vendor-application form. Customer storefront pages are untouched. */
+.seller-registration-page > .vendor-theme-toggle,
+.seller-registration-page .vendor-theme-toggle,
+.vendor-public-page > .vendor-theme-toggle,
+.vendor-public-page .vendor-theme-toggle {
+  position: fixed;
+  top: 86px;
+  inset-inline-end: 20px;
+  z-index: 1045;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, .18);
+}
+html[data-vendor-theme="dark"] :is(.seller-registration-page,.vendor-public-page) {
+  color-scheme: dark;
+  background: #0f1525;
+  color: #e8ecf5;
+}
+html[data-vendor-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(.create-an-account,.bg-white,.card,.card-header,.card-body,.modal-content,.form-advance-file-validation .second-el,.form-advance-file-validation .first-el,.bg-light) {
+  background-color: #1a2236 !important;
+  color: #e8ecf5 !important;
+  border-color: #34415f !important;
+}
+html[data-vendor-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(h1,h2,h3,h4,h5,h6,p,label,legend,.form-check-label,.text-dark,.title-color) { color: #e8ecf5 !important; }
+html[data-vendor-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(.text-muted,.text-secondary,.form-text,details) { color: #b8c1d4 !important; }
+html[data-vendor-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(.form-control,.form-select,.custom-select,.input-group-text,textarea,select) {
+  background-color: #111a2c !important;
+  color: #e8ecf5 !important;
+  border-color: #34415f !important;
+}
+html[data-vendor-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(.form-control,.form-select,textarea)::placeholder { color: #92a0ba !important; opacity: 1; }
+html[data-vendor-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(.border,.border-top,.border-bottom,.border-left,.border-right,.modal-header,.modal-footer) { border-color: #34415f !important; }
+html[data-vendor-theme="dark"] :is(.seller-registration-page,.vendor-public-page) .create-an-account-bg-img { opacity: .15; }
+html[data-vendor-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(.btn-close,.close) { filter: invert(1) grayscale(1); }
+/* The vendor registration page is rendered inside the customer storefront.
+   Apply the same palette when the storefront switch is the active toggle. */
+:root[data-ba-storefront-theme="dark"] :is(.seller-registration-page,.vendor-public-page) {
+  color-scheme: dark;
+  background: #0f1525;
+  color: #e8ecf5;
+}
+:root[data-ba-storefront-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(.create-an-account,.bg-white,.card,.card-header,.card-body,.modal-content,.form-advance-file-validation .second-el,.form-advance-file-validation .first-el,.bg-light) {
+  background-color: #1a2236 !important;
+  color: #e8ecf5 !important;
+  border-color: #34415f !important;
+}
+:root[data-ba-storefront-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(h1,h2,h3,h4,h5,h6,p,label,legend,.form-check-label,.text-dark,.title-color) { color: #e8ecf5 !important; }
+:root[data-ba-storefront-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(.text-muted,.text-secondary,.form-text,details) { color: #b8c1d4 !important; }
+:root[data-ba-storefront-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(.form-control,.form-select,.custom-select,.input-group-text,textarea,select) {
+  background-color: #111a2c !important;
+  color: #e8ecf5 !important;
+  border-color: #34415f !important;
+}
+:root[data-ba-storefront-theme="dark"] :is(.seller-registration-page,.vendor-public-page) :is(.form-control,.form-select,textarea)::placeholder { color: #92a0ba !important; opacity: 1; }
+:root[data-ba-storefront-theme="dark"] :is(.seller-registration-page,.vendor-public-page) .create-an-account-bg-img { opacity: .15; }
+/* Light mode needs explicit surface tokens as the registration component is
+   shared with pages that can previously have been opened in dark mode. */
+html[data-vendor-theme="light"] :is(.seller-registration-page,.vendor-public-page) {
+  color-scheme: light;
+  background: #f7f9fc;
+  color: #1f2937;
+}
+html[data-vendor-theme="light"] :is(.seller-registration-page,.vendor-public-page) :is(.create-an-account,.bg-white,.card,.card-header,.card-body,.modal-content,.form-advance-file-validation .second-el,.form-advance-file-validation .first-el,.bg-light) {
+  background-color: #fff !important;
+  color: #1f2937 !important;
+  border-color: #e2e8f0 !important;
+}
+html[data-vendor-theme="light"] :is(.seller-registration-page,.vendor-public-page) :is(h1,h2,h3,h4,h5,h6,p,label,legend,.form-check-label,.text-dark,.title-color) { color: #1f2937 !important; }
+html[data-vendor-theme="light"] :is(.seller-registration-page,.vendor-public-page) :is(.text-muted,.text-secondary,.form-text,details) { color: #64748b !important; }
+html[data-vendor-theme="light"] :is(.seller-registration-page,.vendor-public-page) :is(.form-control,.form-select,.custom-select,.input-group-text,textarea,select) {
+  background-color: #fff !important;
+  color: #1f2937 !important;
+  border-color: #cbd5e1 !important;
+}
+html[data-vendor-theme="light"] :is(.seller-registration-page,.vendor-public-page) :is(.form-control,.form-select,textarea)::placeholder { color: #94a3b8 !important; opacity: 1; }
+html[data-vendor-theme="light"] :is(.seller-registration-page,.vendor-public-page) .create-an-account-bg-img { opacity: .08; }
+/* The storefront toggle controls this public page. This takes precedence over
+   a legacy vendor-only preference so the header and form never disagree. */
+:root[data-ba-storefront-theme="light"] :is(.seller-registration-page,.vendor-public-page) {
+  color-scheme: light;
+  background: #f7f9fc;
+  color: #1f2937;
+}
+:root[data-ba-storefront-theme="light"] :is(.seller-registration-page,.vendor-public-page) :is(.create-an-account,.bg-white,.card,.card-header,.card-body,.modal-content,.form-advance-file-validation .second-el,.form-advance-file-validation .first-el,.bg-light) {
+  background-color: #fff !important;
+  color: #1f2937 !important;
+  border-color: #e2e8f0 !important;
+}
+:root[data-ba-storefront-theme="light"] :is(.seller-registration-page,.vendor-public-page) :is(h1,h2,h3,h4,h5,h6,p,label,legend,.form-check-label,.text-dark,.title-color) { color: #1f2937 !important; }
+:root[data-ba-storefront-theme="light"] :is(.seller-registration-page,.vendor-public-page) :is(.text-muted,.text-secondary,.form-text,details) { color: #64748b !important; }
+:root[data-ba-storefront-theme="light"] :is(.seller-registration-page,.vendor-public-page) :is(.form-control,.form-select,.custom-select,.input-group-text,textarea,select) {
+  background-color: #fff !important;
+  color: #1f2937 !important;
+  border-color: #cbd5e1 !important;
+}
+:root[data-ba-storefront-theme="light"] :is(.seller-registration-page,.vendor-public-page) :is(.form-control,.form-select,textarea)::placeholder { color: #94a3b8 !important; opacity: 1; }
+:root[data-ba-storefront-theme="light"] :is(.seller-registration-page,.vendor-public-page) .create-an-account-bg-img { opacity: .08; }
+@media (max-width: 575.98px) {
+  .seller-registration-page > .vendor-theme-toggle,
+  .seller-registration-page .vendor-theme-toggle,
+  .vendor-public-page > .vendor-theme-toggle,
+  .vendor-public-page .vendor-theme-toggle { top: 72px; inset-inline-end: 12px; }
+}

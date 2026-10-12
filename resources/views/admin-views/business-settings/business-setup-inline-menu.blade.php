@@ -24,12 +24,7 @@
                 {{ translate('Products') }}
             </a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link {{ Request::is('admin/business-settings/delivery-man-settings') ? 'active' : '' }}"
-                href="{{ route('admin.business-settings.delivery-man-settings.index') }}">
-                {{ translate('Delivery_Men') }}
-            </a>
-        </li>
+        {{-- Legacy Delivery Man settings are hidden; stored values remain available for historical order records. --}}
         <li class="nav-item">
             <a class="nav-link {{ Request::is('admin/business-settings/customer-settings') ? 'active' : '' }}"
                 href="{{ route('admin.business-settings.customer-settings') }}">

@@ -46,11 +46,18 @@ use Modules\TaxModule\app\Models\Taxable;
  * @property int $featured_status
  * @property int $refundable
  * @property int $featured
+ * @property int $is_homepage_visible
  * @property int $flash_deal
  * @property int $seller_id
  * @property float $purchase_price
  * @property string $denied_note
  * @property float $shipping_cost
+ * @property float $same_day_shipping_cost
+ * @property float $next_day_shipping_cost
+ * @property float $normal_shipping_cost
+ * @property float $same_day_shipping_cost
+ * @property float $next_day_shipping_cost
+ * @property float $normal_shipping_cost
  * @property int $multiply_qty
  * @property float $temp_shipping_cost
  * @property string $thumbnail
@@ -65,6 +72,11 @@ use Modules\TaxModule\app\Models\Taxable;
  */
 class Product extends Model
 {
+    public function getAdministrativeReferenceAttribute(): string
+    {
+        return \App\Services\AdministrativeReferenceService::format('product', (int) $this->id);
+    }
+
     use StorageTrait, CacheManagerTrait;
 
     protected $fillable = [
@@ -80,6 +92,17 @@ class Product extends Model
         'sub_sub_category_id',
         'brand_id',
         'unit',
+        'pieces_per_unit',
+        'length',
+        'width',
+        'height',
+        'dimension_unit',
+        'weight',
+        'weight_unit',
+        'production_date',
+        'no_production_expiry_dates',
+        'category_review_required',
+        'expiry_date',
         'digital_product_type',
         'product_type',
         'details',
@@ -103,9 +126,16 @@ class Product extends Model
         'status',
         'featured_status',
         'featured',
+        'is_homepage_visible',
         'request_status',
         'denied_note',
         'shipping_cost',
+        'same_day_shipping_cost',
+        'next_day_shipping_cost',
+        'normal_shipping_cost',
+        'same_day_shipping_cost',
+        'next_day_shipping_cost',
+        'normal_shipping_cost',
         'multiply_qty',
         'color_image',
         'images',
@@ -137,6 +167,15 @@ class Product extends Model
         'sub_sub_category_id' => 'integer',
         'brand_id' => 'integer',
         'unit' => 'string',
+        'pieces_per_unit' => 'integer',
+        'length' => 'float',
+        'width' => 'float',
+        'height' => 'float',
+        'weight' => 'float',
+        'no_production_expiry_dates' => 'boolean',
+        'category_review_required' => 'boolean',
+        'production_date' => 'date:Y-m-d',
+        'expiry_date' => 'date:Y-m-d',
         'digital_product_type' => 'string',
         'product_type' => 'string',
         'details' => 'string',
@@ -152,9 +191,11 @@ class Product extends Model
         'minimum_order_qty' => 'integer',
         'free_shipping' => 'integer',
         'request_status' => 'integer',
+        'seller_review_changes' => 'array',
         'featured_status' => 'integer',
         'refundable' => 'integer',
         'featured' => 'integer',
+        'is_homepage_visible' => 'integer',
         'flash_deal' => 'integer',
         'seller_id' => 'integer',
         'purchase_price' => 'float',
@@ -162,6 +203,12 @@ class Product extends Model
         'updated_at' => 'datetime',
         'denied_note' => 'string',
         'shipping_cost' => 'float',
+        'same_day_shipping_cost' => 'float',
+        'next_day_shipping_cost' => 'float',
+        'normal_shipping_cost' => 'float',
+        'same_day_shipping_cost' => 'float',
+        'next_day_shipping_cost' => 'float',
+        'normal_shipping_cost' => 'float',
         'multiply_qty' => 'integer',
         'temp_shipping_cost' => 'float',
         'thumbnail' => 'string',
@@ -177,7 +224,7 @@ class Product extends Model
         'digital_file_ready_storage_type' => 'string',
     ];
 
-    protected $appends = ['is_shop_temporary_close', 'thumbnail_full_url', 'preview_file_full_url', 'color_images_full_url', 'meta_image_full_url', 'images_full_url', 'digital_file_ready_full_url'];
+    protected $appends = ['is_shop_temporary_close', 'thumbnail_full_url', 'preview_file_full_url', 'color_images_full_url', 'meta_image_full_url', 'images_full_url', 'digital_file_ready_full_url', 'administrative_reference'];
 
     public function translations(): MorphMany
     {
@@ -249,6 +296,15 @@ class Product extends Model
         })->orWhere(function ($query) {
             $query->where(['added_by' => 'admin', 'status' => 1]);
         });
+    }
+
+    /**
+     * A product may be approved and searchable without being eligible for a
+     * storefront-homepage section.
+     */
+    public function scopeHomepageVisible(Builder $query): Builder
+    {
+        return $query->where('is_homepage_visible', 1);
     }
 
     public function stocks(): HasMany
@@ -325,6 +381,11 @@ class Product extends Model
     public function sellerProductPromotions(): HasMany
     {
         return $this->hasMany(SellerProductPromotion::class);
+    }
+
+    public function reviewDecisions(): HasMany
+    {
+        return $this->hasMany(ProductReviewDecision::class)->latest('id');
     }
 
     public function activeSearchPromotion(): HasOne

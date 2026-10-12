@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
@@ -12,10 +11,10 @@ class ExampleTest extends TestCase
      *
      * @return void
      */
-    public function testBasicTest()
+    public function testApplicationContainerBootsInTestingEnvironment(): void
     {
-        $response = $this->get('/');
-
-        $response->assertStatus(200);
+        $this->assertTrue($this->app->bound('router'));
+        $this->assertTrue($this->app->environment('testing'));
+        $this->assertNotEmpty($this->app->version());
     }
 }

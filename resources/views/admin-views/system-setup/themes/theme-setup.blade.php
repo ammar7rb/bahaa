@@ -17,6 +17,9 @@
                             {{ translate('select_the_theme_you_want_to_use_for_your_system') }}
                         </p>
                     </div>
+                    <a class="btn btn-primary" href="{{ route('admin.system-setup.theme.homepage-builder.index') }}">
+                        <i class="fi fi-sr-layout-fluid"></i> {{ translate('Homepage_Section_Builder') }}
+                    </a>
                 </div>
 
                 <div class="row g-3">

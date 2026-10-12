@@ -486,6 +486,10 @@ $(".action-sort-shop-products-by-data").on("change", function () {
 
 $("#shop-view-chat-form").on("submit", function (e) {
     e.preventDefault();
+    if ($("#route-messages-store").data("support-only")) {
+        window.location.assign($("#route-messages-store").data("url"));
+        return;
+    }
     $.ajaxSetup({
         headers: {
             "X-CSRF-TOKEN": $('meta[name="_token"]').attr("content"),
@@ -532,6 +536,10 @@ $(".menu--caret").on("click", function (e) {
 
 $("#seller-chat-form").on("submit", function (e) {
     e.preventDefault();
+    if ($("#route-messages-store").data("support-only")) {
+        window.location.assign($("#route-messages-store").data("url"));
+        return;
+    }
     $.ajaxSetup({
         headers: {
             "X-CSRF-TOKEN": $('meta[name="_token"]').attr("content"),
@@ -553,6 +561,10 @@ $("#seller-chat-form").on("submit", function (e) {
 
 $("#deliveryman-chat-form").on("submit", function (e) {
     e.preventDefault();
+    if ($("#route-messages-store").data("support-only")) {
+        window.location.assign($("#route-messages-store").data("url"));
+        return;
+    }
     $.ajaxSetup({
         headers: {
             "X-CSRF-TOKEN": $('meta[name="_token"]').attr("content"),
@@ -738,7 +750,7 @@ function showInstantImage(link) {
 }
 
 function couponCode() {
-    $("#apply-coupon-code").on("click", function () {
+    $(document).on("click", "#apply-coupon-code", function () {
         $.ajaxSetup({
             headers: {
                 "X-CSRF-TOKEN": $('meta[name="_token"]').attr("content"),
@@ -1508,7 +1520,8 @@ function cartListQuantityUpdateInit() {
 cartListQuantityUpdateInit();
 
 function actionCheckoutFunctionInit() {
-    $(".action-checkout-function").on("click", function () {
+    $(document).off("click.checkoutAction", ".action-checkout-function").on("click.checkoutAction", ".action-checkout-function", function () {
+        if ($(this).hasClass('custom-disabled')) return;
         let getRoute = $("#route-action-checkout-function").data("route");
         if (getRoute && getRoute.toString() === "shop-cart") {
             checkoutFromCartList();

@@ -7,6 +7,7 @@ use App\Contracts\Repositories\VendorRepositoryInterface;
 use App\Events\PasswordResetEvent;
 use App\Http\Controllers\Controller;
 use App\Models\Seller;
+use App\Services\EgyptPhoneService;
 use App\Traits\CustomerTrait;
 use App\Utils\Helpers;
 use App\Utils\SMSModule;
@@ -31,6 +32,15 @@ class ForgotPasswordController extends Controller
 
     public function reset_password_request(Request $request): JsonResponse
     {
+        $verification_by = getWebConfig(name: 'vendor_forgot_password_method');
+        if ($verification_by === 'phone') {
+            $identity = app(EgyptPhoneService::class)->normalize($request->input('identity'));
+            if (!app(EgyptPhoneService::class)->isValid($identity)) {
+                return response()->json(['errors' => [['code' => 'identity', 'message' => translate('please_provide_valid_phone_number')]]], 403);
+            }
+            $request->merge(['identity' => $identity]);
+        }
+
         $validator = Validator::make($request->all(), [
             'identity' => 'required|min:6',
         ]);
@@ -39,7 +49,12 @@ class ForgotPasswordController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
-        $verification_by = getWebConfig(name: 'vendor_forgot_password_method');
+        return response()->json([
+            'message' => translate('password_reset_support_message'),
+            'support_required' => true,
+            'contact_url' => route('contacts', ['subject' => translate('password_reset_support_subject')]),
+        ], 200);
+
         DB::table('password_resets')->where('user_type', 'seller')->where('identity', 'like', "%{$request['identity']}%")->delete();
 
         if ($verification_by == 'email') {
@@ -112,6 +127,11 @@ class ForgotPasswordController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
+        return response()->json(['errors' => [[
+            'code' => 'support-required',
+            'message' => translate('password_reset_support_message'),
+        ]]], 403);
+
         $id = $request['identity'];
         $data = DB::table('password_resets')
             ->where('user_type', 'seller')
@@ -140,6 +160,11 @@ class ForgotPasswordController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
+
+        return response()->json(['errors' => [[
+            'code' => 'support-required',
+            'message' => translate('password_reset_support_message'),
+        ]]], 403);
 
         $data = DB::table('password_resets')
             ->where('user_type', 'seller')
@@ -244,6 +269,12 @@ class ForgotPasswordController extends Controller
 
     public function checkVendorExistInfo(Request $request): JsonResponse
     {
+        $phone = app(EgyptPhoneService::class)->normalize($request->input('phone'));
+        if (!app(EgyptPhoneService::class)->isValid($phone)) {
+            return response()->json(['errors' => [['code' => 'phone', 'message' => translate('please_provide_valid_phone_number')]]], 403);
+        }
+        $request->merge(['phone' => $phone]);
+
         $validator = Validator::make($request->all(), [
             'phone' => 'required',
         ]);

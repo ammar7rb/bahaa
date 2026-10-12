@@ -72,6 +72,17 @@ class OrderController extends Controller
             ], 403);
         }
 
+        $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+        if ($eligibility->enabled()) {
+            $state = $eligibility->status($user);
+            if (!$state['can_checkout']) return response()->json(['message'=>$state['message'],'code'=>'customer_purchase_restricted'], 403);
+            if (app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+                $summary = app(\App\Services\CustomerMonthlyAllowanceService::class)->summary((int)$user->id,
+                    app(CustomerPurchaseLimitService::class)->getCartProductTotal($carts), $state['initial_order_exception_available'] || $state['can_resume_initial_checkout']);
+                if (!$summary['can_checkout']) return response()->json(['message' => 'الحد الائتماني غير كافٍ. زد الحد أو اختر باقة أعلى أو قلل المنتجات.', 'code' => 'customer_purchase_limit_insufficient', 'limit' => $summary], 403);
+            }
+        }
+
         if (app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {
             return null;
         }
@@ -99,7 +110,7 @@ class OrderController extends Controller
 
         return [
             'id' => $invoice->id,
-            'invoice_no' => $invoice->invoice_no,
+            'invoice_no' => $invoice->invoice_number,
             'order_id' => $invoice->order_id,
             'order_group_id' => $invoice->order_group_id,
             'package' => [
@@ -412,13 +423,33 @@ class OrderController extends Controller
 
         $offlinePaymentInfo = [];
         $method = OfflinePaymentMethod::where(['id' => $request['method_id'], 'status' => 1])->first();
+        if (!$method) return response()->json(['message'=>translate('offline_payment_method_not_found')], 422);
 
         if (isset($method)) {
             $values = $this->decodeOfflinePaymentInformation($request['method_informations'] ?? null);
+            $modern = ($values['transfer_schema'] ?? null) === 'sender_v2';
+            if ($modern) {
+                $sender = app(\App\Services\CustomerTransferInformationService::class)->sender($values);
+                $values['sender_name'] = $sender['sender_name'];
+                $values['sender_identifier'] = $sender['sender_phone'];
+                $offlinePaymentInfo = $sender;
+                $request->validate(['payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
+            }
             $missingFields = [];
             $offlinePaymentInfo['method_id'] = $request['method_id'];
             $offlinePaymentInfo['method_name'] = $method->method_name;
-            foreach (($method->method_informations ?? []) as $field) {
+            if (empty($values['sender_name']) || empty($values['sender_identifier'])) {
+                return response()->json([
+                    'message' => translate('required_offline_payment_information_is_missing'),
+                    'missing_fields' => array_values(array_filter([
+                        empty($values['sender_name']) ? 'sender_name' : null,
+                        empty($values['sender_identifier']) ? 'sender_identifier' : null,
+                    ])),
+                ], 422);
+            }
+            $offlinePaymentInfo['sender_name'] = mb_substr(strip_tags((string) $values['sender_name']), 0, 150);
+            $offlinePaymentInfo['sender_identifier'] = mb_substr(strip_tags((string) $values['sender_identifier']), 0, 150);
+            foreach (($modern ? [] : ($method->method_informations ?? [])) as $field) {
                 $inputName = $field['customer_input'] ?? null;
                 if (!$inputName) {
                     continue;
@@ -498,12 +529,14 @@ class OrderController extends Controller
             'offline_payment_pending_review' => true,
             'activation_required' => (bool) $activationInvoice,
             'next_action' => $secondStageInvoices ? 'open_post_purchase_invoice' : ($activationInvoice ? 'open_activation_invoice' : 'order_review'),
+            'post_purchase_invoices' => collect($secondStageInvoices)->map(fn ($invoice) => app(\App\Services\PostPurchaseInvoiceService::class)->paymentSummary($invoice))->values(),
             'activation_invoice' => $this->formatActivationInvoiceForApi($activationInvoice),
         ], 200);
     }
 
     public function placeOrderByWallet(Request $request): JsonResponse
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
         $cartGroupIds = CartManager::get_cart_group_ids(request: $request, type: 'checked');
         $carts = Cart::whereHas('product', function ($query) {
             return $query->active();
@@ -525,13 +558,20 @@ class OrderController extends Controller
         ]);
         $paymentAmount = collect($vendorWiseCartList)->sum('first_payment_amount');
 
-        $user = Helpers::getCustomerInformation($request);
+        $identity = Helpers::getCustomerInformation($request);
+        abort_if($identity === 'offline', 401);
+        $user = \App\Models\User::lockForUpdate()->findOrFail($identity->id);
         if ($purchaseLimitResponse = $this->validateCustomerPurchaseLimitForApiOrder($request, $user, $carts)) {
             return $purchaseLimitResponse;
         }
 
         if ($paymentAmount > $user->wallet_balance) {
-            return response()->json(['message' => 'inefficient balance in your wallet to pay for this order'], 403);
+            return response()->json([
+                'message' => 'Purchase balance is lower than the order total. Deposit into the purchase balance or choose another payment method.',
+                'code' => 'purchase_wallet_balance_insufficient',
+                'required_amount' => (float) $paymentAmount,
+                'available_balance' => (float) $user->wallet_balance,
+            ], 403);
         } else {
             $physical_product = false;
             foreach ($carts as $cart) {
@@ -574,7 +614,7 @@ class OrderController extends Controller
                 'requestObj' => $request,
             ]);
 
-            CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment');
+            if (!CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment')) throw \Illuminate\Validation\ValidationException::withMessages(['wallet' => 'تعذر تأكيد الخصم. لم يتم إنشاء الطلب.']);
             $postPurchaseInvoices = \App\Models\PostPurchaseInvoice::query()->whereIn('order_id', $orderIds)->get();
             return response()->json([
                 'messages' => translate('order_placed_successfully'),
@@ -583,6 +623,8 @@ class OrderController extends Controller
                 'next_action' => $postPurchaseInvoices->isNotEmpty() ? 'pay_post_purchase_invoice' : 'order_review',
             ], 200);
         }
+
+        }, 3);
     }
 
     public function refund_request(Request $request): JsonResponse
@@ -1018,19 +1060,11 @@ class OrderController extends Controller
     public function offline_payment_method_list(Request $request): JsonResponse
     {
         $data = OfflinePaymentMethod::where('status', 1)->get()->map(function (OfflinePaymentMethod $method) {
-            $method->method_informations = collect($method->method_informations ?? [])->map(function (array $field) {
-                $inputName = strtolower((string) ($field['customer_input'] ?? ''));
-                $placeholder = strtolower((string) ($field['customer_placeholder'] ?? ''));
-                $fieldText = $inputName . ' ' . $placeholder;
-                $field['input_type'] = str_contains($fieldText, 'screenshot')
-                    || str_contains($fieldText, 'image')
-                    || str_contains($fieldText, 'receipt')
-                    || str_contains($fieldText, 'proof')
-                        ? 'image'
-                        : 'text';
-
-                return $field;
-            })->values()->all();
+            $method->method_informations = [
+                ['customer_input'=>'sender_name','customer_placeholder'=>$method->payment_channel === 'instapay' ? 'اسم الحساب الخاص بك' : 'اسم المحفظة الخاصة بك','is_required'=>1,'input_type'=>'text'],
+                ['customer_input'=>'sender_identifier','customer_placeholder'=>'الرقم الذي حولت منه','is_required'=>1,'input_type'=>'text'],
+                ['customer_input'=>'payment_screenshot','customer_placeholder'=>'صورة إيصال التحويل','is_required'=>1,'input_type'=>'image'],
+            ];
 
             return $method;
         });

@@ -8,12 +8,6 @@
         <option value="high-low">
             {{ translate('Price') }} ({{ translate('High_to_Low') }})
         </option>
-        <option value="rating-low-high">
-            {{ translate('Rating') }} ({{ translate('Low_to_High') }})
-        </option>
-        <option value="rating-high-low">
-            {{ translate('Rating') }} ({{ translate('High_to_Low') }})
-        </option>
         <option value="a-z">
             {{ translate('Alphabetical') }} ({{ 'A '.translate('to').' Z' }})
         </option>

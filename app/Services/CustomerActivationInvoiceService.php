@@ -26,6 +26,16 @@ class CustomerActivationInvoiceService
         Collection|EloquentCollection|array|null $cartList = null,
         bool $allowActivationInvoice = false
     ): array {
+        if (!$this->purchaseLimitService->isFeatureEnabled()) {
+            return [
+                'status' => 1,
+                'code' => 'customer_purchase_packages_suspended',
+                'message' => translate('purchase_limit_available'),
+                'assessment' => $this->purchaseLimitService->getCheckoutLimitAssessment($customer, $cartList),
+                'activation_required' => false,
+            ];
+        }
+
         $assessment = $this->purchaseLimitService->getCheckoutLimitAssessment($customer, $cartList);
 
         if (!$assessment['has_active_package']) {
@@ -67,6 +77,10 @@ class CustomerActivationInvoiceService
 
     public function shouldHoldPaidOrderForActivation(mixed $customer): bool
     {
+        if (!$this->purchaseLimitService->isFeatureEnabled()) {
+            return false;
+        }
+
         $assessment = $this->purchaseLimitService->getLimitSummary($customer);
 
         return !$assessment['has_active_package'];
@@ -74,6 +88,10 @@ class CustomerActivationInvoiceService
 
     public function createForPaidOrderGroup(array $orderIds): ?CustomerActivationInvoice
     {
+        if (!$this->purchaseLimitService->isFeatureEnabled()) {
+            return null;
+        }
+
         $orderIds = array_values(array_filter($orderIds));
         if (empty($orderIds)) {
             return null;
@@ -333,6 +351,10 @@ class CustomerActivationInvoiceService
 
     public function markInvoicePaidAndReleaseOrder(CustomerActivationInvoice $invoice, array $paymentData): array
     {
+        if (($invoice->metadata['customer_deposit_retired'] ?? false) && (float)($invoice->metadata['archived_insurance_amount'] ?? 0) > 0 && ($paymentData['is_paid'] ?? 0) == 1) {
+            app(CustomerLegacyPaymentService::class)->record('activation-retired-'.($paymentData['id'] ?? $invoice->id),(int)$invoice->customer_id,(float)($paymentData['payment_amount'] ?? 0),$paymentData['currency_code'] ?? getCurrencyCode(type:'default'),['invoice_id'=>$invoice->id]);
+            return ['status'=>1,'message'=>'legacy_payment_received_for_reconciliation','invoice'=>$invoice];
+        }
         return DB::transaction(function () use ($invoice, $paymentData) {
             $invoice = CustomerActivationInvoice::where('id', $invoice->id)->lockForUpdate()->first();
 
@@ -475,7 +497,7 @@ class CustomerActivationInvoiceService
 
     private function getInsuranceLine(mixed $customer): array
     {
-        $insuranceEnabled = (bool) getWebConfig(name: 'customer_monthly_insurance_status');
+        $insuranceEnabled = false;
         $originalAmount = $insuranceEnabled ? (float) (getWebConfig(name: 'customer_monthly_insurance_amount') ?? 0) : 0.0;
         $discountType = getWebConfig(name: 'customer_monthly_insurance_first_discount_type') ?: 'none';
         $discountValue = (float) (getWebConfig(name: 'customer_monthly_insurance_first_discount_value') ?? 0);
@@ -506,16 +528,7 @@ class CustomerActivationInvoiceService
 
     private function isMonthlyInsuranceExpired(mixed $customer): bool
     {
-        if (!(bool) getWebConfig(name: 'customer_monthly_insurance_status')) {
-            return false;
-        }
-
-        $customer = is_object($customer) ? $customer : User::find($customer);
-        if (!$customer || !$customer->monthly_insurance_started_at) {
-            return false;
-        }
-
-        return !$customer->monthly_insurance_paid_until || Carbon::parse($customer->monthly_insurance_paid_until)->lt(Carbon::now());
+        return false; // Monthly subscription replaces customer insurance.
     }
 
     private function markOrdersAsActivationPending(array $orderIds): void

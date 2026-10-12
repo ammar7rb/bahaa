@@ -7,7 +7,7 @@
                 <div class="col-lg-3 col-sm-3">
                     <div class="d-flex justify-content-center justify-content-md-start">
                         <img width="180" loading="lazy" alt="{{ translate('image') }}"
-                             class="max-height-45px w-auto img-fit"
+                             class="max-height-45px w-auto img-fit ba-platform-logo"
                              src="{{ getStorageImages(path: $web_config['footer_logo'], type:'logo') }}">
                     </div>
                 </div>
@@ -16,9 +16,11 @@
                     <ul class="list-socials list-socials--white gap-4 fs-18">
                         @if($web_config['social_media'])
                             @foreach ($web_config['social_media'] as $item)
+                                {{-- Replace only legacy platform links; valid configured social links remain unchanged. --}}
+                                @php($socialLink = (str_contains(strtolower((string) $item->link), '6valley') || str_contains(strtolower((string) $item->link), '6amtech') || str_contains(strtolower((string) $item->link), 'codecanyon')) ? 'https://wa.me/201064174547' : $item->link)
                                 <li>
                                     @if ($item->name == "twitter")
-                                        <a href="{{$item->link}}" target="_blank" class="font-bold">
+                                        <a href="{{$socialLink}}" target="_blank" class="font-bold">
                                             <svg width="18" height="18" viewBox="0 0 300 301" fill="none"
                                                  xmlns="http://www.w3.org/2000/svg">
                                                 <g clip-path="url(#clip0_2327_8364)">
@@ -35,11 +37,11 @@
                                             </svg>
                                         </a>
                                     @elseif($item->name == 'google-plus')
-                                        <a href="{{$item->link}}" target="_blank">
+                                        <a href="{{$socialLink}}" target="_blank">
                                             <i class="bi bi-google"></i>
                                         </a>
                                     @else
-                                        <a href="{{$item->link}}" target="_blank">
+                                        <a href="{{$socialLink}}" target="_blank">
                                             <i class="bi bi-{{$item->name}}"></i>
                                         </a>
                                     @endif
@@ -169,7 +171,8 @@
                                             {{ translate('featured_products') }}
                                         </a>
                                     </li>
-                                    @if($web_config['business_mode'] == 'multi')
+                                    {{-- The public footer does not expose the vendor directory. --}}
+                                    @if(false)
                                         <li>
                                             <a class="text-capitalize" href="{{ route('vendors') }}">
                                                 {{ translate('top_stores') }}
@@ -200,7 +203,7 @@
                                         <li>
                                             <a class="text-capitalize"
                                                href="{{ route('business-page.view', ['slug' => $businessPage['slug']]) }}">
-                                                {{ Str::limit($businessPage['title'], 25, '...') }}
+                                                {{ Str::limit(translate($businessPage['title']), 25, '...') }}
                                             </a>
                                         </li>
                                     @endforeach

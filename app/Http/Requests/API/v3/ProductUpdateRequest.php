@@ -20,6 +20,16 @@ class ProductUpdateRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'product_type' => 'physical',
+            'shipping_cost' => 0,
+            'sub_sub_category_id' => null,
+            'tags' => $this->input('tags', $this->input('search_tags')),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      */
@@ -29,7 +39,7 @@ class ProductUpdateRequest extends FormRequest
         return [
             'name' => 'required',
             'category_id' => 'required',
-            'product_type' => 'required',
+            'product_type' => 'required|in:physical',
             'unit' => 'required_if:product_type,==,physical',
             'discount_type' => 'required|in:percent,flat',
             'lang' => 'required',
@@ -41,7 +51,7 @@ class ProductUpdateRequest extends FormRequest
             ),
             'unit_price' => 'required|min:1',
             'discount' => 'required|gt:-1',
-            'shipping_cost' => 'required_if:product_type,==,physical|gt:-1',
+            'shipping_cost' => 'nullable|numeric|min:0',
             'minimum_order_qty' => 'required|numeric|min:1',
             'code' => 'required|min:6|max:20|regex:/^[a-zA-Z0-9]+$/|unique:products,code,' . $productId,
         ];

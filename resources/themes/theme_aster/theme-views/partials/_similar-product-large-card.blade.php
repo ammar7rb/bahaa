@@ -74,13 +74,7 @@
             <span>( {{$product->reviews->count()}} )</span>
         </div>
 
-        <h3 class="text-muted fs-12">
-            @if($product->added_by=='seller')
-                {{ isset($product->seller->shop->name) ? Str::limit($product->seller->shop->name, 20) : '' }}
-            @elseif($product->added_by=='admin')
-                {{getInHouseShopConfig(key:'name')}}
-            @endif
-        </h3>
+        {{-- Store identity is intentionally omitted from customer product cards. --}}
 
         <h4 class="product__title text-truncate h6">
             {{ Str::limit($product['name'], 25) }}

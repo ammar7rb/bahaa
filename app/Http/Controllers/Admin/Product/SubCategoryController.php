@@ -118,6 +118,10 @@ class SubCategoryController extends BaseController
 
     public function delete(Request $request): JsonResponse
     {
+        $category = $this->categoryRepo->getFirstWhere(params: ['id' => $request['id']], relations: ['childes']);
+        if (!$category || $category->childes->isNotEmpty() || \App\Models\Product::withoutGlobalScopes()->where('sub_category_id', $request['id'])->exists()) {
+            return response()->json(['message' => translate('used_categories_cannot_be_deleted_deactivate_them_instead')], 422);
+        }
         $this->categoryRepo->delete(params: ['id' => $request['id']]);
         return response()->json(['message' => translate('Deleted_Successfully')]);
     }

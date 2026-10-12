@@ -15,6 +15,7 @@ use App\Events\OrderEditReturnPaymentEvent;
 use App\Events\RefundEvent;
 use App\Http\Requests\Admin\RefundStatusRequest;
 use App\Models\OrderEditHistory;
+use App\Models\Order;
 use App\Services\CustomerWalletService;
 use App\Services\OrderEditReturnAmountService;
 use App\Services\OrderEditService;
@@ -34,7 +35,6 @@ use Illuminate\Http\Request;
 use App\Enums\GlobalConstant;
 use App\Traits\CustomerTrait;
 use App\Services\OrderService;
-use App\Services\CustomerActivationInvoiceService;
 use App\Events\OrderStatusEvent;
 use App\Models\ReferralCustomer;
 use App\Traits\FileManagerTrait;
@@ -48,6 +48,14 @@ use App\Http\Controllers\BaseController;
 use App\Services\DeliveryManWalletService;
 use App\Repositories\DeliveryManRepository;
 use App\Services\OrderStatusHistoryService;
+use App\Services\OrderShippingDecisionService;
+use App\Services\OrderLogisticsService;
+use App\Services\OrderWorkflowService;
+use App\Services\OrderInsuranceService;
+use App\Services\SellerOrderInsuranceService;
+use App\Models\ShippingMethod;
+use App\Models\OrderInsurance;
+use App\Utils\Convert;
 use App\Services\DeliveryCountryCodeService;
 use Devrabiul\ToastMagic\Facades\ToastMagic;
 use Illuminate\Database\Eloquent\Collection;
@@ -149,7 +157,8 @@ class OrderController extends BaseController
             'date_type' => $request['date_type'],
             'from' => $request['from'],
             'to' => $request['to'],
-            'delivery_man_id' => $request['delivery_man_id'],
+            // Legacy delivery-man filters are deliberately ignored; historical rows remain unchanged.
+            'delivery_man_id' => null,
             'customer_id' => $request['customer_id'],
             'seller_id' => $vendorId,
             'seller_is' => $vendorIs,
@@ -192,7 +201,7 @@ class OrderController extends BaseController
             searchValue: $searchValue,
             filters: $filters,
             whereIn: $filterWhereIn,
-            relations: ['details', 'customer', 'seller.shop', 'orderEditHistory'],
+            relations: ['details', 'customer', 'seller.shop', 'orderEditHistory', 'postPurchaseInvoice', 'insurance'],
             dataLimit: getWebConfig(name: WebConfigKey::PAGINATION_LIMIT)
         );
 
@@ -334,7 +343,7 @@ class OrderController extends BaseController
         return redirect()->back();
     }
 
-    public function orderDueAmountMarkAsPaid(Request $request, CustomerActivationInvoiceService $activationInvoiceService)
+    public function orderDueAmountMarkAsPaid(Request $request)
     {
         $validated = $request->validate([
             'order_id' => 'required|exists:orders,id',
@@ -365,10 +374,14 @@ class OrderController extends BaseController
                     ]);
                 }
             });
-            if ($order->payment_method === 'offline_payment') {
-                $activationInvoiceService->handleProductPaymentApproved($order->fresh());
-            }
 
+            if (app(\App\Services\CustomerPostPurchaseInsuranceService::class)->enabled()
+                && $order->commerce_flow_version === config('order_commerce.new_flow_version')) {
+                app(\App\Services\CustomerPostPurchaseInsuranceService::class)
+                    ->activateAfterPurchasePayment($order->fresh());
+                ToastMagic::success(translate('purchase_payment_approved_customer_insurance_created'));
+                return redirect()->back();
+            }
             ToastMagic::success(translate('Mark_as_paid_successfully'));
         } catch (\Throwable $e) {
             ToastMagic::error($e->getMessage());
@@ -395,7 +408,8 @@ class OrderController extends BaseController
             'date_type' => $request['date_type'],
             'from' => $request['from'],
             'to' => $request['to'],
-            'delivery_man_id' => $request['delivery_man_id'],
+            // Legacy delivery-man filters are deliberately ignored; historical rows remain unchanged.
+            'delivery_man_id' => null,
             'customer_id' => $request['customer_id'],
             'seller_id' => $vendorId,
             'seller_is' => $vendorIs,
@@ -497,6 +511,11 @@ class OrderController extends BaseController
         $zipCodes = $zipRestrictStatus ? $this->deliveryZipCodeRepo->getList(dataLimit: 'all') : 0;
         $companyName = getWebConfig(name: 'company_name');
         $companyWebLogo = getWebConfig(name: 'company_web_logo');
+        $adminShippingMethods = ShippingMethod::query()
+            ->where('creator_type', 'admin')
+            ->where('status', 1)
+            ->orderBy('title')
+            ->get(['id', 'title', 'cost', 'duration']);
 
         $order = $this->orderRepo->getFirstWhere(
             params: ['id' => $id],
@@ -509,11 +528,12 @@ class OrderController extends BaseController
                 'shipping',
                 'seller.shop',
                 'offlinePayments',
-                'deliveryMan',
                 'orderEditHistory' => fn($q) => $q->orderBy('id', 'desc'),
                 'orderStatusHistory' => function ($query) {
                     $query->orderBy('created_at', 'desc');
-                }
+                },
+                'shippingDecisionHistory.admin',
+                'logisticsEvents',
             ]
         );
 
@@ -554,7 +574,6 @@ class OrderController extends BaseController
         ]);
         $sellerId = ($order['seller_is'] === 'seller' && $order['shipping_responsibility'] === 'sellerwise_shipping') ? $order['seller_id'] : 0;
 
-        $deliveryMen = $this->deliveryManRepo->getListWhere(filters: ['is_active' => 1, 'seller_id' => $sellerId], dataLimit: 'all');
         $isOrderOnlyDigital = $orderService->getCheckIsOrderOnlyDigital(order: $order);
         $previousOrder = $this->orderRepo->getPreviousFirstOrderWhere(id: $id);
         $nextOrder = $this->orderRepo->getNextFirstOrderWhere(id: $id);
@@ -589,12 +608,13 @@ class OrderController extends BaseController
         $view = $order['order_type'] === 'default_type' ? 'admin-views.order.order-details' : 'admin-views.pos.order.order-details';
 
         return view($view, compact(
-            'order', 'linkedOrders', 'deliveryMen', 'totalDelivered',
+            'order', 'linkedOrders', 'totalDelivered',
             'companyName', 'companyWebLogo', 'physicalProduct',
             'countryRestrictStatus', 'zipRestrictStatus', 'countries', 'zipCodes',
             'orderCount', 'isOrderOnlyDigital', 'previousOrder', 'nextOrder',
             'allProductsList', 'isOrderEditable', 'orderProductsSession',
-            'editOrderSummary', 'orderEditPaymentHistory'
+            'editOrderSummary', 'orderEditPaymentHistory',
+            'adminShippingMethods'
         ));
     }
 
@@ -626,6 +646,12 @@ class OrderController extends BaseController
     {
         $order = $this->orderRepo->getFirstWhere(params: ['id' => $request['id']], relations: ['customer', 'seller.shop', 'deliveryMan', 'latestEditHistory']);
 
+        if ($order->customer_checkout_operation_id && in_array($request['order_status'], ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) {
+            $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+            $eligibility->reevaluateCustomer((int) $order->customer_id);
+            $order->refresh();
+            if (!$order->customer_eligible_at || !$order->customer->is_active || $order->is_pause) return response()->json(['status' => 0, 'message' => (!$order->customer->is_active || $order->is_pause) ? $eligibility->message(['administrative_freeze']) : $eligibility->orderPayload($order)['message']]);
+        }
         if (!$order['is_guest'] && !isset($order['customer'])) {
             return response()->json([
                 'status' => 0,
@@ -675,6 +701,27 @@ class OrderController extends BaseController
                 }
             }
         }
+        try {
+            app(OrderWorkflowService::class)->assertAdminOrderCanAdvance($order, (string) $request['order_status']);
+            app(OrderWorkflowService::class)->assertTransition(
+                (string) $order['order_status'],
+                (string) $request['order_status'],
+                'admin',
+                $request->boolean('workflow_override'),
+                $request->input('workflow_reason'),
+            );
+        } catch (\DomainException $exception) {
+            if ($exception->getMessage() === 'admin_order_release_required_before_confirmation') {
+                $paymentSummary = app(\App\Services\OrderPaymentSummaryService::class)->forOrder($order);
+                if ($paymentSummary['incomplete']) {
+                    $unpaidStages = array_filter($paymentSummary['lines'], fn ($line) => $line['status']
+                        && ! in_array($line['status'], ['payment_stage_paid', 'payment_stage_not_required'], true));
+                    $details = array_map(fn ($line) => translate($line['label']).': '.translate($line['status']), $unpaidStages);
+                    return response()->json(['status' => 0, 'message' => translate('order_payments_incomplete').' — '.implode('؛ ', $details), 'payment_summary' => $paymentSummary], 422);
+                }
+            }
+            return response()->json(['status' => 0, 'message' => translate($exception->getMessage())], 422);
+        }
         $this->orderRepo->updateStockOnOrderStatusChange($request['id'], $request['order_status']);
         $this->orderRepo->update(id: $request['id'], data: ['order_status' => $request['order_status']]);
         if ($request['order_status'] == 'delivered') {
@@ -682,6 +729,15 @@ class OrderController extends BaseController
             $this->orderDetailRepo->updateWhere(params: ['order_id' => $order['id']], data: ['delivery_status' => $request['order_status'], 'payment_status' => 'paid']);
             $this->orderDetailRepo->updateWhere(params: ['order_id' => $order['id'], 'refund_started_at' => null], data: ['refund_started_at' => now()]);
         }
+        app(OrderLogisticsService::class)->recordOrderStatus(
+            Order::query()->findOrFail($request['id']),
+            $request['order_status'],
+            'admin',
+            auth('admin')->id(),
+            (string) $order['order_status'],
+            $request->boolean('workflow_override'),
+            $request->input('workflow_reason'),
+        );
         event(new OrderStatusEvent(key: $request['order_status'], type: 'customer', order: $order));
         if ($request['order_status'] == 'canceled') {
             event(new OrderStatusEvent(key: 'canceled', type: 'delivery_man', order: $order));
@@ -814,6 +870,127 @@ class OrderController extends BaseController
         return back();
     }
 
+    public function saveShippingDecision(Request $request, string|int $id, OrderShippingDecisionService $service): RedirectResponse
+    {
+        $validated = $request->validate([
+            'mode' => ['required', 'in:admin_shipping,seller_shipping'],
+            'customer_cost' => ['nullable', 'numeric', 'min:0'],
+            'seller_cost' => ['nullable', 'numeric', 'min:0'],
+            'seller_entitlement' => ['nullable', 'numeric', 'min:0'],
+            'service_name' => ['nullable', 'string', 'max:255'],
+            'tracking_number' => ['nullable', 'string', 'max:255'],
+            'expected_delivery_date' => ['nullable', 'date'],
+            'shipping_method_id' => ['nullable', 'integer'],
+            'instructions' => ['nullable', 'string', 'max:5000'],
+            'note' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $order = $this->orderRepo->getFirstWhere(params: ['id' => $id]);
+        if (!$order) {
+            ToastMagic::error(translate('Order_not_found'));
+            return back();
+        }
+
+        $service->assign($order, $validated, auth('admin')->id());
+        ToastMagic::success(translate('shipping_decision_saved_successfully'));
+        return back();
+    }
+
+    public function saveInsuranceDecision(Request $request, string|int $id): RedirectResponse
+    {
+        $data = $request->validate([
+            'decision' => ['required', 'in:refund,forfeit,approve_payment'],
+            'admin_note' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $order = $this->orderRepo->getFirstWhere(params: ['id' => $id]);
+        if (!$order) {
+            ToastMagic::error(translate('Order_not_found'));
+            return back();
+        }
+        if ($data['decision'] === 'approve_payment') {
+            if ($order->payment_method !== 'offline_payment') {
+                ToastMagic::error(translate('insurance_decision_not_available'));
+                return back();
+            }
+        } elseif ($order->payment_status !== 'paid') {
+            ToastMagic::error(translate('payment_status_must_be_paid'));
+            return back();
+        }
+
+        try {
+            DB::transaction(function () use ($order, $data): void {
+                $insurance = OrderInsurance::where('order_id', $order->id)->lockForUpdate()->first();
+                if (!$insurance || !in_array($insurance->status, ['held', 'pending_payment'], true)) {
+                    throw new \DomainException(translate('insurance_decision_not_available'));
+                }
+
+                if ($data['decision'] === 'approve_payment') {
+                    if ($insurance->status !== 'pending_payment') {
+                        throw new \DomainException(translate('insurance_decision_not_available'));
+                    }
+                    $this->orderRepo->update(id: $order->id, data: ['payment_status' => 'paid']);
+                    app(OrderInsuranceService::class)->markPaid($insurance, auth('admin')->id(), $data['admin_note']);
+                    return;
+                }
+
+                if ($data['decision'] === 'refund') {
+                    if (!$insurance->matures_at || $insurance->matures_at->isFuture()) {
+                        throw new \DomainException(translate('order_insurance_not_matured_yet'));
+                    }
+                    app(\App\Services\CustomerInsuranceBalanceService::class)->releaseDue();
+                    return;
+                }
+
+                $insurance->update([
+                    'payment_status' => 'paid',
+                    'status' => 'forfeited',
+                    'admin_id' => auth('admin')->id(), 'admin_note' => $data['admin_note'],
+                    'refunded_at' => null,
+                ]);
+            });
+        } catch (\Throwable $exception) {
+            ToastMagic::error($exception->getMessage());
+            return back();
+        }
+
+        ToastMagic::success(translate('insurance_decision_saved'));
+        return back();
+    }
+
+    public function saveSellerOrderInsuranceDecision(
+        Request $request,
+        string|int $id,
+        SellerOrderInsuranceService $service,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'action' => ['required', 'in:extend,waive,keep_locked,transfer_to_operations,request_cancellation'],
+            'reason' => ['required', 'string', 'max:5000'],
+            'extension_days' => ['nullable', 'required_if:action,extend', 'integer', 'min:1', 'max:90'],
+        ]);
+
+        $order = Order::query()->with('sellerOrderInsurance')->find($id);
+        if (! $order?->sellerOrderInsurance) {
+            ToastMagic::error(translate('seller_order_insurance_not_found'));
+            return back();
+        }
+
+        try {
+            $service->decideExpired(
+                insurance: $order->sellerOrderInsurance,
+                action: $validated['action'],
+                reason: $validated['reason'],
+                adminId: auth('admin')->id(),
+                extensionDays: $validated['extension_days'] ?? null,
+            );
+            ToastMagic::success(translate('seller_order_insurance_decision_saved'));
+        } catch (\Throwable $exception) {
+            ToastMagic::error(translate($exception->getMessage()));
+        }
+
+        return back();
+    }
+
     public function addDeliveryMan(string|int $order_id, string|int $delivery_man_id): JsonResponse
     {
         if ($delivery_man_id == 0) {
@@ -877,7 +1054,7 @@ class OrderController extends BaseController
         return response()->json($customers);
     }
 
-    public function updatePaymentStatus(Request $request, CustomerActivationInvoiceService $activationInvoiceService): JsonResponse
+    public function updatePaymentStatus(Request $request): JsonResponse
     {
         $order = $this->orderRepo->getFirstWhere(params: ['id' => $request['id']]);
 
@@ -887,27 +1064,34 @@ class OrderController extends BaseController
                 'message' => translate('account_has_been_deleted_you_can_not_change_the_status'),
             ]);
         }
-        if ($order['payment_method'] == 'offline_payment'
-            && $order['payment_status'] == 'unpaid'
-            && $request['payment_status'] !== 'paid') {
+        if ($order['payment_method'] == 'offline_payment' && $order['payment_status'] == 'unpaid') {
             return response()->json([
                 'status' => 0,
                 'message' => translate('Please confirm the offline payment information before editing this order.'),
             ]);
         }
+        if ($order->customer_checkout_operation_id && $request['payment_status'] === 'paid') {
+            app(\App\Services\CustomerPurchaseEligibilityService::class)->approveOrderPayment((int) $order->id, $order->transaction_ref ?: 'admin-order-'.$order->id);
+            return response()->json(['status' => 1, 'message' => 'تم اعتماد الدفع وتحديث أهلية الطلب.']);
+        }
         $this->orderRepo->update(id: $request['id'], data: ['payment_status' => $request['payment_status']]);
-
-        if ($order['payment_method'] == 'offline_payment' && $request['payment_status'] === 'paid') {
-            $result = $activationInvoiceService->handleProductPaymentApproved($order->fresh());
-
-            if (($result['status'] ?? 0) != 1) {
+        if ($request['payment_status'] === 'paid') {
+            if (app(\App\Services\CustomerPostPurchaseInsuranceService::class)->enabled()
+                && $order->commerce_flow_version === config('order_commerce.new_flow_version')) {
+                app(\App\Services\CustomerPostPurchaseInsuranceService::class)
+                    ->activateAfterPurchasePayment($order->fresh());
                 return response()->json([
-                    'status' => 0,
-                    'message' => translate($result['message'] ?? 'offline_payment_approval_failed'),
-                ], 403);
+                    'status' => 1,
+                    'message' => translate('purchase_payment_approved_customer_insurance_created'),
+                ]);
+            }
+            $insurance = OrderInsurance::where('order_id', $request['id'])
+                ->where('status', 'pending_payment')
+                ->first();
+            if ($insurance) {
+                app(OrderInsuranceService::class)->markPaid($insurance, auth('admin')->id(), translate('payment_status_approved_by_admin'));
             }
         }
-
         return response()->json([
             'status' => 1,
             'message' => translate('status_change_successfully')

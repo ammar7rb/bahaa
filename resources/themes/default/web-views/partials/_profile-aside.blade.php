@@ -25,6 +25,15 @@
                     </a>
                 </div>
             </div>
+            <div class="widget-title">
+                <a class="{{ request()->routeIs('customer.subscription.*') ? 'active-menu' : '' }}" href="{{ route('customer.subscription.index') }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5 3 3 5-5"/></svg><span class="aside-link">الاشتراك الشهري</span></a>
+            </div>
+            <div class="widget-title">
+                <a class="{{ request()->routeIs('wallet', 'customer-balances') ? 'active-menu' : '' }}" href="{{ route('wallet') }}">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 7H5a2 2 0 0 1 0-4h13v4M3 5v14a2 2 0 0 0 2 2h15V7M20 11h-5v6h5"/><circle cx="16.5" cy="14" r=".7" fill="currentColor"/></svg>
+                    <span class="aside-link">{{ translate('my_wallet') }}</span>
+                </a>
+            </div>
             <div>
                 <div class="widget-title">
                     <a class="{{Request::is('account-oder*') || Request::is('account-order-details*') || Request::is('track-order*') ? 'active-menu' :''}}" href="{{route('account-oder') }}">
@@ -37,29 +46,11 @@
                     </a>
                 </div>
             </div>
-            <div>
-                <div class="widget-title">
-                    <a class="{{Request::is('customer/purchase-package*') ? 'active-menu' :''}}" href="{{ route('customer.purchase-package.index') }}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <path fill-rule="evenodd" clip-rule="evenodd" d="M3.333 3.333h13.334c.92 0 1.666.746 1.666 1.667v10c0 .92-.746 1.667-1.666 1.667H3.333c-.92 0-1.666-.746-1.666-1.667V5c0-.92.746-1.667 1.666-1.667Zm0 3.334V5h13.334v1.667H3.333Zm0 2.5V15h13.334V9.167H3.333Zm2.5 1.666h5v1.25h-5v-1.25Zm7.5 0h1.667v1.25h-1.667v-1.25Z" fill="currentColor"/>
-                        </svg>
-                        <span class="aside-link">
-                            {{ translate('customer_purchase_packages') }}
-                        </span>
-                    </a>
-                </div>
-            </div>
-            <div>
-                <div class="widget-title">
-                    <a class="{{Request::is('user-restock-requests*') ? 'active-menu' :''}}" href="{{ route('user-restock-requests') }}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <path fill-rule="evenodd" clip-rule="evenodd" d="M10 1.66667C5.39733 1.66667 1.66667 5.39733 1.66667 10C1.66667 14.6027 5.39733 18.3333 10 18.3333C14.6027 18.3333 18.3333 14.6027 18.3333 10C18.3333 8.68133 18.018 7.41933 17.458 6.30267L16.1947 7.566L13.3333 4.70467L14.5973 3.44067C13.4807 2.881 12.2187 2.56567 10.9 2.56567C6.92533 2.56567 3.734 5.757 3.734 9.73167C3.734 13.7063 6.92533 16.8977 10.9 16.8977C14.1233 16.8977 16.8333 14.1877 16.8333 10.9643H15.3C15.3 13.835 12.87 16.265 10 16.265C7.13 16.265 4.7 13.835 4.7 10.9643C4.7 8.09367 7.13 5.66367 10 5.66367C11.1427 5.66367 12.2113 6.05733 13.0373 6.784L10 9.82133V3.33333H10Z" fill="currentColor"/>
-                        </svg>
-                        <span class="aside-link">
-                        {{ translate('Restock_Requests') }}
-                    </span>
-                    </a>
-                </div>
+            <div class="widget-title">
+                <a class="{{ Request::is('post-purchase-invoices*') ? 'active-menu' : '' }}" href="{{ route('post-purchase-invoices.index') }}">
+                    <span><i class="fi fi-rr-time-forward"></i></span>
+                    <span class="aside-link">{{ translate('suspended_orders') }}</span>
+                </a>
             </div>
             <div>
                 <div class="widget-title">
@@ -79,25 +70,7 @@
                     </a>
                 </div>
             </div>
-            @if ($web_config['wallet_status'] == 1)
-                <div>
-                    <div class="widget-title">
-                        <a class="{{Request::is('wallet')?'active-menu':''}}" href="{{route('wallet') }}">
-                        <span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                <path d="M19.3167 14V14.0008C19.3153 14.2625 19.2127 14.5136 19.0304 14.7014C18.8821 14.8541 18.6904 14.9554 18.4833 14.9928V16.8998V16.9H18.3333C18.3337 17.1255 18.2895 17.3489 18.2033 17.5573C18.1172 17.7658 17.9907 17.9551 17.8313 18.1146C17.6718 18.2741 17.4824 18.4005 17.274 18.4867C17.0656 18.5728 16.8422 18.617 16.6167 18.6167L19.3167 14ZM19.3167 14L19.3167 9.9L19.3167 9.89922C19.3153 9.63748 19.2127 9.38641 19.0304 9.19861C18.8821 9.04589 18.6904 8.94464 18.4833 8.90726L19.3167 14ZM2.55022 18.7667H16.6164L0.833328 16.9C0.833001 17.1255 0.877179 17.3489 0.963333 17.5573C1.04949 17.7658 1.17592 17.9551 1.3354 18.1146C1.49487 18.2741 1.68424 18.4005 1.89267 18.4867C2.10109 18.5728 2.32447 18.617 2.55 18.6167V18.7667H2.55022ZM0.68333 7.00012V16.8999L2.55 5.28334C2.32447 5.28301 2.10109 5.32719 1.89267 5.41334C1.68424 5.49949 1.49487 5.62593 1.3354 5.7854C1.17592 5.94488 1.04949 6.13425 0.963333 6.34267C0.877179 6.5511 0.833001 6.77447 0.833328 7H0.68333V7.00012ZM5.6226 2.54738L5.62265 2.5474L5.62408 2.54352C5.63688 2.50879 5.65676 2.4771 5.68247 2.45047C5.70788 2.42416 5.73842 2.40336 5.77219 2.38936C5.84366 2.36199 5.92271 2.36196 5.99419 2.38925L12.583 5.13334H11.341L6.43264 3.50001C6.4323 3.49989 6.43195 3.49977 6.4316 3.49964C6.29347 3.45186 6.1422 3.4593 6.0094 3.52043C5.87627 3.58171 5.77205 3.69219 5.71864 3.82868L5.71844 3.82921L5.21386 5.13334H4.58822L5.6226 2.54738ZM6.58096 4.74587L7.75227 5.13334H6.43399L6.58096 4.74587ZM17.35 16.8999C17.3498 17.0943 17.2725 17.2808 17.135 17.4183C16.9975 17.5558 16.811 17.6332 16.6165 17.6333H2.55014C2.35566 17.6332 2.16921 17.5558 2.0317 17.4183C1.89418 17.2808 1.81685 17.0943 1.81666 16.8999L1.81666 7.00052C1.81805 6.80633 1.89581 6.62048 2.03314 6.48315C2.17046 6.34583 2.35631 6.26807 2.55049 6.26667H16.6162C16.8104 6.26807 16.9962 6.34583 17.1335 6.48315C17.2709 6.62052 17.3487 6.80644 17.35 7.0007C17.35 7.0008 17.35 7.00089 17.35 7.00098L17.35 8.88334H13.75C12.9367 8.88334 12.1566 9.20643 11.5815 9.78154C11.0064 10.3567 10.6833 11.1367 10.6833 11.95C10.6833 12.7633 11.0064 13.5434 11.5815 14.1185C12.1566 14.6936 12.9367 15.0167 13.75 15.0167H17.35V16.8999ZM18.1833 13.8833H13.75C13.2372 13.8833 12.7455 13.6796 12.3829 13.3171C12.0204 12.9545 11.8167 12.4628 11.8167 11.95C11.8167 11.4373 12.0204 10.9455 12.3829 10.5829C12.7454 10.2205 13.2369 10.0168 13.7494 10.0167C13.7496 10.0167 13.7498 10.0167 13.75 10.0167L18.1833 10.0489V13.8833Z" fill="currentColor" stroke="currentColor" stroke-width="0.3"/>
-                                <path d="M13.75 10.7002C13.5028 10.7002 13.2611 10.7735 13.0555 10.9109C12.85 11.0482 12.6898 11.2434 12.5952 11.4718C12.5005 11.7002 12.4758 11.9516 12.524 12.1941C12.5723 12.4365 12.6913 12.6593 12.8661 12.8341C13.0409 13.0089 13.2637 13.1279 13.5061 13.1762C13.7486 13.2244 13.9999 13.1997 14.2284 13.105C14.4568 13.0104 14.652 12.8502 14.7893 12.6447C14.9267 12.4391 15 12.1974 15 11.9502C15 11.6187 14.8683 11.3007 14.6339 11.0663C14.3995 10.8319 14.0815 10.7002 13.75 10.7002ZM13.75 12.3669C13.6676 12.3669 13.587 12.3424 13.5185 12.2966C13.45 12.2509 13.3966 12.1858 13.3651 12.1096C13.3335 12.0335 13.3253 11.9497 13.3413 11.8689C13.3574 11.7881 13.3971 11.7138 13.4554 11.6556C13.5136 11.5973 13.5879 11.5576 13.6687 11.5415C13.7495 11.5255 13.8333 11.5337 13.9095 11.5652C13.9856 11.5968 14.0507 11.6502 14.0964 11.7187C14.1422 11.7872 14.1667 11.8678 14.1667 11.9502C14.1667 12.0607 14.1228 12.1667 14.0446 12.2448C13.9665 12.323 13.8605 12.3669 13.75 12.3669Z" fill="currentColor"/>
-                                <path d="M5.83333 8.19987C5.83333 8.31038 5.78943 8.41636 5.71129 8.4945C5.63315 8.57264 5.52717 8.61654 5.41666 8.61654H3.74999C3.63949 8.61654 3.53351 8.57264 3.45537 8.4945C3.37723 8.41636 3.33333 8.31038 3.33333 8.19987C3.33333 8.08936 3.37723 7.98338 3.45537 7.90524C3.53351 7.8271 3.63949 7.7832 3.74999 7.7832H5.41666C5.52717 7.7832 5.63315 7.8271 5.71129 7.90524C5.78943 7.98338 5.83333 8.08936 5.83333 8.19987Z" fill="currentColor"/>
-                                <path d="M7.5 9.86686C7.5 9.97737 7.4561 10.0833 7.37796 10.1615C7.29982 10.2396 7.19384 10.2835 7.08333 10.2835H3.74999C3.63949 10.2835 3.53351 10.2396 3.45537 10.1615C3.37723 10.0833 3.33333 9.97737 3.33333 9.86686C3.33333 9.75636 3.37723 9.65037 3.45537 9.57223C3.53351 9.49409 3.63949 9.4502 3.74999 9.4502H7.08333C7.19384 9.4502 7.29982 9.49409 7.37796 9.57223C7.4561 9.65037 7.5 9.75636 7.5 9.86686Z" fill="currentColor"/>
-                                </svg>
-                        </span>
-                            <span class="aside-link">
-                            {{translate('my_wallet')}}
-                        </span>
-                        </a>
-                    </div>
-                </div>
-            @endif
+
 
             @if ($web_config['loyalty_point_status'] == 1)
                <div>
@@ -116,11 +89,12 @@
                </div>
             @endif
 
-            @php($business_mode = getWebConfig(name: 'business_mode'))
+            {{-- Inbox is not used for customer-to-seller conversations. --}}
             @if(false)
+            @php($business_mode = getWebConfig(name: 'business_mode'))
             <div>
                 <div class="widget-title">
-                    <a class="{{Request::is('chat/vendor')?'active-menu': '' }} {{Request::is('chat/delivery-man')?'active-menu': '' }}" href="{{route('chat', ['type' => $business_mode == 'multi' ? 'vendor' : 'delivery-man'])}}">
+                    <a class="{{ Request::is('account-tickets') ? 'active-menu' : '' }}" href="{{ route('account-tickets') }}">
                     <span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <g clip-path="url(#clip0_776_10801)">
@@ -164,7 +138,7 @@
                         </svg>
                     </span>
                         <span class="aside-link">
-                        {{translate('support_ticket')}}
+                        {{(getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'التواصل مع الدعم' : 'Contact Support')}}
                     </span>
                     </a>
                 </div>
@@ -217,8 +191,7 @@
 
         <div class="d-lg-none">
             <div class="widget-title">
-                <a class="d-flex align-items-center gap-2 customer-account-delete-by-route" href="javascript:"
-                    data-route="{{ route('account-delete',[auth('customer')->id()]) }}"
+                <a class="d-flex align-items-center gap-2" href="{{ route('customer.deletion.show') }}">id()]) }}"
                     data-message="{{translate('want_to_delete_this_account')}}?">
                     <span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="21" viewBox="0 0 20 21" fill="none">
@@ -231,10 +204,6 @@
         </div>
     </div>
 </div>
-
-
-
-
 
 
 

@@ -48,6 +48,10 @@ class Seller extends Authenticatable
         'phone',
         'phone_verified_at',
         'registration_reference',
+        'activation_status',
+        'activation_requested_at',
+        'activation_approved_at',
+        'activation_approved_by_admin_id',
         'email',
         'free_delivery_over_amount',
         'image',
@@ -75,6 +79,10 @@ class Seller extends Authenticatable
         'country_code' => 'string',
         'phone_verified_at' => 'datetime',
         'registration_reference' => 'string',
+        'activation_status' => 'string',
+        'activation_requested_at' => 'datetime',
+        'activation_approved_at' => 'datetime',
+        'activation_approved_by_admin_id' => 'integer',
         'orders_count' => 'integer',
         'product_count' => 'integer',
         'pos_status' => 'integer',
@@ -127,6 +135,17 @@ class Seller extends Authenticatable
         return $this->hasMany(SellerPackageSubscription::class);
     }
 
+    public function activationCases(): HasMany
+    {
+        return $this->hasMany(AccountActivationCase::class, 'subject_id')
+            ->where('subject_type', AccountActivationCase::SUBJECT_SELLER);
+    }
+
+    public function activationTickets(): HasMany
+    {
+        return $this->hasMany(SellerActivationTicket::class);
+    }
+
     public function activePackageSubscription(): HasOne
     {
         return $this->hasOne(SellerPackageSubscription::class)
@@ -174,7 +193,12 @@ class Seller extends Authenticatable
         return $this->storageLink('seller', $value, $storage['value'] ?? 'public');
     }
 
-    protected $appends = ['image_full_url'];
+    protected $appends = ['image_full_url', 'administrative_reference'];
+
+    public function getAdministrativeReferenceAttribute(): string
+    {
+        return \App\Services\AdministrativeReferenceService::format('seller', (int) $this->id);
+    }
 
     protected static function boot(): void
     {

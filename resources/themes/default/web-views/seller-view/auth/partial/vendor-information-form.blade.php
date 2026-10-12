@@ -13,13 +13,12 @@
                                         <label for="f_name">{{ translate('first_name') }} <span
                                                 class="text-danger">*</span></label>
                                         <input class="form-control" type="text" name="f_name"
-                                            placeholder="{{ translate('ex') . ': John' }}" required>
+                                            placeholder="{{ translate('ex') . ': ' . translate('Jhone') }}" required>
                                     </div>
                                     <div class="form-group mb-4">
-                                        <label for="l_name">{{ translate('last_name') }} <span
-                                                class="text-danger">*</span></label>
+                                        <label for="l_name">{{ translate('last_name') }}</label>
                                         <input class="form-control" type="text" name="l_name"
-                                            placeholder="{{ translate('ex') . ': Doe' }}" required>
+                                            placeholder="{{ translate('ex') . ': ' . translate('Doe') }}">
                                     </div>
                                 </div>
                                 <div class="col-sm-6">
@@ -44,7 +43,7 @@
                                         <div class="d-flex flex-column gap-1 upload-img-content text-center">
                                             <h6 class="text-uppercase mb-1 fs-14">
                                                 {{ translate('vendor_image') }}
-                                                <span class="text-danger">*</span>
+                                                <span class="text-muted fs-12">({{ translate('optional') }})</span>
                                             </h6>
                                             <div class="text-muted text-capitalize fs-12">
                                                 {{ translate('image_ratio') . ' ' . '1:1' }}</div>
@@ -91,7 +90,7 @@
                                     <div class="d-flex flex-column gap-1 upload-img-content text-center">
                                         <h6 class="text-uppercase mb-1 fs-14">
                                             {{ translate('upload_logo') }}
-                                            <span class="text-danger">*</span>
+                                            <span class="text-muted fs-12">({{ translate('optional') }})</span>
                                         </h6>
                                         <div class="text-muted text-capitalize fs-12">
                                             {{ translate('image_ratio') . ' ' . '1:1' }}</div>
@@ -105,7 +104,7 @@
                                 <div class="d-flex flex-column gap-3 align-items-center">
                                     <div class="upload-file">
                                         <input type="file" class="upload-file__input" name="banner" data-max-size="{{ getFileUploadMaxSize() }}"   accept="{{getFileUploadFormats(skip: '.svg')}}"
-                                            required>
+                                            >
                                         <div class="upload-file__img style--two">
                                             <div class="temp-img-box">
                                                 <div class="d-flex align-items-center flex-column gap-2">
@@ -123,7 +122,7 @@
                                     <div class="d-flex flex-column gap-1 upload-img-content text-center">
                                         <h6 class="text-uppercase mb-1 fs-14">
                                             {{ translate('upload_banner') }}
-                                            <span class="text-danger">*</span>
+                                            <span class="text-muted fs-12">({{ translate('optional') }})</span>
                                         </h6>
                                         <div class="text-muted text-capitalize fs-12">
                                             {{ translate('image_ratio') . ' ' . '2:1' }}</div>
@@ -134,101 +133,6 @@
                             </div>
                         </div>
 
-                        <div class="border p-3 p-xl-4 rounded mt-2">
-                            <div class="row gy-4">
-                                <div class="col-lg-6">
-                                    <div>
-                                        <h4 class="mb-3 text-capitalize">
-                                            {{ translate('Business_TIN') }}
-                                        </h4>
-                                        <div class="form-group mb-4">
-                                            <label class="mb-2 text-capitalize" for="">
-                                                {{ translate('taxpayer_identification_number(TIN)') }}
-                                            </label>
-                                            <input class="form-control" type="text"
-                                                name="tax_identification_number"
-                                                placeholder="{{ translate('type_your_user_name') }}">
-                                        </div>
-                                        <div class="form-group mb-4">
-                                            <label class="mb-2 text-capitalize" for="">
-                                                {{ translate('Expire_Date') }}
-                                            </label>
-                                            <div class="position-relative">
-                                                <span class="fi fi-sr-calendar icon-absolute-on-right"></span>
-                                                <input type="text"
-                                                    class="js-daterangepicker_single-date-with-placeholder form-control"
-                                                    placeholder="{{ translate('click_to_add_date') }}"
-                                                    name="tin_expire_date" value="" readonly>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-6">
-                                    <div class="form-group mb-0">
-                                        <div class="d-flex justify-content-center document-upload-container">
-                                            <div class="document-file-assets"
-                                                data-picture-icon="{{ dynamicAsset(path: 'public/assets/back-end/img/icons/picture.svg') }}"
-                                                data-document-icon="{{ dynamicAsset(path: 'public/assets/back-end/img/icons/document.svg') }}"
-                                                data-blank-thumbnail="{{ dynamicAsset(path: 'public/assets/back-end/img/file-placeholder.png') }}">
-                                            </div>
-
-                                            <div class="document-upload-wrapper doc-upload-wrapper">
-                                                <input type="file" name="tin_certificate"
-                                                       data-max-size="{{ getFileUploadMaxSize(type: 'file') }}"
-                                                       data-validation-error-msg="{{ translate('File_size_is_too_large_Maximum_').' '.getFileUploadMaxSize(type: 'file').' '.'MB' }}"
-                                                       class="document_input" accept=".pdf,.doc,.jpg">
-                                                <div class="textbox">
-                                                    <img class="svg"
-                                                        src="{{ dynamicAsset(path: 'public/assets/back-end/img/icons/doc-upload-icon.svg') }}"
-                                                        alt="">
-                                                    <p class="fs-12 mb-0">
-                                                        {{ translate('Select_a_file_or') }}
-                                                        <span class="font-weight-semibold">
-                                                            {{ translate('Drag_and_Drop_here') }}
-                                                        </span>
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex flex-column gap-1 upload-img-content text-center mt-3">
-                                            <h6 class="text-uppercase mb-1">
-                                                {{ translate('TIN_Certificate') }}
-                                            </h6>
-                                            <div class="text-muted text-capitalize">
-                                                {{ translate('pdf,_doc,_jpg._file_size_:_max_5_MB') }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="my-2">
-                            @php($recaptcha = getWebConfig(name: 'recaptcha'))
-
-                            @if(isset($recaptcha) && $recaptcha['status'] == 1)
-                                <div class="dynamic-default-and-recaptcha-section">
-                                    <input type="hidden" name="g-recaptcha-response" class="render-grecaptcha-response"
-                                           data-input="#login-default-captcha-section"
-                                           data-default-captcha="#login-default-captcha-section" data-action="register"
-                                    >
-
-                                    <div class="default-captcha-container d-none" id="login-default-captcha-section"
-                                         data-placeholder="{{ translate('enter_captcha_value') }}"
-                                         data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                         data-session="{{ 'vendorRecaptchaSessionKey' }}"
-                                    >
-                                    </div>
-                                </div>
-                            @else
-                                <div class="default-captcha-container"
-                                     data-placeholder="{{ translate('enter_captcha_value') }}"
-                                     data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                     data-session="{{ 'vendorRecaptchaSessionKey' }}"
-                                >
-                                </div>
-                            @endif
-                        </div>
 
                         <div class="d-flex justify-content-start mt-2">
                             <label class="custom-checkbox align-items-center">
@@ -237,7 +141,7 @@
                                     {{ translate('i_agree_with_the') }}
                                     <a href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}"
                                         target="_blank" class="text-underline color-bs-primary-force">
-                                        {{ translate('terms_&_conditions') }}
+                                        {{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}
                                     </a>
                                 </span>
                             </label>

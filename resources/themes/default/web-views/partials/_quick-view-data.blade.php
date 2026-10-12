@@ -122,13 +122,7 @@
 
         <div class="col-lg-7 col-md-8 col-12 mt-md-0 mt-sm-3 web-direction">
             <div class="details __h-100 product-cart-option-container border-0 py-0">
-                @if (getWebConfig(name: 'business_mode') == 'multi')
-                    @if($product->added_by =="admin")
-                        <a href="{{route('vendor-shop',['slug'=> getInHouseShopConfig(key:'slug')])}}" class="d-block pb-2 text-truncate">{{getInHouseShopConfig('name')?? ""}}</a>
-                    @else
-                        <a href="{{route('vendor-shop',['slug'=> $product->seller?->shop?->slug])}}" class="d-block pb-2 text-truncate">{{$product->seller?->shop?->name ?? ""}}</a>
-                    @endif
-                @endif
+                {{-- Store identity and links are hidden in customer quick view. --}}
 
                 <a href="{{route('product',$product->slug)}}" class="fs-18 fw-bold text-title mb-3">{{$product->name}}</a>
                 <div class="d-flex flex-wrap align-items-baseline gap-3 mb-3 pro">

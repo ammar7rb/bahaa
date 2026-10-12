@@ -29,6 +29,12 @@ class VendorWithdrawMethodInfo extends Model
         'user_id',
         'withdraw_method_id',
         'method_name',
+        'method_type',
+        'approval_status',
+        'approval_reason',
+        'submitted_at',
+        'reviewed_at',
+        'reviewed_by',
         'method_info',
         'is_active',
         'is_default',
@@ -38,10 +44,18 @@ class VendorWithdrawMethodInfo extends Model
         'method_info' => 'array',
         'is_active' => 'boolean',
         'is_default' => 'boolean',
+        'submitted_at' => 'datetime',
+        'reviewed_at' => 'datetime',
+        'reviewed_by' => 'integer',
     ];
 
     public function withdraw_method(): BelongsTo
     {
         return $this->belongsTo(WithdrawalMethod::class, 'withdraw_method_id');
+    }
+
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class, 'user_id');
     }
 }

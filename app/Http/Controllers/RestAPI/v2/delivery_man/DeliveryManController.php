@@ -141,6 +141,9 @@ class DeliveryManController extends Controller
 
         $order = Order::with(['customer', 'deliveryMan', 'latestEditHistory'])->where(['delivery_man_id' => $deliveryMan['id'], 'id' => $request['order_id']])->first();
 
+        if ($order?->customer_checkout_operation_id && in_array($request['status'], ['confirmed','processing','out_for_delivery','delivered'], true)) {
+            app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
+        }
         if ($order->order_status == 'delivered') {
             return response()->json(['success' => 0, 'message' => 'order is already delivered.'], 200);
         }

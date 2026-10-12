@@ -143,6 +143,7 @@
 
                                 @if ($category['parent_id'] == 0 || ($category['position'] == 1 && theme_root_path() == 'theme_aster'))
                                 <div class="col-lg-6 mt-4 mt-lg-0 from_part_2">
+                                    @include('admin-views.category.partials._medical-icon-picker', ['selectedMedicalIcon' => old('medical_icon', $category->medical_icon)])
                                     <div
                                         class="d-flex justify-content-center align-items-center bg-section rounded-8 p-20 w-100 h-100">
                                         <div class="d-flex flex-column gap-30 error-wrapper">
@@ -156,7 +157,7 @@
                                             <div class="upload-file">
                                                 <input type="file" name="image" id="category-image"
                                                     class="upload-file__input single_file_input" data-existing-file="true"
-                                                    accept=".webp, .jpg, .png, .jpeg, .gif" required>
+                                                    accept=".webp, .jpg, .png, .jpeg, .gif">
 
                                                 <label class="upload-file__wrapper">
                                                     <div class="upload-file-textbox text-center">

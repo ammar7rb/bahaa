@@ -43,6 +43,8 @@ node_modules/
 # Local generated artifacts
 /tmp/
 /output/
+/.codex-backups/
+/.phpunit.cache/
 
 # Local credentials and signing keys
 /public/assets/back-end/Apple-AuthKey*.txt

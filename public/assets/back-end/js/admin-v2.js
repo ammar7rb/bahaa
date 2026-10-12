@@ -798,11 +798,23 @@
 
   /* -------------------- header dropdowns -------------------- */
   function closeAllDropdowns(except) {
-    $$root('.v2-dropdown.v2-is-open').forEach(d => { if (d !== except) d.classList.remove('v2-is-open'); });
+    $$root('.v2-dropdown.v2-is-open').forEach(d => { if (d !== except) { d.classList.remove('v2-is-open'); d.querySelector('[data-v2-dropdown-toggle]')?.setAttribute('aria-expanded', 'false'); } });
   }
   function positionDropdownMenu(btn) {
     const menu = btn.closest('.v2-dropdown')?.querySelector(':scope > .v2-dropdown-menu');
     if (!menu) return;
+    if (menu.classList.contains('admin-inbox')) {
+      const r = btn.getBoundingClientRect();
+      const width = menu.getBoundingClientRect().width;
+      const rtl = getComputedStyle(document.documentElement).direction === 'rtl';
+      const top = window.innerWidth <= 900 ? btn.closest('.v2-header').getBoundingClientRect().bottom + 8 : r.bottom + 8;
+      menu.style.insetInlineEnd = 'auto';
+      menu.style.right = 'auto';
+      menu.style.left = Math.max(12, Math.min(rtl ? r.left : r.right - width, window.innerWidth - width - 12)) + 'px';
+      menu.style.top = top + 'px';
+      menu.style.maxHeight = Math.max(100, Math.min(480, window.innerHeight - top - 12)) + 'px';
+      return;
+    }
     // Orders menu on mobile uses full-width CSS positioning — skip JS override.
     if (menu.classList.contains('v2-orders-menu') && isMobileViewport()) return;
     const r = btn.getBoundingClientRect();
@@ -817,6 +829,7 @@
     }
   }
   function bindDropdowns() {
+    window.addEventListener('resize', () => $$root('.v2-dropdown.v2-is-open > [data-v2-dropdown-toggle]').forEach(positionDropdownMenu));
     $$root('.v2-dropdown > [data-v2-dropdown-toggle]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -827,6 +840,7 @@
         if (!isOpen) {
           positionDropdownMenu(btn);
           parent.classList.add('v2-is-open');
+          btn.setAttribute('aria-expanded', 'true');
           // On mobile/tablet the off-canvas sidebar overlaps the header
           // dropdowns visually — close the overlay so the popup isn't
           // hidden behind the sliding rail/ctxpanel.
@@ -837,6 +851,7 @@
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.v2-dropdown')) closeAllDropdowns();
     });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllDropdowns(); });
   }
 
   /* -------------------- command palette (⌘K) -------------------- */
@@ -1465,6 +1480,82 @@
     scroller.scrollTop = Math.max(0, target);
   }
 
+  /* -------------------- unified navigation icons --------------------
+     Every contextual-menu row gets a semantic icon tile. Static core
+     routes use a specific icon, while addon-provided/dynamic routes get
+     a safe generic icon so no row is left visually inconsistent. Icons
+     are injected before pinned/flyout clones are built, therefore every
+     representation of the same route keeps exactly the same treatment. */
+  const NAV_ICON_RULES = [
+    [/dashboard|overview|home/, 'apps'],
+    [/\bpos\b|cash-register/, 'cash-register'],
+    [/out[_ -]?for[_ -]?delivery|logistics|shipping|delivery/, 'truck-moving'],
+    [/failed|denied|reject|cancel/, 'cross-circle'],
+    [/confirmed|approved|activate|activation/, 'check-circle'],
+    [/pending|request|review/, 'hourglass-end'],
+    [/refund|return/, 'rotate-left'],
+    [/order|sales|transaction|invoice/, 'shopping-cart'],
+    [/platform-products|in-house|in_house|inhouse-shop/, 'shop'],
+    [/product|stock|restock|catalog/, 'box-open'],
+    [/categor|attribute|tag/, 'tags'],
+    [/brand/, 'badge-check'],
+    [/gallery|banner|image/, 'picture'],
+    [/vendor-add|add-new-vendor/, 'user-add'],
+    [/vendor|seller|store|shop/, 'shop'],
+    [/customer|subscriber|people|employee/, 'users'],
+    [/role|permission|insurance|policy|vat|tax|seo/, 'shield-check'],
+    [/wallet|earning|finance|withdraw|payment/, 'wallet'],
+    [/loyalty|bonus|offer|deal|coupon|promotion/, 'star'],
+    [/notification|announcement|marketing/, 'megaphone'],
+    [/inbox|contact|email|message/, 'envelope'],
+    [/support|ticket/, 'headset'],
+    [/report|analytics|statistics/, 'chart-histogram'],
+    [/blog|page|content|template|document/, 'document'],
+    [/firebase|system|setting|setup|config|addon|theme|ai/, 'settings'],
+    [/import|upload/, 'file-import'],
+    [/list/, 'list']
+  ];
+
+  function navigationIconName(el) {
+    const parent = el.classList.contains('v2-nav-child')
+      ? el.closest('.v2-nav-children')?.previousElementSibling
+      : null;
+    const source = [
+      el.dataset.item,
+      el.dataset.pin,
+      el.getAttribute('href'),
+      el.querySelector('[href]')?.getAttribute('href'),
+      el.querySelector('.v2-nav-label, .v2-nav-child-label')?.textContent,
+      parent?.dataset?.item
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    const match = NAV_ICON_RULES.find(([pattern]) => pattern.test(source));
+    return match ? match[1] : 'apps';
+  }
+
+  function decorateNavigationIcons() {
+    $$root('.v2-ctx-section .v2-nav-item:not([data-v2-pinned])').forEach(item => {
+      const btn = item.querySelector(':scope > .v2-nav-btn');
+      if (!btn || btn.querySelector(':scope > .v2-nav-icon, :scope > .v2-platform-parent-icon')) return;
+      const icon = document.createElement('span');
+      icon.className = 'v2-nav-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = `<i class="fi fi-rr-${navigationIconName(item)}"></i>`;
+      btn.prepend(icon);
+    });
+
+    $$root('.v2-ctx-section .v2-nav-child:not([data-v2-pinned])').forEach(child => {
+      if (child.querySelector(':scope > .v2-nav-child-icon, :scope > .v2-platform-child-icon')) return;
+      const label = child.querySelector(':scope > .v2-nav-child-label');
+      if (!label) return;
+      const icon = document.createElement('span');
+      icon.className = 'v2-nav-child-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = `<i class="fi fi-rr-${navigationIconName(child)}"></i>`;
+      label.before(icon);
+    });
+  }
+
   /* -------------------- boot -------------------- */
   function boot() {
     applyTheme();
@@ -1476,6 +1567,7 @@
     disableParentHrefs();
     hydrateActive();
     autoExpandActive();
+    decorateNavigationIcons();
     injectChildPinButtons();
     applyPins();
     buildPaletteIndex();

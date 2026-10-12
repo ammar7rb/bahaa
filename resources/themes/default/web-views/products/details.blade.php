@@ -148,15 +148,6 @@
                                             </div>
                                                 <span
                                                     class="d-inline-block  align-middle fs-14 text-muted">({{ $overallRating[0] }})</span>
-                                                <span
-                                                    class="font-weight-normal fs-14 font-for-tab d-inline-block font-size-sm text-body align-middle">
-                                                   <a href="#reviews"
-                                                      class="font-weight-normal fs-14 font-for-tab d-inline-block font-size-sm text-body align-middle"
-                                                      data-toggle="tab"
-                                                      role="tab">
-                                                        <span class="web-text-primary fw-semibold">{{ $overallRating[1] }}</span> {{ translate('reviews') }}
-                                                    </a>
-                                                </span>
                                                 <span class="border-middle-14px"></span>
                                                @endif
                                             <span
@@ -489,14 +480,6 @@
                                             {{ translate('overview') }}
                                         </a>
                                     </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link __inline-27 mb-0 tab_link"
-                                        data-toggle="tab"
-                                        href="#reviews"
-                                        role="tab">
-                                            {{ translate('reviews') }}
-                                        </a>
-                                    </li>
                                 </ul>
 
 
@@ -543,6 +526,8 @@
                                         </div>
                                     </div>
 
+                                    {{-- Public product reviews are intentionally not displayed in the storefront. --}}
+                                    @if(false)
                                     <div class="tab-pane fade" id="reviews" role="tabpanel">
                                         <div class="">
                                             @if(count($product->reviews)==0 && $productReviews->total() == 0)
@@ -727,6 +712,7 @@
                                             </div>
                                         </div>
                                     </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -752,7 +738,8 @@
                         </div>
                     @endif
 
-                    @if(getWebConfig(name: 'business_mode')=='multi')
+                    {{-- Seller profile, logo, and chat controls are hidden on customer product pages. --}}
+                    @if(false)
                         <div class="__inline-31">
 
                             @if($product->added_by=='seller')
@@ -817,16 +804,31 @@
                                             </div>
                                         </div>
                                         <div class="col-12 position-static mt-3">
-                                            <div class="chat_with_seller-buttons">
+                                            <div class="chat_with_seller-buttons d-none">
                                                 @if (auth('customer')->id())
-                                                    <a href="{{ route('account-tickets') }}"
-                                                       class="btn w-100 d-block text-center web--bg-primary text-white">
-                                                        {{ translate('support_ticket') }}
-                                                    </a>
+                                                    <button
+                                                        class="btn w-100 d-block text-center web--bg-primary text-white"
+                                                        data-toggle="modal"
+                                                        data-target="#chatting_modal"
+                                                        @if(checkVendorAbility(type: 'vendor', status: 'temporary_close', vendor: $product->seller->shop))
+                                                            disabled
+                                                        @endif
+                                                    >
+                                                        <img class="mb-1" alt=""
+                                                             src="{{ theme_asset(path: 'public/assets/front-end/img/chat-16-filled-icon.png') }}">
+                                                        <span class="d-none d-sm-inline-block text-capitalize">
+                                                        {{ translate('contact_technical_support') }}
+                                                    </span>
+                                                    </button>
                                                 @else
                                                     <a href="{{ route('customer.auth.login') }}"
                                                        class="btn w-100 d-block text-center web--bg-primary text-white">
-                                                        {{ translate('support_ticket') }}
+                                                        <img
+                                                            src="{{ theme_asset(path: 'public/assets/front-end/img/chat-16-filled-icon.png') }}"
+                                                            class="mb-1" alt="">
+                                                        <span class="d-none d-sm-inline-block text-capitalize">
+                                                        {{ translate('contact_technical_support') }}
+                                                    </span>
                                                     </a>
                                                 @endif
                                             </div>
@@ -896,16 +898,26 @@
                                         </div>
                                     </div>
                                     <div class="col-12 position-static mt-3">
-                                        <div class="chat_with_seller-buttons">
+                                        <div class="chat_with_seller-buttons d-none">
                                             @if (auth('customer')->id())
-                                                <a href="{{ route('account-tickets') }}"
-                                                   class="btn w-100 d-block text-center web--bg-primary text-white">
-                                                    {{ translate('support_ticket') }}
-                                                </a>
+                                                <button class="btn w-100 d-block text-center web--bg-primary text-white"
+                                                        data-toggle="modal" data-target="#chatting_modal"
+                                                    {{ checkVendorAbility(type: 'inhouse', status: 'temporary_close') ? 'disabled' : '' }}
+                                                >
+                                                    <img class="mb-1" alt=""
+                                                         src="{{ theme_asset(path: 'public/assets/front-end/img/chat-16-filled-icon.png') }}">
+                                                    <span class="d-none d-sm-inline-block text-capitalize">
+                                                        {{ translate('contact_technical_support') }}
+                                                </span>
+                                                </button>
                                             @else
-                                                <a href="{{ route('customer.auth.login') }}"
+                                                <a href="{{ route('vendor-shop', ['slug' => getInHouseShopConfig(key:'slug')]) }}"
                                                    class="btn w-100 d-block text-center web--bg-primary text-white">
-                                                    {{ translate('support_ticket') }}
+                                                    <img class="mb-1" alt=""
+                                                         src="{{ theme_asset(path: 'public/assets/front-end/img/chat-16-filled-icon.png') }}">
+                                                    <span class="d-none d-sm-inline-block text-capitalize">
+                                                        {{ translate('contact_technical_support') }}
+                                                    </span>
                                                 </a>
                                             @endif
                                         </div>
@@ -915,6 +927,8 @@
                         </div>
                     @endif
 
+                    {{-- Products grouped by seller are intentionally hidden from customers. --}}
+                    @if(false)
                     <div class="pt-4 pb-3 d-flex justify-content-between align-items-center">
                         <h2 class="__text-16px font-bold text-capitalize mb-0">
                             @if(getWebConfig(name: 'business_mode') == 'multi')
@@ -940,6 +954,7 @@
                             @include('web-views.partials._seller-products-product-details',['product' => $item, 'decimal_point_settings' => $decimalPointSettings])
                         @endforeach
                     </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -1000,6 +1015,8 @@
     @if($product?->preview_file_full_url['path'])
         @include('web-views.partials._product-preview-modal', ['previewFileInfo' => $previewFileInfo])
     @endif
+
+    {{-- Customer-to-seller chat is intentionally unavailable. --}}
 
     <span id="route-review-list-product" data-url="{{ route('review-list-product') }}"></span>
     <span id="products-details-page-data" data-id="{{ $product['id'] }}"></span>

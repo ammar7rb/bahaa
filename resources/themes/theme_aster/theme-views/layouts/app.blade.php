@@ -16,6 +16,15 @@
     <meta name="robots" content="index, follow">
     <meta name="_token" content="{{ csrf_token() }}">
     <link rel="shortcut icon" href="{{ $web_config['fav_icon']['path'] }}"/>
+    <script>
+        (function () {
+            try {
+                document.documentElement.setAttribute('data-ba-storefront-theme', localStorage.getItem('ba_storefront_theme') === 'dark' ? 'dark' : 'light');
+            } catch (error) {
+                document.documentElement.setAttribute('data-ba-storefront-theme', 'light');
+            }
+        }());
+    </script>
 
     <link rel="stylesheet" href="{{ theme_asset('assets/css/fonts-init.css') }}"/>
     <link rel="stylesheet" href="{{ theme_asset('assets/css/bootstrap.min.css') }}"/>
@@ -31,7 +40,7 @@
     <link rel="stylesheet" href="{{ theme_asset('assets/plugins/select2/css/select2.min.css') }}">
     <link rel="stylesheet" href="{{ theme_asset('assets/css/style.css') }}"/>
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/css/intlTelInput.css') }}">
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.css') }}">
+    <style>.default-captcha-container,.dynamic-default-and-recaptcha-section,.generate-firebase-auth-recaptcha{display:none!important}</style>
 
     <title>@yield('title')</title>
 
@@ -40,6 +49,8 @@
     @stack('css_or_js')
 
     <link rel="stylesheet" href="{{ theme_asset('assets/css/custom.css') }}"/>
+    <link rel="stylesheet" href="{{ theme_asset('assets/css/customer-dark-mode.css') }}?v=20260910.2"/>
+    @include('layouts.partials._unified-print-styles')
     <style>
         :root {
             --bs-primary: {{ $web_config['primary_color'] }};
@@ -72,11 +83,8 @@
 <script>
     'use strict';
     function setThemeMode() {
-        if (localStorage.getItem('theme') === null) {
-            document.body.setAttribute('theme', 'light');
-        } else {
-            document.body.setAttribute('theme', localStorage.getItem('theme'));
-        }
+        const theme = document.documentElement.getAttribute('data-ba-storefront-theme') === 'dark' ? 'dark' : 'light';
+        document.body.setAttribute('theme', theme);
     }
     setThemeMode();
 </script>
@@ -86,8 +94,14 @@
 </div>
 @include('theme-views.layouts.partials._alert-message')
 @include('theme-views.layouts.partials._header')
+@include('web-views.users-profile.partials.customer-activation-banner')
+@include('customer-subscription.expiry-banner')
 @include('theme-views.layouts.partials._settings-sidebar')
+@if(request()->routeIs('home') || request()->is('products*','*-products','shopView*','category*','search*'))
+<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip')</div>
+@endif
 @yield('content')
+@include('web-views.users-profile.partials.customer-payment-notices')
 @include('theme-views.layouts.partials._feature')
 @include('theme-views.layouts.partials._footer')
 
@@ -131,16 +145,15 @@
 @include('theme-views.layouts.partials.modal._buy-now')
 @include('theme-views.layouts.partials.modal._initial')
 
-@php($whatsapp = getWebConfig(name: 'whatsapp'))
 <div class="social-chat-icons">
-    @if(isset($whatsapp['status']) && $whatsapp['status'] == 1 )
-        <div class="">
-            <a href="https://wa.me/{{ $whatsapp['phone'] }}?text=Hello%20there!" target="_blank">
-                <img src="{{theme_asset('assets/img/whatsapp.svg')}}" width="35" class="chat-image-shadow"
-                     alt="Chat with us on WhatsApp">
-            </a>
-        </div>
-    @endif
+    <div>
+        <a href="{{ auth('customer')->check() ? route('account-tickets') : route('customer.auth.login') }}"
+           title="{{ translate('contact_technical_support') }}"
+           aria-label="{{ translate('contact_technical_support') }}">
+            <img src="{{ dynamicAsset(path: 'public/assets/front-end/img/icons/technical-support.svg') }}"
+                 width="35" class="chat-image-shadow" alt="{{ translate('contact_technical_support') }}">
+        </a>
+    </div>
 </div>
 @if(isset($isMobile) && $isMobile)
     <div id="app-banner" class="app-download-popup" style="--bottom: 80px;">
@@ -148,9 +161,9 @@
             <button type="button" class="btn p-0 px-1 bg-transparent text-dark border-0 shadow-none app-banner-close">
                 <i class="fi fi-sr-cross fs-14"></i>
             </button>
-            <img width="44" class="img-fit aspect-1 w-40px flex-shrink-0"
+            <img width="44" class="img-fit aspect-1 w-40px flex-shrink-0 ba-platform-logo"
                 src="{{ getStorageImages(path: $web_config['mob_logo'], type: 'logo') }}"
-                alt="6Valley"
+                alt="{{ getWebConfig(name: 'company_name') }}"
             >
             <div class="flex-grow-1">
                 <h5 class="fs-14 mb-1">{{ getWebConfig(name: 'company_name')  }} {{ translate('Mobile_App') }}</h5>
@@ -259,6 +272,14 @@
     }
 </script>
 @stack('script')
+@include('web-views.users-profile.partials.profile-image-shortcut')
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}" defer></script>
+@include('customer-checkout.entry')
+<script src="{{ theme_asset('assets/js/customer-dark-mode.js') }}?v=20260930.1"></script>
 
+<script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>
 </html>
+
+

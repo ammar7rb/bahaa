@@ -16,6 +16,7 @@ use GuzzleHttp\Client;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -110,7 +111,7 @@ class SocialAuthController extends Controller
                 $user->temporary_token = Str::random(40);
                 $user->save();
             }
-            if (!isset($user->phone)) {
+            if (empty($user->phone) || empty($user->email)) {
                 return response()->json([
                     'token_type' => 'update phone number',
                     'temporary_token' => $user->temporary_token]);
@@ -154,7 +155,7 @@ class SocialAuthController extends Controller
                 $user->temporary_token = Str::random(40);
                 $user->save();
             }
-            if (!isset($user->phone)) {
+            if (empty($user->phone) || empty($user->email)) {
                 return response()->json([
                     'token_type' => 'update phone number',
                     'temporary_token' => $user->temporary_token]);
@@ -217,7 +218,7 @@ class SocialAuthController extends Controller
         $validator = Validator::make($request->all(), [
             'token' => 'required',
             'unique_id' => 'required',
-            'email' => 'required_if:medium,google,facebook',
+            'email' => 'nullable|email',
             'medium' => 'required|in:google,facebook,apple',
         ]);
 
@@ -280,21 +281,22 @@ class SocialAuthController extends Controller
             ], 401);
         }
 
-        if (!isset($claims) && isset($data)) {
-            if (strcmp($email, $data['email']) != 0) {
-                if ($request['medium'] == 'apple' && (!isset($data['id']) && !isset($data['kid']))) {
-                    return response()->json(['error' => translate('email_does_not_match')], 403);
-                } else {
-                    return response()->json(['error' => translate('email_does_not_match')], 403);
-                }
-            }
+        $providerEmail = $data['email'] ?? null;
+        $providerId = $data['sub'] ?? $data['id'] ?? null;
+        if (!$providerId || ($providerEmail && $email && strcasecmp($email, $providerEmail) !== 0)) {
+            return response()->json(['errors' => [['code' => 'auth-001', 'message' => 'Invalid provider identity']]], 401);
         }
-
-        $existingUser = $this->customerRepo->getFirstWhere(params: ['email' => $data['email']]);
-        $temporaryToken = Str::random(40);
-
-        if (!$existingUser) {
-            return response()->json(['temp_token' => $temporaryToken, 'status' => false, 'new_user' => 0, 'socialResponse' => $socialResponse]);
+        $existingUser = $providerEmail ? $this->customerRepo->getFirstWhere(params: ['email' => $providerEmail]) : null;
+        if ($existingUser && !$existingUser['is_active']) {
+            return response()->json(['errors' => [['code' => 'auth-001', 'message' => translate('customer_not_found_or_account_has_been_suspended')]]], 403);
+        }
+        $temporaryToken = Str::random(64);
+        Cache::put('social_registration:'.hash('sha256', $temporaryToken), [
+            'email' => $providerEmail, 'social_id' => $providerId,
+            'medium' => $request['medium'], 'customer_id' => $existingUser?->id,
+        ], now()->addMinutes(20));
+        if (!$existingUser || empty($existingUser['phone']) || empty($existingUser['email'])) {
+            return response()->json(['temp_token' => $temporaryToken, 'status' => false, 'new_user' => 0]);
         }
 
         if (!$existingUser['is_active'] || (getLoginConfig(key: 'phone_verification') && !$existingUser['is_phone_verified'])) {
@@ -321,29 +323,16 @@ class SocialAuthController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
-        $user = $this->customerRepo->getFirstWhere(params: ['email' => $request['email']]);
-
-        $temporaryToken = Str::random(40);
-        if (!$user) {
-            return response()->json(['temp_token' => $temporaryToken, 'status' => false]);
+        $proof = Cache::get('social_registration:'.hash('sha256', (string) $request->input('social_token')));
+        if (!$proof || empty($proof['email']) || strcasecmp($proof['email'], $request['email']) !== 0 || $proof['medium'] !== $request['medium']) {
+            return response()->json(['errors' => [['code' => 'auth-001', 'message' => 'Please sign in with your social account again']]], 401);
         }
-
-        if ($request['user_response'] == 1) {
-            $this->customerRepo->updateWhere(params: ['id' => $user['id']], data: [
-                'email_verified_at' => now(),
-                'login_medium' => $request['medium'],
-            ]);
-
-            $token = $user->createToken('LaravelAuthApp')->accessToken;
-            return response()->json(['token' => $token, 'status' => true]);
+        $user = $this->customerRepo->getFirstWhere(params: ['email' => $proof['email']]);
+        if ($request['user_response'] != 1 || !$user || !$user['is_active'] || empty($user['phone']) || (getLoginConfig(key: 'phone_verification') && !$user['is_phone_verified'])) {
+            return response()->json(['errors' => [['code' => 'auth-001', 'message' => 'Please sign in with your social account again']]], 401);
         }
-
-        $this->customerRepo->updateWhere(params: ['id' => $user['id']], data: [
-            'email' => null,
-            'email_verified_at' => null,
-        ]);
-
-        return response()->json(['temp_token' => $temporaryToken, 'status' => false]);
+        Cache::forget('social_registration:'.hash('sha256', (string) $request->input('social_token')));
+        return response()->json(['token' => $user->createToken('LaravelAuthApp')->accessToken, 'status' => true]);
     }
 
     public function registrationWithSocialMedia(Request $request): JsonResponse
@@ -353,41 +342,52 @@ class SocialAuthController extends Controller
             'email' => 'required|email|max:255',
             'phone' => 'required|min:6|max:20',
             'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
         ], [
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
+        $proofKey = 'social_registration:'.hash('sha256', (string) $request->input('social_token'));
+        $proof = Cache::get($proofKey);
+        if (!$proof || (!empty($proof['email']) && strcasecmp($proof['email'], $request['email']) !== 0)) {
+            return response()->json(['errors' => [['code' => 'auth-001', 'message' => 'Please sign in with your social account again']]], 401);
+        }
+        $existingUser = !empty($proof['customer_id']) ? $this->customerRepo->getFirstWhere(params: ['id' => $proof['customer_id']]) : null;
+        $emailOwner = $this->customerRepo->getFirstWhere(params: ['email' => $request['email']]);
+        if ($emailOwner && (!$existingUser || $emailOwner->id !== $existingUser->id)) {
+            return response()->json(['errors' => [['code' => 'email', 'message' => 'This email is already registered. Please sign in to your account.']]], 403);
+        }
         $isPhoneExist = $this->customerRepo->getFirstWhere(params: ['phone' => $request['phone']]);
 
-        if ($isPhoneExist) {
+        if ($isPhoneExist && (!$existingUser || $isPhoneExist->id !== $existingUser->id)) {
             return response()->json(['errors' => [
                 ['code' => 'email', 'message' => translate('This phone has already been used in another account!')]
             ]], 403);
         }
         $temporaryToken = Str::random(40);
 
-        $user = $this->customerRepo->add(data: [
-            'name' => $request['name'],
-            'f_name' => $request['name'],
-            'l_name' => '',
-            'email' => $request['email'],
-            'phone' => $request['phone'],
-            'password' => bcrypt(rand(11111111, 99999999)),
+        $contactData = [
+            'name' => $request['name'], 'f_name' => $request['name'], 'l_name' => '',
+            'email' => $request['email'], 'phone' => $request['phone'],
             'temporary_token' => $temporaryToken,
-            'email_verified_at' => now(),
-            'referral_code' => Helpers::generate_referer_code(),
-            'login_medium' => 'social',
-            'terms_accepted_at' => now(),
-            'privacy_accepted_at' => now(),
-        ]);
+            'is_email_verified' => empty($proof['email']) ? 0 : 1,
+            'email_verified_at' => empty($proof['email']) ? null : now(),
+            'login_medium' => $proof['medium'], 'social_id' => $proof['social_id'],
+            'terms_accepted_at' => now(), 'privacy_accepted_at' => now(),
+        ];
+        if ($existingUser) {
+            $this->customerRepo->updateWhere(params: ['id' => $existingUser->id], data: $contactData);
+            $user = $this->customerRepo->getFirstWhere(params: ['id' => $existingUser->id]);
+        } else {
+            $user = $this->customerRepo->add(data: $contactData + [
+                'password' => bcrypt(Str::random(48)), 'referral_code' => Helpers::generate_referer_code(),
+            ]);
+        }
+        Cache::forget($proofKey);
 
         $phoneVerificationStatus = getLoginConfig(key: 'phone_verification') ?? 0;
         if ($phoneVerificationStatus) {

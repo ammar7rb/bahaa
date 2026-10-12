@@ -4,6 +4,7 @@
 
 @section('content')
     <div class="content container-fluid">
+        <a class="btn btn--primary mb-3" href="{{ route('admin.customer.wallet.deposits') }}">{{ translate('customer_deposit_requests') }}</a>
         <h2 class="h1 mb-20 text-capitalize d-flex align-items-center gap-2">
             {{ translate('Customer_Wallet') }}
         </h2>

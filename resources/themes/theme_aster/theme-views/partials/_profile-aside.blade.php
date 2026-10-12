@@ -56,18 +56,11 @@
                             <span>{{translate('Orders')}}</span>
                         </a>
                     </li>
-                    <li class="{{Request::is('customer/purchase-package*') ? 'active' :''}}">
-                        <a href="{{ route('customer.purchase-package.index') }}">
-                            <img width="20" src="{{ theme_asset('assets/img/icons/profile-icon5.png') }}"
+                    <li class="{{ Request::is('post-purchase-invoices*') ? 'active' : '' }}">
+                        <a href="{{ route('post-purchase-invoices.index') }}">
+                            <img width="20" src="{{ theme_asset('assets/img/icons/profile-icon2.png') }}"
                                  class="dark-support" alt="">
-                            <span>{{translate('customer_purchase_packages')}}</span>
-                        </a>
-                    </li>
-                    <li class="{{Request::is('user-restock-requests*') ? 'active' :''}}">
-                        <a href="{{ route('user-restock-requests') }}">
-                            <img width="20" src="{{ theme_asset('assets/img/icons/restock-request.png') }}"
-                                 class="dark-support" alt="">
-                            <span>{{translate('Restock_Requests')}}</span>
+                            <span>{{ translate('suspended_orders') }}</span>
                         </a>
                     </li>
                     <li class="{{Request::is('wishlists') ? 'active' :''}}">
@@ -85,6 +78,7 @@
                         </a>
                     </li>
 
+                    <li class="{{ request()->routeIs('customer.subscription.*') ? 'active' : '' }}"><a href="{{ route('customer.subscription.index') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>الاشتراك الشهري</span></a></li>
                     @if ($web_config['wallet_status'] == 1)
                         <li class="{{Request::is('wallet') ? 'active' :''}}">
                             <a href="{{route('wallet')}}">
@@ -103,15 +97,7 @@
                             </a>
                         </li>
                     @endif
-                    @if(false)
-                    <li class="{{Request::is ('chat/vendor') || Request::is ('chat/delivery-man') ? 'active' : ''}}">
-                        <a href="{{route('chat', ['type' => 'vendor'])}}">
-                            <img width="20" src="{{theme_asset('assets/img/icons/profile-icon7.png')}}"
-                                 class="dark-support" alt="">
-                            <span>{{translate('inbox')}}</span>
-                        </a>
-                    </li>
-                    @endif
+                    {{-- Inbox is not used for customer-to-seller conversations. --}}
                     <li class="{{Request::is ('account-tickets') || Request::is('support-ticket*') ? 'active' : ''}}">
                         <a href="{{route('account-tickets')}}">
                             <img width="20" src="{{theme_asset('assets/img/icons/profile-icon8.png')}}"

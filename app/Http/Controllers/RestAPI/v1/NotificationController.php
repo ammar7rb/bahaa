@@ -12,7 +12,7 @@ class NotificationController extends Controller
 {
     public function list(Request $request): array
     {
-        $notification_data = Notification::active()->where(['sent_to' => 'customer']);
+        $notification_data = Notification::active()->forCustomer(auth('api')->id())->where(['sent_to' => 'customer']);
         $notification = $notification_data->with('notificationSeenBy')
             ->latest()->paginate($request['limit'], ['*'], 'page', $request['offset']);
 
@@ -28,11 +28,13 @@ class NotificationController extends Controller
     public function notification_seen(Request $request): array
     {
         $user = $request->user();
+        Notification::active()->forCustomer($user->id)->where('sent_to','customer')->findOrFail($request->id);
         NotificationSeen::updateOrInsert(['user_id' => $user->id, 'notification_id' => $request->id], [
             'created_at' => Carbon::now(),
         ]);
 
         $notification_count = Notification::active()
+            ->forCustomer($user->id)
             ->where('sent_to', 'customer')
             ->whereDoesntHave('notificationSeenBy')
             ->count();

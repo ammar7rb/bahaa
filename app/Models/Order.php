@@ -71,13 +71,34 @@ class Order extends Model
 {
     use DemoMaskingTrait;
 
+    public function scopeSellerAccessible(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return app(\App\Services\SellerOrderVisibilityService::class)->applyAccessRules($query);
+    }
+
     protected $fillable = [
+        'customer_checkout_operation_id', 'customer_eligible_at', 'customer_fulfillment_status', 'customer_pending_reasons',
         'id',
         'customer_id',
         'is_guest',
         'customer_type',
         'payment_status',
         'order_status',
+        'commerce_flow_version',
+        'commerce_flow_status',
+        'commerce_flow_status_updated_at',
+        'admin_order_review_status',
+        'admin_order_reviewed_by',
+        'admin_order_reviewed_at',
+        'admin_order_review_note',
+        'operational_blocked_by',
+        'operational_block_reason',
+        'operational_status_updated_at',
+        'seller_queue_priority',
+        'seller_queue_position',
+        'seller_queue_override_at',
+        'seller_queue_override_by',
+        'seller_queue_override_reason',
         'activation_status',
         'activation_pending_at',
         'activation_completed_at',
@@ -104,8 +125,40 @@ class Order extends Model
         'coupon_code',
         'coupon_discount_bearer',
         'shipping_responsibility',
+        'shipping_fulfillment_mode',
+        'shipping_assignment_status',
+        'shipping_operational_status',
+        'shipping_responsible_party',
+        'return_responsible_party',
         'shipping_method_id',
         'shipping_cost',
+        'post_purchase_status',
+        'shipping_settlement_due_at',
+        'shipping_eta_from',
+        'shipping_eta_to',
+        'shipping_duration_snapshot',
+        'shipping_promise_key',
+        'sales_settlement_due_at',
+        'shipping_due_separated',
+        'shipping_due_override_reason',
+        'seller_shipping_allocation',
+        'platform_shipping_margin',
+        'shipping_workflow_status',
+        'shipping_customer_cost',
+        'shipping_seller_cost',
+        'shipping_seller_entitlement',
+        'return_shipping_cost',
+        'shipping_decided_at',
+        'shipping_decided_by',
+        'shipping_decision_note',
+        'seller_shipping_response_status',
+        'seller_shipping_response_due_at',
+        'seller_shipping_response_at',
+        'seller_shipping_rejection_reason',
+        'seller_shipping_support_ticket_id',
+        'shipping_quantity',
+        'shipping_product_subtotal',
+        'shipping_quantity_surcharge',
         'is_shipping_free',
         'order_group_id',
         'verification_code',
@@ -130,16 +183,40 @@ class Order extends Model
         'delivery_type',
         'delivery_service_name',
         'third_party_delivery_tracking_id',
+        'shipment_reference',
+        'pickup_address_snapshot',
+        'customer_address_snapshot',
+        'shipping_price_snapshot',
+        'return_tracking_number',
+        'return_reason',
+        'return_started_at',
+        'return_completed_at',
+        'customer_delivery_confirmation_status',
+        'customer_delivery_confirmation_due_at',
+        'customer_delivery_confirmed_at',
+        'customer_delivery_confirmation_expired_at',
         'edited_status',
         'updated_at'
     ];
 
     protected $casts = [
+        'customer_eligible_at' => 'datetime', 'customer_pending_reasons' => 'array',
         'customer_id' => 'integer',
         'is_guest' => 'boolean',
         'customer_type' => 'string',
         'payment_status' => 'string',
         'order_status' => 'string',
+        'commerce_flow_version' => 'string',
+        'commerce_flow_status' => 'string',
+        'commerce_flow_status_updated_at' => 'datetime',
+        'admin_order_review_status' => 'string',
+        'admin_order_reviewed_by' => 'integer',
+        'admin_order_reviewed_at' => 'datetime',
+        'operational_status_updated_at' => 'datetime',
+        'seller_queue_priority' => 'integer',
+        'seller_queue_position' => 'integer',
+        'seller_queue_override_at' => 'datetime',
+        'seller_queue_override_by' => 'integer',
         'activation_status' => 'string',
         'activation_pending_at' => 'datetime',
         'activation_completed_at' => 'datetime',
@@ -167,8 +244,38 @@ class Order extends Model
         'coupon_code' => 'string',
         'coupon_discount_bearer' => 'string',
         'shipping_responsibility' => 'string',
+        'shipping_fulfillment_mode' => 'string',
+        'shipping_assignment_status' => 'string',
+        'shipping_operational_status' => 'string',
+        'shipping_responsible_party' => 'string',
+        'return_responsible_party' => 'string',
         'shipping_method_id' => 'integer',
         'shipping_cost' => 'float',
+        'post_purchase_status' => 'string',
+        'shipping_settlement_due_at' => 'datetime',
+        'shipping_eta_from' => 'datetime',
+        'shipping_eta_to' => 'datetime',
+        'shipping_duration_snapshot' => 'array',
+        'shipping_promise_key' => 'string',
+        'sales_settlement_due_at' => 'datetime',
+        'shipping_due_separated' => 'boolean',
+        'shipping_due_override_reason' => 'string',
+        'seller_shipping_allocation' => 'float',
+        'platform_shipping_margin' => 'float',
+        'shipping_workflow_status' => 'string',
+        'shipping_customer_cost' => 'float',
+        'shipping_seller_cost' => 'float',
+        'shipping_seller_entitlement' => 'float',
+        'return_shipping_cost' => 'float',
+        'shipping_decided_at' => 'datetime',
+        'shipping_decided_by' => 'integer',
+        'seller_shipping_response_status' => 'string',
+        'seller_shipping_response_due_at' => 'datetime',
+        'seller_shipping_response_at' => 'datetime',
+        'seller_shipping_support_ticket_id' => 'integer',
+        'shipping_quantity' => 'integer',
+        'shipping_product_subtotal' => 'float',
+        'shipping_quantity_surcharge' => 'float',
         'is_shipping_free' => 'boolean',
         'order_group_id' => 'string',
         'verification_code' => 'string',
@@ -191,6 +298,17 @@ class Order extends Model
         'delivery_type' => 'string',
         'delivery_service_name' => 'string',
         'third_party_delivery_tracking_id' => 'string',
+        'pickup_address_snapshot' => 'array',
+        'customer_address_snapshot' => 'array',
+        'shipping_price_snapshot' => 'array',
+        'return_tracking_number' => 'string',
+        'return_reason' => 'string',
+        'return_started_at' => 'datetime',
+        'return_completed_at' => 'datetime',
+        'customer_delivery_confirmation_status' => 'string',
+        'customer_delivery_confirmation_due_at' => 'datetime',
+        'customer_delivery_confirmed_at' => 'datetime',
+        'customer_delivery_confirmation_expired_at' => 'datetime',
         'edited_status' => 'integer'
     ];
 
@@ -198,6 +316,26 @@ class Order extends Model
     public function details(): HasMany
     {
         return $this->hasMany(OrderDetail::class)->orderBy('seller_id', 'ASC');
+    }
+
+    public function shippingProofs(): HasMany
+    {
+        return $this->hasMany(OrderShippingProof::class);
+    }
+
+    public function refundLedgers(): HasMany
+    {
+        return $this->hasMany(OrderRefundLedger::class);
+    }
+
+    public function shippingDecisionHistory(): HasMany
+    {
+        return $this->hasMany(OrderShippingDecision::class)->latest('id');
+    }
+
+    public function logisticsEvents(): HasMany
+    {
+        return $this->hasMany(OrderLogisticsEvent::class)->latest('id');
     }
 
     public function seller(): BelongsTo
@@ -213,6 +351,11 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    public function postPurchaseInvoice(): HasOne
+    {
+        return $this->hasOne(PostPurchaseInvoice::class);
     }
 
     public function shipping(): BelongsTo
@@ -266,6 +409,31 @@ class Order extends Model
     public function activationInvoice(): HasOne
     {
         return $this->hasOne(CustomerActivationInvoice::class, 'order_id')->latestOfMany();
+    }
+
+    public function insurance(): HasOne
+    {
+        return $this->hasOne(OrderInsurance::class);
+    }
+
+    public function sellerOrderInsurance(): HasOne
+    {
+        return $this->hasOne(SellerOrderInsurance::class);
+    }
+
+    public function adminGateDecisions(): HasMany
+    {
+        return $this->hasMany(OrderAdminGateDecision::class)->latest('id');
+    }
+
+    public function riskInvestigations(): HasMany
+    {
+        return $this->hasMany(OrderRiskInvestigation::class)->latest('id');
+    }
+
+    public function shippingDecisions(): HasMany
+    {
+        return $this->hasMany(OrderShippingDecision::class)->latest('id');
     }
 
     /* order_details -> orderDetails */

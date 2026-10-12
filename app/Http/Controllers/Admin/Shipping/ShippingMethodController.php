@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use App\Services\CategoryShippingCostService;
 use App\Services\ShippingMethodService;
+use App\Models\EgyptShippingZoneRate;
 use Devrabiul\ToastMagic\Facades\ToastMagic;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -86,7 +87,13 @@ class ShippingMethodController extends BaseController
         )->filter(function ($item) use ($request) {
             return $item?->category != null;
         });
-        return view('admin-views.shipping-method.index', compact('allCategoryShippingCost', 'shippingMethods', 'adminShipping'));
+        $egyptZoneRates = EgyptShippingZoneRate::query()
+            ->orderByRaw('governorate IS NULL DESC')
+            ->orderBy('governorate')
+            ->orderBy('district')
+            ->orderBy('area')
+            ->get();
+        return view('admin-views.shipping-method.index', compact('allCategoryShippingCost', 'shippingMethods', 'adminShipping', 'egyptZoneRates'));
     }
 
 

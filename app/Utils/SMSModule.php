@@ -11,6 +11,8 @@ class SMSModule
 {
     public static function sendCentralizedSMS($phone, $token)
     {
+        $phones = app(\App\Services\EgyptPhoneService::class);
+        if ($phones->isValid($phone)) $phone = $phones->normalize($phone);
         $paymentPublishedStatus = config('get_payment_publish_status') ?? 0;
         return $paymentPublishedStatus == 1 ? SmsGateway::send($phone, $token) : SMSModule::send($phone, $token);
     }

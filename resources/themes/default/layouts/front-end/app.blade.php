@@ -13,6 +13,31 @@
     <meta name="yandex-verification" content="{{getWebConfig('yandex_webmaster_code')}}">
 
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+        (function () {
+            var storageKey = 'ba_storefront_theme';
+            window.baToggleStorefrontTheme = function () {
+                var nextTheme = 'dark';
+                try {
+                    nextTheme = localStorage.getItem(storageKey) === 'dark' ? 'light' : 'dark';
+                    localStorage.setItem(storageKey, nextTheme);
+                } catch (error) {
+                    nextTheme = document.documentElement.getAttribute('data-ba-storefront-theme') === 'dark' ? 'light' : 'dark';
+                }
+                document.documentElement.setAttribute('data-ba-storefront-theme', nextTheme);
+                document.querySelectorAll('[data-storefront-theme-toggle]').forEach(function (button) {
+                    var isDark = nextTheme === 'dark';
+                    button.setAttribute('aria-pressed', String(isDark));
+                    button.querySelector('[data-theme-icon]').textContent = isDark ? '☀' : '☾';
+                });
+            };
+            try {
+                document.documentElement.setAttribute('data-ba-storefront-theme', localStorage.getItem(storageKey) === 'dark' ? 'dark' : 'light');
+            } catch (error) {
+                document.documentElement.setAttribute('data-ba-storefront-theme', 'light');
+            }
+        }());
+    </script>
     <link rel="apple-touch-icon" sizes="180x180" href="{{ $web_config['fav_icon']['path'] }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ $web_config['fav_icon']['path'] }}">
     <link rel="stylesheet" media="screen" href="{{ theme_asset(path: 'public/assets/front-end/vendor/simplebar/dist/simplebar.min.css') }}">
@@ -31,7 +56,7 @@
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/back-end/vendor/icon-set/style.css') }}">
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/owl.carousel.min.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/front-end/plugin/swiper/swiper-bundle.min.css') }}"/>
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.css') }}">
+    <style>.default-captcha-container,.dynamic-default-and-recaptcha-section,.generate-firebase-auth-recaptcha{display:none!important}</style>
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/css/intlTelInput.css') }}">
 
     @stack('css_or_js')
@@ -40,7 +65,7 @@
 
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/home.css') }}"/>
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/responsive1.css') }}"/>
-    <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/style.css') }}">
+    <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/style.css') }}?v=20260910.2">
 
     <style>
         :root {
@@ -62,6 +87,10 @@
             margin-{{ Session::get('direction') === "rtl" ? 'right' : 'left' }}: -8px !important;
         }
 
+        html:not([data-ba-storefront-theme="dark"]) .footer-web-logo img.ba-platform-logo {
+            filter: brightness(0) invert(1);
+        }
+
         @media (max-width: 767px) {
             .navbar-expand-md .dropdown-menu > .dropdown > .dropdown-toggle {
                 padding-{{ Session::get('direction') === "rtl" ? 'left' : 'right'}}: 1.95rem;
@@ -81,6 +110,8 @@
     </style>
 
     <link rel="stylesheet" href="{{theme_asset(path: 'public/assets/front-end/css/custom.css')}}">
+    <link rel="stylesheet" href="{{theme_asset(path: 'public/assets/front-end/css/customer-dark-mode.css')}}?v=20260929.1">
+    @include('layouts.partials._unified-print-styles')
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
 
@@ -110,6 +141,8 @@
 
 @include('layouts.front-end.partials._header')
 @include('layouts.front-end.partials._alert-message')
+@include('web-views.users-profile.partials.customer-activation-banner')
+@include('customer-subscription.expiry-banner')
 
 @if(isset($isMobile) && $isMobile)
     <div id="app-banner" class="app-download-popup" style="--bottom: 30px;">
@@ -117,9 +150,9 @@
             <button type="button" class="btn p-0 px-1 bg-transparent text-dark border-0 shadow-none app-banner-close">
                 <i class="fi fi-sr-cross fs-14"></i>
             </button>
-            <img width="44" class="img-fit aspect-1 w-40px flex-shrink-0"
+            <img width="44" class="img-fit aspect-1 w-40px flex-shrink-0 ba-platform-logo"
                 src="{{ getStorageImages(path: $web_config['mob_logo'], type: 'logo') }}"
-                alt="6Valley"
+                alt="{{ getWebConfig(name: 'company_name') }}"
             >
             <div class="flex-grow-1">
                 <h5 class="fs-14 mb-1">{{ getWebConfig(name: 'company_name') }} {{ translate('Mobile_App') }}</h5>
@@ -149,7 +182,11 @@
     <span class="loader"></span>
 </div>
 
+@if(request()->routeIs('home') || request()->is('products*','*-products','shopView*','category*','search*'))
+<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip')</div>
+@endif
 @yield('content')
+@include('web-views.users-profile.partials.customer-payment-notices')
 
 <span id="message-otp-sent-again" data-text="{{ translate('OTP_has_been_sent_again.') }}"></span>
 <span id="message-wait-for-new-code" data-text="{{ translate('please_wait_for_new_code.') }}"></span>
@@ -171,9 +208,12 @@
 <span id="message-item-has-been-removed-from-cart" data-text="{{ translate('item_has_been_removed_from_cart') }}"></span>
 <span id="message-sorry-stock-limit-exceeded" data-text="{{ translate('sorry_stock_limit_exceeded') }}"></span>
 <span id="message-sorry-the-minimum-order-quantity-not-match" data-text="{{ translate('sorry_the_minimum_order_quantity_does_not_match') }}"></span>
-<span id="message-cart" data-text="{{ translate('cart') }}"></span>
+<span id="message-cart" data-text="{{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart') }}"></span>
 
-<span id="route-messages-store" data-url="{{ route('messages') }}"></span>
+{{-- Direct messages between customers, sellers and delivery staff are disabled.
+     Keep the legacy hook for JavaScript, but point it to the official support
+     center so an old modal can never trigger a missing route or a private chat. --}}
+<span id="route-messages-store" data-url="{{ route('account-tickets') }}" data-support-only="true"></span>
 <span id="route-address-update" data-url="{{ route('address-update') }}"></span>
 <span id="route-coupon-apply" data-url="{{ route('coupon.apply') }}"></span>
 <span id="route-cart-add" data-url="{{ route('cart.add') }}"></span>
@@ -218,14 +258,14 @@
 
 <div class="floating-btn-grp">
     <div class="__floating-btn">
-        @php($whatsapp = getWebConfig(name: 'whatsapp'))
-        @if(isset($whatsapp['status']) && $whatsapp['status'] == 1 )
-            <div class="wa-widget-send-button">
-                <a href="https://wa.me/{{ $whatsapp['phone'] }}?text=Hello%20there!" target="_blank">
-                    <img src="{{theme_asset(path: 'public/assets/front-end/img/whatsapp.svg')}}" class="wa-messenger-svg-whatsapp wh-svg-icon" alt="{{ translate('Chat_with_us_on_WhatsApp') }}">
-                </a>
-            </div>
-        @endif
+        <div class="wa-widget-send-button bg-primary d-flex align-items-center justify-content-center">
+            <a href="{{ auth('customer')->check() ? route('account-tickets') : route('customer.auth.login') }}"
+               title="{{ translate('contact_technical_support') }}"
+               aria-label="{{ translate('contact_technical_support') }}">
+                <img src="{{ dynamicAsset(path: 'public/assets/front-end/img/icons/technical-support.svg') }}"
+                     class="wa-messenger-svg-whatsapp wh-svg-icon" alt="{{ translate('contact_technical_support') }}">
+            </a>
+        </div>
     </div>
     <a class="btn-scroll-top btn--primary" href="#top" data-scroll>
         <i class="btn-scroll-top-icon czi-arrow-up"></i>
@@ -272,12 +312,15 @@
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/slick.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/sweet_alert.js') }}"></script>
 <script src="{{ theme_asset(path: "public/assets/back-end/js/toastr.js") }}"></script>
-<script src="{{ theme_asset(path: 'public/assets/front-end/js/custom.js') }}"></script>
+<script src="{{ theme_asset(path: 'public/assets/front-end/js/custom.js') }}?v=20261011.1"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/seller-filter.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/account-order-details.js') }}"></script>
-<script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInput.js') }}"></script>
-<script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/utils.js') }}"></script>
-<script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInout-validation.js') }}"></script>
+<script src="{{ theme_asset(path: 'public/assets/front-end/js/customer-dark-mode.js') }}?v=20260930.1"></script>
+@if (!request()->routeIs('vendor.auth.registration.*'))
+    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInput.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/utils.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInout-validation.js') }}"></script>
+@endif
 
 <script src="{{ dynamicAsset(path: 'public/assets/backend/file-validation/polyfills.js') }}"></script>
 <script src="{{ dynamicAsset(path: 'public/assets/backend/file-validation/just-validate.min.js') }}"></script>
@@ -287,9 +330,6 @@
 
 @include('layouts.front-end.partials._firebase-script')
 
-@if (isset($recaptcha) && $recaptcha['status'] == 1)
-    <script src="https://www.google.com/recaptcha/api.js?render={{ $recaptcha['site_key'] }}"></script>
-@endif
 
 @if(isset($isMobile) && $isMobile)
     <script>
@@ -350,8 +390,6 @@
         });
     </script>
 @endif
-
-<script src="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.js') }}"></script>
 
 <script>
     "use strict";
@@ -444,5 +482,11 @@
 @endif
 
 @stack('script')
+@include('web-views.users-profile.partials.profile-image-shortcut')
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}" defer></script>
+@include('customer-checkout.entry')
+<script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>
 </html>
+
+

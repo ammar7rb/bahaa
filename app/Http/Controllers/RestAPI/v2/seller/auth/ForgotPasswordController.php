@@ -26,6 +26,12 @@ class ForgotPasswordController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
+        return response()->json([
+            'message' => translate('password_reset_support_message'),
+            'support_required' => true,
+            'contact_url' => route('contacts', ['subject' => translate('password_reset_support_subject')]),
+        ], 200);
+
         $verification_by = getWebConfig(name: 'vendor_forgot_password_method');
         DB::table('password_resets')->where('user_type','seller')->where('identity', 'like', "%{$request['identity']}%")->delete();
 
@@ -92,6 +98,11 @@ class ForgotPasswordController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
+        return response()->json(['errors' => [[
+            'code' => 'support-required',
+            'message' => translate('password_reset_support_message'),
+        ]]], 403);
+
         $id = $request['identity'];
         $data = DB::table('password_resets')
             ->where('user_type','seller')
@@ -119,6 +130,11 @@ class ForgotPasswordController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
+
+        return response()->json(['errors' => [[
+            'code' => 'support-required',
+            'message' => translate('password_reset_support_message'),
+        ]]], 403);
 
         $data = DB::table('password_resets')
             ->where('user_type','seller')

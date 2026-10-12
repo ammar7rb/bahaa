@@ -11,6 +11,9 @@ use App\Models\OfflinePaymentMethod;
 use App\Models\SellerPackage;
 use App\Models\SellerPackageSubscription;
 use App\Services\SellerPackagePurchaseService;
+use App\Services\SellerPackagePerformanceService;
+use App\Services\SellerLedgerService;
+use App\Services\SubscriptionDurationService;
 use App\Traits\FileManagerTrait;
 use App\Traits\Payment;
 use App\Traits\PaymentGatewayTrait;
@@ -30,7 +33,41 @@ class SellerPackageController extends Controller
 
     public function __construct(
         private readonly SellerPackagePurchaseService $purchaseService,
+        private readonly SellerLedgerService $ledger,
+        private readonly SubscriptionDurationService $durationService,
+        private readonly SellerPackagePerformanceService $performanceService,
     ) {}
+
+    public function performance(Request $request, int|string $subscription): JsonResponse
+    {
+        $subscription = SellerPackageSubscription::query()->where('seller_id', $request->seller->id)->find($subscription);
+        if (! $subscription) {
+            return response()->json(['message' => translate('seller_package_subscription_not_found')], 404);
+        }
+
+        return response()->json(['performance' => $this->performanceService->report($subscription)]);
+    }
+
+    public function cancel(Request $request, int|string $subscription): JsonResponse
+    {
+        $validator = Validator::make($request->all(), ['reason' => 'required|string|min:3|max:1000']);
+        if ($validator->fails()) {
+            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 422);
+        }
+        $subscription = SellerPackageSubscription::query()->where('seller_id', $request->seller->id)->find($subscription);
+        if (! $subscription) {
+            return response()->json(['message' => translate('seller_package_subscription_not_found')], 404);
+        }
+        try {
+            $subscription = $this->purchaseService->cancel($subscription, $request->string('reason')->toString(), 'seller', $request->seller->id);
+            return response()->json([
+                'message' => translate('seller_package_cancellation_recorded_without_refund'),
+                'subscription' => $this->formatSubscription($subscription),
+            ]);
+        } catch (DomainException $exception) {
+            return response()->json(['message' => translate($exception->getMessage())], 403);
+        }
+    }
 
     public function index(Request $request): JsonResponse
     {
@@ -38,10 +75,27 @@ class SellerPackageController extends Controller
         $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
         $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
 
+        $summary = $this->purchaseService->getSummary($request->seller);
+        $operatingBalance = (float) ($this->ledger->summary($request->seller->id)[SellerLedgerService::OPERATING] ?? 0);
+
         return response()->json([
-            'packages' => SellerPackage::query()->active()->orderBy('sort_order')->orderBy('id')->get(),
-            'subscription' => $this->formatSummary($this->purchaseService->getSummary($request->seller)),
-            'digital_payment_available' => $gateways->isNotEmpty() && ($digitalPaymentStatus['status'] ?? 0),
+            'packages' => SellerPackage::query()->active()->orderBy('sort_order')->orderBy('id')->get()
+                ->map(function (SellerPackage $package) {
+                    $duration = $this->durationService->fromPackage($package);
+                    return array_merge($package->toArray(), [
+                        'product_limit' => null,
+                        'product_duration_days' => null,
+                        'product_publishing_unlimited' => true,
+                        'package_purpose' => 'advertising',
+                        'duration_unit' => $duration['unit'],
+                        'duration_value' => $duration['value'],
+                        'duration_label' => $this->durationService->label($duration['unit'], $duration['value']),
+                    ]);
+                })->values(),
+            'subscription' => $this->formatSummary($summary),
+            'operating_balance' => $operatingBalance,
+            'operating_balance_payment_available' => $summary['can_purchase'] && $operatingBalance > 0,
+            'digital_payment_available' => false,
             'payment_gateways' => $gateways->map(function ($gateway) {
                 $gatewayData = ! empty($gateway->additional_data) ? json_decode($gateway->additional_data) : null;
 
@@ -50,10 +104,10 @@ class SellerPackageController extends Controller
                     'title' => $gatewayData?->gateway_title ?? ucwords(str_replace('_', ' ', $gateway->key_name)),
                 ];
             })->values(),
-            'offline_payment_available' => (bool) ($offlinePaymentStatus['status'] ?? 0),
+            'offline_payment_available' => false,
             'offline_payment_methods' => OfflinePaymentMethod::query()
                 ->where('status', 1)
-                ->get(['id', 'method_name', 'method_fields', 'method_informations']),
+                ->get(['id', 'method_name', 'payment_channel', 'method_fields', 'method_informations']),
         ]);
     }
 
@@ -61,7 +115,8 @@ class SellerPackageController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'package_id' => 'required|integer',
-            'payment_method' => 'required|string|max:100',
+            'payment_method' => 'required|in:operating_balance',
+            'request_key' => 'required|uuid',
             'payment_platform' => 'required|string|max:50',
             'current_currency_code' => 'nullable|string|max:10',
         ]);
@@ -69,19 +124,31 @@ class SellerPackageController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
-        $gateways = collect(payment_gateways());
-        $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
         $package = SellerPackage::query()->active()->find($request->get('package_id'));
-        if (! ($digitalPaymentStatus['status'] ?? 0) || ! $gateways->firstWhere('key_name', $request->get('payment_method'))) {
-            return response()->json(['message' => translate('payment_method_is_not_available')], 403);
-        }
         if (! $package) {
             return response()->json(['message' => translate('seller_package_not_found_or_inactive')], 404);
         }
 
+        if ($request->get('payment_method') !== 'operating_balance') {
+            $gateways = collect(payment_gateways());
+            $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
+            if (! ($digitalPaymentStatus['status'] ?? 0) || ! $gateways->firstWhere('key_name', $request->get('payment_method'))) {
+                return response()->json(['message' => translate('payment_method_is_not_available')], 403);
+            }
+        }
+
         try {
             $seller = $request->seller;
-            $subscription = $this->purchaseService->getOrCreatePendingSubscription($seller, $package);
+            $subscription = null;
+            if ($request->get('payment_method') === 'operating_balance') {
+                $result = $this->purchaseService->purchaseWithPaymentsBalance($seller, $package, $request->string('request_key')->toString());
+
+                return response()->json([
+                    'message' => translate('seller_package_payment_completed_from_operating_balance'),
+                    'subscription' => $this->formatSubscription($result['subscription']),
+                ]);
+            }
+
             $currencyCode = $this->getCurrencyCode($request);
             $paymentAmount = getWebConfig(name: 'currency_model') === 'multi_currency'
                 ? usdToAnotherCurrencyConverter(currencyCode: $currencyCode, amount: (float) $subscription->paid_package_price)
@@ -129,76 +196,8 @@ class SellerPackageController extends Controller
     }
 
     public function submitOfflinePayment(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'package_id' => 'required|integer',
-            'method_id' => 'required|integer',
-            'method_informations' => 'required|string',
-            'payment_note' => 'nullable|string|max:1000',
-            'payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
-        ]);
-        if ($validator->fails()) {
-            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
-        }
+    { return response()->json(['message' => translate('fund_payments_balance_first')], 422); }
 
-        $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
-        $method = OfflinePaymentMethod::query()->whereKey($request->get('method_id'))->where('status', 1)->first();
-        $package = SellerPackage::query()->active()->find($request->get('package_id'));
-        if (! ($offlinePaymentStatus['status'] ?? 0) || ! $method) {
-            return response()->json(['message' => translate('offline_payment_method_not_found')], 404);
-        }
-        if (! $package) {
-            return response()->json(['message' => translate('seller_package_not_found_or_inactive')], 404);
-        }
-
-        $submittedInformation = $this->decodeOfflineInformation($request->get('method_informations'));
-        if ($submittedInformation === null) {
-            return response()->json(['message' => translate('invalid_offline_payment_information')], 403);
-        }
-        $missingFields = [];
-        foreach (($method->method_informations ?? []) as $field) {
-            $inputName = $field['customer_input'] ?? null;
-            if (! $inputName || $inputName === 'payment_screenshot') {
-                continue;
-            }
-            if (($field['is_required'] ?? 0) && empty($submittedInformation[$inputName])) {
-                $missingFields[] = $inputName;
-            }
-        }
-        if ($missingFields) {
-            return response()->json([
-                'message' => translate('required_offline_payment_information_is_missing'),
-                'missing_fields' => $missingFields,
-            ], 403);
-        }
-
-        try {
-            $subscription = $this->purchaseService->getOrCreatePendingSubscription($request->seller, $package);
-            $proofName = $this->upload(
-                dir: 'seller-package/payment-proof/',
-                format: 'webp',
-                image: $request->file('payment_proof')
-            );
-            $subscription = $this->purchaseService->submitOfflinePayment($subscription, [
-                'method_id' => $method->id,
-                'method_name' => $method->method_name,
-                'method_information' => $submittedInformation,
-                'payment_note' => $request->get('payment_note'),
-                'payment_proof' => [
-                    'image_name' => $proofName,
-                    'storage' => config('filesystems.disks.default') ?? 'public',
-                ],
-                'submitted_at' => now()->toDateTimeString(),
-            ]);
-
-            return response()->json([
-                'message' => translate('package_offline_payment_submitted_and_waiting_for_admin_review'),
-                'subscription' => $this->formatSubscription($subscription),
-            ]);
-        } catch (DomainException $exception) {
-            return response()->json(['message' => translate($exception->getMessage())], 403);
-        }
-    }
 
     private function formatSummary(array $summary): array
     {
@@ -206,6 +205,7 @@ class SellerPackageController extends Controller
             'insurance_satisfied' => $summary['insurance_satisfied'],
             'can_purchase' => $summary['can_purchase'],
             'pending_review' => $summary['pending_review'],
+            'operating_balance_payment_available' => $summary['can_purchase'],
             'active' => $summary['active_subscription'] ? $this->formatSubscription($summary['active_subscription']) : null,
             'pending' => $summary['pending_subscription'] ? $this->formatSubscription($summary['pending_subscription']) : null,
         ];
@@ -218,13 +218,13 @@ class SellerPackageController extends Controller
             'package_id' => $subscription->seller_package_id,
             'package_name' => $subscription->package_name,
             'paid_package_price' => (float) $subscription->paid_package_price,
-            'product_limit' => $subscription->product_limit,
+            'product_limit' => null,
             'product_adjustment_limit' => $subscription->product_adjustment_limit,
-            'used_product_limit' => $subscription->used_product_limit,
-            'remaining_product_limit' => max(0, $subscription->product_limit
-                + $subscription->product_adjustment_limit
-                - $subscription->used_product_limit),
-            'product_duration_days' => $subscription->product_duration_days,
+            'used_product_limit' => 0,
+            'remaining_product_limit' => null,
+            'product_duration_days' => null,
+            'product_publishing_unlimited' => true,
+            'package_purpose' => 'advertising',
             'search_promotion_limit' => $subscription->search_promotion_limit,
             'search_promotion_adjustment_limit' => $subscription->search_promotion_adjustment_limit,
             'used_search_promotion_limit' => $subscription->used_search_promotion_limit,
@@ -239,12 +239,31 @@ class SellerPackageController extends Controller
                 + $subscription->homepage_promotion_adjustment_limit
                 - $subscription->used_homepage_promotion_limit),
             'homepage_promotion_duration_days' => $subscription->homepage_promotion_duration_days,
+            'coupon_limit' => $subscription->coupon_limit,
+            'coupon_adjustment_limit' => $subscription->coupon_adjustment_limit,
+            'used_coupon_limit' => $subscription->used_coupon_limit,
+            'remaining_coupon_limit' => max(0, $subscription->coupon_limit
+                + $subscription->coupon_adjustment_limit
+                - $subscription->used_coupon_limit),
             'package_validity_days' => $subscription->package_validity_days,
+            'duration_unit' => $subscription->duration_unit ?: ($subscription->package_validity_days ? 'days' : 'lifetime'),
+            'duration_value' => $subscription->duration_value ?: $subscription->package_validity_days,
+            'started_at' => $subscription->started_at ?: $subscription->starts_at,
             'status' => $subscription->status,
             'payment_status' => $subscription->payment_status,
             'payment_method' => $subscription->payment_method,
             'starts_at' => $subscription->starts_at,
             'expires_at' => $subscription->expires_at,
+            'remaining_days' => $subscription->expires_at ? max(0, now()->diffInDays($subscription->expires_at, false)) : null,
+            'duration_status' => $subscription->duration_unit === 'lifetime'
+                || (! $subscription->duration_unit && ! $subscription->package_validity_days)
+                ? 'lifetime'
+                : ($subscription->expires_at?->isPast() ? 'expired' : 'active'),
+            'search_priority' => $subscription->search_priority,
+            'cancellation_effect' => $subscription->cancellation_effect,
+            'cancel_at_period_end' => (bool) $subscription->cancel_at_period_end,
+            'cancellation_requested_at' => $subscription->cancellation_requested_at,
+            'cancellation_reason' => $subscription->cancellation_reason,
             'created_at' => $subscription->created_at,
         ];
     }

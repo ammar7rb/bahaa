@@ -14,7 +14,8 @@ class DatabaseSeeder extends Seeder
          $this->call([
              AdminRoleTable::class,
              AdminTable::class,
-             SellerTableSeeder::class
+             SellerTableSeeder::class,
+             \Database\Seeders\MedicalCategorySeeder::class,
          ]);
     }
 }

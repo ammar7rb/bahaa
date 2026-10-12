@@ -5,6 +5,8 @@ namespace App\Http\Controllers\RestAPI\v1;
 use App\Http\Controllers\Controller;
 use App\Models\AddFundBonusCategories;
 use App\Models\WalletTransaction;
+use App\Models\PostPurchaseInvoice;
+
 use App\Utils\Helpers;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -13,6 +15,60 @@ use Illuminate\Support\Facades\Validator;
 
 class UserWalletController extends Controller
 {
+    public function overview(Request $request): JsonResponse
+    {
+        $customer = $request->user('api');
+        $customerId = (int) $customer->id;
+
+        $canDeposit = getWebConfig('add_funds_to_wallet') == 1;
+        $pendingInvoicesQuery = PostPurchaseInvoice::query()
+            ->where('customer_id', $customerId)
+            ->whereIn('status', [PostPurchaseInvoice::STATUS_PENDING, PostPurchaseInvoice::STATUS_AWAITING_REVIEW]);
+        $pendingInvoicesCount = (clone $pendingInvoicesQuery)->count();
+        return response()->json([
+            'purchase_balance' => (float) $customer->wallet_balance,
+            'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status($customerId),
+            'purchase_enabled' => getWebConfig('wallet_status') == 1,
+            'insurance_enabled' => false,
+            'tax_enabled' => getWebConfig(name: 'customer_second_invoice_tax_enabled') == 1,
+            'pending_invoices_count' => $pendingInvoicesCount,
+            'pending_invoices' => $pendingInvoicesQuery->with('order:id,order_group_id,order_amount')
+                ->latest('id')->limit(5)->get()->map(fn (PostPurchaseInvoice $invoice) => [
+                    'id' => $invoice->id,
+                    'invoice_number' => $invoice->invoice_number,
+                    'order_id' => $invoice->order_id,
+                    'order_group_id' => $invoice->order?->order_group_id,
+                    'status' => $invoice->status,
+                    'insurance_amount' => (float) $invoice->insurance_amount,
+                    'tax_amount' => (float) $invoice->tax_amount,
+                    'total_amount' => (float) $invoice->total_amount,
+                    'paid_amount' => (float) $invoice->paid_amount,
+                    'amount_due' => max(0, (float) $invoice->total_amount - (float) $invoice->paid_amount),
+                    'payment_due_at' => $invoice->payment_due_at?->toIso8601String(),
+                ])->values(),
+            'offline_methods' => $canDeposit && (getWebConfig('offline_payment')['status'] ?? 0)
+                ? \App\Models\OfflinePaymentMethod::where('status', 1)->get(['id', 'method_name', 'payment_channel', 'method_fields', 'method_informations']) : [],
+            'digital_methods' => $canDeposit && (getWebConfig('digital_payment')['status'] ?? 0)
+                ? \App\Utils\payment_gateways()->map(fn ($gateway) => ['key' => $gateway->key_name])->values() : [],
+            'deposits' => \App\Models\CustomerBalanceDeposit::where('customer_id', $customerId)->where('wallet_type', 'purchase')->latest('id')
+                ->paginate(20, ['id', 'wallet_type', 'amount', 'status', 'method_name', 'payment_reference', 'review_note', 'created_at']),
+            'purchase_entries' => WalletTransaction::where('user_id', $customerId)->latest('id')
+                ->paginate(20, ['id', 'transaction_type', 'transaction_id', 'reference', 'credit', 'debit', 'balance', 'created_at']),
+            'insurance_entries' => [],
+            'orders' => \App\Models\Order::where('customer_id', $customerId)->where('is_guest', 0)
+                ->with(['insurance', 'postPurchaseInvoice'])->latest('id')->paginate(20)->through(fn ($order) => [
+                    'id' => $order->id, 'amount' => $order->order_amount,
+                    'payment_status' => $order->payment_status, 'created_at' => $order->created_at,
+                    'insurance' => $order->insurance ? collect($order->insurance->toArray())->only([
+                        'amount', 'insurance_amount', 'status', 'maturity_at', 'matures_at', 'released_at',
+                    ]) : ($order->postPurchaseInvoice ? [
+                        'amount' => $order->postPurchaseInvoice->insurance_amount,
+                        'status' => $order->postPurchaseInvoice->status, 'matures_at' => null,
+                    ] : null),
+                ]),
+        ]);
+    }
+
     public function list(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -29,6 +85,8 @@ class UserWalletController extends Controller
         if ($walletStatus == 1) {
             $user = $request->user();
             $totalWalletBalance = $user->wallet_balance;
+
+
             $types = json_decode($request->get('transaction_types', ''), true) ?? [];
             $transactionTypes = $this->getSelectTransactionTypes(types: $types);
             if (request()->has('start_date') && request()->has('end_date') && !checkDateFormatInMDY($request['start_date']) && !checkDateFormatInMDY($request['end_date'])) {
@@ -70,6 +128,12 @@ class UserWalletController extends Controller
                 'limit' => (integer)$request['limit'],
                 'offset' => (integer)$request['offset'],
                 'total_wallet_balance' => $totalWalletBalance,
+                'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status((int) $user->id),
+                'insurance_enabled' => false,
+                'insurance_available_balance' => 0,
+                'insurance_held_balance' => 0,
+                'insurance_next_maturity_at' => null,
+                'insurance_ledger_entries' => [],
                 'total_size' => $walletTransactionList->total(),
                 'wallet_transaction_list' => $walletTransactionList->items(),
                 'filter_by' => $request['filter_by'],

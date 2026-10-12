@@ -15,6 +15,7 @@ use App\Models\Review;
 use App\Repositories\DealOfTheDayRepository;
 use App\Repositories\WishlistRepository;
 use App\Services\ProductService;
+use App\Services\SellerPackagePerformanceService;
 use App\Traits\ProductTrait;
 use App\Utils\CartManager;
 use App\Utils\ProductManager;
@@ -49,7 +50,11 @@ class ProductDetailsController extends Controller
      */
     public function index(string $slug): View|RedirectResponse
     {
-        $theme_name = theme_root_path();
+        $viewedProduct = Product::active()->where('slug', $slug)->first();
+        if ($viewedProduct) {
+            app(SellerPackagePerformanceService::class)->recordVisit($viewedProduct);
+        }
+        $theme_name = theme_base_path();
 
         return match ($theme_name) {
             'default' => self::getDefaultTheme(slug: $slug),

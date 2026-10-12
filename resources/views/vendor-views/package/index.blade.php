@@ -1,191 +1,27 @@
 @extends('layouts.vendor.app')
-
-@section('title', translate('Vendor_Packages'))
-
+@section('title',translate('ads_manager'))
 @section('content')
-    <div class="content container-fluid">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <div>
-                <h1 class="mb-1 text-capitalize">{{ translate('Vendor_Packages') }}</h1>
-                <p class="mb-0 text-muted fs-12">{{ translate('choose_the_package_that_matches_your_listing_and_promotion_needs') }}.</p>
-            </div>
-            <a href="{{ route('vendor.insurance.index') }}" class="btn btn-outline-primary">
-                <i class="fi fi-sr-shield-check"></i> {{ translate('Vendor_Insurance') }}
-            </a>
-        </div>
-
-        @if(!$summary['insurance_satisfied'])
-            <div class="alert alert-soft-warning d-flex justify-content-between align-items-center gap-3 mb-3">
-                <span>{{ translate('you_must_activate_vendor_insurance_before_buying_a_package') }}.</span>
-                <a href="{{ route('vendor.insurance.index') }}" class="btn btn-sm btn--primary">{{ translate('Activate_Insurance') }}</a>
-            </div>
-        @endif
-
-        @if($summary['pending_review'])
-            <div class="alert alert-soft-warning mb-3">
-                <strong>{{ translate('Package_Payment_Is_Under_Admin_Review') }}</strong>
-                <div class="fs-12 mt-1">
-                    {{ $summary['pending_subscription']->package_name }} ·
-                    {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $summary['pending_subscription']->paid_package_price)) }}.
-                    {{ translate('the_package_will_activate_only_after_admin_approval') }}.
-                </div>
-            </div>
-        @elseif($summary['pending_subscription'])
-            <div class="alert alert-soft-info mb-3">
-                {{ translate('a_payment_attempt_is_pending_for') }} <strong>{{ $summary['pending_subscription']->package_name }}</strong>.
-                {{ translate('you_can_retry_the_same_package_payment_method') }}.
-            </div>
-        @endif
-
-        @if($summary['active_subscription'])
-            @php($active = $summary['active_subscription'])
-            <div class="card mb-3">
-                <div class="card-body">
-                    <div class="d-flex flex-wrap justify-content-between gap-3 mb-3">
-                        <div>
-                            <div class="text-success fs-12 fw-semibold text-uppercase">{{ translate('Active_Package') }}</div>
-                            <h3 class="mb-1">{{ $active->package_name }}</h3>
-                            <div class="text-muted fs-12">
-                                {{ translate('Activated') }}: {{ $active->activated_at }} ·
-                                {{ $active->expires_at ? translate('Expires') . ': ' . $active->expires_at : translate('No_Expiry') }}
-                            </div>
-                        </div>
-                        <div class="text-end">
-                            <div class="text-muted fs-12">{{ translate('Paid') }}</div>
-                            <strong class="text-primary">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $active->paid_package_price)) }}</strong>
-                        </div>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <div class="border rounded p-3 h-100">
-                                <div class="fs-12 text-muted">{{ translate('Product_Listings_Remaining') }}</div>
-                                <strong>{{ max($active->product_limit + $active->product_adjustment_limit - $active->used_product_limit, 0) }}</strong>
-                                <div class="fs-12 text-muted">{{ $active->product_duration_days }} {{ translate('days_each') }}</div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="border rounded p-3 h-100">
-                                <div class="fs-12 text-muted">{{ translate('Featured_Search_Remaining') }}</div>
-                                <strong>{{ max($active->search_promotion_limit + $active->search_promotion_adjustment_limit - $active->used_search_promotion_limit, 0) }}</strong>
-                                <div class="fs-12 text-muted">{{ $active->search_promotion_duration_days }} {{ translate('days_each') }}</div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="border rounded p-3 h-100">
-                                <div class="fs-12 text-muted">{{ translate('Homepage_Featured_Remaining') }}</div>
-                                <strong>{{ max($active->homepage_promotion_limit + $active->homepage_promotion_adjustment_limit - $active->used_homepage_promotion_limit, 0) }}</strong>
-                                <div class="fs-12 text-muted">{{ $active->homepage_promotion_duration_days }} {{ translate('days_each') }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
-
-        <div class="row g-3 mb-3">
-            @forelse($packages as $package)
-                @php($pending = $summary['pending_subscription'])
-                @php($canPayPackage = $summary['insurance_satisfied'] && (!$pending || ($pending->status === 'pending' && (int) $pending->seller_package_id === (int) $package->id)))
-                <div class="col-xl-4 col-md-6">
-                    <div class="card h-100">
-                        <div class="card-body d-flex flex-column">
-                            <div class="d-flex justify-content-between gap-2 mb-3">
-                                <div>
-                                    <h3 class="mb-1">{{ $package->name }}</h3>
-                                    <div class="text-muted fs-12">{{ $package->description }}</div>
-                                </div>
-                                <div class="text-end">
-                                    <strong class="text-primary fs-18">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $package->package_price)) }}</strong>
-                                    <div class="fs-12 text-muted">{{ $package->package_validity_days ? $package->package_validity_days . ' ' . translate('days') : translate('No_Expiry') }}</div>
-                                </div>
-                            </div>
-
-                            <div class="border-top border-bottom py-3 mb-3 d-flex flex-column gap-2 fs-12">
-                                <div class="d-flex justify-content-between"><span>{{ translate('Product_Listings') }}</span><strong>{{ $package->product_limit }} · {{ $package->product_duration_days }} {{ translate('days') }}</strong></div>
-                                <div class="d-flex justify-content-between"><span>{{ translate('Featured_Search') }}</span><strong>{{ $package->search_promotion_limit }} @if($package->search_promotion_limit) · {{ $package->search_promotion_duration_days }} {{ translate('days') }} @endif</strong></div>
-                                <div class="d-flex justify-content-between"><span>{{ translate('Homepage_Featured') }}</span><strong>{{ $package->homepage_promotion_limit }} @if($package->homepage_promotion_limit) · {{ $package->homepage_promotion_duration_days }} {{ translate('days') }} @endif</strong></div>
-                            </div>
-
-                            <div class="mt-auto">
-                                @if($canPayPackage && $digitalPaymentAvailable)
-                                    <form action="{{ route('vendor.packages.pay') }}" method="post" class="mb-2">
-                                        @csrf
-                                        <input type="hidden" name="package_id" value="{{ $package->id }}">
-                                        <input type="hidden" name="current_currency_code" value="{{ session('currency_code') ?: \App\Models\Currency::find(getWebConfig(name: 'system_default_currency'))?->code }}">
-                                        <div class="input-group">
-                                            <select class="form-select" name="payment_method" required>
-                                                <option value="">{{ translate('Online_Payment_Method') }}</option>
-                                                @foreach($paymentGatewayList as $gateway)
-                                                    @php($gatewayData = !empty($gateway->additional_data) ? json_decode($gateway->additional_data) : null)
-                                                    <option value="{{ $gateway->key_name }}">{{ $gatewayData?->gateway_title ?? ucwords(str_replace('_', ' ', $gateway->key_name)) }}</option>
-                                                @endforeach
-                                            </select>
-                                            <button type="submit" class="btn btn--primary"><i class="fi fi-sr-credit-card"></i></button>
-                                        </div>
-                                    </form>
-                                @endif
-
-                                @if($canPayPackage && $offlinePaymentAvailable && $offlinePaymentMethods->isNotEmpty())
-                                    <button type="button" class="btn btn-outline-primary w-100" data-toggle="collapse" data-target="#package-offline-{{ $package->id }}">
-                                        {{ translate('Pay_By_Offline_Transfer') }}
-                                    </button>
-                                    <div class="collapse mt-2" id="package-offline-{{ $package->id }}">
-                                        @foreach($offlinePaymentMethods as $method)
-                                            <form action="{{ route('vendor.packages.offline-payment') }}" method="post" enctype="multipart/form-data" class="border rounded p-3 mb-2">
-                                                @csrf
-                                                <input type="hidden" name="package_id" value="{{ $package->id }}">
-                                                <input type="hidden" name="method_id" value="{{ $method->id }}">
-                                                <div class="fw-semibold mb-2">{{ translatePaymentText($method->method_name) }}</div>
-                                                @foreach(($method->method_fields ?? []) as $field)
-                                                    <div class="fs-12 mb-1"><strong>{{ translatePaymentText($field['input_name'] ?? '') }}:</strong> {{ translatePaymentText($field['input_data'] ?? '') }}</div>
-                                                @endforeach
-                                                @foreach(($method->method_informations ?? []) as $field)
-                                                    @php($inputName = $field['customer_input'] ?? null)
-                                                    @continue(!$inputName || $inputName === 'payment_screenshot')
-                                                    <input type="text" class="form-control mt-2" name="method_information[{{ $inputName }}]"
-                                                           placeholder="{{ translatePaymentText($field['customer_placeholder'] ?? $inputName) }}"
-                                                           {{ ($field['is_required'] ?? 0) ? 'required' : '' }}>
-                                                @endforeach
-                                                <input type="file" class="form-control mt-2" name="payment_proof" accept="image/jpeg,image/png,image/webp" required>
-                                                <textarea class="form-control mt-2" name="payment_note" rows="2" placeholder="{{ translate('Note') }}"></textarea>
-                                                <button type="submit" class="btn btn--primary w-100 mt-2">{{ translate('Submit_For_Admin_Review') }}</button>
-                                            </form>
-                                        @endforeach
-                                    </div>
-                                @elseif(!$canPayPackage)
-                                    <button type="button" class="btn btn-secondary w-100" disabled>{{ translate('Payment_Not_Available') }}</button>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @empty
-                <div class="col-12"><div class="alert alert-soft-info mb-0">{{ translate('No_active_vendor_packages_available') }}.</div></div>
-            @endforelse
-        </div>
-
-        <div class="card">
-            <div class="card-body">
-                <h3 class="mb-3">{{ translate('Subscription_History') }}</h3>
-                <div class="table-responsive">
-                    <table class="table table-hover table-borderless table-thead-bordered table-nowrap table-align-middle">
-                        <thead class="thead-light"><tr><th>{{ translate('Package') }}</th><th>{{ translate('Price') }}</th><th>{{ translate('Payment_Method') }}</th><th>{{ translate('Status') }}</th><th>{{ translate('Date') }}</th></tr></thead>
-                        <tbody>
-                        @forelse($subscriptions as $subscription)
-                            <tr>
-                                <td>{{ $subscription->package_name }}</td>
-                                <td>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $subscription->paid_package_price)) }}</td>
-                                <td>{{ $subscription->payment_method ? translate($subscription->payment_method) : translate('Not_Selected') }}</td>
-                                <td><span class="badge badge-soft-{{ $subscription->status === 'active' ? 'success' : ($subscription->status === 'pending_review' ? 'warning' : ($subscription->status === 'rejected' ? 'danger' : 'secondary')) }}">{{ translate($subscription->status) }}</span></td>
-                                <td>{{ $subscription->created_at }}</td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="5" class="text-center text-muted py-4">{{ translate('No_data_found') }}</td></tr>
-                        @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="content container-fluid vendor-finance-page"><div class="vendor-page-intro"><div><h1>{{ translate('ads_manager') }}</h1><p>{{ translate('ads_payments_balance_hint') }}</p></div><a class="btn btn-outline-primary" href="{{ route('vendor.balance.payments') }}">{{ translate('fund_wallet') }}</a></div>
+@if($errors->any())<div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>@endif
+<div class="vendor-ads-balance"><div class="vendor-metric-icon">@include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'wallet'])</div><div><span>{{ translate('payments_balance') }}</span><strong>{{ webCurrencyConverter(amount:$operatingBalance) }}</strong><small>{{ translate('ads_payments_balance_hint') }}</small></div><a class="btn btn--primary" href="{{ route('vendor.balance.payments') }}">{{ translate('fund_wallet') }}</a></div>
+@if($summary['active_subscription'])<section class="card card-body mb-4"><h2>{{ translate('active_package') }}: {{ $summary['active_subscription']->package_name }}</h2><p>{{ translate('expires_at') }}: {{ $summary['active_subscription']->expires_at?->format('Y-m-d') ?: translate('lifetime') }}</p><div class="d-flex flex-wrap gap-3"><a class="btn btn-outline-primary" href="{{ route('vendor.promotions.search.index') }}">{{ translate('manage_promotions') }}</a><a class="btn btn-outline-primary" href="{{ route('vendor.promotions.homepage.index') }}">{{ translate('homepage_promotions') }}</a><a class="btn btn-outline-primary" href="{{ route('vendor.coupon.index') }}">{{ translate('coupons') }}</a><a class="btn btn-outline-primary" href="{{ route('vendor.packages.performance',$summary['active_subscription']->id) }}">{{ translate('performance') }}</a></div>@if(!$summary['active_subscription']->cancel_at_period_end)<form class="vendor-withdraw-form mt-3" method="post" action="{{ route('vendor.packages.cancel',$summary['active_subscription']->id) }}">@csrf<label>{{ translate('cancellation_reason') }}<input class="form-control" name="reason" required maxlength="1000"></label><button class="btn btn-outline-primary">{{ translate('cancel_package') }}</button></form>@else<p class="mt-3">{{ translate('package_cancellation_request_submitted') }}</p>@endif</section>@endif
+@if($summary['active_subscription'])
+@php($active = $summary['active_subscription'])
+<section class="card card-body mb-4"><h2>{{ translate('available_advertising_benefits') }}</h2><div class="vendor-finance-summary">
+<div>{{ translate('Featured_Search_Remaining') }}<strong>{{ max(0, $active->search_promotion_limit + $active->search_promotion_adjustment_limit - $active->used_search_promotion_limit) }}</strong></div>
+<div>{{ translate('Homepage_Featured_Remaining') }}<strong>{{ max(0, $active->homepage_promotion_limit + $active->homepage_promotion_adjustment_limit - $active->used_homepage_promotion_limit) }}</strong></div>
+<div>{{ translate('coupon_limit') }}<strong>{{ max(0, $active->coupon_limit + $active->coupon_adjustment_limit - $active->used_coupon_limit) }}</strong></div>
+</div></section>
+@endif
+@if($performance)
+<section class="card card-body mb-4" id="package-performance"><h2>{{ translate('Package_Performance') }}: {{ $performance['package_name'] }}</h2><div class="vendor-finance-summary">
+<div>{{ translate('Search_Impressions') }}<strong>{{ $performance['impressions'] }}</strong></div>
+<div>{{ translate('Product_Visits') }}<strong>{{ $performance['visits'] }}</strong></div>
+<div>{{ translate('Orders') }}<strong>{{ $performance['orders'] }}</strong></div>
+<div>{{ translate('Sales_Amount') }}<strong>{{ webCurrencyConverter(amount:$performance['sales_amount']) }}</strong></div>
+</div></section>
+@endif
+@if($summary['pending_subscription'])<div class="alert alert-warning">{{ translate('pending_package') }}: {{ $summary['pending_subscription']->package_name }} · {{ translate($summary['pending_subscription']->status) }}</div>@endif
+<div class="row g-4">@forelse($packages as $package)<div class="col-md-6 col-xl-4"><section class="card card-body h-100"><h2>{{ $package->name }}</h2><p>{{ $package->description }}</p><strong class="h3">{{ webCurrencyConverter(amount:$package->package_price) }}</strong><dl><dt>{{ translate('search_promotions') }}</dt><dd>{{ $package->search_promotion_limit }}</dd><dt>{{ translate('homepage_promotions') }}</dt><dd>{{ $package->homepage_promotion_limit }}</dd><dt>{{ translate('coupon_limit') }}</dt><dd>{{ $package->coupon_limit }}</dd><dt>{{ translate('duration') }}</dt><dd>{{ $package->duration_value }} {{ translate($package->duration_unit ?: 'days') }}</dd></dl><form class="mt-auto" method="post" action="{{ route('vendor.packages.pay') }}">@csrf<input type="hidden" name="request_key" value="{{ old('request_key',(string) \Illuminate\Support\Str::uuid()) }}"><input type="hidden" name="package_id" value="{{ $package->id }}"><input type="hidden" name="payment_method" value="operating_balance"><button class="btn btn--primary w-100" @disabled((!$summary['can_purchase'] && $summary['pending_subscription']?->seller_package_id !== $package->id) || $operatingBalance < $package->package_price)>{{ translate('purchase_with_payments_balance') }}</button></form></section></div>@empty<p>{{ translate('no_data_found') }}</p>@endforelse</div>
+<section class="card card-body mt-4"><h2>{{ translate('package_history') }}</h2><div class="table-responsive"><table class="table"><thead><tr><th>{{ translate('package') }}</th><th>{{ translate('amount') }}</th><th>{{ translate('status') }}</th><th>{{ translate('expires_at') }}</th></tr></thead><tbody>@forelse($subscriptions as $subscription)<tr><td>{{ $subscription->package_name }}</td><td>{{ webCurrencyConverter(amount:$subscription->paid_package_price) }}</td><td>{{ translate($subscription->status) }}</td><td>{{ $subscription->expires_at?->format('Y-m-d') ?: '—' }}</td></tr>@empty<tr><td colspan="4">{{ translate('no_data_found') }}</td></tr>@endforelse</tbody></table></div></section></div>
 @endsection

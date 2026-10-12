@@ -44,19 +44,6 @@
                         @endforeach
                     </optgroup>
                 @endif
-                @if (count($withdrawalMethods) > 0)
-                    @if (count($vendorWithdrawMethods) > 0)
-                        <optgroup label="Others">
-                    @endif
-                    @foreach ($withdrawalMethods as $withdrawalMethod)
-                        <option value="{{ $withdrawalMethod['id'] }}" data-type="pre-defined">
-                            {{ $withdrawalMethod['method_name'] }}
-                        </option>
-                    @endforeach
-                    @if (count($vendorWithdrawMethods) > 0)
-                        </optgroup>
-                    @endif
-                @endif
             </select>
 
             <div id="note-withdrawal-method" class="d-none">
@@ -119,8 +106,8 @@
 
                         </label>
                         <input type="number" class="form-control" name="amount" step="any" min=".01" required
-                            placeholder="{{ translate('Ex') }}: {{ usdToDefaultCurrency(amount: $vendorWallet?->total_earning ?? 0) }}"
-                            max="{{ usdToDefaultCurrency(amount: $vendorWallet?->total_earning ?? 0) }}">
+                            placeholder="{{ translate('Ex') }}: {{ usdToDefaultCurrency(amount: $withdrawableAmount ?? ($dashboardData['totalEarning'] ?? $vendorWallet?->total_earning ?? 0)) }}"
+                            max="{{ usdToDefaultCurrency(amount: $withdrawableAmount ?? ($dashboardData['totalEarning'] ?? $vendorWallet?->total_earning ?? 0)) }}">
                     </div>
                 @endif
             @endforeach

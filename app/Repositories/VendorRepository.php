@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Contracts\Repositories\VendorRepositoryInterface;
 use App\Models\Seller;
+use App\Services\AdministrativeReferenceService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -31,8 +32,10 @@ class VendorRepository implements VendorRepositoryInterface
     {
         return $this->vendor->with($relations)
             ->when(isset($params['identity']), function ($query) use ($params) {
-                return $query->where(['email' => $params['identity']])
-                    ->orWhere(['phone' => $params['identity']]);
+                return $query->where(function ($identityQuery) use ($params) {
+                    $identityQuery->where('email', $params['identity'])
+                        ->orWhereIn('phone', app(\App\Services\EgyptPhoneService::class)->aliases($params['identity']));
+                });
             })
             ->when(isset($params['id']), function ($query) use ($params) {
                 return $query->where(['id' => $params['id']]);
@@ -57,11 +60,17 @@ class VendorRepository implements VendorRepositoryInterface
         $query = $this->vendor->with($relations)
             ->where($filters)
             ->when($searchValue, function ($query) use ($searchValue) {
-                $searchTerms = explode(' ', $searchValue);
+                $reference = AdministrativeReferenceService::parse($searchValue);
+                if (($reference['type'] ?? null) === 'sellers') {
+                    return $query->whereKey($reference['id']);
+                }
+
+                $searchTerms = preg_split('/\s+/', trim($searchValue)) ?: [];
                 return $query->where(function ($query) use ($searchTerms) {
                     foreach ($searchTerms as $term) {
                         $query->orWhere('f_name', 'like', "%$term%")
                             ->orWhere('l_name', 'like', "%$term%")
+                            ->orWhere('id', $term)
                             ->orWhere('phone', 'like', "%$term%")
                             ->orWhere('email', 'like', "%$term%")
                             ->orWhereHas('shop', function ($query) use ($term) {
@@ -79,6 +88,14 @@ class VendorRepository implements VendorRepositoryInterface
             ->when(!empty($orderBy) && array_key_exists('orders_count', $orderBy), function ($query) use ($orderBy) {
                 return $query->with(['wallet'])->withSum('wallet as total_earning_sum', 'total_earning')
                     ->orderBy('total_earning_sum', 'desc');
+            })
+            ->when(!empty($orderBy) && array_key_exists('gross_sales_total', $orderBy), function ($query) {
+                return $query->withSum(['orders as gross_sales_total' => function ($orders) {
+                    $orders->where('seller_is', 'seller')->where('order_status', 'delivered');
+                }], 'order_amount');
+            })
+            ->when(!empty($orderBy) && array_key_exists('active_package', $orderBy), function ($query) {
+                return $query->withExists(['activePackageSubscription as active_package']);
             })
             ->when(!empty($relations) && in_array('orders', $relations), function ($query) {
                 return $query->withCount('orders');

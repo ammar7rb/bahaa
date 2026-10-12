@@ -10,6 +10,7 @@ use App\Models\FlashDealProduct;
 use App\Models\Product;
 use App\Models\Translation;
 use App\Services\SellerProductEntitlementService;
+use App\Services\SellerProductContentPolicyService;
 use App\Utils\Convert;
 use App\Utils\Helpers;
 use App\Utils\ImageManager;
@@ -129,15 +130,8 @@ class ProductController extends Controller
             ], 401);
         }
 
-        try {
-            $this->sellerProductEntitlementService->assertCanReserve($seller);
-        } catch (DomainException $exception) {
-            return response()->json([
-                'errors' => [[
-                    'code' => $exception->getMessage(),
-                    'message' => translate($exception->getMessage()),
-                ]],
-            ], 403);
+        if ($policyResponse = $this->guardProductPolicy($request, $seller)) {
+            return $policyResponse;
         }
 
         $validator = Validator::make($request->all(), [
@@ -158,6 +152,16 @@ class ProductController extends Controller
             'shipping_cost'         => 'required_if:product_type,==,physical|gt:-1',
             'code'                  => 'required|unique:products',
             'minimum_order_qty'     => 'required|numeric|min:1',
+            'sale_unit_type'        => 'nullable|in:piece,package,box',
+            'pieces_per_unit'       => 'nullable|integer|min:1|required_if:sale_unit_type,package,box',
+            'length'                => 'nullable|numeric|gt:0',
+            'width'                 => 'nullable|numeric|gt:0',
+            'height'                => 'nullable|numeric|gt:0',
+            'dimension_unit'        => 'nullable|in:cm,m',
+            'weight'                => 'nullable|numeric|gt:0',
+            'weight_unit'           => 'nullable|in:g,kg',
+            'production_date'       => 'required|date',
+            'expiry_date'           => 'required|date|after_or_equal:production_date|after:today',
         ], [
             'name.required'                     => translate('Product name is required!'),
             'unit.required_if'                  => translate('Unit is required!'),
@@ -172,7 +176,17 @@ class ProductController extends Controller
             'minimum_order_qty.min'             => translate('The minimum order quantity must be positive!'),
         ]);
 
-        $brand_setting = BusinessSetting::where('type', 'product_brand')->first()->value;
+        $submittedImages = is_string($request->images)
+            ? (json_decode($request->images, true) ?: [])
+            : ($request->images ?: []);
+        if (count(array_filter((array) $submittedImages)) < 5) {
+            $validator->after(fn ($validator) => $validator->errors()->add(
+                'images',
+                translate('at_least_five_product_images_are_required')
+            ));
+        }
+
+        $brand_setting = BusinessSetting::where('type', 'product_brand')->value('value') ?? 0;
         if ($brand_setting && empty($request->brand_id)) {
             $validator->after(function ($validator) {
                 $validator->errors()->add(
@@ -200,8 +214,12 @@ class ProductController extends Controller
         $product->user_id = $seller->id;
         $product->added_by = "seller";
 
-        $product->name = $request->name[array_search(Helpers::default_lang(), $request->lang)];
-        $product->slug = Str::slug($request->name[array_search(Helpers::default_lang(), $request->lang)], '-') . '-' . Str::random(6);
+        // Older clients may omit `lang` when the default language is used.
+        // Resolve the name defensively so policy validation can return its
+        // intended response instead of failing with array_search(null).
+        $productName = $this->resolveLocalizedField($request, 'name');
+        $product->name = $productName;
+        $product->slug = Str::slug($productName, '-') . '-' . Str::random(6);
 
         $category = [];
 
@@ -227,11 +245,21 @@ class ProductController extends Controller
         $product->category_ids          = json_encode($category);
         $product->brand_id              = isset($request->brand_id) ? $request->brand_id : null;
         $product->unit                  = $request->product_type == 'physical' ? $request->unit : null;
+        $product->sale_unit_type        = in_array($request->input('sale_unit_type'), ['package', 'box'], true) ? 'package' : 'piece';
+        $product->pieces_per_unit       = in_array($request->input('sale_unit_type'), ['package', 'box'], true) ? (int) $request->pieces_per_unit : null;
+        $product->length                = $request->filled('length') ? (float) $request->length : null;
+        $product->width                 = $request->filled('width') ? (float) $request->width : null;
+        $product->height                = $request->filled('height') ? (float) $request->height : null;
+        $product->dimension_unit        = $request->filled('dimension_unit') ? $request->dimension_unit : null;
+        $product->weight                = $request->filled('weight') ? (float) $request->weight : null;
+        $product->weight_unit           = $request->filled('weight_unit') ? $request->weight_unit : null;
+        $product->production_date       = $request->production_date;
+        $product->expiry_date           = $request->expiry_date;
         $product->product_type          = $request->product_type;
         $product->digital_product_type  = $request->product_type == 'digital' ? $request->digital_product_type : null;
         $product->code                  = $request->code;
         $product->minimum_order_qty     = $request->minimum_order_qty;
-        $product->details               = $request->description[array_search(Helpers::default_lang(), $request->lang)];
+        $product->details               = $this->resolveLocalizedField($request, 'description');
 
         $product->images                = json_encode($request->images);
         $product->thumbnail             = $request->thumbnail;
@@ -322,23 +350,18 @@ class ProductController extends Controller
 
         $product->video_provider = 'youtube';
         $product->video_url = $request->video_link;
-        $product->request_status = getWebConfig(name: 'new_product_approval') == 1 ? 0 : 1;
+        // A completed seller product is active in the seller catalogue but is
+        // not public until an administrator approves the submission.
+        $product->request_status = 0;
         $product->status = 0;
+        $product->seller_review_status = \App\Services\SellerProductReviewService::SUBMITTED;
+        $product->seller_submitted_at = now();
+        $product->seller_reviewed_at = null;
+        $product->seller_reviewed_by = null;
         $product->shipping_cost  = $request->product_type == 'physical' ? Convert::usd($request->shipping_cost) : 0;
         $product->multiply_qty = ($request->product_type == 'physical') ? ($request->multiplyQTY == 1 ? 1 : 0) : 0;
         $product->save();
-        try {
-            $this->sellerProductEntitlementService->reserveForProduct($product, $seller);
-        } catch (DomainException $exception) {
-            $product->delete();
-
-            return response()->json([
-                'errors' => [[
-                    'code' => $exception->getMessage(),
-                    'message' => translate($exception->getMessage()),
-                ]],
-            ], 403);
-        }
+        app(\App\Services\SellerProductReviewService::class)->submit($product);
         $data = [];
         foreach ($request->lang as $index => $key) {
             if ($request->name[$index] && $key != Helpers::default_lang()) {
@@ -362,7 +385,12 @@ class ProductController extends Controller
         }
         Translation::insert($data);
 
-        return response()->json(['message' => translate('successfully product added!')], 200);
+        return response()->json([
+            'message' => translate('successfully product added!'),
+            'review_status' => \App\Services\SellerProductReviewService::SUBMITTED,
+            'seller_display_status' => 'active',
+            'request_status' => 0,
+        ], 200);
     }
 
     public function edit(Request $request, $id):JsonResponse
@@ -393,23 +421,16 @@ class ProductController extends Controller
             ], 401);
         }
 
+
+        if ($policyResponse = $this->guardProductPolicy($request, $seller, (int) $id)) {
+            return $policyResponse;
+        }
+
         $product = Product::where(['added_by' => 'seller', 'user_id' => $seller->id])->find($id);
         if (! $product) {
             return response()->json(['message' => translate('seller_product_not_found')], 404);
         }
         $wasRejected = (int) $product->request_status === 2;
-        if ($wasRejected) {
-            try {
-                $this->sellerProductEntitlementService->assertCanReserve($seller);
-            } catch (DomainException $exception) {
-                return response()->json([
-                    'errors' => [[
-                        'code' => $exception->getMessage(),
-                        'message' => translate($exception->getMessage()),
-                    ]],
-                ], 403);
-            }
-        }
 
         $validator = Validator::make($request->all(), [
             'name'                  => 'required',
@@ -425,6 +446,16 @@ class ProductController extends Controller
             'discount'              => 'required|gt:-1',
             'shipping_cost'         => 'required_if:product_type,==,physical|gt:-1',
             'minimum_order_qty'     => 'required|numeric|min:1',
+            'sale_unit_type'        => 'nullable|in:piece,package,box',
+            'pieces_per_unit'       => 'nullable|integer|min:1|required_if:sale_unit_type,package,box',
+            'length'                => 'nullable|numeric|gt:0',
+            'width'                 => 'nullable|numeric|gt:0',
+            'height'                => 'nullable|numeric|gt:0',
+            'dimension_unit'        => 'nullable|in:cm,m',
+            'weight'                => 'nullable|numeric|gt:0',
+            'weight_unit'           => 'nullable|in:g,kg',
+            'production_date'       => 'required|date',
+            'expiry_date'           => 'required|date|after_or_equal:production_date|after:today',
             'code'                  => 'required|numeric|min:1|digits_between:6,20|unique:products,code,'.$product->id,
         ], [
             'name.required'                     => 'Product name is required!',
@@ -438,7 +469,17 @@ class ProductController extends Controller
             'digital_product_type.required_if'  => 'Digital product type is required!',
         ]);
 
-        $brand_setting = BusinessSetting::where('type', 'product_brand')->first()->value;
+        $submittedImages = is_string($request->images)
+            ? (json_decode($request->images, true) ?: [])
+            : ($request->images ?: []);
+        if (count(array_filter((array) $submittedImages)) < 5) {
+            $validator->after(fn ($validator) => $validator->errors()->add(
+                'images',
+                translate('at_least_five_product_images_are_required')
+            ));
+        }
+
+        $brand_setting = BusinessSetting::where('type', 'product_brand')->value('value') ?? 0;
         if ($brand_setting && empty($request->brand_id)) {
             $validator->after(function ($validator) {
                 $validator->errors()->add(
@@ -466,8 +507,9 @@ class ProductController extends Controller
         $product->user_id = $seller->id;
         $product->added_by = "seller";
 
-        $product->name = $request->name[array_search(Helpers::default_lang(), $request->lang)];
-        $product->slug = Str::slug($request->name[array_search(Helpers::default_lang(), $request->lang)], '-') . '-' . Str::random(6);
+        $productName = $this->resolveLocalizedField($request, 'name');
+        $product->name = $productName;
+        $product->slug = Str::slug($productName, '-') . '-' . Str::random(6);
 
         $category = [];
 
@@ -493,11 +535,21 @@ class ProductController extends Controller
         $product->category_ids          = json_encode($category);
         $product->brand_id              = isset($request->brand_id) ? $request->brand_id : null;
         $product->unit                  = $request->product_type == 'physical' ? $request->unit : null;
+        $product->sale_unit_type        = in_array($request->input('sale_unit_type'), ['package', 'box'], true) ? 'package' : 'piece';
+        $product->pieces_per_unit       = in_array($request->input('sale_unit_type'), ['package', 'box'], true) ? (int) $request->pieces_per_unit : null;
+        $product->length                = $request->filled('length') ? (float) $request->length : null;
+        $product->width                 = $request->filled('width') ? (float) $request->width : null;
+        $product->height                = $request->filled('height') ? (float) $request->height : null;
+        $product->dimension_unit        = $request->filled('dimension_unit') ? $request->dimension_unit : null;
+        $product->weight                = $request->filled('weight') ? (float) $request->weight : null;
+        $product->weight_unit           = $request->filled('weight_unit') ? $request->weight_unit : null;
+        $product->production_date       = $request->production_date;
+        $product->expiry_date           = $request->expiry_date;
         $product->product_type          = $request->product_type;
         $product->digital_product_type  = $request->product_type == 'digital' ? $request->digital_product_type : null;
         $product->code                  = $request->code;
         $product->minimum_order_qty     = $request->minimum_order_qty;
-        $product->details               = $request->description[array_search(Helpers::default_lang(), $request->lang)];
+        $product->details               = $this->resolveLocalizedField($request, 'description');
 
         $product->images                = json_encode($request->images);
         $product->thumbnail             = $request->thumbnail;
@@ -614,23 +666,22 @@ class ProductController extends Controller
         $product->video_provider = 'youtube';
         $product->video_url = $request->video_link;
 
-        if ($product->request_status == 2) {
+        if ($wasRejected) {
+            // A correction is a fresh submission; it cannot bypass the
+            // administrator's publication decision.
             $product->request_status = 0;
+            $product->status = 0;
+            $product->is_homepage_visible = 0;
+            $product->seller_review_status = \App\Services\SellerProductReviewService::SUBMITTED;
+            $product->seller_review_reason = null;
+            $product->denied_note = null;
+            $product->seller_submitted_at = now();
+            $product->seller_reviewed_at = null;
+            $product->seller_reviewed_by = null;
         }
         $product->save();
         if ($wasRejected) {
-            try {
-                $this->sellerProductEntitlementService->reserveForProduct($product, $seller);
-            } catch (DomainException $exception) {
-                $product->update(['request_status' => 2, 'status' => 0]);
-
-                return response()->json([
-                    'errors' => [[
-                        'code' => $exception->getMessage(),
-                        'message' => translate($exception->getMessage()),
-                    ]],
-                ], 403);
-            }
+            app(\App\Services\SellerProductReviewService::class)->submit($product);
         }
 
         foreach ($request->lang as $index => $key) {
@@ -661,6 +712,56 @@ class ProductController extends Controller
         return response()->json(['message' => translate('successfully product updated!')], 200);
     }
 
+    private function resolveLocalizedField(Request $request, string $field): string
+    {
+        $values = $request->input($field, []);
+        if (is_string($values)) {
+            $decoded = json_decode($values, true);
+            $values = is_array($decoded) ? $decoded : [$values];
+        }
+        $values = is_array($values) ? array_values($values) : [];
+
+        if ($values === []) {
+            return '';
+        }
+
+        $languages = $request->input('lang', [Helpers::default_lang()]);
+        if (is_string($languages)) {
+            $decoded = json_decode($languages, true);
+            $languages = is_array($decoded) ? $decoded : [$languages];
+        }
+        $languages = is_array($languages) ? array_values($languages) : [Helpers::default_lang()];
+        $index = array_search(Helpers::default_lang(), $languages, true);
+
+        return (string) ($values[$index === false ? 0 : $index] ?? $values[0]);
+    }
+
+    private function guardProductPolicy(Request $request, $seller, ?int $productId = null): ?JsonResponse
+    {
+        $policy = app(SellerProductContentPolicyService::class);
+        $violations = $policy->inspect($request->only([
+            'name', 'description', 'meta_title', 'meta_description', 'video_link',
+        ]));
+
+        if ($violations !== []) {
+            $policy->record($seller, $violations, $productId);
+
+            return response()->json(['errors' => [[
+                'code' => 'seller_product_content_policy_violation',
+                'message' => translate('seller_product_content_policy_violation'),
+            ]]], 422);
+        }
+
+        if ($policy->countImages($request->input('images'), $request->input('color_image')) < 5) {
+            return response()->json(['errors' => [[
+                'code' => 'seller_product_minimum_images_required',
+                'message' => translate('seller_product_minimum_images_required'),
+            ]]], 422);
+        }
+
+        return null;
+    }
+
     public function status_update(Request $request):JsonResponse
     {
         $data = Helpers::get_seller_by_token($request);
@@ -676,17 +777,16 @@ class ProductController extends Controller
         if (! $product) {
             return response()->json(['message' => translate('seller_product_not_found')], 404);
         }
-        if ((int) $request->status === 1) {
-            try {
-                $this->sellerProductEntitlementService->activateForPublication($product, $seller);
-            } catch (DomainException $exception) {
-                return response()->json([
-                    'errors' => [[
-                        'code' => $exception->getMessage(),
-                        'message' => translate($exception->getMessage()),
-                    ]],
-                ], 403);
-            }
+        if ((int) $request->status === 1 && (int) $product->request_status !== 1) {
+            return response()->json([
+                'errors' => [[
+                    'code' => 'product_must_be_approved_before_publication',
+                    'message' => translate('product_must_be_approved_before_publication'),
+                ]],
+            ], 403);
+        }
+        if ((int) $request->status === 1 && (! $product->expiry_date || ! $product->expiry_date->isFuture())) {
+            return response()->json(['errors' => [['code' => 'product_is_expired', 'message' => translate('product_is_expired')]]], 403);
         }
         $product->status = (int) $request->status;
         $product->save();

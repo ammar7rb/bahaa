@@ -4,6 +4,7 @@ namespace App\Http\Controllers\RestAPI\v3\seller;
 
 use App\Http\Controllers\Controller;
 use App\Models\ShippingMethod;
+use App\Services\CustomerThreeStepShippingService;
 use App\Utils\BackEndHelper;
 use App\Utils\Helpers;
 use Illuminate\Http\JsonResponse;
@@ -13,8 +14,18 @@ use Illuminate\Support\Facades\Validator;
 
 class ShippingMethodController extends Controller
 {
+    private function adminManagedShippingResponse(): JsonResponse
+    {
+        return response()->json(['message' => translate('Shipping is managed by admin')], 403);
+    }
+
     public function store(Request $request):JsonResponse
     {
+        if (app(CustomerThreeStepShippingService::class)->isEnabled()) {
+            // Seller-created methods must not bypass the active admin three-step methods.
+            return $this->adminManagedShippingResponse();
+        }
+
         $seller = $request->seller;
         $validator = Validator::make($request->all(), [
             'title' => 'required|max:200',
@@ -50,6 +61,11 @@ class ShippingMethodController extends Controller
 
     public function status_update(Request $request):JsonResponse
     {
+        if (app(CustomerThreeStepShippingService::class)->isEnabled()) {
+            // Lock changes to legacy seller methods while admin owns shipping.
+            return $this->adminManagedShippingResponse();
+        }
+
         $seller = $request->seller;
         $validator = Validator::make($request->all(), [
             'id' => 'required',
@@ -80,6 +96,11 @@ class ShippingMethodController extends Controller
 
     public function update(Request $request, $id):JsonResponse
     {
+        if (app(CustomerThreeStepShippingService::class)->isEnabled()) {
+            // Lock changes to legacy seller methods while admin owns shipping.
+            return $this->adminManagedShippingResponse();
+        }
+
         $seller = $request->seller;
         $validator = Validator::make($request->all(), [
             'title' => 'required|max:200',
@@ -105,6 +126,11 @@ class ShippingMethodController extends Controller
 
     public function delete(Request $request):JsonResponse
     {
+        if (app(CustomerThreeStepShippingService::class)->isEnabled()) {
+            // Lock changes to legacy seller methods while admin owns shipping.
+            return $this->adminManagedShippingResponse();
+        }
+
         $seller = $request->seller;
         ShippingMethod::where(['id' => $request->id, 'creator_id' => $seller['id']])->delete();
 

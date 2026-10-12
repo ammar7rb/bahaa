@@ -5,8 +5,7 @@
     use App\Utils\ProductManager;
 @endphp
 <div class="dropdown">
-    <a href="{{route('shop-cart')}}" class="position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside"
-       aria-expanded="false">
+    <a href="{{route('shop-cart')}}" class="position-relative">
         @php($cart=CartManager::getCartListQuery())
         <i class="bi bi-bag fs-18"></i>
         <span class="count">{{$cart->count()}}</span>
@@ -130,8 +129,8 @@
                     @if($web_config['guest_checkout_status'] || auth('customer')->check())
                         <a href="{{route('shop-cart')}}"
                            class="btn btn-outline-primary btn-block">{{translate('view_cart')}}</a>
-                        <a href="{{route('checkout-details')}}"
-                           class="btn btn-primary btn-block">{{translate('go_to_checkout')}}</a>
+                        <a href="{{route('shop-cart')}}"
+                           class="btn btn-primary btn-block">{{translate('view_cart')}}</a>
                     @else
                         <button class="btn btn-outline-primary btn-block" data-bs-toggle="modal"
                                 data-bs-target="#loginModal">{{translate('view_cart')}}</button>

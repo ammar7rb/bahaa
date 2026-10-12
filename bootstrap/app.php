@@ -8,6 +8,9 @@ use App\Http\Middleware\CustomerMiddleware;
 use App\Http\Middleware\DatabaseRefreshMiddleware;
 use App\Http\Middleware\DeliveryManAuth;
 use App\Http\Middleware\GuestMiddleware;
+use App\Http\Middleware\HideVendorLegacyFeaturesMiddleware;
+use App\Http\Middleware\HidePublicSellerInformationMiddleware;
+use App\Http\Middleware\HideAdminDeliveryManFeatureMiddleware;
 use App\Http\Middleware\InstallationMiddleware;
 use App\Http\Middleware\MaintenanceModeMiddleware;
 use App\Http\Middleware\ModulePermissionMiddleware;
@@ -16,6 +19,7 @@ use App\Http\Middleware\SellerMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Http\Middleware\CheckForMaintenanceMode;
 use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
 use Illuminate\Foundation\Http\Middleware\TrimStrings;
@@ -40,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ValidatePostSize::class,
             TrimStrings::class,
             ConvertEmptyStringsToNull::class,
+            \App\Http\Middleware\ValidateEgyptPhoneInputs::class,
             DatabaseRefreshMiddleware::class,
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
@@ -47,15 +52,18 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EncryptCookies::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
+            \App\Http\Middleware\EndDeletedCustomerSession::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\Localization::class,
             \App\Http\Middleware\DetectMobile::class,
+            \App\Http\Middleware\RecordPrivacySafePlatformMetric::class,
         ]);
         $middleware->group('api', [
-            'throttle:3000,1',
+            'throttle:3000,1,api-global:',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\RecordPrivacySafePlatformMetric::class,
         ]);
         /*
         |--------------------------------------------------------------------------
@@ -84,12 +92,60 @@ return Application::configure(basePath: dirname(__DIR__))
             'delivery_man_auth' => DeliveryManAuth::class,
             'seller_api_auth' => SellerApiAuthMiddleware::class,
             'guestCheck' => GuestMiddleware::class,
+            'vendor_hidden_feature' => HideVendorLegacyFeaturesMiddleware::class,
+            'hide_public_seller_information' => HidePublicSellerInformationMiddleware::class,
+            'admin_delivery_man_hidden' => HideAdminDeliveryManFeatureMiddleware::class,
             'apiGuestCheck' => APIGuestMiddleware::class,
             'logUserBrowsingNavigation' => \App\Http\Middleware\LogUserBrowsingNavigationMiddleware::class,
             'detectMobile' => \App\Http\Middleware\DetectMobile::class,
         ]);
     })
+    ->withSchedule(function (Schedule $schedule) {
+        $schedule->command('seller-products:expire-entitlements')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+        $schedule->command('seller-promotions:expire')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+        $schedule->command('products:enforce-expiry')
+            ->hourly()
+            ->withoutOverlapping();
+        $schedule->command('packages:expire-subscriptions')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+        $schedule->command('seller-settlements:release-due')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+        $schedule->command('customer-insurance:release-due')
+            ->hourly()
+            ->withoutOverlapping();
+        $schedule->command('seller-order-insurances:release-reusable')
+            ->dailyAt('02:25')
+            ->withoutOverlapping();
+        $schedule->command('support-tickets:archive-closed')
+            ->dailyAt('02:15')
+            ->withoutOverlapping();
+        $schedule->command('orders:monitor-seller-delays')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+        $schedule->command('orders:expire-customer-confirmations')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+        $schedule->command('orders:expire-customer-insurance-payments')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+        $schedule->command('orders:release-customer-purchase-refunds')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+    })
     ->withExceptions(function (Exceptions $exceptions) {
         // You can customize exception handling here if needed
+    })
+    ->withSchedule(function (Schedule $schedule) {
+        $schedule->command('post-purchase-invoices:expire')->everyFiveMinutes()->withoutOverlapping();
+        $schedule->call(fn () => app(\App\Services\SellerShippingResponseService::class)->monitorOverdueResponses())
+            ->name('seller-shipping-response-overdue-monitor')
+            ->everyFiveMinutes()->withoutOverlapping();
+        $schedule->command('commerce:release-matured-refunds')->hourly()->withoutOverlapping();
     })
     ->create();

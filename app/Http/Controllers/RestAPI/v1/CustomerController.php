@@ -10,10 +10,13 @@ use App\Models\DeliveryCountryCode;
 use App\Models\DeliveryZipCode;
 use App\Models\GuestUser;
 use App\Models\Order;
+use App\Models\OrderRefundLedger;
+use App\Models\CustomerPurchaseBalance;
 use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\Review;
 use App\Models\ShippingAddress;
+use App\Services\GoogleMapsShippingLocationService;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketConv;
 use App\Models\Wishlist;
@@ -23,18 +26,21 @@ use App\Traits\FileManagerTrait;
 use App\Models\User;
 use App\Utils\CustomerManager;
 use App\Utils\Helpers;
+use App\Services\CustomerActivationService;
+
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 class CustomerController extends Controller
 {
     use CommonTrait, PdfGenerator, FileManagerTrait;
 
-    public function info(Request $request):JsonResponse
+    public function info(Request $request, CustomerActivationService $activationService):JsonResponse
     {
         $user = $request->user();
         $getUser = User::where(['id' => $user->id])->first();
@@ -44,6 +50,12 @@ class CustomerController extends Controller
         $user->is_phone_verified = $getUser->is_phone_verified;
         $user->email_verification_token = $getUser->email_verification_token;
         $user->email_verified_at = $getUser->email_verified_at;
+        $user->activation = $activationService->payload($getUser);
+        if (app(\App\Services\CustomerPurchaseEligibilityService::class)->enabled()) $user->purchase_eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class)->status($getUser);
+        // Suppress the retired notice for older app versions as well.
+        $user->insurance_available_balance = 0;
+        $user->insurance_enabled = false;
+        $user->insurance_balance_notice = ['visible' => false, 'dismissible' => false, 'message' => ''];
         return response()->json($user, 200);
     }
 
@@ -79,23 +91,16 @@ class CustomerController extends Controller
 
     public function account_delete(Request $request, $id): JsonResponse
     {
-        if ($request->user()->id == $id) {
-            $user = User::find($id);
-            $ongoing = ['out_for_delivery', 'processing', 'confirmed', 'pending'];
-            $order = Order::where('customer_id', $user->id)->where('is_guest', 0)->whereIn('order_status', $ongoing)->count();
-            if ($order > 0) {
-                return response()->json(['message' => 'Due to ongoing orders, you are unable to delete your account.'], 403);
-            }
-            $this->delete('/profile/' . $user['image']);
-            $user->delete();
-            return response()->json(['message' => 'Your account deleted successfully'], 200);
-        } else {
-            return response()->json(['message' => 'access_denied!!'], 403);
-        }
+        abort(405, 'استخدم خطوات حذف الحساب الآمنة.');
     }
 
     public function reply_support_ticket(Request $request, $ticket_id)
     {
+        $ticket = SupportTicket::query()->visibleToSubject()
+            ->where('id', $ticket_id)->where('customer_id', $request->user()->id)->first();
+        if (! $ticket) {
+            return response()->json(['message' => 'Ticket not found'], 404);
+        }
         DB::table('support_tickets')->where(['id' => $ticket_id])->update([
             'status' => 'open',
             'updated_at' => now(),
@@ -123,13 +128,17 @@ class CustomerController extends Controller
 
     public function get_support_tickets(Request $request)
     {
-        return response()->json(SupportTicket::where('customer_id', $request->user()->id)->latest()->get(), 200);
+        return response()->json(SupportTicket::visibleToSubject()->where('customer_id', $request->user()->id)->latest()->get(), 200);
     }
 
-    public function get_support_ticket_conv($ticket_id)
+    public function get_support_ticket_conv(Request $request, $ticket_id)
     {
+        $support_ticket = SupportTicket::query()->visibleToSubject()
+            ->where('id', $ticket_id)->where('customer_id', $request->user()->id)->first();
+        if (! $support_ticket) {
+            return response()->json(['message' => 'Ticket not found'], 404);
+        }
         $conversations = SupportTicketConv::where('support_ticket_id', $ticket_id)->get();
-        $support_ticket = SupportTicket::find($ticket_id);
 
         $conversations = $conversations->toArray();
 
@@ -150,9 +159,10 @@ class CustomerController extends Controller
         return response()->json($conversations, 200);
     }
 
-    public function support_ticket_close($id)
+    public function support_ticket_close(Request $request, $id)
     {
-        $ticket = SupportTicket::find($id);
+        $ticket = SupportTicket::query()->visibleToSubject()
+            ->where('id', $id)->where('customer_id', $request->user()->id)->first();
         if ($ticket) {
             $ticket->status = 'close';
             $ticket->updated_at = now();
@@ -243,11 +253,15 @@ class CustomerController extends Controller
             'address_type' => 'required',
             'address' => 'required',
             'city' => 'required',
-            'zip' => 'required',
+            'state' => 'required',
+            'district' => 'nullable|string|max:255',
+            'area' => 'nullable|string|max:255',
+            'street' => 'nullable|string|max:255',
+            'building_number' => 'nullable|string|max:100',
+            'landmark' => 'nullable|string|max:255',
+            'zip' => 'nullable|string|max:20',
             'country' => 'required',
             'phone' => 'required',
-            'latitude' => 'required',
-            'longitude' => 'required',
             'is_billing' => 'required'
         ]);
 
@@ -266,8 +280,10 @@ class CustomerController extends Controller
         }
 
         $user = Helpers::getCustomerInformation($request);
+        $locationService = app(GoogleMapsShippingLocationService::class);
+        $resolution = $locationService->resolve($request->all());
 
-        $address = [
+        $address = array_merge([
             'customer_id' => $user == 'offline' ? $request->guest_id : $user->id,
             'is_guest' => $user == 'offline' ? 1 : 0,
             'contact_person_name' => $request->contact_person_name,
@@ -275,21 +291,45 @@ class CustomerController extends Controller
             'address' => $request->address,
             'city' => $request->city,
             'zip' => $request->zip,
-            'country' => $request->country,
+            'country' => 'Egypt',
             'phone' => $request->phone,
             'email' => $request->email,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
             'is_billing' => $request->is_billing,
             'created_at' => now(),
             'updated_at' => now(),
-        ];
-        ShippingAddress::insert($address);
-        return response()->json(['message' => translate('successfully added!')], 200);
+        ], $locationService->persistedLocationFields($request->all(), $resolution));
+        $addressId = ShippingAddress::query()->insertGetId($address);
+        return response()->json([
+            'message' => translate('successfully added!'),
+            'address_id' => $addressId,
+            'address_resolution' => $resolution,
+        ], 200);
     }
 
     public function update_address(Request $request): JsonResponse
     {
+        $validator = Validator::make($request->all(), [
+            'id' => 'required',
+            'contact_person_name' => 'required',
+            'address_type' => 'required',
+            'address' => 'required',
+            'city' => 'required',
+            'state' => 'required',
+            'district' => 'nullable|string|max:255',
+            'area' => 'nullable|string|max:255',
+            'street' => 'nullable|string|max:255',
+            'building_number' => 'nullable|string|max:100',
+            'landmark' => 'nullable|string|max:255',
+            'zip' => 'nullable|string|max:20',
+            'country' => 'required',
+            'phone' => 'required',
+            'is_billing' => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
+        }
+
         $user = Helpers::getCustomerInformation($request);
 
         $shippingAddress = ShippingAddress::where([
@@ -310,7 +350,9 @@ class CustomerController extends Controller
             return response()->json(['error_type' => 'zip_code', 'message' => translate('Delivery_unavailable_for_this_zip_code_area')], 403);
         }
 
-        $shippingAddress->update([
+        $locationService = app(GoogleMapsShippingLocationService::class);
+        $resolution = $locationService->resolve($request->all());
+        $shippingAddress->update(array_merge([
             'customer_id' => $user == 'offline' ? $request->guest_id : $user->id,
             'is_guest' => $user == 'offline' ? 1 : 0,
             'contact_person_name' => $request['contact_person_name'],
@@ -318,16 +360,16 @@ class CustomerController extends Controller
             'address' => $request['address'],
             'city' => $request['city'],
             'zip' => $request['zip'],
-            'country' => $request['country'],
+            'country' => 'Egypt',
             'phone' => $request['phone'],
-            'latitude' => $request['latitude'],
-            'longitude' => $request['longitude'],
             'is_billing' => $request['is_billing'],
-            'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ], $locationService->persistedLocationFields($request->all(), $resolution)));
 
-        return response()->json(['message' => translate('update_successful')], 200);
+        return response()->json([
+            'message' => translate('update_successful'),
+            'address_resolution' => $resolution,
+        ], 200);
     }
 
     public function delete_address(Request $request):JsonResponse
@@ -381,6 +423,8 @@ class CustomerController extends Controller
                 $query['product'] = Helpers::product_data_formatting(json_decode($query['product'], true));
                 return $query;
             });
+
+            $this->attachRefundSummary($data);
 
             return $data;
         });
@@ -473,11 +517,67 @@ class CustomerController extends Controller
         }
 
         $order = Order::withCount('orderDetails')->with(['deliveryMan', 'offlinePayments', 'verificationImages', 'latestEditHistory', 'orderEditHistory'])->where(['id' => $request['order_id']])->first();
+        if ($order) {
+            $this->attachRefundSummary($order);
+        }
         if (isset($order['offlinePayments'])) {
             $order['offlinePayments']->payment_info = $order->offlinePayments->payment_info;
         }
         $order = json_decode(json_encode($order), true);
         return response()->json($order, 200);
+    }
+
+    public function postPaymentRefunds(Request $request): JsonResponse
+    {
+        if (! Schema::hasTable('order_refund_ledgers')) {
+            return response()->json([
+                'purchase_balance' => ['available_amount' => 0, 'held_amount' => 0],
+                'refunds' => [],
+            ]);
+        }
+
+        $customerId = (int) $request->user()->id;
+        $refunds = OrderRefundLedger::query()
+            ->where('customer_id', $customerId)
+            ->latest('id')
+            ->paginate(max(1, min(100, (int) $request->input('limit', 20))));
+        $purchaseBalance = CustomerPurchaseBalance::query()->where('customer_id', $customerId)->first();
+
+        return response()->json([
+            'purchase_balance' => [
+                'available_amount' => (float) ($purchaseBalance?->available_amount ?? 0),
+                'held_amount' => (float) ($purchaseBalance?->held_amount ?? 0),
+            ],
+            'total_size' => $refunds->total(),
+            'limit' => $refunds->perPage(),
+            'offset' => $refunds->currentPage(),
+            'refunds' => $refunds->items(),
+        ]);
+    }
+
+    private function attachRefundSummary(Order $order): void
+    {
+        if (! Schema::hasTable('order_refund_ledgers')) {
+            $order->setAttribute('refund_summary', null);
+            return;
+        }
+
+        $ledgers = $order->refundLedgers()->latest('id')->get();
+        if ($ledgers->isEmpty()) {
+            $order->setAttribute('refund_summary', null);
+            return;
+        }
+
+        $latest = $ledgers->first();
+        $order->setAttribute('refund_summary', [
+            'status' => $latest->status,
+            'reason' => $latest->reason,
+            'purchase_amount' => (float) $ledgers->sum('purchase_amount'),
+            'insurance_amount' => (float) $ledgers->sum('insurance_amount'),
+            'purchase_available_at' => $latest->purchase_available_at?->toIso8601String(),
+            'insurance_available_at' => $latest->insurance_available_at?->toIso8601String(),
+            'withdrawable' => false,
+        ]);
     }
 
     public function update_profile(UpdateProfileApiRequest $request):JsonResponse
@@ -493,13 +593,16 @@ class CustomerController extends Controller
             $password = bcrypt($request['password']);
         }
 
-        User::where(['id' => $request->user()->id])->update([
+        $phones = app(\App\Services\EgyptPhoneService::class);
+        $effectivePhone = $phones->normalizeLocal($user['is_phone_verified'] ? $user['phone'] : $request['phone']);
+        $phoneChanged = $effectivePhone !== $phones->normalizeLocal($user['phone']);
+        $user->update([
             'f_name' => $request->f_name,
             'l_name' => $request->l_name,
             'image' => $imageName,
-            'phone' => $user['is_phone_verified'] ? $user['phone'] : $request['phone'],
+            'phone' => $effectivePhone,
             'email' => $request['email'],
-            'is_phone_verified' => $request['phone'] == $user['phone'] ? $user['is_phone_verified'] : 0,
+            'is_phone_verified' => $phoneChanged ? 0 : $user['is_phone_verified'],
             'is_email_verified' => $request['email'] == $user['email'] ? $user['is_email_verified'] : 0,
             'email_verified_at' => $request['email'] == $user['email'] ? $user['email_verified_at'] : null,
             'password' => $password,
@@ -576,3 +679,4 @@ class CustomerController extends Controller
         return response()->json(['message' => 'Successfully change'], 200);
     }
 }
+

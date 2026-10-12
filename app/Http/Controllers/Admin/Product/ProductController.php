@@ -28,6 +28,7 @@ use App\Contracts\Repositories\VendorRepositoryInterface;
 use App\Contracts\Repositories\WishlistRepositoryInterface;
 use App\Enums\WebConfigKey;
 use App\Events\ProductRequestStatusUpdateEvent;
+use App\Models\ProductReviewDecision;
 use App\Exports\ProductListExport;
 use App\Exports\RestockProductListExport;
 use App\Http\Controllers\BaseController;
@@ -37,7 +38,9 @@ use App\Http\Requests\ProductEditImageRequest;
 use App\Http\Requests\ProductUpdateRequest;
 use App\Repositories\DigitalProductPublishingHouseRepository;
 use App\Services\ProductService;
+use App\Services\HomepageSectionBuilderService;
 use App\Services\SellerProductEntitlementService;
+use App\Services\SellerProductReviewService;
 use App\Traits\FileManagerTrait;
 use App\Traits\ProductTrait;
 use App\Utils\CartManager;
@@ -54,6 +57,7 @@ use Modules\TaxModule\app\Models\SystemTaxSetup;
 use Modules\TaxModule\app\Models\Taxable;
 use Modules\TaxModule\app\Traits\VatTaxManagement;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 class ProductController extends BaseController
 {
@@ -93,6 +97,7 @@ class ProductController extends BaseController
         private readonly ShopRepositoryInterface                    $shopRepo,
         private readonly ProductService                             $productService,
         private readonly SellerProductEntitlementService            $sellerProductEntitlementService,
+        private readonly HomepageSectionBuilderService              $homepageSectionBuilder,
     )
     {
     }
@@ -141,6 +146,8 @@ class ProductController extends BaseController
         $sellers = $this->sellerRepo->getByStatusExcept(status: 'pending', relations: ['shop'], paginateBy: $paginationLimit);
         $brands = $this->brandRepo->getListWhere(orderBy: ['id' => 'desc'], dataLimit: 'all');
         $categories = $this->categoryRepo->getListWhere(filters: ['position' => 0], relations: ['childes.childes'], dataLimit: 'all');
+        $homepageTheme = theme_root_path();
+        $homepagePlacementSections = $this->homepageSectionBuilder->productPlacementSections($homepageTheme);
 
         return view('admin-views.product.list', compact(
             'products',
@@ -151,7 +158,9 @@ class ProductController extends BaseController
             'subSubCategories',
             'filters',
             'type',
-            'productWiseTax'
+            'productWiseTax',
+            'homepageTheme',
+            'homepagePlacementSections'
         ));
     }
 
@@ -183,6 +192,7 @@ class ProductController extends BaseController
         }
         $shopId = getInHouseShopConfig('id');
         $dataArray = $service->getAddProductData(request: $request, addedBy: 'admin', shopId: $shopId);
+        $dataArray = array_merge($dataArray, $this->getAdminManagedShippingRates($request), ['category_review_required' => false]);
         $savedProduct = $this->productRepo->add(data: $dataArray);
         $this->productRepo->addRelatedTags(request: $request, product: $savedProduct);
         $this->translationRepo->add(request: $request, model: 'App\Models\Product', id: $savedProduct->id);
@@ -247,6 +257,23 @@ class ProductController extends BaseController
         }
     }
 
+    private function getAdminManagedShippingRates(object $request): array
+    {
+        if (!(bool) getWebConfig(name: 'customer_three_step_shipping_status')
+            || ($request['product_type'] ?? null) !== 'physical') {
+            return [];
+        }
+
+        // Three-step delivery rates are set by the admin only and replace legacy vendor shipping fields.
+        return [
+            'shipping_cost' => 0,
+            'multiply_qty' => 0,
+            'same_day_shipping_cost' => currencyConverter(amount: $request->get('same_day_shipping_cost', 0)),
+            'next_day_shipping_cost' => currencyConverter(amount: $request->get('next_day_shipping_cost', 0)),
+            'normal_shipping_cost' => currencyConverter(amount: $request->get('normal_shipping_cost', 0)),
+        ];
+    }
+
     public function getUpdateView(string|int $id): View|RedirectResponse
     {
         $taxData = $this->getTaxSystemType();
@@ -284,19 +311,8 @@ class ProductController extends BaseController
             return response()->json([], 200);
         }
         $product = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $id], relations: ['digitalVariation', 'seoInfo']);
-        $originalRequestStatus = $product?->request_status;
-        $requiresReservation = $product?->added_by === 'seller'
-            && in_array((int) $product->request_status, [0, 2], true);
-        if ($requiresReservation) {
-            try {
-                $this->sellerProductEntitlementService->assertCanReserve($product->seller);
-            } catch (DomainException $exception) {
-                ToastMagic::warning(translate($exception->getMessage()));
-
-                return back();
-            }
-        }
         $dataArray = $service->getUpdateProductData(request: $request, product: $product, updateBy: 'admin');
+        $dataArray = array_merge($dataArray, $this->getAdminManagedShippingRates($request));
         $this->updateProductAuthorAndPublishingHouse(request: $request, product: $product);
 
         $this->productRepo->update(id: $id, data: $dataArray);
@@ -324,20 +340,6 @@ class ProductController extends BaseController
             taxIds: $request['tax_ids'] ?? [],
             oldTaxIds: $taxVatIds
         );
-
-        if ($requiresReservation) {
-            try {
-                $this->sellerProductEntitlementService->reserveForProduct($product->fresh(), $product->seller);
-            } catch (DomainException $exception) {
-                $this->productRepo->update(id: $id, data: [
-                    'request_status' => $originalRequestStatus,
-                    'status' => 0,
-                ]);
-                ToastMagic::warning(translate($exception->getMessage()));
-
-                return back();
-            }
-        }
 
         updateSetupGuideCacheKey(key: 'add_new_product', panel: 'admin');
         ToastMagic::success(translate('product_updated_successfully'));
@@ -488,6 +490,7 @@ class ProductController extends BaseController
         $relations = array_merge($productWiseTaxRelation, $relations);
 
         $product = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $id], relations: $relations);
+        $product->loadMissing(['seller.shop', 'reviewDecisions.admin']);
 
         $totalSellerProducts = $this->productRepo->getListWhere(filters: ['added_by' => 'seller', 'user_id' => $product['user_id']], dataLimit: 'all');
         $totalAdminProducts = $this->productRepo->getListWhere(filters: ['added_by' => 'in_house', 'user_id' => $product['user_id']], dataLimit: 'all');
@@ -545,13 +548,54 @@ class ProductController extends BaseController
         $status = $request['status'];
         $productId = $request['id'];
         $product = $this->productRepo->getFirstWhere(params: ['id' => $productId]);
+        $featured = is_null($product['featured']) || $product['featured'] == 0 ? 1 : 0;
         $updateData = [
-            'featured' => is_null($product['featured']) || $product['featured'] == 0 ? 1 : 0
+            'featured' => $featured,
+            // Featuring a product always makes it eligible for the homepage.
+            'is_homepage_visible' => $featured ? 1 : (int) $product->is_homepage_visible,
         ];
         $this->productRepo->update(id: $productId, data: $updateData);
         return response()->json([
             'status' => true,
             'message' => translate('Product_featured_status_updated_successfully')
+        ]);
+    }
+
+    public function updateHomepagePlacement(Request $request, int|string $product): JsonResponse
+    {
+        $validated = $request->validate([
+            'section_keys' => 'nullable|array',
+            'section_keys.*' => 'string|max:100',
+        ]);
+
+        $productModel = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $product]);
+        if (! $productModel) {
+            return response()->json(['message' => translate('product_not_found')], 404);
+        }
+        if ((int) $productModel->request_status !== 1 || (int) $productModel->status !== 1) {
+            return response()->json(['message' => translate('homepage_placement_requires_approved_active_product')], 422);
+        }
+
+        $theme = theme_root_path();
+        try {
+            $this->homepageSectionBuilder->placeProductInSections(
+                theme: $theme,
+                productId: (int) $productModel->id,
+                sectionKeys: $validated['section_keys'] ?? [],
+                adminId: (int) auth('admin')->id(),
+            );
+        } catch (DomainException $exception) {
+            return response()->json(['message' => translate($exception->getMessage())], 422);
+        } catch (Throwable $exception) {
+            report($exception);
+            return response()->json(['message' => translate('something_went_wrong')], 500);
+        }
+
+        $productModel->update(['is_homepage_visible' => ! empty($validated['section_keys'])]);
+
+        return response()->json([
+            'status' => true,
+            'message' => translate('Homepage_product_placement_updated'),
         ]);
     }
 
@@ -561,21 +605,15 @@ class ProductController extends BaseController
         $productId = $request['id'];
         $product = $this->productRepo->getFirstWhere(params: ['id' => $productId]);
 
+        // In the pending seller-product state, the switch is an approval action,
+        // not a generic publish toggle. Route it through the validation and audit
+        // trail used by the product review form.
+        if ((int) $status === 1 && $product?->added_by === 'seller' && (int) $product->request_status === 0) {
+            return $this->approveStatus($request);
+        }
         $success = 1;
         if ($status == 1) {
             $success = $product->added_by == 'seller' && ($product['request_status'] == 0 || $product['request_status'] == 2) ? 0 : 1;
-            if ($success && $product->added_by === 'seller') {
-                try {
-                    $this->sellerProductEntitlementService->activateForPublication($product, $product->seller);
-                } catch (DomainException $exception) {
-                    return response()->json([
-                        'status' => 0,
-                        'data' => null,
-                        'code' => $exception->getMessage(),
-                        'message' => translate($exception->getMessage()),
-                    ], 403);
-                }
-            }
         }
         $updateData = ['status' => $status];
         $data = $success ? $this->productRepo->update(id: $productId, data: $updateData) : null;
@@ -909,17 +947,38 @@ class ProductController extends BaseController
 
     public function deny(ProductDenyRequest $request): JsonResponse
     {
-        $dataArray = [
-            'request_status' => 2,
-            'status' => 0,
-            'featured' => 0,
-            'denied_note' => $request['denied_note'],
-        ];
-        $this->productRepo->update(id: $request['id'], data: $dataArray);
         $product = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $request['id']]);
+        $fromRequestStatus = (int) $product->request_status;
+        $fromStatus = (int) $product->status;
+        if ($product->added_by === 'seller') {
+            app(SellerProductReviewService::class)->transition(
+                product: $product,
+                status: SellerProductReviewService::REJECTED,
+                reason: $request['denied_note'],
+                adminId: auth('admin')->id(),
+            );
+        } else {
+            $this->productRepo->update(id: $request['id'], data: [
+                'request_status' => 2,
+                'status' => 0,
+                'featured' => 0,
+                'denied_note' => $request['denied_note'],
+            ]);
+        }
+        ProductReviewDecision::create([
+            'product_id' => $product->id,
+            'seller_id' => $product->added_by === 'seller' ? $product->user_id : null,
+            'admin_id' => auth('admin')->id(),
+            'decision' => 'reject',
+            'reason' => $request['denied_note'],
+            'from_request_status' => $fromRequestStatus,
+            'to_request_status' => 2,
+            'from_status' => $fromStatus,
+            'to_status' => 0,
+        ]);
         $this->sellerProductEntitlementService->restoreAfterRejection($product);
         $vendor = $this->sellerRepo->getFirstWhere(params: ['id' => $product['user_id']]);
-        if ($vendor['cm_firebase_token']) {
+        if ($product->added_by !== 'seller' && $vendor['cm_firebase_token']) {
             ProductRequestStatusUpdateEvent::dispatch('product_request_rejected_message', 'seller', $vendor['app_language'] ?? getDefaultLanguage(), $vendor['cm_firebase_token']);
         }
         return response()->json(['message' => translate('product_request_denied') . '.']);
@@ -928,27 +987,111 @@ class ProductController extends BaseController
     public function approveStatus(Request $request): JsonResponse
     {
         $product = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $request['id']]);
-        $newStatus = ($product['request_status'] == 0) ? 1 : 0;
-        if ($product->added_by === 'seller' && $newStatus === 1) {
-            try {
-                $this->sellerProductEntitlementService->reserveForProduct($product, $product->seller);
-            } catch (DomainException $exception) {
-                return response()->json([
-                    'code' => $exception->getMessage(),
-                    'message' => translate($exception->getMessage()),
-                ], 403);
-            }
+        if ((int) $product->request_status !== 0) {
+            return response()->json([
+                'message' => translate('use_product_review_form_to_change_an_existing_decision'),
+            ], 422);
         }
-        $dataArray = ['request_status' => $newStatus];
-        $this->productRepo->update(id: $request['id'], data: $dataArray);
-        if ($product->added_by === 'seller' && $newStatus === 0) {
-            $this->sellerProductEntitlementService->restoreAfterRejection($product);
+        if (! $product->expiry_date || ! $product->expiry_date->isFuture()) {
+            return response()->json(['message' => translate('expired_product_cannot_be_approved')], 422);
         }
+
+        if ($product->added_by === 'seller') {
+            app(SellerProductReviewService::class)->transition(
+                product: $product,
+                status: SellerProductReviewService::APPROVED_PUBLISHED,
+                adminId: auth('admin')->id(),
+            );
+            $this->productRepo->update(id: $request['id'], data: ['featured' => 0, 'is_homepage_visible' => 0]);
+        } else {
+            $this->productRepo->update(id: $request['id'], data: ['request_status' => 1, 'status' => 1, 'featured' => 0, 'is_homepage_visible' => 0, 'denied_note' => null]);
+        }
+        ProductReviewDecision::create([
+            'product_id' => $product->id,
+            'seller_id' => $product->added_by === 'seller' ? $product->user_id : null,
+            'admin_id' => auth('admin')->id(),
+            'decision' => 'approve',
+            'reason' => null,
+            'from_request_status' => (int) $product->request_status,
+            'to_request_status' => 1,
+            'from_status' => (int) $product->status,
+            'to_status' => 1,
+        ]);
         $vendor = $this->sellerRepo->getFirstWhere(params: ['id' => $product['user_id']]);
-        if ($vendor['cm_firebase_token']) {
+        if ($product->added_by !== 'seller' && $vendor['cm_firebase_token']) {
             ProductRequestStatusUpdateEvent::dispatch('product_request_approved_message', 'seller', $vendor['app_language'] ?? getDefaultLanguage(), $vendor['cm_firebase_token']);
         }
         return response()->json(['message' => translate('product_request_approved') . '.']);
+    }
+
+    public function reviewDecision(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'product_id' => ['required', 'integer', 'exists:products,id'],
+            'decision' => ['required', 'in:approve,suspend,reject,changes_requested'],
+            'reason' => ['nullable', 'string', 'max:2000', 'required_unless:decision,approve'],
+            'show_on_homepage' => ['nullable', 'boolean'],
+        ]);
+
+        $product = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $validated['product_id']]);
+        if ($validated['decision'] === 'approve' && (! $product->expiry_date || ! $product->expiry_date->isFuture())) {
+            return back()->withErrors(['decision' => translate('expired_product_cannot_be_approved')]);
+        }
+        $fromRequestStatus = (int) $product->request_status;
+        $fromStatus = (int) $product->status;
+        $states = match ($validated['decision']) {
+            'approve' => ['request_status' => 1, 'status' => 1, 'featured' => 0, 'is_homepage_visible' => $request->boolean('show_on_homepage') ? 1 : 0, 'denied_note' => null],
+            'suspend' => ['request_status' => 1, 'status' => 0, 'featured' => 0, 'is_homepage_visible' => 0, 'denied_note' => $validated['reason']],
+            'reject' => ['request_status' => 2, 'status' => 0, 'featured' => 0, 'is_homepage_visible' => 0, 'denied_note' => $validated['reason']],
+            default => ['request_status' => 0, 'status' => 0, 'featured' => 0, 'is_homepage_visible' => 0, 'denied_note' => $validated['reason']],
+        };
+
+        if ($product->added_by === 'seller') {
+            $reviewStatus = match ($validated['decision']) {
+                'approve' => SellerProductReviewService::APPROVED_PUBLISHED,
+                'suspend' => SellerProductReviewService::SUSPENDED,
+                'reject' => SellerProductReviewService::REJECTED,
+                default => SellerProductReviewService::UNDER_REVIEW,
+            };
+            app(SellerProductReviewService::class)->transition(
+                product: $product,
+                status: $reviewStatus,
+                reason: $validated['reason'] ?? null,
+                adminId: auth('admin')->id(),
+            );
+            if ($validated['decision'] === 'approve') {
+                $this->productRepo->update(id: $product->id, data: [
+                    'featured' => 0,
+                    'is_homepage_visible' => $request->boolean('show_on_homepage') ? 1 : 0,
+                ]);
+            }
+        } else {
+            $this->productRepo->update(id: $product->id, data: $states);
+        }
+        ProductReviewDecision::create([
+            'product_id' => $product->id,
+            'seller_id' => $product->added_by === 'seller' ? $product->user_id : null,
+            'admin_id' => auth('admin')->id(),
+            'decision' => $validated['decision'],
+            'reason' => $validated['reason'] ?? null,
+            'from_request_status' => $fromRequestStatus,
+            'to_request_status' => $states['request_status'],
+            'from_status' => $fromStatus,
+            'to_status' => $states['status'],
+        ]);
+
+        if ($product->added_by === 'seller' && !in_array($validated['decision'], ['approve', 'suspend', 'reject'], true)) {
+            $vendor = $this->sellerRepo->getFirstWhere(params: ['id' => $product->user_id]);
+            if ($vendor?->cm_firebase_token) {
+                $message = $validated['decision'] === 'approve'
+                    ? 'product_request_approved_message'
+                    : 'product_request_rejected_message';
+                ProductRequestStatusUpdateEvent::dispatch($message, 'seller', $vendor->app_language ?? getDefaultLanguage(), $vendor->cm_firebase_token);
+            }
+        }
+
+        ToastMagic::success(translate('product_review_decision_saved'));
+        return back();
     }
 
     public function getSearchedProductsView(Request $request): JsonResponse

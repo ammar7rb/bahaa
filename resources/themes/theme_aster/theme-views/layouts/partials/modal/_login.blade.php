@@ -23,7 +23,7 @@ if (!$customerOTPLogin && $customerManualLogin && $customerSocialLogin) {
             </div>
             <div class="modal-body px-4 px-sm-5">
                 <div class="mb-4 text-center">
-                    <img alt="" class="dark-support" width="200"
+                    <img alt="" class="dark-support ba-platform-logo" width="200"
                         src="{{ getStorageImages(path: $web_config['web_logo'], type: 'logo') }}">
                 </div>
 
@@ -50,7 +50,6 @@ if (!$customerOTPLogin && $customerManualLogin && $customerSocialLogin) {
                                 <input type="hidden" name="keep_customer_login_redirect_url" value="{{ url()->full() }}">
                                 <input type="hidden" name="login_type" value="otp-login">
                                 @include('theme-views.layouts.auth-partials._phone')
-                                @include('theme-views.layouts.auth-partials._firebase-recaptcha-container')
                                 <div class="d-flex justify-content-center mb-3">
                                     <button type="submit" id="customerOtpLogin"
                                         class="fs-16 btn btn-primary px-5 w-100">
@@ -69,7 +68,6 @@ if (!$customerOTPLogin && $customerManualLogin && $customerSocialLogin) {
                                 @include('theme-views.layouts.auth-partials._remember-me', [
                                     'forgotPassword' => true,
                                 ])
-                                @include('theme-views.layouts.auth-partials._recaptcha')
                                 <div class="d-flex justify-content-center mb-3">
                                     <button type="submit" id="customerLoginBtn"
                                         class="fs-16 btn btn-primary px-5 w-100">
@@ -91,7 +89,6 @@ if (!$customerOTPLogin && $customerManualLogin && $customerSocialLogin) {
                                 @include('theme-views.layouts.auth-partials._remember-me', [
                                     'forgotPassword' => true,
                                 ])
-                                @include('theme-views.layouts.auth-partials._recaptcha')
                                 <div class="d-flex justify-content-center mb-3">
                                     <button type="submit" id="customerLoginBtn"
                                         class="fs-16 btn btn-primary px-5 w-100">
@@ -110,8 +107,6 @@ if (!$customerOTPLogin && $customerManualLogin && $customerSocialLogin) {
                                 <input type="hidden" name="keep_customer_login_redirect_url" value="{{ url()->full() }}">
                                 <input type="hidden" name="login_type" value="otp-login">
                                 @include('theme-views.layouts.auth-partials._phone')
-                                @include('theme-views.layouts.auth-partials._firebase-recaptcha-container')
-                                @include('theme-views.layouts.auth-partials._recaptcha')
                                 <div class="d-flex justify-content-center mb-3">
                                     <button type="submit" id="customerOtpLogin"
                                         class="fs-16 btn btn-primary px-5 w-100">
@@ -141,7 +136,6 @@ if (!$customerOTPLogin && $customerManualLogin && $customerSocialLogin) {
                                         @include('theme-views.layouts.auth-partials._phone')
                                     </div>
 
-                                    @include('theme-views.layouts.auth-partials._recaptcha')
 
                                     <div class="manual-login-items">
                                         <div class="d-flex justify-content-center mb-3">

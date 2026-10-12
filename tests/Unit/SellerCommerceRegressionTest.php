@@ -37,6 +37,7 @@ class SellerCommerceRegressionTest extends TestCase
             ['type' => 'seller_insurance_status', 'value' => '1'],
             ['type' => 'seller_insurance_amount', 'value' => '100'],
             ['type' => 'seller_insurance_repayment_after_forfeiture', 'value' => '1'],
+            ['type' => 'seller_activation_verification_mode', 'value' => 'otp_only'],
             ['type' => 'sales_commission', 'value' => '10'],
             ['type' => 'product_brand', 'value' => '0'],
             ['type' => 'digital_product', 'value' => '0'],
@@ -51,6 +52,7 @@ class SellerCommerceRegressionTest extends TestCase
         DB::table('sellers')->insert([
             'id' => 1,
             'status' => 'approved',
+            'activation_status' => 'active',
             'phone_verified_at' => now(),
             'registration_reference' => (string) Str::uuid(),
             'auth_token' => Str::random(50),
@@ -93,37 +95,23 @@ class SellerCommerceRegressionTest extends TestCase
             'package_validity_days' => 60,
             'status' => true,
         ]);
-        $insuranceService = app(SellerInsuranceService::class);
         $packageService = app(SellerPackagePurchaseService::class);
         $entitlementService = app(SellerProductEntitlementService::class);
         $promotionService = app(SellerProductPromotionService::class);
 
-        $this->assertDomainException(
-            fn () => $entitlementService->assertCanReserve($seller),
-            'active_seller_insurance_is_required_before_adding_products'
-        );
+        // Publishing is independent from advertising packages.
+        $entitlementService->assertCanReserve($seller);
+        $product = $this->createProduct('Published Product');
+        $this->assertNull($entitlementService->reserveForProduct($product, $seller));
+        $product->update(['request_status' => 1]);
+        $this->assertNull($entitlementService->activateForPublication($product->fresh(), $seller));
+        $product->update(['status' => 1]);
 
-        $insurance = $insuranceService->getOrCreatePayableInsurance($seller);
-        $insurance = $insuranceService->submitOfflinePayment($insurance, [
-            'method_id' => 1,
-            'payment_proof' => ['image_name' => 'proof.webp', 'storage' => 'public'],
-        ]);
-        $this->assertSame(SellerInsurance::STATUS_PENDING_REVIEW, $insurance->status);
-        $this->assertFalse($insuranceService->getSummary($seller)['active']);
+        // Advertising still requires an active paid advertising package.
         $this->assertDomainException(
-            fn () => $packageService->getOrCreatePendingSubscription($seller, $package),
-            'active_seller_insurance_is_required_before_buying_a_package'
+            fn () => $promotionService->activateSearchPromotion($product->fresh(), $seller),
+            'active_seller_package_is_required_before_promoting_products'
         );
-
-        $insurancePayment = [
-            'payment_method' => 'offline_payment',
-            'transaction_id' => 'insurance-approved-1',
-            'payment_amount' => 100,
-            'currency_code' => 'EGP',
-        ];
-        $this->assertSame('paid', $insuranceService->markPaid($insurance, $insurancePayment, 1, 'Approved')['message']);
-        $this->assertSame('already_paid', $insuranceService->markPaid($insurance, $insurancePayment, 1, 'Duplicate')['message']);
-        $this->assertTrue($insuranceService->getSummary($seller)['active']);
 
         $subscription = $packageService->getOrCreatePendingSubscription($seller, $package);
         $subscription = $packageService->submitOfflinePayment($subscription, [
@@ -131,10 +119,7 @@ class SellerCommerceRegressionTest extends TestCase
             'payment_proof' => ['image_name' => 'package.webp', 'storage' => 'public'],
         ]);
         $this->assertSame(SellerPackageSubscription::STATUS_PENDING_REVIEW, $subscription->status);
-        $this->assertDomainException(
-            fn () => $entitlementService->assertCanReserve($seller),
-            'active_seller_package_is_required_before_adding_products'
-        );
+        $entitlementService->assertCanReserve($seller);
 
         $packagePayment = [
             'payment_method' => 'offline_payment',
@@ -146,40 +131,51 @@ class SellerCommerceRegressionTest extends TestCase
         $this->assertSame('already_paid', $packageService->markPaid($subscription, $packagePayment, 1, 'Duplicate')['message']);
         $subscription = $subscription->fresh();
         $this->assertSame(SellerPackageSubscription::STATUS_ACTIVE, $subscription->status);
-        $this->assertSame(4, $subscription->transactions()->count());
-
-        $product = $this->createProduct('Published Product');
-        $reserved = $entitlementService->reserveForProduct($product, $seller);
-        $this->assertSame($reserved->id, $entitlementService->reserveForProduct($product, $seller)->id);
-        $this->assertSame(1, $subscription->fresh()->used_product_limit);
-
-        $product->update(['request_status' => 1]);
-        $entitlement = $entitlementService->activateForPublication($product->fresh(), $seller);
-        $this->assertSame($entitlement->id, $entitlementService->activateForPublication($product->fresh(), $seller)->id);
-        $product->update(['status' => 1]);
-        $this->assertSame(SellerProductEntitlement::STATUS_ACTIVE, $entitlement->fresh()->status);
-        $this->assertNotNull($entitlement->fresh()->expires_at);
+        $this->assertSame(3, $subscription->transactions()->count());
+        $this->assertSame(0, $subscription->fresh()->used_product_limit);
 
         $searchPromotion = $promotionService->activateSearchPromotion($product->fresh(), $seller);
         $homepagePromotion = $promotionService->activateHomepagePromotion($product->fresh(), $seller);
         $this->assertSame($searchPromotion->id, $promotionService->activateSearchPromotion($product->fresh(), $seller)->id);
         $this->assertSame($homepagePromotion->id, $promotionService->activateHomepagePromotion($product->fresh(), $seller)->id);
+        $this->assertSame(SellerProductPromotion::APPROVAL_PENDING, $searchPromotion->approval_status);
+        $this->assertSame(SellerProductPromotion::APPROVAL_PENDING, $homepagePromotion->approval_status);
+        $this->assertSame(0, $subscription->fresh()->used_search_promotion_limit);
+        $this->assertSame(0, $subscription->fresh()->used_homepage_promotion_limit);
+
+        $searchPromotion = $promotionService->reviewPromotion(
+            $searchPromotion,
+            'approve',
+            1,
+            'Approved search campaign',
+            'search_results',
+            null,
+            1,
+        );
+        $homepagePromotion = $promotionService->reviewPromotion(
+            $homepagePromotion,
+            'approve',
+            1,
+            'Approved homepage campaign',
+            'homepage_featured',
+            null,
+            1,
+        );
+        $this->assertSame(SellerProductPromotion::APPROVAL_APPROVED, $searchPromotion->approval_status);
+        $this->assertSame(SellerProductPromotion::APPROVAL_APPROVED, $homepagePromotion->approval_status);
         $subscription->refresh();
         $this->assertSame(1, $subscription->used_search_promotion_limit);
         $this->assertSame(1, $subscription->used_homepage_promotion_limit);
 
         $rejectedProduct = $this->createProduct('Rejected Product');
-        $rejectedEntitlement = $entitlementService->reserveForProduct($rejectedProduct, $seller);
-        $this->assertSame(2, $subscription->fresh()->used_product_limit);
+        $this->assertNull($entitlementService->reserveForProduct($rejectedProduct, $seller));
         $entitlementService->restoreAfterRejection($rejectedProduct);
         $entitlementService->restoreAfterRejection($rejectedProduct);
-        $this->assertSame(SellerProductEntitlement::STATUS_RESTORED, $rejectedEntitlement->fresh()->status);
-        $this->assertSame(1, $subscription->fresh()->used_product_limit);
-        $this->assertSame(1, SellerPackageTransaction::where('transaction_type', SellerPackageTransaction::TYPE_QUOTA_RESTORE)->count());
+        $this->assertSame(0, $subscription->fresh()->used_product_limit);
+        $this->assertSame(0, SellerPackageTransaction::where('transaction_type', SellerPackageTransaction::TYPE_QUOTA_RESTORE)->count());
 
         $entitlementService->cancelForDeletion($product);
-        $this->assertSame(SellerProductEntitlement::STATUS_CANCELLED, $entitlement->fresh()->status);
-        $this->assertSame(1, $subscription->fresh()->used_product_limit);
+        $this->assertSame(0, $subscription->fresh()->used_product_limit);
 
         $this->assertSame('50.00', Helpers::seller_sales_commission('seller', $seller->id, 500));
         app(SellerCommissionService::class)->updateOverride($seller, true, 0);
@@ -201,6 +197,17 @@ class SellerCommerceRegressionTest extends TestCase
         $seller->update(['phone_verified_at' => now(), 'status' => 'suspended']);
         $this->assertSame(0, Helpers::get_seller_by_token($request)['success']);
         $this->assertNull(Helpers::getSellerByToken($request));
+    }
+
+    public function test_product_quota_guard_rejects_a_seller_with_pending_activation(): void
+    {
+        $seller = Seller::findOrFail(1);
+        $seller->update(['activation_status' => 'activation_ticket_open']);
+
+        $this->assertDomainException(
+            fn () => app(SellerProductEntitlementService::class)->assertCanReserve($seller),
+            'seller_activation_is_required_before_adding_products'
+        );
     }
 
     public function test_v3_api_middleware_rejects_unverified_and_suspended_sellers(): void
@@ -257,6 +264,7 @@ class SellerCommerceRegressionTest extends TestCase
         Schema::create('sellers', function (Blueprint $table) {
             $table->id();
             $table->string('status')->default('approved');
+            $table->string('activation_status')->nullable();
             $table->timestamp('phone_verified_at')->nullable();
             $table->uuid('registration_reference')->nullable();
             $table->string('auth_token', 100)->nullable();
@@ -295,7 +303,10 @@ class SellerCommerceRegressionTest extends TestCase
             $table->unsignedInteger('search_promotion_duration_days')->default(0);
             $table->unsignedInteger('homepage_promotion_limit')->default(0);
             $table->unsignedInteger('homepage_promotion_duration_days')->default(0);
+            $table->unsignedInteger('coupon_limit')->nullable();
             $table->unsignedInteger('package_validity_days')->nullable();
+            $table->string('duration_unit', 20)->nullable();
+            $table->unsignedInteger('duration_value')->nullable();
             $table->boolean('status')->default(true);
             $table->integer('sort_order')->default(0);
             $table->unsignedBigInteger('created_by_admin_id')->nullable();
@@ -320,13 +331,19 @@ class SellerCommerceRegressionTest extends TestCase
             $table->unsignedInteger('used_homepage_promotion_limit')->default(0);
             $table->integer('homepage_promotion_adjustment_limit')->default(0);
             $table->unsignedInteger('homepage_promotion_duration_days')->default(0);
+            $table->unsignedInteger('coupon_limit')->nullable();
+            $table->unsignedInteger('used_coupon_limit')->default(0);
+            $table->integer('coupon_adjustment_limit')->default(0);
             $table->unsignedInteger('package_validity_days')->nullable();
+            $table->string('duration_unit', 20)->nullable();
+            $table->unsignedInteger('duration_value')->nullable();
             $table->string('status')->default('pending');
             $table->string('payment_status')->default('unpaid');
             $table->string('payment_method')->nullable();
             $table->string('payment_reference')->nullable();
             $table->char('payment_request_id', 36)->nullable();
             $table->timestamp('starts_at')->nullable();
+            $table->timestamp('started_at')->nullable();
             $table->timestamp('expires_at')->nullable();
             $table->timestamp('activated_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();
@@ -370,6 +387,15 @@ class SellerCommerceRegressionTest extends TestCase
             $table->unsignedInteger('duration_days')->default(0);
             $table->integer('sort_order')->default(0);
             $table->string('status')->default('reserved');
+            $table->string('approval_status')->default('legacy_approved');
+            $table->timestamp('requested_at')->nullable();
+            $table->unsignedBigInteger('reviewed_by_admin_id')->nullable();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->text('review_note')->nullable();
+            $table->string('placement_scope')->nullable();
+            $table->string('placement_key')->nullable();
+            $table->unsignedInteger('requested_position')->nullable();
+            $table->unsignedInteger('approved_position')->nullable();
             $table->boolean('quota_restored')->default(false);
             $table->timestamp('starts_at')->nullable();
             $table->timestamp('expires_at')->nullable();

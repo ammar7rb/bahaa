@@ -87,6 +87,7 @@
                                             @if ($method->is_default == 1)
                                                 <small class="badge--primary-2 p-1">{{ translate('Default') }}</small>
                                             @endif
+                                            <small class="badge {{ $method->approval_status === 'approved' ? 'bg-success' : ($method->approval_status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark') }} p-1">{{ translate($method->approval_status ?? 'pending') }}</small>
                                         </div>
                                     </td>
 
@@ -120,6 +121,7 @@
                                                     class="switcher_input custom-modal-plugin"
                                                     data-id="{{ $method->id }}"
                                                     {{ $method->is_active ? 'checked' : '' }}
+                                                    {{ ($method->approval_status ?? 'pending') !== 'approved' ? 'disabled' : '' }}
                                                     {{ $method->is_default == 1 ? 'disabled' : '' }}
                                                     data-modal-type="input-change-form"
                                                     data-modal-form="#status-change-form-{{ $method->id }}"
@@ -141,7 +143,7 @@
                                                     <i class="fi fi-rr-menu-dots-vertical position-relative top-01"></i>
                                                 </button>
                                                 <div class="bg-white dynamic_dropdown_menu py-2 shadow-lg radius-5">
-                                                    @if (!$method['is_default'] === true)
+                                                    @if (!$method['is_default'] === true && $method->approval_status === 'approved')
                                                         <button class="dropdown-item d-flex align-items-center gap-2"
                                                             data-toggle="modal"
                                                             data-target="#methodDefaultModal{{ $method['id'] }}">

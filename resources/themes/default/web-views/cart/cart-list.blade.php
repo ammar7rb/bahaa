@@ -1,6 +1,6 @@
 @extends('layouts.front-end.app')
 
-@section('title', translate('My_Shopping_Cart'))
+@section('title', (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart'))
 
 @push('css_or_js')
     <meta property="og:image" content="{{$web_config['web_logo']['path']}}"/>

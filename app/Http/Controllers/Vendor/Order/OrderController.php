@@ -54,6 +54,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View as PdfView;
 use Maatwebsite\Excel\Facades\Excel;
 use Rap2hpoutre\FastExcel\FastExcel;
@@ -116,13 +117,15 @@ class OrderController extends BaseController
         $to = $request['to'];
         $status = $request['status'];
         $deliveryManId = $request['delivery_man_id'];
-        $this->orderRepo->updateWhere(params: ['seller_id' => $vendorId, 'checked' => 0], data: ['checked' => 1]);
+        \App\Models\Order::sellerAccessible()
+            ->where(['seller_id' => $vendorId, 'seller_is' => 'seller', 'checked' => 0])
+            ->update(['checked' => 1]);
         $sellerPos = getWebConfig(name: 'seller_pos');
 
         $paymentPaidStatus = $request['payment_status'] ?? [];
         $orderStatus = $request['order_current_status'] ?? [];
 
-        $relation = ['customer', 'shipping', 'shippingAddress', 'deliveryMan', 'billingAddress'];
+        $relation = ['customer', 'shipping', 'shippingAddress', 'deliveryMan', 'billingAddress', 'postPurchaseInvoice', 'insurance'];
         $filters = [
             'order_status' => $status == 'all' ? $orderStatus : $status,
             'order_type' => $request['filter'],
@@ -133,6 +136,7 @@ class OrderController extends BaseController
             'customer_id' => $request['customer_id'],
             'seller_id' => $vendorId,
             'seller_is' => 'seller',
+            'seller_visible_only' => true,
         ];
         $orderAmountSettlement = $request->input('order_amount_settlement', []);
 
@@ -150,6 +154,31 @@ class OrderController extends BaseController
         }
 
         $allOrders = $this->orderRepo->getListWhereIn(orderBy: ['id' => 'desc'], searchValue: $searchValue, filters: $filters, whereIn: $filterWhereIn, relations: $relation, dataLimit: 'all');
+        $sellerOrderVisibility = app(\App\Services\SellerOrderVisibilityService::class);
+        $allOrders = $sellerOrderVisibility->accessible($allOrders);
+
+        // The dashboard summary is intentionally independent from the filters
+        // used by the order table.  It must always reflect the signed-in
+        // seller's orders that are available for seller fulfilment.
+        $sellerSummaryFilters = [
+            'seller_id' => $seller['id'],
+            'seller_is' => 'seller',
+            'seller_visible_only' => true,
+        ];
+        $recentOrders = $sellerOrderVisibility->visible(
+            $this->orderRepo->getListWhereIn(
+                orderBy: ['id' => 'desc'],
+                filters: $sellerSummaryFilters,
+                relations: ['customer'],
+                dataLimit: 'all',
+            )
+        )->take(5)->values();
+        $currentMonthOrders = $this->orderRepo->getListWhereIn(
+            orderBy: ['id' => 'desc'],
+            filters: array_merge($sellerSummaryFilters, ['date_type' => 'this_month']),
+            relations: ['customer'],
+            dataLimit: getWebConfig(name: WebConfigKey::PAGINATION_LIMIT),
+        );
         $statusCounts = $this->orderRepo->getStatusCounts(
             filters: $filters,
             whereIn: $filterWhereIn,
@@ -168,6 +197,7 @@ class OrderController extends BaseController
 
 
         $orders = $this->orderRepo->getListWhereIn(orderBy: ['id' => 'desc'], searchValue: $searchValue, filters: $filters, whereIn: $filterWhereIn, relations: $relation, dataLimit: getWebConfig(name: WebConfigKey::PAGINATION_LIMIT));
+        $orders->setCollection($sellerOrderVisibility->accessible($orders->getCollection()));
         $sellers = $this->vendorRepo->getByStatusExcept(status: 'pending', relations: ['shop']);
 
         $customer = "all";
@@ -196,6 +226,8 @@ class OrderController extends BaseController
             'sellerPos',
             'deliveryManId',
             'allOrdersInfo',
+            'recentOrders',
+            'currentMonthOrders',
             'paymentPaidStatus',
             'orderStatus',
             'orderTypes',
@@ -407,7 +439,7 @@ class OrderController extends BaseController
         return response()->json($customers);
     }
 
-    public function generateInvoice(string|int $id): void
+    public function generateInvoice(string|int $id): mixed
     {
         $companyPhone = getWebConfig(name: 'company_phone');
         $companyEmail = getWebConfig(name: 'company_email');
@@ -419,6 +451,16 @@ class OrderController extends BaseController
         $params = ['id' => $id, 'seller_id' => $vendorId, 'seller_is' => 'seller'];
         $relations = ['details', 'customer', 'shipping', 'seller'];
         $order = $this->orderRepo->getFirstWhere(params: $params, relations: $relations);
+        if ($order && ! app(\App\Services\SellerOrderVisibilityService::class)->canSellerView($order)) {
+            $sellerOrderInsurance = $order->sellerOrderInsurance()->first();
+            if ($sellerOrderInsurance) {
+                $accessReference = $id;
+
+                return view('vendor-views.order.seller-order-insurance-gate', compact('order', 'sellerOrderInsurance', 'accessReference'));
+            }
+            ToastMagic::warning(translate('order_is_waiting_for_admin_release'));
+            return back();
+        }
         $invoiceSettings = getWebConfig(name: 'invoice_settings');
         $mpdf_view = PdfView::make('vendor-views.order.invoice',
             compact('order', 'vendor', 'companyPhone', 'companyEmail', 'companyName', 'companyWebLogo', 'invoiceSettings')
@@ -429,7 +471,6 @@ class OrderController extends BaseController
     public function getView(string|int $id, DeliveryCountryCodeService $service, OrderService $orderService): View|RedirectResponse
     {
         $vendorId = auth('seller')->id();
-        $params = ['id' => $id, 'seller_id' => $vendorId, 'seller_is' => 'seller'];
         $relations = ['seller.shop', 'deliveryMan', 'verificationImages', 'details' => function ($query) {
             $query->with(['product', 'productAllStatus', 'storage']);
         }, 'latestEditHistory', 'customer', 'shipping', 'offlinePayments', 'orderEditHistory' => function ($query) {
@@ -437,9 +478,39 @@ class OrderController extends BaseController
         }, 'orderStatusHistory' => function ($query) {
             $query->orderBy('created_at', 'desc');
         }];
-        $order = $this->orderRepo->getFirstWhere(params: $params, relations: $relations);
+        // Restricted orders are linked from the seller notification with a
+        // non-guessable token. Resolve both that token and the normal numeric
+        // id, but always keep the lookup scoped to the authenticated seller.
+        $order = \App\Models\Order::query()
+            ->with($relations)
+            ->where(['seller_id' => $vendorId, 'seller_is' => 'seller'])
+            ->where(function ($query) use ($id): void {
+                if (ctype_digit((string) $id)) {
+                    $query->whereKey((int) $id);
+                } else {
+                    $query->where('seller_restricted_access_token', (string) $id);
+                }
+            })
+            ->first();
         if (!$order) {
             ToastMagic::error(translate('Order_not_found'));
+            return back();
+        }
+
+        if (! app(\App\Services\SellerOrderVisibilityService::class)->canSellerView($order)) {
+            $sellerOrderInsurance = $order->sellerOrderInsurance()->first();
+            $releasedForInsurance = in_array($order->commerce_flow_status, [
+                \App\Support\Commerce\OrderCommerceState::SELLER_INSURANCE_PENDING,
+                \App\Support\Commerce\OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW,
+            ], true) && $order->admin_order_review_status === 'approved';
+
+            if (app(\App\Services\SellerOrderVisibilityService::class)->canSellerAccess($order) && $sellerOrderInsurance) {
+                $accessReference = $order->seller_restricted_access_token ?: $order->id;
+
+                return view('vendor-views.order.seller-order-insurance-gate', compact('order', 'sellerOrderInsurance', 'accessReference'));
+            }
+
+            ToastMagic::warning(translate('order_is_waiting_for_admin_release'));
             return back();
         }
 
@@ -552,6 +623,20 @@ class OrderController extends BaseController
     {
         $order = $this->orderRepo->getFirstWhere(params: ['id' => $request['id']], relations: ['customer', 'seller.shop', 'deliveryMan', 'latestEditHistory']);
 
+        if ($order->shipping_fulfillment_mode === 'admin_shipping'
+            && in_array($request['order_status'], ['out_for_delivery', 'delivered', 'returned', 'failed'], true)) {
+            return response()->json(['status' => 0, 'message' => translate('shipping_status_is_managed_by_company')], 422);
+        }
+
+        if (in_array($order->commerce_flow_version, [config('order_commerce.new_flow_version'), \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION], true)
+            && in_array($order->seller_shipping_response_status, ['pending', 'overdue'], true)
+            && $request['order_status'] !== 'canceled') {
+            return response()->json([
+                'status' => 0,
+                'message' => translate('accept_or_reject_shipping_terms_before_processing'),
+            ], 422);
+        }
+
         if (!$order['is_guest'] && !isset($order['customer'])) {
             return response()->json([
                 'status' => 0,
@@ -592,6 +677,17 @@ class OrderController extends BaseController
                 'status' => 0,
                 'message' => translate('Please mark as paid before delivered this order.'),
             ]);
+        }
+
+        $sellerHandlesShipping = $order->shipping_fulfillment_mode === 'seller_shipping'
+            || $order->shipping_responsibility === 'sellerwise_shipping';
+        if ($request['order_status'] === 'delivered' && $sellerHandlesShipping
+            && (!Schema::hasTable('order_shipping_proofs')
+                || !$order->shippingProofs()->where('shipping_status', 'delivered')->exists())) {
+            return response()->json([
+                'status' => 0,
+                'message' => 'يجب رفع إثبات التسليم لإتمام الطلب.',
+            ], 422);
         }
 
         if ($order['order_status'] == 'delivered') {

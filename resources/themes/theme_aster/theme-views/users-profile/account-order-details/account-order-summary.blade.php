@@ -1,3 +1,4 @@
+@include('customer-checkout.order-state')
 @php
     use App\Utils\Helpers;
     use App\Utils\OrderManager;
@@ -17,6 +18,15 @@
                     <div class="card h-100">
                         <div class="card-body p-lg-4">
                             @include('theme-views.users-profile.account-order-details._order-details-head',['order'=>$order])
+                            @if($order->insurance && in_array($order->insurance->purchase_refund_status, ['scheduled', 'completed'], true))
+                                <div class="alert alert-info mt-3">{{ translate('purchase_refund_' . $order->insurance->purchase_refund_status) }}</div>
+                            @endif
+                            @if($order->order_status === 'delivered' && $order->customer_delivery_confirmation_status === 'pending')
+                                <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+                                    <span>{{ translate('customer_receipt_confirmation_notice') }}</span>
+                                    <form method="post" action="{{ route('account-order-confirm-receipt', $order->id) }}">@csrf<button type="submit" class="btn btn-primary">{{ translate('confirm_receipt') }}</button></form>
+                                </div>
+                            @endif
                             @include('theme-views.layouts.partials.modal._refund-request-list-modal')
                             <div class="mt-4 card">
                                 <div class="card-body">

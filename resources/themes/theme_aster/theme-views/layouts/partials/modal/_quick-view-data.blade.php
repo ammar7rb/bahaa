@@ -195,19 +195,8 @@
                               data-errormessage="{{translate('please_choose_all_the_options')}}"
                               data-outofstock="{{translate('sorry_out_of_stock').'.'}}">
                             @csrf
-                            <?php
-                            if ($product->added_by == "seller") {
-                                $shopName = $product->seller?->shop?->name ?? '';
-                                $shopSlug = $product->seller?->shop?->slug ?? '';
-                            } else {
-                                $shopName = getInHouseShopConfig('name');
-                                $shopSlug = getInHouseShopConfig('slug');
-                            }
-                            ?>
                             <div class="mb-3">
-                                <a href="{{ route('vendor-shop', ['slug' => $shopSlug]) }}" class="d-block pb-1">
-                                    {{ ucfirst($shopName) }}
-                                </a>
+                                {{-- Store identity and links are hidden in customer quick view. --}}
                                 <div class="d-flex flex-wrap align-items-center gap-2">
                                     <a class="product_title h3" href="{{route('product', $product['slug']) }}">
                                         {{ $product['name'] }}

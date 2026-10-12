@@ -5,7 +5,7 @@
     <div class="product border rounded-10 text-center d-flex align-items-center flex-column gap-10 p-2 get-view-by-onclick"
          data-link="{{route('product', $product->slug)}}">
          @if($product->is_search_promoted ?? false)
-             <span class="badge bg-warning text-dark align-self-start">{{ translate('Featured_Ad') }}</span>
+             <span class="badge bg-warning text-dark align-self-start">{{ translate($product->advertising_badge_label ?: 'Featured_Ad') }}</span>
          @endif
          @if(getProductPriceByType(product: $product, type: 'discount', result: 'value') > 0)
              <span class="discount-badge">
@@ -75,13 +75,7 @@
             </div>
             @endif
 
-            <div class="text-muted fs-14">
-                @if($product->added_by=='seller')
-                    {{ isset($product->seller->shop->name) ? Str::limit($product->seller->shop->name, 20) : '' }}
-                @elseif($product->added_by=='admin')
-                    {{ getInHouseShopConfig(key:'name') }}
-                @endif
-            </div>
+            {{-- Store identity is intentionally omitted from customer product cards. --}}
         </div>
     </div>
 @endif

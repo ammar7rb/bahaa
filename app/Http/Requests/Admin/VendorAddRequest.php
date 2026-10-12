@@ -25,15 +25,20 @@ class VendorAddRequest extends FormRequest
      *
      * @return array<string, ValidationRule|array|string>
      */
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['phone' => app(\App\Services\EgyptPhoneService::class)->normalizeLocal($this->input('phone'))]);
+    }
+
     public function rules(): array
     {
         return [
             'f_name' => 'required',
             'l_name' => 'required',
-            'phone' => 'required|unique:sellers|max:20|min:4',
+            'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueSellerPhone],
             'email' => 'required|unique:sellers',
             'image' => getRulesStringForImageValidation(
-                rules: ['required'],
+                rules: ['nullable'],
                 skipMimes: ['.svg','.gif'],
                 maxSize: getFileUploadMaxSize(unit: 'kb'),
                 isDisallowed : true
@@ -42,13 +47,13 @@ class VendorAddRequest extends FormRequest
             'shop_name' => 'required',
             'shop_address' => 'required',
             'logo' => getRulesStringForImageValidation(
-                rules: ['required'],
+                rules: ['nullable'],
                 skipMimes: ['.svg','.gif'],
                 maxSize: getFileUploadMaxSize(unit: 'kb'),
                 isDisallowed : true
             ),
             'banner' => getRulesStringForImageValidation(
-                rules: ['required'],
+                rules: ['nullable'],
                 skipMimes: ['.svg','.gif'],
                 maxSize: getFileUploadMaxSize(unit: 'kb'),
                 isDisallowed : true
@@ -71,6 +76,7 @@ class VendorAddRequest extends FormRequest
             'f_name.required' => translate('The_first_name_field_is_required'),
             'l_name.required' => translate('The_last_name_field_is_required'),
             'phone.required' => translate('The_phone_field_is_required'),
+            'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'phone.unique' => translate('The_phone_has_already_been_taken'),
             'phone.max' => translate('please_ensure_your_phone_number_is_valid_and_does_not_exceed_20_characters'),
             'phone.min' => translate('phone_number_with_a_minimum_length_requirement_of_4_characters'),

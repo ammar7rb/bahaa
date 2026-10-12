@@ -55,6 +55,7 @@
                                             </h2>
 
                                             <p class="text-capitalize">{{ translate('total_balance') }}</p>
+
                                         </div>
                                     </div>
 

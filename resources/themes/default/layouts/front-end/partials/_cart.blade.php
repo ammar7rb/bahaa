@@ -3,7 +3,7 @@
 
 <div class="navbar-tool dropdown me-2 {{Session::get('direction') === "rtl" ? 'mr-md-3' : 'ml-md-3'}}">
     @if($web_config['guest_checkout_status'] || auth('customer')->check())
-        <a class="navbar-tool-icon-box bg-secondary dropdown-toggle" href="{{route('shop-cart') }}">
+        <a class="navbar-tool-icon-box bg-secondary" href="{{route('shop-cart') }}">
             <span class="navbar-tool-label">
                 {{ $cart->count() }}
             </span>
@@ -216,8 +216,8 @@
                 </div>
 
                 <a class="btn btn--primary btn-block font-weight-normal rounded-10 py-3 text-capitalize"
-                   href="{{route('checkout-details') }}">
-                    {{ translate('proceed_to_checkout') }}
+                   href="{{route('shop-cart') }}">
+                    {{ translate('view_cart') }}
                 </a>
 
             @else

@@ -59,21 +59,23 @@
 
                                             <div class="form-group mb-3 ">
                                                 <label for="country">{{translate('country')}}</label>
-                                                <select name="country" id="country" class="form-control select-picker"
-                                                        required>
-                                                    <option value="" disabled
-                                                            selected>{{translate('select_country')}}</option>
-                                                    @foreach($countries as $country)
-                                                        <option
-                                                            value="{{ $country['name'] }}">{{ $country['name'] }}</option>
+                                                <input type="hidden" name="country" value="Egypt">
+                                                <input type="text" class="form-control" value="Egypt" readonly>
+                                            </div>
+
+                                            <div class="form-group mb-3">
+                                                <label for="state">{{translate('governorate')}}</label>
+                                                <select class="form-select" id="state" name="state" required>
+                                                    <option value="">{{ translate('select') }} {{ translate('governorate') }}</option>
+                                                    @foreach(config('egypt_governorates') as $governorate)
+                                                        <option value="{{ $governorate }}">{{ $governorate }}</option>
                                                     @endforeach
                                                 </select>
                                             </div>
 
                                             <div class="form-group mb-3">
-                                                <label for="city">{{translate('city')}}</label>
-                                                <input class="form-control" type="text" id="address-city" name="city"
-                                                       required placeholder="{{ translate('Ex') }}: {{ translate('Dhaka') }}">
+                                                <label for="city">المدينة / المركز</label>
+                                                <input class="form-control" type="text" id="city" name="city" required placeholder="مثال: مدينة نصر">
                                             </div>
 
                                             <div class="form-group">
@@ -117,31 +119,24 @@
                                                     </label>
                                                 </div>
                                             </div>
-                                            @if(getWebConfig('map_api_status') ==1 )
-                                            <div class="mb-3 ">
-                                                <input id="pac-input" class="controls rounded __inline-46"
-                                                       title="{{translate('search_your_location_here')}}" type="text"
-                                                       placeholder="{{translate('search_here')}}"/>
-                                                <div class="dark-support rounded w-100 __h-14rem"
-                                                     id="location_map_canvas"></div>
-                                            </div>
-                                            @endif
                                             <div class="form-group">
-                                                <label for="address">{{translate('address')}}</label>
+                                                <label for="district">الحي أو القسم</label>
+                                                <input name="district" id="district" class="form-control mb-3" required placeholder="مثال: الحي العاشر">
+                                                <label for="area">المنطقة</label>
+                                                <input name="area" id="area" class="form-control mb-3" required placeholder="مثال: المنطقة الأولى">
+                                                <label for="street">الشارع</label>
+                                                <input name="street" id="street" class="form-control mb-3" required placeholder="مثال: شارع أحمد الزمر">
+                                                <label for="building-number">رقم العقار</label>
+                                                <input name="building_number" id="building-number" class="form-control mb-3" required placeholder="مثال: 12">
+                                                <label for="landmark">أقرب علامة مميزة</label>
+                                                <input name="landmark" id="landmark" class="form-control mb-3" placeholder="مثال: بجوار مسجد السلام">
+                                                <label for="address">تفاصيل إضافية للعنوان</label>
                                                 <textarea name="address" id="address" rows="5" class="form-control"
-                                                          placeholder="{{translate('ex').': 1216-Dhaka' }}"
+                                                          placeholder="اكتب تفاصيل تساعد المندوب في الوصول"
                                                           required></textarea>
+                                                <p class="text-muted small mt-2 mb-0">لن نطلب منك اختيار موقع على خريطة؛ يجري التحقق من العنوان في الخلفية.</p>
                                             </div>
                                         </div>
-                                        <input type="hidden" id="latitude"
-                                               name="latitude" class="form-control d-inline"
-                                               placeholder="{{ translate('ex').': -94.22213'}}"
-                                               value="{{$default_location?$default_location['lat']:0}}" required
-                                               readonly>
-                                        <input type="hidden"
-                                               name="longitude" class="form-control"
-                                               placeholder="{{ translate('ex').': 103.344322' }}" id="longitude"
-                                               value="{{$default_location?$default_location['lng']:0}}" required>
                                         <div class="col-12">
                                             <div
                                                 class="d-flex flex-wrap gap-3 justify-content-between align-items-center">
@@ -163,15 +158,7 @@
             </div>
         </div>
     </main>
-    <span id="address-latitude" data-latitude="{{$default_location?$default_location['lat']:'-33.8688'}}" hidden></span>
-    <span id="address-longitude" data-longitude="{{$default_location?$default_location['lng']:'151.2195'}}" hidden></span>
 @endsection
 @push('script')
     <script src="{{ theme_asset('assets/plugins/select2/js/select2.min.js') }}"></script>
-    <script src="{{ theme_asset('assets/js/address.js') }}"></script>
-    @if(getWebConfig('map_api_status') ==1 )
-        <script
-            src="https://maps.googleapis.com/maps/api/js?key={{getWebConfig('map_api_key')}}&callback=callBackFunction&loading=async&libraries=places&v=3.56" defer>
-        </script>
-    @endif
 @endpush

@@ -151,6 +151,9 @@ class RouteServiceProvider extends ServiceProvider
      */
     protected function configureRateLimiting(): void
     {
+        foreach (['admin-workspace-search' => 90, 'admin-workspace-snapshot' => 30] as $name => $maximum) {
+            RateLimiter::for($name, fn (\Illuminate\Http\Request $request) => Limit::perMinute($maximum)->by((string) (auth('admin')->id() ?? $request->ip())));
+        }
         RateLimiter::for('global', function (Request $request) {
             return Limit::perMinute(3000);
         });

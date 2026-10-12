@@ -7,6 +7,7 @@ use App\Models\SupportTicket;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Services\AdministrativeReferenceService;
 
 class SupportTicketRepository implements SupportTicketRepositoryInterface
 {
@@ -42,6 +43,8 @@ class SupportTicketRepository implements SupportTicketRepositoryInterface
             ->with($relations)
             ->when($searchValue, function ($query) use ($searchValue) {
                return $query->where(function ($query) use ($searchValue) {
+                    $reference = AdministrativeReferenceService::parse($searchValue);
+                    $customerReferenceId = ($reference['type'] ?? null) === 'users' ? $reference['id'] : null;
                     $query->where('subject', 'like', "%{$searchValue}%")
                         ->orWhere('type', 'like', "%{$searchValue}%")
                         ->orWhere('description', 'like', "%{$searchValue}%")
@@ -49,8 +52,14 @@ class SupportTicketRepository implements SupportTicketRepositoryInterface
                         ->orWhereHas('customer', function ($query) use ($searchValue) {
                             $query->where('f_name', 'like', "%{$searchValue}%")
                                 ->orWhere('l_name', 'like', "%{$searchValue}%")
-                                ->orWhereRaw("concat(f_name, ' ', l_name) like ?", ["%{$searchValue}%"]);
-                        });
+                                ->orWhere('email', 'like', "%{$searchValue}%")
+                                ->orWhere('phone', 'like', "%{$searchValue}%")
+                                ->orWhereRaw("concat(f_name, ' ', l_name) like ?", ["%{$searchValue}%"])
+                                ->when(is_numeric($searchValue), function ($q) use ($searchValue) {
+                                    $q->orWhere('id', (int) $searchValue);
+                                });
+                        })
+                        ->when($customerReferenceId, fn ($query) => $query->orWhere('customer_id', $customerReferenceId));
                 });
             })->when(isset($filters['id']), function ($query) use ($filters) {
                 $query->where('id', $filters['id']);
@@ -61,11 +70,20 @@ class SupportTicketRepository implements SupportTicketRepositoryInterface
             ->when(isset($filters['status']) && $filters['status'] != 'all', function ($query) use ($filters) {
                 $query->where('status', $filters['status']);
             })
+            ->when(isset($filters['purpose']) && $filters['purpose'] != 'all', function ($query) use ($filters) {
+                $query->where('purpose', $filters['purpose']);
+            })
+            ->when(($filters['archived'] ?? 'active') === 'only', function ($query) {
+                $query->whereNotNull('archived_at');
+            })
+            ->when(($filters['archived'] ?? 'active') !== 'only', function ($query) {
+                $query->whereNull('archived_at');
+            })
             ->when(!empty($orderBy), function ($query) use ($orderBy) {
                 return $query->orderBy(array_key_first($orderBy),array_values($orderBy)[0]);
             });
 
-        $filters += ['searchValue' =>$searchValue];
+        $filters += ['searchValue' =>$searchValue, 'archived' => $filters['archived'] ?? 'active', 'purpose' => $filters['purpose'] ?? 'all'];
         return $dataLimit == 'all' ? $query->get() : $query->paginate($dataLimit)->appends($filters);
     }
 

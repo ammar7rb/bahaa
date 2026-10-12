@@ -162,6 +162,19 @@
                                 </span>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ Request::is('admin/orders/post-purchase-invoices*') ? 'active' : '' }}"
+                               href="{{ route('admin.orders.post-purchase-invoices.index') }}" title="{{ translate('post_purchase_invoices') }}">
+                                <span class="flex-grow-1 text-truncate">
+                                    {{ translate('post_purchase_invoices') }}
+                                </span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ Request::is('admin/orders/delivery-proofs') ? 'active' : '' }}" href="{{ route('admin.orders.delivery-proofs') }}" title="إثبات التسليم">
+                                <span class="flex-grow-1 text-truncate">إثبات التسليم</span>
+                            </a>
+                        </li>
                     </ul>
                 </li>
 
@@ -226,6 +239,13 @@
                                 <span class="badge fw-bold badge-danger badge-sm text-bg-danger">
                                  {{ $sidebarRefundCounts['rejected'] ?? 0 }}
                                 </span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ Request::is('admin/orders/post-payment-refunds') ? 'active' : '' }}"
+                               href="{{ route('admin.orders.post-payment-refunds') }}"
+                               title="{{ translate('post_payment_refunds') }}">
+                                <span class="flex-grow-1 text-truncate">{{ translate('post_payment_refunds') }}</span>
                             </a>
                         </li>
                     </ul>
@@ -586,7 +606,7 @@
             @endif
 
             @if(Helpers::module_permission_check('people'))
-                <li class="nav-item nav-item_title {{ (Request::is('admin/support-ticket*') || Request::is('admin/contact*')) ? 'scroll-here' : '' }}">
+                <li class="nav-item nav-item_title {{ (Request::is('admin/activation-center*') || Request::is('admin/support-ticket*') || Request::is('admin/contact*')) ? 'scroll-here' : '' }}">
                     <small class="nav-subtitle" title="">{{ translate('help_&_support') }}</small>
                 </li>
                 <li>
@@ -611,6 +631,15 @@
                                         class="btn-status btn-xs-status btn-status-danger position-absolute top-0 menu-status"></span>
                                 @endif
                             </span>
+                        </span>
+                    </a>
+                </li>
+                <li>
+                    <a class="nav-link {{ Request::is('admin/activation-center*') ? 'active' : '' }}"
+                       href="{{ route('admin.activation-center.index') }}" title="{{ translate('account_activation_center') }}">
+                        <i class="fi fi-sr-user-check"></i>
+                        <span class="aside-mini-hidden-element text-truncate">
+                            <span class="position-relative">{{ translate('account_activation_center') }}</span>
                         </span>
                     </a>
                 </li>
@@ -659,6 +688,7 @@
                     </small>
                 </li>
 
+                @if(false)
                 <li class="{{ (Request::is('admin/report/admin-earning') || Request::is('admin/report/vendor-earning') || Request::is('admin/report/inhouse-product-sale') || Request::is('admin/report/vendor-report') || Request::is('admin/report/earning') || Request::is('admin/transaction/order-transaction-list') || Request::is('admin/transaction/expense-transaction-list') || Request::is('admin/report/transaction/refund-transaction-list') || Request::is('admin/transaction/wallet-bonus')) ? 'sub-menu-opened' : '' }}">
                     <a class="nav-link nav-link-toggle {{ (Request::is('admin/report/admin-earning') || Request::is('admin/report/vendor-earning') || Request::is('admin/report/inhouse-product-sale') || Request::is('admin/report/vendor-report') || Request::is('admin/report/earning') || Request::is('admin/transaction/order-transaction-list') || Request::is('admin/transaction/expense-transaction-list') || Request::is('admin/report/transaction/refund-transaction-list') || Request::is('admin/transaction/wallet-bonus')) ? 'active' : '' }}"
                        href="javascript:" title="{{ translate('sales_&_Transaction_Report') }}">
@@ -710,6 +740,7 @@
                         </li>
                     </ul>
                 </li>
+                @endif
 
                 <li>
                     <a class="nav-link {{ (Request::is('admin/report/all-product') || Request::is('admin/stock/product-in-wishlist') || Request::is('admin/stock/product-stock')) ? 'active' : '' }}"
@@ -733,7 +764,7 @@
                     </a>
                 </li>
 
-                @if(getCheckAddonPublishedStatus(moduleName: 'TaxModule'))
+                @if(false)
                     @foreach(include(base_path("Modules/TaxModule/Addon/tax_report_routes.php")) as $route)
                         <li>
                             <a class="nav-link
@@ -797,12 +828,12 @@
             @endif
 
             @if(Helpers::module_permission_check('people'))
-                <li class="nav-item nav-item_title {{ (Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/customer/subscriber-list')||Request::is('admin/vendors/add') || Request::is('admin/vendors/list') || Request::is('admin/delivery-man*')) ? 'scroll-here' : '' }}">
+                <li class="nav-item nav-item_title {{ (Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/customer/subscriber-list')||Request::is('admin/vendors/add') || Request::is('admin/vendors/list')) ? 'scroll-here' : '' }}">
                     <small class="nav-subtitle" title="">{{ translate('user_management') }}</small>
                 </li>
 
-                <li class="{{ (Request::is('admin/customer/wallet*') || Request::is('admin/customer/purchase-package*') || Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/reviews*') || Request::is('admin/customer/loyalty/report')) ? 'sub-menu-opened' : '' }}">
-                    <a class="nav-link nav-link-toggle {{ (Request::is('admin/customer/wallet*') || Request::is('admin/customer/purchase-package*') || Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/reviews*') || Request::is('admin/customer/loyalty/report')) ? 'active' : '' }}"
+                <li class="{{ (Request::is('admin/customer/wallet*') || Request::is('admin/customer/purchase-package*') || Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/reviews*') || Request::is('admin/customer/loyalty/report') || (Request::is('admin/insurance-center*') && request('tab', 'customers') === 'customers' && !request()->routeIs('admin.insurance-center.sellers.*'))) ? 'sub-menu-opened' : '' }}">
+                    <a class="nav-link nav-link-toggle {{ (Request::is('admin/customer/wallet*') || Request::is('admin/customer/purchase-package*') || Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/reviews*') || Request::is('admin/customer/loyalty/report') || (Request::is('admin/insurance-center*') && request('tab', 'customers') === 'customers' && !request()->routeIs('admin.insurance-center.sellers.*'))) ? 'active' : '' }}"
                        href="javascript:" title="{{ translate('customers') }}">
                         <i class="fi fi-sr-user"></i>
                         <span
@@ -821,6 +852,9 @@
                                 <span class="text-truncate">{{ translate('customer_List') }} </span>
                             </a>
                         </li>
+                        @if (auth('admin')->user()->admin_role_id == 1 || Helpers::module_permission_check('reports'))
+                        <li class="nav-item"><a class="nav-link {{ Request::is('admin/insurance-center*') && request('tab', 'customers') === 'customers' && !request()->routeIs('admin.insurance-center.sellers.*') ? 'active' : '' }}" href="{{ route('admin.insurance-center.index', ['tab' => 'customers']) }}" title="{{ translate('Customer_Insurances') }}"><span class="text-truncate">{{ translate('Customer_Insurances') }}</span></a></li>
+                        @endif
                         <li class="nav-item">
                             <a class="nav-link {{ Request::is('admin/reviews*') ? 'active' : '' }}"
                                href="{{ route('admin.reviews.list') }}" title="{{ translate('customer_Reviews') }}">
@@ -829,6 +863,13 @@
                                 </span>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.monthly-packages.*') ? 'active' : '' }}" href="{{ route('admin.monthly-packages.index') }}">الباقات الشهرية</a>
+                            <a class="nav-link {{ request()->routeIs('admin.customer.wallet.deposits*') ? 'active' : '' }}" href="{{ route('admin.customer.wallet.deposits') }}">
+                                <span class="text-truncate">{{ translate('customer_deposit_requests') }}</span>
+                            </a>
+                        </li>
+                        @if(false)
                         <li class="nav-item">
                             <a class="nav-link {{ Request::is('admin/customer/wallet/report') ? 'active' : '' }}"
                                title="{{ translate('wallet') }}" href="{{ route('admin.customer.wallet.report') }}">
@@ -855,6 +896,9 @@
                                 </span>
                             </a>
                         </li>
+                        @endif
+                        {{-- Customer purchase packages are suspended; keep historical routes and records only. --}}
+                        @if(false)
                         <li class="nav-item">
                             <a class="nav-link {{ (Request::is('admin/customer/purchase-package') || Request::is('admin/customer/purchase-package/edit*')) ? 'active' : '' }}"
                                title="{{ translate('Customer_Purchase_Packages') }}"
@@ -873,11 +917,12 @@
                                 </span>
                             </a>
                         </li>
+                        @endif
                     </ul>
                 </li>
 
-                <li class="{{ Request::is('admin/vendors*') || Request::is('admin/vendors/withdraw-method/*') || (Request::is('admin/orders/details/*') && request()->has('vendor-order-list')) ? 'sub-menu-opened' : '' }}">
-                    <a class="nav-link nav-link-toggle {{ Request::is('admin/vendors*') || Request::is('admin/vendors/withdraw-method/*') || (Request::is('admin/orders/details/*') && request()->has('vendor-order-list')) ? 'active' : '' }}"
+                <li class="{{ Request::is('admin/vendors*') || Request::is('admin/vendors/withdraw-method/*') || (Request::is('admin/insurance-center*') && (request('tab') === 'sellers' || request()->routeIs('admin.insurance-center.sellers.*'))) || (Request::is('admin/orders/details/*') && request()->has('vendor-order-list')) ? 'sub-menu-opened' : '' }}">
+                    <a class="nav-link nav-link-toggle {{ Request::is('admin/vendors*') || Request::is('admin/vendors/withdraw-method/*') || (Request::is('admin/insurance-center*') && (request('tab') === 'sellers' || request()->routeIs('admin.insurance-center.sellers.*'))) || (Request::is('admin/orders/details/*') && request()->has('vendor-order-list')) ? 'active' : '' }}"
                        href="javascript:" title="{{ translate('vendors') }}">
                         <i class="fi fi-sr-seller"></i>
                         <span
@@ -921,6 +966,23 @@
                                 </a>
                             </li>
                         @endif
+                        @if (auth('admin')->user()->admin_role_id == 1 || Helpers::module_permission_check('reports'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ Request::is('admin/insurance-center*') && (request('tab') === 'sellers' || request()->routeIs('admin.insurance-center.sellers.*')) ? 'active' : '' }}"
+                                   title="{{ translate('Seller_Insurances') }}"
+                                   href="{{ route('admin.insurance-center.index', ['tab' => 'sellers']) }}">
+                                    <span class="text-truncate">{{ translate('Seller_Insurances') }}</span>
+                                </a>
+                            </li>
+                        @endif
+                        <li class="nav-item">
+                            <a class="nav-link {{ Request::is('admin/vendors/balance-deposits*') ? 'active' : '' }}"
+                               href="{{ route('admin.vendors.balance-deposits.index') }}"><span class="text-truncate">طلبات إيداع رصيد التجار</span></a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ Request::is('admin/vendors/balance-funding-settings*') ? 'active' : '' }}"
+                               href="{{ route('admin.vendors.balance-funding-settings.index') }}"><span class="text-truncate">إعدادات إيداع رصيد التجار</span></a>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link {{ Request::is('admin/vendors/packages*') ? 'active' : '' }}"
                                title="{{ translate('Vendor_Packages') }}"
@@ -958,50 +1020,7 @@
                     </ul>
                 </li>
 
-                <li class="{{ Request::is('admin/delivery-man*') ? 'sub-menu-opened' : '' }}">
-                    <a class="nav-link nav-link-toggle text-capitalize {{ Request::is('admin/delivery-man*') ? 'active' : '' }}"
-                       href="javascript:"
-                       title="{{ translate('delivery_men') }}">
-                        <i class="fi fi-sr-person-carry-box"></i>
-                        <span
-                            class="aside-mini-hidden-element flex-grow-1 d-flex justify-content-between align-items-center">
-                            <span class="text-truncate max-w-180">
-                                {{ translate('delivery_men') }}
-                            </span>
-                            <i class="fi fi-sr-angle-down"></i>
-                        </span>
-                    </a>
-                    <ul class="aside-submenu navbar-nav">
-                        <li class="nav-item px-3 py-2 fw-semibold text-dark bg-section2 aside-mini-show-element">{{ translate('delivery_men') }}</li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/delivery-man/add') ? 'active' : '' }}"
-                               href="{{ route('admin.delivery-man.add') }}" title="{{ translate('add_new') }}">
-                                <span class="text-truncate">{{ translate('add_new') }}</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/delivery-man/list') || Request::is('admin/delivery-man/update*')  || Request::is('admin/delivery-man/order-history-log*') || Request::is('admin/delivery-man/order-wise-earning*') ? 'active' : '' }}"
-                               href="{{ route('admin.delivery-man.list') }}"
-                               title="{{ translate('list') }}">
-                                <span class="text-truncate">{{ translate('list') }}</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/delivery-man/withdraw-list') || Request::is('admin/delivery-man/withdraw-view*') ? 'active' : '' }}"
-                               href="{{ route('admin.delivery-man.withdraw-list') }}"
-                               title="{{ translate('withdraws') }}">
-                                <span class="text-truncate">{{ translate('withdraws') }}</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link  {{ Request::is('admin/delivery-man/emergency-contact') ? 'active' : '' }}"
-                               href="{{ route('admin.delivery-man.emergency-contact.index') }}"
-                               title="{{ translate('emergency_contact') }}">
-                                <span class="text-truncate">{{ translate('Emergency_Contact') }}</span>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
+                {{-- Delivery-man navigation is intentionally removed; historical records remain in the database. --}}
 
                 @if(auth('admin')->user()->admin_role_id==1)
                     <li class=" {{ (Request::is('admin/employee*') || Request::is('admin/custom-role*')) ? 'sub-menu-opened' : '' }}">
@@ -1035,6 +1054,7 @@
                     </li>
                 @endif
 
+                @if(false)
                 <li>
                     <a class="nav-link {{ Request::is('admin/customer/subscriber-list') ? 'active' : '' }}"
                        href="{{ route('admin.customer.subscriber-list') }}" title="{{ translate('subscribers') }}">
@@ -1044,6 +1064,7 @@
                         </span>
                     </a>
                 </li>
+                @endif
             @endif
 
             @if(Helpers::module_permission_check('business_settings'))
@@ -1062,7 +1083,6 @@
                                 Request::is('admin/business-settings/payment-method/payment-option') ||
                                 Request::is('admin/business-settings/vendor-settings') ||
                                 Request::is('admin/customer/customer-settings') ||
-                                Request::is('admin/business-settings/delivery-man-settings') ||
                                 Request::is('admin/business-settings/shipping-method/update'.'*') ||
                                 Request::is('admin/business-settings/shipping-method/index') ||
                                 Request::is('admin/business-settings/order-settings/index') ||
@@ -1179,6 +1199,11 @@
                                 <span class="text-truncate">
                                     {{ translate('business_Pages') }}
                                 </span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ Request::is('admin/business-settings/policy-center*') ? 'active' : '' }}" href="{{ route('admin.business-settings.policy-center.index') }}" title="مركز الشروط والسياسات">
+                                <span class="text-truncate">مركز الشروط والسياسات</span>
                             </a>
                         </li>
                         <li>
@@ -1336,7 +1361,6 @@
                 <li>
                     <a class="nav-link {{ Request::is('admin/third-party/mail') ||
                             Request::is('admin/third-party/sms-module') ||
-                            Request::is('admin/third-party/recaptcha') ||
                             Request::is('admin/third-party/social-login/view') ||
                             Request::is('admin/third-party/social-media-chat/view') ||
                             Request::is('admin/third-party/storage-connection-settings/index') ||
@@ -1436,7 +1460,6 @@
     </div>
 </aside>
 
-@include("layouts.admin.partials._setup-guide")
 
 <div class="offcanvas offcanvas-start bg-panel d-lg-none w-280" tabindex="-1" id="offcanvasAside"
      aria-labelledby="offcanvasAsideLabel">

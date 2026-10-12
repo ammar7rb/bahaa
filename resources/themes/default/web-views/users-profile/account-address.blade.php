@@ -79,11 +79,15 @@
                                     <div class="form-row">
                                         <div class="form-group col-md-6">
                                             <label for="address-city">
-                                                {{translate('city')}}
+                                                {{translate('governorate')}}
                                                 <span class="text-danger">*</span>
                                             </label>
-                                            <input class="form-control" type="text" id="address-city" name="city"
-                                                   required>
+                                            <select class="form-control" id="address-state" name="state" required>
+                                                <option value="">{{ translate('select') }} {{ translate('governorate') }}</option>
+                                                @foreach(config('egypt_governorates') as $governorate)
+                                                    <option value="{{ $governorate }}">{{ $governorate }}</option>
+                                                @endforeach
+                                            </select>
                                         </div>
                                         <div class="form-group col-md-6">
                                             <label for="zip">
@@ -104,17 +108,39 @@
                                         </div>
                                     </div>
                                     <div class="form-row">
+                                        <div class="form-group col-md-6">
+                                            <label for="address-city">المدينة / المركز <span class="text-danger">*</span></label>
+                                            <input class="form-control" type="text" id="address-city" name="city" required>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="district">الحي أو القسم <span class="text-danger">*</span></label>
+                                            <input class="form-control" type="text" id="district" name="district" required>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="area">المنطقة <span class="text-danger">*</span></label>
+                                            <input class="form-control" type="text" id="area" name="area" required>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="street">الشارع <span class="text-danger">*</span></label>
+                                            <input class="form-control" type="text" id="street" name="street" required>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="building-number">رقم العقار <span class="text-danger">*</span></label>
+                                            <input class="form-control" type="text" id="building-number" name="building_number" required>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="landmark">أقرب علامة مميزة</label>
+                                            <input class="form-control" type="text" id="landmark" name="landmark">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
                                         <div class="form-group col-md-12">
                                             <label for="address-city">
                                                 {{translate('country')}}
                                                 <span class="text-danger">*</span>
                                             </label>
-                                            <select name="country" id="" class="form-control selectpicker"
-                                                    data-live-search="true">
-                                                @foreach($countries as $d)
-                                                    <option value="{{ $d['name'] }}">{{ $d['name'] }}</option>
-                                                @endforeach
-                                            </select>
+                                            <input type="hidden" name="country" value="Egypt">
+                                            <input type="text" class="form-control" value="Egypt" readonly>
                                         </div>
                                     </div>
 
@@ -135,20 +161,9 @@
                                             </div>
                                         </div>
 
-                                        @php($default_location=getWebConfig(name: 'default_location'))
-                                        @if(getWebConfig('map_api_status') ==1 )
-                                            <div class="col-md-12">
-                                                <div class="form-group map-area-alert-border location-map-address-canvas-area">
-                                                    <input id="pac-input" class="controls rounded __inline-46 location-search-input-field"
-                                                           title="{{translate('search_your_location_here')}}" type="text"
-                                                           placeholder="{{translate('search_here')}}"/>
-                                                    <div class="__h-200px" id="location_map_canvas"></div>
-                                                </div>
-                                            </div>
-                                        @endif
-
                                     </div>
                                 </div>
+                                @php($default_location=getWebConfig(name: 'default_location'))
                                 <input type="hidden" id="latitude"
                                        name="latitude" class="form-control d-inline"
                                        placeholder="{{ translate('ex')}} : -94.22213"
@@ -323,7 +338,8 @@
         }
     </script>
 
-    @if(getWebConfig('map_api_status') ==1 )
+    {{-- Customer maps are intentionally disabled; address resolution runs on the server. --}}
+    @if(false)
         <script
             src="https://maps.googleapis.com/maps/api/js?key={{getWebConfig('map_api_key')}}&callback=callBackFunction&loading=async&libraries=places&v=3.56" defer>
         </script>
@@ -331,15 +347,16 @@
             "use strict";
             async function initAutocomplete() {
                 var myLatLng = {
-                    lat: {{$default_location?$default_location['lat']:'-33.8688'}},
-                    lng: {{$default_location?$default_location['lng']:'151.2195'}}
+                    lat: {{$default_location?$default_location['lat']:'30.0444'}},
+                    lng: {{$default_location?$default_location['lng']:'31.2357'}}
                 };
                 const { Map } = await google.maps.importLibrary("maps");
                 const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
                 const map = new google.maps.Map(document.getElementById("location_map_canvas"), {
                     center: myLatLng,
                     zoom: 13,
-                    mapId: 'roadmap'
+                    mapId: 'roadmap',
+                    restriction: {latLngBounds: {north: 31.7, south: 22.0, east: 36.9, west: 24.7}, strictBounds: true}
                 });
 
                 var marker = new AdvancedMarkerElement({

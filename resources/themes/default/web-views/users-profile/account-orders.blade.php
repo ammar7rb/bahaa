@@ -47,18 +47,7 @@
                                     <div class="col-md-6">
                                         <div class="cus-shadow rounded-8 p-xl-3 p-2">
                                             <div class="media-order">
-                                                <a href="{{ route('account-order-details', ['id'=>$order->id]) }}"
-                                                   class="d-block position-relative w-70px border rounded h-70px min-w-60px">
-                                                    @if($order->seller_is == 'seller')
-                                                        <img alt="{{ translate('shop') }}"
-                                                             src="{{ getStorageImages(path: $order?->seller?->shop->image_full_url, type: 'shop') }}"
-                                                             class="w-100 h-100">
-                                                    @elseif($order->seller_is == 'admin')
-                                                        <img alt="{{ translate('shop') }}"
-                                                             src="{{ getStorageImages(path: getInHouseShopConfig(key: 'image_full_url'), type: 'shop') }}"
-                                                             class="w-100 h-100">
-                                                    @endif
-                                                </a>
+                                                {{-- Seller and store logos are hidden from customer order history. --}}
                                                 <div class="cont w-auto text-start flex-grow-1">
                                                     <div
                                                         class="d-flex align-items-center justify-content-between gap-2">
@@ -102,7 +91,7 @@
                                                                 @else
                                                                     <span
                                                                         class="status-badge rounded-pill __badge badge-soft-primary fs-12 font-semibold text-capitalize">
-                                                                    {{ translate($order['order_status']) }}
+                                                                    {{ $order->customer_checkout_operation_id && $order->order_status === 'pending' ? app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order)['message'] : translate($order['order_status']) }}
                                                                 </span>
                                                                 @endif
                                                             </div>
@@ -114,6 +103,9 @@
                                                                 <i class="fi fi-rr-menu-dots-vertical fs-14"></i>
                                                             </button>
                                                             <ul class="dropdown-menu dropdown-menu-right p-2">
+                                                                @if($order->postPurchaseInvoice?->isPayable())
+                                                                    <li><div class="dropdown-item w-100"><a class="d-flex align-items-center justify-content-between w-100 fs-14 gap-2 text-warning" href="{{ route('post-purchase-invoices.show', $order->postPurchaseInvoice->id) }}">استكمال سداد الضريبة <i class="fi fi-rr-credit-card"></i></a></div></li>
+                                                                @endif
                                                                 <li>
                                                                     <div class="dropdown-item w-100">
                                                                         <a class="d-flex align-items-center justify-content-between w-100 fs-14 gap-2"
@@ -166,6 +158,14 @@
                                                             {{ webCurrencyConverter(amount:  $orderTotalPriceSummary['totalAmount']) }}
                                                         </div>
                                                     </div>
+                                                    @if($order->insurance && in_array($order->insurance->purchase_refund_status, ['scheduled', 'completed'], true))
+                                                        <div class="alert alert-info mt-2 mb-0 py-2 px-3 fs-12">
+                                                            {{ translate('purchase_refund_' . $order->insurance->purchase_refund_status) }}
+                                                            @if($order->insurance->purchase_refund_due_at)
+                                                                — {{ $order->insurance->purchase_refund_due_at->format('d M, Y') }}
+                                                            @endif
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             </div>
                                         </div>

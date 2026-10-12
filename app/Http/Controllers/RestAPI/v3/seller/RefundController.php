@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Utils\CustomerManager;
 use App\Utils\Helpers;
 use App\Utils\OrderManager;
+use App\Services\SellerSettlementService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -125,9 +126,9 @@ class RefundController extends Controller
     {
         $seller = $request->seller;
         $validator = Validator::make($request->all(), [
-            'refund_status' => 'required',
+            'refund_status' => 'required|in:pending,approved,rejected,refunded,refused_execution',
             'refund_request_id' => 'required',
-            'note' => 'required_if:refund_status,rejected',
+            'note' => 'required_if:refund_status,rejected,refused_execution',
         ]);
 
         if ($validator->errors()->count() > 0) {
@@ -137,6 +138,18 @@ class RefundController extends Controller
         $refund = RefundRequest::whereHas('order', function ($query) use ($seller) {
             $query->where('seller_is', 'seller')->where('seller_id', $seller['id']);
         })->find($request->refund_request_id);
+
+        if (!$refund) {
+            return response()->json(['message' => translate('Refund_Request_not_found')], 404);
+        }
+
+        if ($request->refund_status === 'refused_execution') {
+            if ($refund->status !== 'approved') {
+                return response()->json(['message' => translate('return_must_be_approved_before_seller_refusal')], 422);
+            }
+            app(SellerSettlementService::class)->disputeForReturnRefusal($refund->load('order'), (string) $request->note);
+            return response()->json(['message' => translate('seller_return_refusal_recorded_and_settlement_held')]);
+        }
 
         $user = User::find($refund->customer_id);
 

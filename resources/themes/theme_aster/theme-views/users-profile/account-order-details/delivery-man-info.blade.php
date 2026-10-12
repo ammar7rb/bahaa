@@ -75,7 +75,7 @@
                                                         </div>
 
                                                         <div class="modal-body px-sm-4 py-0">
-                                                            <form action="{{route('messages')}}" method="post" id="chat-form">
+                                                            <form action="{{ route('account-tickets') }}" method="get" id="chat-form">
                                                                 @csrf
                                                                 @if($order->deliveryMan->id != 0)
                                                                     <input value="{{$order->deliveryMan->id}}" name="delivery_man_id" hidden>
@@ -84,7 +84,7 @@
                                                             </form>
                                                         </div>
                                                         <div class="modal-footer border-0 gap-3 py-4 px-sm-4">
-                                                            <a href="{{route('chat',['type' => 'delivery-man'])}}" class="btn btn-secondary m-0">
+                                                            <a href="{{ route('account-tickets') }}" class="btn btn-secondary m-0">
                                                                 {{translate('go_to_chatbox')}}
                                                             </a>
                                                             @if($order->deliveryMan->id != 0)

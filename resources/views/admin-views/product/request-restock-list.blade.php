@@ -47,7 +47,7 @@
                                     data-bs-target="#offcanvasRestockFilter">
                                 <i class="fi fi-sr-settings-sliders d-flex"></i> {{ translate('Filter') }}
                             </button>
-                            @if(!empty(request('filter_sort_by')) || !empty(request('filter_product_types')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
+                            @if(!empty(request('filter_sort_by')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
                                 <div
                                     class="position-absolute top-n1 inset-inline-end-n1 btn-circle bg-danger border border-white border-2"
                                     style="--size: 12px;"></div>

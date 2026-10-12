@@ -7,6 +7,7 @@ use App\Contracts\Repositories\WithdrawalMethodRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\v3\PaymentInfoApiRequest;
 use App\Services\VendorPaymentInformationService;
+use App\Services\SellerWithdrawalMethodService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,6 +18,7 @@ class VendorPaymentInfoController extends Controller
         private readonly VendorWithdrawMethodInfoRepositoryInterface $vendorWithdrawMethodInfoRepo,
         private readonly WithdrawalMethodRepositoryInterface         $withdrawalMethodRepo,
         private readonly VendorPaymentInformationService             $vendorPaymentInformationService,
+        private readonly SellerWithdrawalMethodService               $sellerWithdrawalMethodService,
     )
     {
     }
@@ -70,24 +72,28 @@ class VendorPaymentInfoController extends Controller
     {
         $fields = $this->withdrawalMethodRepo->getFirstWhere(params: ['id' => $request['withdraw_method_id']]);
         $data = $this->vendorPaymentInformationService->getApiAddData(sellerID: $request['seller']?->id, request: $request, fields: $fields['method_fields']);
-         $this->vendorWithdrawMethodInfoRepo->updateOrInsert(params: ['id' => $request['id']], data: $data);
+         $this->vendorWithdrawMethodInfoRepo->updateOrInsert(params: ['id' => $request['id'], 'user_id' => $request['seller']?->id], data: $data);
         return response()->json(['status' => true], 200);
     }
 
     public function updateDefault(Request $request): JsonResponse
     {
-        $this->vendorWithdrawMethodInfoRepo->updateWhere(params: ['user_id' => $request['seller']?->id], data: ['is_default' => 0]);
-        $this->vendorWithdrawMethodInfoRepo->updateWhere(
-            params: ['id' => $request['id']],
-            data: ['is_default' => 1, 'is_active' => 1]
-        );
+        try {
+            $this->sellerWithdrawalMethodService->setDefault($request['id'], $request['seller']?->id);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => false, 'message' => $e->getMessage()], 422);
+        }
         return response()->json(['status' => true], 200);
     }
 
 
     public function updateStatus(Request $request): JsonResponse
     {
-        $this->vendorWithdrawMethodInfoRepo->updateWhere(params: ['id' => $request['id']], data: ['is_active' => $request['status'] ?? 0]);
+        try {
+            $this->sellerWithdrawalMethodService->setActive($request['id'], $request['seller']?->id, (bool) ($request['status'] ?? 0));
+        } catch (\Throwable $e) {
+            return response()->json(['status' => false, 'message' => $e->getMessage()], 422);
+        }
         return response()->json(['status' => true], 200);
     }
 

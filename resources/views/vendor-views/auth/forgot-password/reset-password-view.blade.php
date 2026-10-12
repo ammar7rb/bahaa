@@ -17,6 +17,8 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/vendor/icon-set/style.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/theme.minc619.css?v=1.0') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/style.css') }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-dark-mode.css') }}">
+    @include('layouts.vendor.partials._dark-mode-preference')
 
       @if ($web_config['primary_color'])
         <style>
@@ -31,6 +33,7 @@
 </head>
 
 <body>
+@include('layouts.vendor.partials._dark-mode-toggle')
 <main id="content" role="main" class="main">
     <div class="auth-wrapper">
         <div class="auth-wrapper-left"
@@ -163,9 +166,9 @@
     </script>
 @endif
 
+<script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-dark-mode.js') }}"></script>
 </body>
 </html>
-
 
 
 

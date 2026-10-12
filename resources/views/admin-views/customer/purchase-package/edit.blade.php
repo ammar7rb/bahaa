@@ -45,6 +45,20 @@
                             @error('purchase_limit') <div class="text-danger fs-12 mt-1">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-4">
+                            <label class="form-label">{{ translate('Duration_Unit') }}</label>
+                            <select name="duration_unit" class="form-select">
+                                <option value="">{{ translate('Lifetime') }}</option>
+                                @foreach(['days' => 'Days', 'months' => 'Months', 'years' => 'Years', 'lifetime' => 'Lifetime'] as $unit => $label)
+                                    <option value="{{ $unit }}" {{ old('duration_unit', $package->duration_unit) === $unit ? 'selected' : '' }}>{{ translate($label) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ translate('Duration_Value') }}</label>
+                            <input type="number" name="duration_value" class="form-control" min="1" max="100000"
+                                   value="{{ old('duration_value', $package->duration_value) }}">
+                        </div>
+                        <div class="col-md-4">
                             <label class="form-label">{{ translate('Sort_Order') }}</label>
                             <input type="number" name="sort_order" class="form-control" min="0"
                                    value="{{ old('sort_order', $package->sort_order) }}">

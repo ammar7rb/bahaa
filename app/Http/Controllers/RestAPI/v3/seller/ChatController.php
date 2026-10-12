@@ -23,6 +23,8 @@ class ChatController extends Controller
 
     public function list(Request $request, $type):JsonResponse
     {
+        return $this->directChatBlockedResponse();
+
         $seller = $request->seller;
 
         if ($type == 'customer') {
@@ -79,6 +81,8 @@ class ChatController extends Controller
 
     public function search(Request $request, $type):JsonResponse
     {
+        return $this->directChatBlockedResponse();
+
         $seller = $request->seller;
 
         $terms = explode(" ", $request->input('search'));
@@ -131,6 +135,8 @@ class ChatController extends Controller
 
     public function get_message(Request $request, $type, $id):JsonResponse
     {
+        return $this->directChatBlockedResponse();
+
 
         $seller = $request->seller;
         $validator = Validator::make($request->all(), [
@@ -189,6 +195,8 @@ class ChatController extends Controller
 
     public function send_message(SellerSendMessageRequest $request, $type):JsonResponse
     {
+        return $this->directChatBlockedResponse();
+
         $seller = $request->seller;
         $attachment = [];
         if ($request->file('media')) {
@@ -271,6 +279,8 @@ class ChatController extends Controller
 
     public function seenMessage(Request $request, $type): JsonResponse
     {
+        return $this->directChatBlockedResponse();
+
         $validator = Validator::make($request->all(), [
             'id' => 'required',
         ]);
@@ -294,5 +304,13 @@ class ChatController extends Controller
         } else {
             return response()->json(['message' => translate('Fail')], 403);
         }
+    }
+
+    private function directChatBlockedResponse(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => translate('direct_chat_is_disabled_use_admin_support'),
+        ], 403);
     }
 }

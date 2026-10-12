@@ -26,6 +26,7 @@ use App\Http\Controllers\RestAPI\v1\MapApiController;
 use App\Http\Controllers\RestAPI\v1\NotificationController;
 use App\Http\Controllers\RestAPI\v1\OrderController;
 use App\Http\Controllers\RestAPI\v1\OrderEditController;
+use App\Http\Controllers\RestAPI\v1\PostPurchaseInvoiceController;
 use App\Http\Controllers\RestAPI\v1\ProductController;
 use App\Http\Controllers\RestAPI\v1\ReviewController;
 use App\Http\Controllers\RestAPI\v1\SellerController;
@@ -47,6 +48,42 @@ use App\Http\Controllers\Customer\PaymentController;
  */
 
 Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
+    Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['auth:api', 'throttle:10,1,customer-support-report:']);
+    Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show']);
+    Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['auth:api', 'throttle:10,1,customer-profile-image:']);
+    Route::prefix('customer/account-deletion')->middleware('auth:api')->controller('\App\Http\Controllers\Customer\AccountDeletionController')->group(function () {
+        Route::post('begin', 'begin')->middleware('throttle:5,1,customer-deletion-password:');
+        Route::post('reason', 'reason')->middleware('throttle:10,1,customer-deletion-reason:');
+        Route::post('finish', 'finish')->middleware('throttle:5,1,customer-deletion-password:');
+    });
+    Route::post('customer/order/{order}/payment-proof/retry', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'submit'])->middleware(['auth:api','throttle:10,1']);
+    Route::prefix('customer/subscription')->middleware('auth:api')->controller('\App\Http\Controllers\Customer\MonthlySubscriptionController')->group(function () {
+        Route::get('/', 'index');
+        Route::post('{payment}/cancel', 'cancel')->middleware('throttle:10,1,customer-package-cancel:');
+        Route::post('checkout', 'checkout')->middleware('throttle:10,1,customer-package-quote:');
+        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1,customer-package-wallet:');
+        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1,customer-package-transfer:');
+    });
+    Route::get('customer/post-payment-refunds', [CustomerController::class, 'postPaymentRefunds'])
+        ->middleware('auth:api');
+
+    Route::group(['prefix' => 'customer/post-purchase-invoices', 'middleware' => 'auth:api'], function () {
+        Route::controller(PostPurchaseInvoiceController::class)->group(function () {
+            Route::get('/', 'index');
+            Route::get('{invoice}', 'show');
+            Route::post('{invoice}/use-insurance-balance', 'useInsuranceBalance');
+        });
+    });
+
+    Route::group(['prefix' => 'customer/order-insurance', 'middleware' => 'auth:api'], function () {
+        Route::controller(PostPurchaseInvoiceController::class)->group(function () {
+            Route::get('{order}', 'mobileClaim');
+            Route::post('{order}/pay', 'mobilePay');
+            Route::post('{order}/offline', 'mobileOffline');
+            Route::post('{order}/support', 'mobileSupport');
+            Route::post('{order}/decline', 'mobileDecline');
+        });
+    });
 
     Route::controller(ConfigController::class)->group(function () {
         Route::get('config', 'configuration');
@@ -54,12 +91,14 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
     });
 
     Route::group(['prefix' => 'auth'], function () {
+        Route::post('checkout-register', [\App\Http\Controllers\Customer\Auth\CheckoutRegistrationController::class, 'apiStore'])->middleware('throttle:5,1');
         Route::controller(PassportAuthController::class)->group(function () {
             Route::get('logout', 'logout')->middleware('auth:api');
         });
 
         Route::controller(CustomerAPIAuthController::class)->group(function () {
             Route::post('register', 'register');
+            Route::get('registration-policies', 'registrationPolicies');
             Route::post('login', 'login');
             Route::post('check-email', 'checkEmail');
             Route::post('check-phone', 'checkPhone');
@@ -103,7 +142,9 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::controller(ShippingMethodController::class)->group(function () {
             Route::get('detail/{id}', 'get_shipping_method_info');
             Route::get('by-seller/{id}/{seller_is}', 'shipping_methods_by_seller');
-            Route::post('choose-for-order', 'choose_for_order');
+                    Route::post('choose-for-order', 'choose_for_order');
+                    Route::post('quote-for-address', 'quote_for_address');
+                    Route::post('select-quote-for-address', 'select_quote_for_address');
             Route::get('chosen', 'chosen_shipping_methods');
             Route::get('three-step-options', 'three_step_options');
             Route::get('check-shipping-type', 'check_shipping_type');
@@ -248,6 +289,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
 
             Route::group(['prefix' => 'order'], function () {
                 Route::controller(OrderController::class)->group(function () {
+                    Route::get('insurance-quote', 'insuranceQuote');
                     Route::get('place', 'place_order');
                     Route::get('offline-payment-method-list', 'offline_payment_method_list');
                     Route::post('place-by-offline-payment', 'placeOrderByOfflinePayment');
@@ -270,7 +312,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::controller(CustomerController::class)->group(function () {
             Route::get('info', 'info');
             Route::put('update-profile', 'update_profile');
-            Route::get('account-delete/{id}', 'account_delete');
         });
 
         Route::group(['prefix' => 'address'], function () {
@@ -285,7 +326,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
                 Route::get('get', 'get_support_tickets');
                 Route::get('conv/{ticket_id}', 'get_support_ticket_conv');
                 Route::post('reply/{ticket_id}', 'reply_support_ticket');
-                Route::get('close/{id}', 'support_ticket_close');
+                Route::get('activation/status', 'activationStatus');
+                Route::post('activation/ticket', 'activationTicket');
             });
         });
 
@@ -320,6 +362,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
                 Route::post('refund-store', 'store_refund');
                 Route::get('refund-details', 'refund_details');
                 Route::post('again', 'order_again');
+                Route::post('confirm-receipt/{id}', 'confirmReceipt')->middleware('auth:api');
             });
 
             Route::controller(CustomerController::class)->group(function () {
@@ -331,20 +374,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
             });
         });
 
-        // Chatting
-        Route::group(['prefix' => 'chat'], function () {
-            Route::controller(ChatController::class)->group(function () {
-                Route::get('list/{type}', 'list');
-                Route::get('get-messages/{type}/{id}', 'get_message');
-                Route::post('send-message/{type}', 'send_message');
-                Route::post('seen-message/{type}', 'seen_message');
-                Route::get('search/{type}', 'search');
-            });
-        });
+        // Direct customer-to-seller chat is disabled. Use support tickets.
 
         //wallet
         Route::group(['prefix' => 'wallet'], function () {
+            Route::post('deposits', [\App\Http\Controllers\Customer\CustomerBalanceDepositController::class, 'store']);
             Route::controller(UserWalletController::class)->group(function () {
+                Route::get('overview', 'overview');
                 Route::get('list', 'list');
                 Route::get('bonus-list', 'bonus_list');
             });
@@ -358,25 +394,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
             });
         });
 
-        Route::group(['prefix' => 'purchase-packages'], function () {
-            Route::controller(CustomerPurchasePackageController::class)->group(function () {
-                Route::get('/', 'list');
-                Route::get('limit-summary', 'limitSummary');
-                Route::get('transactions', 'transactions');
-                Route::post('purchase', 'purchase');
-                Route::post('extra-credit/purchase', 'purchaseExtraCredit');
-            });
-        });
-
-        Route::group(['prefix' => 'activation-invoice'], function () {
-            Route::controller(CustomerPurchasePackageController::class)->group(function () {
-                Route::get('current', 'currentActivationInvoice');
-                Route::post('create-for-package', 'createActivationInvoiceForPackage');
-                Route::post('select-package', 'selectActivationInvoicePackage');
-                Route::post('pay', 'payActivationInvoice');
-                Route::post('pay-by-offline-payment', 'payActivationInvoiceByOfflinePayment');
-            });
-        });
     });
 
     Route::group(['prefix' => 'customer', 'middleware' => 'apiGuestCheck'], function () {
@@ -418,6 +435,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
     Route::group(['prefix' => 'banners'], function () {
         Route::controller(BannerController::class)->group(function () {
             Route::get('/', 'getBannerList');
+            Route::get('homepage-layout', 'getHomepageLayout');
         });
     });
 
@@ -445,6 +463,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
     //map api
     Route::group(['prefix' => 'mapapi'], function () {
         Route::controller(MapApiController::class)->group(function () {
+            Route::get('shipping-governorates', 'shippingGovernorates');
+            Route::post('resolve-shipping-address', 'resolveShippingAddress')->middleware('throttle:10,1');
             Route::get('place-api-autocomplete', 'placeApiAutocomplete');
             Route::get('distance-api', 'distanceApi');
             Route::get('place-api-details', 'placeApiDetails');

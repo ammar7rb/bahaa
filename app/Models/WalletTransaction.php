@@ -25,6 +25,16 @@ use Illuminate\Database\Eloquent\Model;
  */
 class WalletTransaction extends Model
 {
+    public function getDisplayReferenceAttribute(): string
+    {
+        if ($this->transaction_type === 'add_fund' && preg_match('/^customer-offline-deposit-(\d+)$/', (string) $this->reference, $match)) {
+            return \App\Services\AdministrativeReferenceService::format('customer_balance_deposit', (int) $match[1]);
+        }
+        return $this->transaction_type === 'add_fund' ? \App\Services\AdministrativeReferenceService::format('customer_balance_deposit', (int) $this->id) : (string) $this->transaction_id;
+    }
+
+    protected $appends = ['display_reference'];
+
     use HasFactory;
 
     protected $fillable = [

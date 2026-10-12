@@ -33,6 +33,9 @@
                         <div class="row g-0 g-md-3 gap-3 h-100">
                             <div class="col-md-12">
                                 <div class="row  g-3">
+                                    <div class="col-12">
+
+                                    </div>
                                     @if(!$addFundsToWalletStatus || count($addFundBonusList) <= 0)
                                         <div class="col-12">
                                             <div class="card btn--primary h-100 position-relative mx-h-200">

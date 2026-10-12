@@ -1,3 +1,4 @@
+{{-- Legacy preview URLs below use the active platform base URL instead of the prior project identity. --}}
 <h2 class="text-primary text-uppercase my-3">Tables cards</h2>
 <div class="d-flex flex-column gap-4">
 
@@ -32,7 +33,7 @@
                                     <th>{{ translate('SL') }}</th>
                                     <th>{{ translate('Title') }}</th>
                                     <th>{{ translate('Shipping Duration') }}</th>
-                                    <th>{{ translate('Cost') }} ($)</th>
+                                    <th>{{ translate('Cost') }} ({{ getCurrencySymbol() }})</th>
                                     <th class="text-center">{{ translate('Status') }}</th>
                                     <th class="text-center">{{ translate('action') }}</th>
                                 </tr>
@@ -90,35 +91,35 @@
 
                         <nav>
                             <ul class="pagination">
-                                <li class="page-item disabled" aria-disabled="true" aria-label="« Previous">
-                                    <span class="page-link" aria-hidden="true">‹</span>
+                                <li class="page-item disabled" aria-disabled="true" aria-label="?? Previous">
+                                    <span class="page-link" aria-hidden="true">???</span>
                                 </li>
                                 <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
                                 </li>
                                 <li class="page-item">
                                     <a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
-                                        rel="next" aria-label="Next »">›</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
+                                        rel="next" aria-label="Next ??">???</a>
                                 </li>
                             </ul>
                         </nav>
@@ -169,7 +170,7 @@
                         <th>{{ translate('SL') }}</th>
                         <th>{{ translate('Title') }}</th>
                         <th>{{ translate('Shipping Duration') }}</th>
-                        <th>{{ translate('Cost') }} ($)</th>
+                        <th>{{ translate('Cost') }} ({{ getCurrencySymbol() }})</th>
                         <th class="text-center">{{ translate('Status') }}</th>
                         <th class="text-center">{{ translate('action') }}</th>
                     </tr>
@@ -227,35 +228,35 @@
 
             <nav>
                 <ul class="pagination">
-                    <li class="page-item disabled" aria-disabled="true" aria-label="« Previous">
-                        <span class="page-link" aria-hidden="true">‹</span>
+                    <li class="page-item disabled" aria-disabled="true" aria-label="?? Previous">
+                        <span class="page-link" aria-hidden="true">???</span>
                     </li>
                     <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
                     <li class="page-item"><a class="page-link"
-                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
+                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
                     </li>
                     <li class="page-item"><a class="page-link"
-                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
+                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
                     </li>
                     <li class="page-item"><a class="page-link"
-                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
+                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
                     </li>
                     <li class="page-item"><a class="page-link"
-                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
+                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
                     </li>
                     <li class="page-item"><a class="page-link"
-                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
+                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
                     </li>
                     <li class="page-item"><a class="page-link"
-                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
+                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
                     </li>
                     <li class="page-item"><a class="page-link"
-                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
+                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
                     </li>
                     <li class="page-item">
                         <a class="page-link"
-                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
-                            rel="next" aria-label="Next »">›</a>
+                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
+                            rel="next" aria-label="Next ??">???</a>
                     </li>
                 </ul>
             </nav>
@@ -327,7 +328,7 @@
                                         <td class="d-flex justify-content-center">
                                             <div class="avatar-60 d-flex align-items-center rounded">
                                                 <img class="img-fluid" alt=""
-                                                    src="http://localhost/Backend-6Valley-eCommerce-CMS/storage/app/public/category/2025-03-17-67d7b1ec80932.webp">
+                                                    src="{{ url('') }}/storage/app/public/category/2025-03-17-67d7b1ec80932.webp">
                                             </div>
                                         </td>
                                         <td>demoo</td>
@@ -336,7 +337,7 @@
                                         </td>
                                         <td class="text-center">
 
-                                            <form action="http://localhost/Backend-6Valley-eCommerce-CMS/admin/category/status"
+                                            <form action="{{ url('') }}/admin/category/status"
                                                 method="post" id="category-status294-form">
                                                 <input type="hidden" name="_token" value="WZ8YNBCiXnK0cq5yxNSoDIy8EG9hxlLfdBsUMUYt"
                                                     autocomplete="off"> <input type="hidden" name="id" value="294">
@@ -356,7 +357,7 @@
                                         <td>
                                             <div class="d-flex justify-content-center gap-3">
                                                 <a class="btn btn-outline-info icon-btn edit" title="Edit"
-                                                    href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/category/update/294">
+                                                    href="{{ url('') }}/admin/category/update/294">
                                                     <i class="fi fi-sr-pencil"></i>
                                                 </a>
                                                 <a class="btn btn-outline-danger icon-btn delete-category" title="Delete"
@@ -377,35 +378,35 @@
 
                                 <nav>
                                     <ul class="pagination">
-                                        <li class="page-item disabled" aria-disabled="true" aria-label="« Previous">
-                                            <span class="page-link" aria-hidden="true">‹</span>
+                                        <li class="page-item disabled" aria-disabled="true" aria-label="?? Previous">
+                                            <span class="page-link" aria-hidden="true">???</span>
                                         </li>
                                         <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
                                         </li>
                                         <li class="page-item">
                                             <a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
-                                                rel="next" aria-label="Next »">›</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
+                                                rel="next" aria-label="Next ??">???</a>
                                         </li>
                                     </ul>
                                 </nav>
@@ -482,7 +483,7 @@
                         <td class="d-flex justify-content-center">
                             <div class="avatar-60 d-flex align-items-center rounded">
                                 <img class="img-fluid" alt=""
-                                    src="http://localhost/Backend-6Valley-eCommerce-CMS/storage/app/public/category/2025-03-17-67d7b1ec80932.webp">
+                                    src="{{ url('') }}/storage/app/public/category/2025-03-17-67d7b1ec80932.webp">
                             </div>
                         </td>
                         <td>demoo</td>
@@ -491,7 +492,7 @@
                         </td>
                         <td class="text-center">
 
-                            <form action="http://localhost/Backend-6Valley-eCommerce-CMS/admin/category/status"
+                            <form action="{{ url('') }}/admin/category/status"
                                 method="post" id="category-status294-form">
                                 <input type="hidden" name="_token" value="WZ8YNBCiXnK0cq5yxNSoDIy8EG9hxlLfdBsUMUYt"
                                     autocomplete="off"> <input type="hidden" name="id" value="294">
@@ -511,7 +512,7 @@
                         <td>
                             <div class="d-flex justify-content-center gap-3">
                                 <a class="btn btn-outline-info icon-btn edit" title="Edit"
-                                    href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/category/update/294">
+                                    href="{{ url('') }}/admin/category/update/294">
                                     <i class="fi fi-sr-pencil"></i>
                                 </a>
                                 <a class="btn btn-outline-danger icon-btn delete-category" title="Delete"
@@ -532,35 +533,35 @@
 
                 <nav>
                     <ul class="pagination">
-                        <li class="page-item disabled" aria-disabled="true" aria-label="« Previous">
-                            <span class="page-link" aria-hidden="true">‹</span>
+                        <li class="page-item disabled" aria-disabled="true" aria-label="?? Previous">
+                            <span class="page-link" aria-hidden="true">???</span>
                         </li>
                         <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
                         <li class="page-item"><a class="page-link"
-                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
+                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
                         </li>
                         <li class="page-item"><a class="page-link"
-                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
+                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
                         </li>
                         <li class="page-item"><a class="page-link"
-                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
+                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
                         </li>
                         <li class="page-item"><a class="page-link"
-                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
+                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
                         </li>
                         <li class="page-item"><a class="page-link"
-                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
+                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
                         </li>
                         <li class="page-item"><a class="page-link"
-                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
+                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
                         </li>
                         <li class="page-item"><a class="page-link"
-                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
+                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
                         </li>
                         <li class="page-item">
                             <a class="page-link"
-                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
-                                rel="next" aria-label="Next »">›</a>
+                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
+                                rel="next" aria-label="Next ??">???</a>
                         </li>
                     </ul>
                 </nav>
@@ -602,7 +603,7 @@
                                     <td class="d-flex justify-content-center">
                                         <div class="avatar-60 d-flex align-items-center rounded">
                                             <img class="img-fluid" alt=""
-                                                src="http://localhost/Backend-6Valley-eCommerce-CMS/storage/app/public/category/2025-03-17-67d7b1ec80932.webp">
+                                                src="{{ url('') }}/storage/app/public/category/2025-03-17-67d7b1ec80932.webp">
                                         </div>
                                     </td>
                                     <td>demoo</td>
@@ -611,7 +612,7 @@
                                     </td>
                                     <td class="text-center">
 
-                                        <form action="http://localhost/Backend-6Valley-eCommerce-CMS/admin/category/status" method="post"
+                                        <form action="{{ url('') }}/admin/category/status" method="post"
                                             id="category-status294-form">
                                             <input type="hidden" name="_token" value="WZ8YNBCiXnK0cq5yxNSoDIy8EG9hxlLfdBsUMUYt"
                                                 autocomplete="off"> <input type="hidden" name="id" value="294">
@@ -630,7 +631,7 @@
                                     <td>
                                         <div class="d-flex justify-content-center gap-3">
                                             <a class="btn btn-outline-info icon-btn edit" title="Edit"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/category/update/294">
+                                                href="{{ url('') }}/admin/category/update/294">
                                                 <i class="fi fi-sr-pencil"></i>
                                             </a>
                                             <a class="btn btn-outline-danger icon-btn delete-category" title="Delete" data-product-count="0"
@@ -679,7 +680,7 @@
                 <td class="d-flex justify-content-center">
                     <div class="avatar-60 d-flex align-items-center rounded">
                         <img class="img-fluid" alt=""
-                            src="http://localhost/Backend-6Valley-eCommerce-CMS/storage/app/public/category/2025-03-17-67d7b1ec80932.webp">
+                            src="{{ url('') }}/storage/app/public/category/2025-03-17-67d7b1ec80932.webp">
                     </div>
                 </td>
                 <td>demoo</td>
@@ -688,7 +689,7 @@
                 </td>
                 <td class="text-center">
 
-                    <form action="http://localhost/Backend-6Valley-eCommerce-CMS/admin/category/status" method="post"
+                    <form action="{{ url('') }}/admin/category/status" method="post"
                         id="category-status294-form">
                         <input type="hidden" name="_token" value="WZ8YNBCiXnK0cq5yxNSoDIy8EG9hxlLfdBsUMUYt"
                             autocomplete="off"> <input type="hidden" name="id" value="294">
@@ -707,7 +708,7 @@
                 <td>
                     <div class="d-flex justify-content-center gap-3">
                         <a class="btn btn-outline-info icon-btn edit" title="Edit"
-                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/category/update/294">
+                            href="{{ url('') }}/admin/category/update/294">
                             <i class="fi fi-sr-pencil"></i>
                         </a>
                         <a class="btn btn-outline-danger icon-btn delete-category" title="Delete" data-product-count="0"
@@ -740,35 +741,35 @@
                                 <!-- dynamic code will be here -->
                                 <nav>
                                     <ul class="pagination">
-                                        <li class="page-item disabled" aria-disabled="true" aria-label="« Previous">
-                                            <span class="page-link" aria-hidden="true">‹</span>
+                                        <li class="page-item disabled" aria-disabled="true" aria-label="?? Previous">
+                                            <span class="page-link" aria-hidden="true">???</span>
                                         </li>
                                         <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
                                         </li>
                                         <li class="page-item"><a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
                                         </li>
                                         <li class="page-item">
                                             <a class="page-link"
-                                                href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
-                                                rel="next" aria-label="Next »">›</a>
+                                                href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
+                                                rel="next" aria-label="Next ??">???</a>
                                         </li>
                                     </ul>
                                 </nav>
@@ -797,35 +798,35 @@
         <!-- dynamic code will be here -->
         <nav>
             <ul class="pagination">
-                <li class="page-item disabled" aria-disabled="true" aria-label="« Previous">
-                    <span class="page-link" aria-hidden="true">‹</span>
+                <li class="page-item disabled" aria-disabled="true" aria-label="?? Previous">
+                    <span class="page-link" aria-hidden="true">???</span>
                 </li>
                 <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
                 <li class="page-item"><a class="page-link"
-                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
+                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
                 </li>
                 <li class="page-item"><a class="page-link"
-                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
+                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
                 </li>
                 <li class="page-item"><a class="page-link"
-                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
+                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
                 </li>
                 <li class="page-item"><a class="page-link"
-                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
+                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
                 </li>
                 <li class="page-item"><a class="page-link"
-                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
+                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
                 </li>
                 <li class="page-item"><a class="page-link"
-                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
+                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
                 </li>
                 <li class="page-item"><a class="page-link"
-                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
+                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
                 </li>
                 <li class="page-item">
                     <a class="page-link"
-                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
-                        rel="next" aria-label="Next »">›</a>
+                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
+                        rel="next" aria-label="Next ??">???</a>
                 </li>
             </ul>
         </nav>
@@ -863,35 +864,35 @@
                             <!-- dynamic code will be here -->
                             <nav>
                                 <ul class="pagination">
-                                    <li class="page-item disabled" aria-disabled="true" aria-label="« Previous">
-                                        <span class="page-link" aria-hidden="true">‹</span>
+                                    <li class="page-item disabled" aria-disabled="true" aria-label="?? Previous">
+                                        <span class="page-link" aria-hidden="true">???</span>
                                     </li>
                                     <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
                                     <li class="page-item"><a class="page-link"
-                                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
+                                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
                                     </li>
                                     <li class="page-item"><a class="page-link"
-                                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
+                                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
                                     </li>
                                     <li class="page-item"><a class="page-link"
-                                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
+                                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
                                     </li>
                                     <li class="page-item"><a class="page-link"
-                                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
+                                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
                                     </li>
                                     <li class="page-item"><a class="page-link"
-                                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
+                                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
                                     </li>
                                     <li class="page-item"><a class="page-link"
-                                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
+                                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
                                     </li>
                                     <li class="page-item"><a class="page-link"
-                                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
+                                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
                                     </li>
                                     <li class="page-item">
                                         <a class="page-link"
-                                            href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
-                                            rel="next" aria-label="Next »">›</a>
+                                            href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
+                                            rel="next" aria-label="Next ??">???</a>
                                     </li>
                                 </ul>
                             </nav>
@@ -931,35 +932,35 @@
      <!-- dynamic code will be here -->
      <nav>
          <ul class="pagination">
-             <li class="page-item disabled" aria-disabled="true" aria-label="« Previous">
-                 <span class="page-link" aria-hidden="true">‹</span>
+             <li class="page-item disabled" aria-disabled="true" aria-label="?? Previous">
+                 <span class="page-link" aria-hidden="true">???</span>
              </li>
              <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
              <li class="page-item"><a class="page-link"
-                     href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
+                     href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
              </li>
              <li class="page-item"><a class="page-link"
-                     href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
+                     href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
              </li>
              <li class="page-item"><a class="page-link"
-                     href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
+                     href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
              </li>
              <li class="page-item"><a class="page-link"
-                     href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
+                     href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
              </li>
              <li class="page-item"><a class="page-link"
-                     href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
+                     href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
              </li>
              <li class="page-item"><a class="page-link"
-                     href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
+                     href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
              </li>
              <li class="page-item"><a class="page-link"
-                     href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
+                     href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
              </li>
              <li class="page-item">
                  <a class="page-link"
-                     href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
-                     rel="next" aria-label="Next »">›</a>
+                     href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
+                     rel="next" aria-label="Next ??">???</a>
              </li>
          </ul>
      </nav>

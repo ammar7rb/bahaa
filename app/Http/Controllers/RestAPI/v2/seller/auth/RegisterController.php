@@ -4,6 +4,7 @@ namespace App\Http\Controllers\RestAPI\v2\seller\auth;
 use App\Http\Controllers\Controller;
 use App\Models\Seller;
 use App\Models\Shop;
+use App\Services\EgyptPhoneService;
 use App\Utils\Helpers;
 use App\Utils\ImageManager;
 use Illuminate\Http\JsonResponse;
@@ -16,17 +17,21 @@ class RegisterController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($request->input('phone')),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'email'         => 'required|unique:sellers',
             'shop_address'  => 'required',
             'f_name'        => 'required',
             'l_name'        => 'required',
             'shop_name'     => 'required',
-            'phone'         => 'required',
+            'phone'         => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueSellerPhone],
             'password'      => 'required|min:8',
-            'image'         => 'required|mimes: jpg,jpeg,png,,gif',
-            'logo'          => 'required|mimes: jpg,jpeg,png,,gif',
-            'banner'        => 'required|mimes: jpg,jpeg,png,,gif',
+            'image'         => 'nullable|mimes:jpg,jpeg,png,gif',
+            'logo'          => 'nullable|mimes:jpg,jpeg,png,gif',
+            'banner'        => 'nullable|mimes:jpg,jpeg,png,gif',
         ]);
 
         if ($validator->fails()) {
@@ -40,7 +45,9 @@ class RegisterController extends Controller
             $seller->l_name = $request->l_name;
             $seller->phone = $request->phone;
             $seller->email = $request->email;
-            $seller->image = ImageManager::upload('seller/', 'webp', $request->file('image'));
+            $seller->image = $request->hasFile('image')
+                ? ImageManager::upload('seller/', 'webp', $request->file('image'))
+                : 'def.png';
             $seller->password = bcrypt($request->password);
             $seller->status =  $request->status == 'approved'?'approved': "pending";
             $seller->save();
@@ -50,8 +57,12 @@ class RegisterController extends Controller
             $shop->name = $request->shop_name;
             $shop->address = $request->shop_address;
             $shop->contact = $request->phone;
-            $shop->image = ImageManager::upload('shop/', 'webp', $request->file('logo'));
-            $shop->banner = ImageManager::upload('shop/banner/', 'webp', $request->file('banner'));
+            $shop->image = $request->hasFile('logo')
+                ? ImageManager::upload('shop/', 'webp', $request->file('logo'))
+                : 'def.png';
+            $shop->banner = $request->hasFile('banner')
+                ? ImageManager::upload('shop/banner/', 'webp', $request->file('banner'))
+                : 'def.png';
             $shop->save();
 
             DB::table('seller_wallets')->insert([

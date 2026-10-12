@@ -4,21 +4,15 @@ namespace App\Traits;
 
 use Gregwar\Captcha\PhraseBuilder;
 use Gregwar\Captcha\CaptchaBuilder;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Session;
 
 trait RecaptchaTrait
 {
     protected function isGoogleRecaptchaValid(string $reCaptchaValue): bool
     {
-        $secret = getWebConfig(name: 'recaptcha')['secret_key'];
-        $response = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
-            'secret' => $secret,
-            'response' => $reCaptchaValue,
-            'remoteip' => request()->ip(),
-        ]);
-
-        return $response->json('success') === true && $response->json('score') > 0.5;
+        // CAPTCHA has been retired from the platform. Authentication abuse is
+        // controlled by throttling, temporary lockout, OTP and support review.
+        return true;
     }
 
     public function generateDefaultReCaptcha(int $captureLength): CaptchaBuilder

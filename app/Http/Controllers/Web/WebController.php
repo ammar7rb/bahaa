@@ -96,6 +96,11 @@ class WebController extends Controller
 
     private function validateCustomerPurchaseLimitForCheckout(Request $request, bool $allowActivationInvoice = false): null|RedirectResponse|JsonResponse
     {
+        // Customer purchase packages are not part of commerce contract v3.
+        // The separate tax/insurance invoice is created after payment instead.
+        if (app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {
+            return null;
+        }
         $validation = $allowActivationInvoice
             ? app(CustomerActivationInvoiceService::class)->validateProductPaymentAccess(auth('customer')->user(), allowActivationInvoice: true)
             : app(CustomerPurchaseLimitService::class)->validateCheckoutAccess(auth('customer')->user());
@@ -160,7 +165,7 @@ class WebController extends Controller
 
     public function getAllCategoriesView(Request $request): View|RedirectResponse
     {
-        if (theme_root_path() == 'theme_fashion') {
+        if (theme_base_path() == 'theme_fashion') {
             Toastr::warning(translate('Page_not_found'));
             return back();
         }
@@ -223,9 +228,9 @@ class WebController extends Controller
 
     function getPriorityWiseBrandProductsQuery($request, $query)
     {
-        if (theme_root_path() == 'theme_aster') {
+        if (theme_base_path() == 'theme_aster') {
             $paginateLimit = 12;
-        } elseif (theme_root_path() == 'theme_fashion') {
+        } elseif (theme_base_path() == 'theme_fashion') {
             $paginateLimit = 10;
         } else {
             $paginateLimit = 18;
@@ -415,6 +420,42 @@ class WebController extends Controller
             $countriesCode[] = $country['code'];
         }
 
+        $shippingQuoteOptions = [];
+        $physicalCartGroupIds = [];
+        $automaticShippingSelected = false;
+        $selectedShippingAddress = session('address_id') ? ShippingAddress::find(session('address_id')) : null;
+        if ($response['physical_product_view'] && $selectedShippingAddress) {
+            $shippingService = app(\App\Services\CustomerThreeStepShippingService::class);
+            foreach (CartManager::get_cart_group_ids(request: $request, type: 'checked') as $groupId) {
+                if (!Cart::where('cart_group_id', $groupId)->where('is_checked', 1)->where('product_type', 'physical')->exists()) {
+                    continue;
+                }
+                $physicalCartGroupIds[] = $groupId;
+                $quote = $shippingService->quoteAutomaticDistanceDeliveryOptions($groupId, $selectedShippingAddress);
+                if (!$quote) {
+                    $shippingQuoteOptions = [];
+                    break;
+                }
+                foreach ($quote['options'] as $key => $option) {
+                    $shippingQuoteOptions[$key] ??= [
+                        'key' => $key,
+                        'method_id' => $option['method']->id,
+                        'title' => $option['method']->title,
+                        'duration' => $option['method']->duration,
+                        'minimum_business_days' => $option['promise']['min_days'],
+                        'maximum_business_days' => $option['promise']['max_days'],
+                        'estimated_label' => $option['promise']['display_date'],
+                        'shipping_cost' => 0.0,
+                    ];
+                    $shippingQuoteOptions[$key]['shipping_cost'] += $option['cost'];
+                }
+            }
+
+            if ($shippingQuoteOptions && $physicalCartGroupIds) {
+                $automaticShippingSelected = CartShipping::whereIn('cart_group_id', $physicalCartGroupIds)->count() === count($physicalCartGroupIds);
+            }
+        }
+
         return view(VIEW_FILE_NAMES['order_shipping'], [
             'physical_product_view' => $response['physical_product_view'],
             'zip_codes' => $zipCodes,
@@ -426,7 +467,10 @@ class WebController extends Controller
             'billing_input_by_customer' => $billingInputByCustomer,
             'default_location' => $defaultLocation,
             'shipping_addresses' => $shippingAddresses,
-            'billing_addresses' => $shippingAddresses
+            'billing_addresses' => $shippingAddresses,
+            'shipping_quote_options' => $shippingQuoteOptions,
+            'selected_shipping_address_id' => $selectedShippingAddress?->id,
+            'automatic_shipping_selected' => $automaticShippingSelected,
         ]);
     }
 
@@ -482,30 +526,28 @@ class WebController extends Controller
             }
             $isPhysicalProductExistArray[$groupId] = $isPhysicalProductExist;
         }
-        $cashOnDeliveryBtnShow = !in_array(false, $isPhysicalProductExistArray);
+        // Product checkout intentionally exposes purchase balance and the two
+        // reviewed transfer channels only. Insurance balance has its own flow.
+        $cashOnDeliveryBtnShow = false;
 
         $vendorWiseCartListCollection = collect($vendorWiseCartList);
         $couponDiscount = $vendorWiseCartListCollection?->sum('coupon_discount') ?? 0;
-        $amount = $vendorWiseCartListCollection?->sum('order_amount_with_tax') ?? 0;
+        $amount = $vendorWiseCartListCollection?->sum('first_payment_amount') ?? 0;
 
         $inr = Currency::where(['symbol' => '₹'])->first();
         $usd = Currency::where(['code' => 'USD'])->first();
         $myr = Currency::where(['code' => 'MYR'])->first();
 
-        $offlinePaymentMethods = OfflinePaymentMethod::where('status', 1)->get();
+        $offlinePaymentMethods = OfflinePaymentMethod::where('status', 1)
+            ->whereIn('payment_channel', ['wallet', 'instapay'])
+            ->orderByRaw("CASE payment_channel WHEN 'wallet' THEN 1 WHEN 'instapay' THEN 2 ELSE 3 END")
+            ->get();
         $paymentGatewayPublishedStatus = config('get_payment_publish_status') ?? 0;
         $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
 
         $availablePaymentMethod = [];
 
-        $cashOnDeliveryStatus = getWebConfig(name: 'cash_on_delivery');
-        if ($cashOnDeliveryStatus && $cashOnDeliveryStatus['status'] && $cashOnDeliveryBtnShow) {
-            $availablePaymentMethod = ['cash_on_delivery'];
-        }
-
-        if (getWebConfig(name: 'digital_payment') && count(payment_gateways()) > 0) {
-            $availablePaymentMethod = ['payment_gateways'];
-        }
+        $cashOnDeliveryStatus = ['status' => 0];
 
         if ($offlinePaymentStatus && $offlinePaymentStatus['status'] == 1 && count($offlinePaymentMethods) > 0) {
             $availablePaymentMethod = ['offline_payment'];
@@ -518,7 +560,7 @@ class WebController extends Controller
             return view(VIEW_FILE_NAMES['payment_details'], [
                 'cashOnDeliveryBtnShow' => $cashOnDeliveryBtnShow,
                 'cash_on_delivery' => $cashOnDeliveryStatus,
-                'digital_payment' => getWebConfig(name: 'digital_payment'),
+                'digital_payment' => ['status' => 0],
                 'wallet_status' => getWebConfig(name: 'wallet_status'),
                 'offline_payment' => $offlinePaymentStatus,
                 'coupon_discount' => $couponDiscount,
@@ -527,7 +569,7 @@ class WebController extends Controller
                 'usd' => $usd,
                 'myr' => $myr,
                 'paymentGatewayPublishedStatus' => $paymentGatewayPublishedStatus,
-                'payment_gateways_list' => payment_gateways(),
+                'payment_gateways_list' => collect(),
                 'offline_payment_methods' => $offlinePaymentMethods,
                 'activeMinimumMethods' => count($availablePaymentMethod) > 0,
             ]);
@@ -733,15 +775,28 @@ class WebController extends Controller
         }
 
         $offlinePaymentInfo = [];
-        $method = OfflinePaymentMethod::where(['id' => $request['method_id'], 'status' => 1])->first();
+        $method = OfflinePaymentMethod::where(['id' => $request['method_id'], 'status' => 1])
+            ->whereIn('payment_channel', ['wallet', 'instapay'])
+            ->first();
+
+        if (! $method) {
+            Toastr::error(translate('offline_payment_method_not_found'));
+            return back()->withInput();
+        }
 
         if (isset($method)) {
             $values = $request->all();
+            $modern = $request->input('transfer_schema') === 'sender_v2';
+            if ($modern) {
+                $request->validate(['payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
+                $offlinePaymentInfo = app(\App\Services\CustomerTransferInformationService::class)->sender($values);
+                $offlinePaymentInfo['payment_proof'] = ['image_name' => $this->upload(dir: 'offline-payment/order-proof/', format: 'webp', image: $request->file('payment_proof')), 'storage' => config('filesystems.disks.default') ?? 'public'];
+            }
             $missingFields = [];
 
             $offlinePaymentInfo['method_id'] = $request['method_id'];
             $offlinePaymentInfo['method_name'] = $method->method_name;
-            foreach (($method->method_informations ?? []) as $field) {
+            foreach (($modern ? [] : ($method->method_informations ?? [])) as $field) {
                 $inputName = $field['customer_input'] ?? null;
                 if (!$inputName) {
                     continue;
@@ -775,7 +830,7 @@ class WebController extends Controller
                 return back()->withInput();
             }
 
-            foreach (($method->method_informations ?? []) as $field) {
+            foreach (($modern ? [] : ($method->method_informations ?? [])) as $field) {
                 $inputName = $field['customer_input'] ?? null;
                 if (!$inputName || !$request->hasFile($inputName)) {
                     continue;
@@ -826,13 +881,22 @@ class WebController extends Controller
             'offline_payment_info' => $offlinePaymentInfo,
         ]);
 
-        app(CustomerActivationInvoiceService::class)->createForPaidOrderGroup($orderIds);
+        if (! app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {
+            app(CustomerActivationInvoiceService::class)->createForPaidOrderGroup($orderIds);
+        }
 
+        $secondStageInvoices = app(\App\Services\PostPurchaseInvoiceService::class)
+            ->createForPaidOrderGroup($orderIds, includeSubmittedOffline: true);
         $isNewCustomerInSession = session('newCustomerRegister');
         session(['order_success_ids' => $orderIds, 'isNewCustomerInSession' => $isNewCustomerInSession]);
         session()->forget('newCustomerRegister');
         session()->forget('newRegisterCustomerInfo');
         if(auth()->guard('customer')->check()) {
+            if ($secondStageInvoices) {
+                session()->forget('order_success_ids');
+                return redirect()->route('post-purchase-invoices.show', $secondStageInvoices[0]->id)
+                    ->with('checkout_pending_notice', true);
+            }
             return redirect()->route('account-oder');
         }
         return redirect(route('home'));
@@ -840,6 +904,7 @@ class WebController extends Controller
 
     public function checkout_complete_wallet(Request $request): View|RedirectResponse|JsonResponse
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
         if (!auth('customer')->check()) {
             return $this->redirectGuestCustomerToLogin($request);
         }
@@ -865,11 +930,13 @@ class WebController extends Controller
             'coupon_code' => session('coupon_code') ?? '',
             'requestObj' => $request,
         ]);
-        $paymentAmount = collect($vendorWiseCartList)->sum('order_amount_with_tax');
+        $paymentAmount = collect($vendorWiseCartList)->sum('first_payment_amount');
 
-        $user = Helpers::getCustomerInformation($request);
+        $identity = Helpers::getCustomerInformation($request);
+        abort_if($identity === 'offline', 401);
+        $user = \App\Models\User::lockForUpdate()->findOrFail($identity->id);
         if ($paymentAmount > $user->wallet_balance) {
-            Toastr::warning(translate('Inefficient_balance_in_your_wallet_to_pay_for_this_order') . '!!');
+            Toastr::warning(translate('purchase_balance_is_lower_than_invoice_total_deposit_or_choose_another_method'));
             return back();
         } else {
             $cart_group_ids = CartManager::get_cart_group_ids(type: 'checked');
@@ -906,7 +973,7 @@ class WebController extends Controller
                 OrderManager::generateReferBonusForFirstOrder(orderId: $order_id);
             }
 
-            CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment');
+            if (!CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment')) throw \Illuminate\Validation\ValidationException::withMessages(['wallet' => 'تعذر تأكيد الخصم. لم يتم إنشاء الطلب.']);
         }
 
         if (session()->has('payment_mode') && session('payment_mode') == 'app') {
@@ -917,14 +984,23 @@ class WebController extends Controller
         session(['order_success_ids' => $order_ids, 'isNewCustomerInSession' => $isNewCustomerInSession]);
         session()->forget('newCustomerRegister');
         session()->forget('coupon_discount');
+        $postPurchaseInvoice = \App\Models\PostPurchaseInvoice::query()->whereIn('order_id', $order_ids)->latest('id')->first();
+        if ($postPurchaseInvoice?->isPayable()) {
+            return redirect()->route('post-purchase-invoices.show', $postPurchaseInvoice->id);
+        }
         if(auth()->guard('customer')->check()) {
             return redirect()->route('account-oder');
         }
         return redirect()->route('home');
+
+        }, 3);
     }
 
-    public function order_placed(): View
+    public function order_placed(): View|RedirectResponse
     {
+        if ($invoiceId = session()->pull('post_purchase_invoice_id')) {
+            return redirect()->route('post-purchase-invoices.show', $invoiceId);
+        }
         $isNewCustomerInSession = session('newCustomerRegister');
         session()->forget('newCustomerRegister');
         return view(VIEW_FILE_NAMES['order_complete'], compact('isNewCustomerInSession'));
@@ -932,51 +1008,40 @@ class WebController extends Controller
 
     public function shop_cart(Request $request): View|RedirectResponse
     {
+        // Viewing the cart is public; checkout enforces its own authentication rules.
+        ProductManager::updateProductPriceInCartList(request: $request);
+        $topRatedShops = [];
+        $newSellers = [];
+        $currentDate = date('Y-m-d H:i:s');
+        if (theme_base_path() === "theme_fashion") {
 
-        if (
-            (auth('customer')->check() && Cart::where(['customer_id' => auth('customer')->id()])->count() > 0)
-            || (getWebConfig(name: 'guest_checkout') && session()->has('guest_id') && session('guest_id'))
-        ) {
-            ProductManager::updateProductPriceInCartList(request: $request);
-            $topRatedShops = [];
-            $newSellers = [];
-            $currentDate = date('Y-m-d H:i:s');
-            if (theme_root_path() === "theme_fashion") {
-
-                $sellerList = $this->seller->approved()->with(['shop', 'product.reviews'])
-                    ->withCount(['product' => function ($query) {
-                        $query->active();
-                    }])->get();
-                $sellerList?->map(function ($seller) {
-                    $rating = 0;
-                    $count = 0;
-                    foreach ($seller->product as $item) {
-                        foreach ($item->reviews as $review) {
-                            $rating += $review->rating;
-                            $count++;
-                        }
+            $sellerList = $this->seller->approved()->with(['shop', 'product.reviews'])
+                ->withCount(['product' => function ($query) {
+                    $query->active();
+                }])->get();
+            $sellerList?->map(function ($seller) {
+                $rating = 0;
+                $count = 0;
+                foreach ($seller->product as $item) {
+                    foreach ($item->reviews as $review) {
+                        $rating += $review->rating;
+                        $count++;
                     }
-                    $averageRating = $rating / ($count == 0 ? 1 : $count);
-                    $ratingCount = $count;
-                    $seller['average_rating'] = $averageRating;
-                    $seller['rating_count'] = $ratingCount;
+                }
+                $averageRating = $rating / ($count == 0 ? 1 : $count);
+                $ratingCount = $count;
+                $seller['average_rating'] = $averageRating;
+                $seller['rating_count'] = $ratingCount;
 
-                    $productCount = $seller->product->count();
-                    $randomProduct = Arr::random($seller->product->toArray(), $productCount < 3 ? $productCount : 3);
-                    $seller['product'] = $randomProduct;
-                    return $seller;
-                });
-                $newSellers = $sellerList->sortByDesc('id')->take(12);
-                $topRatedShops = $sellerList->where('rating_count', '!=', 0)->sortByDesc('average_rating')->take(12);
-            }
-            return view(VIEW_FILE_NAMES['cart_list'], compact('topRatedShops', 'newSellers', 'currentDate', 'request'));
+                $productCount = $seller->product->count();
+                $randomProduct = Arr::random($seller->product->toArray(), $productCount < 3 ? $productCount : 3);
+                $seller['product'] = $randomProduct;
+                return $seller;
+            });
+            $newSellers = $sellerList->sortByDesc('id')->take(12);
+            $topRatedShops = $sellerList->where('rating_count', '!=', 0)->sortByDesc('average_rating')->take(12);
         }
-        Toastr::warning(translate('please_login_your_account'));
-        if (theme_root_path() == 'default') {
-            return redirect('customer/auth/login');
-        } else {
-            return redirect('/');
-        }
+        return view(VIEW_FILE_NAMES['cart_list'], compact('topRatedShops', 'newSellers', 'currentDate', 'request'));
     }
 
     public function seller_shop_product(Request $request, $id): View|JsonResponse
@@ -1320,8 +1385,11 @@ class WebController extends Controller
         $contact->subject = $request['subject'];
         $contact->message = $request['message'];
         $contact->save();
+        $conversationIds = session('contact_conversation_ids', []);
+        $conversationIds[] = (int) $contact->id;
+        session(['contact_conversation_ids' => array_values(array_unique($conversationIds))]);
         Toastr::success(translate('Your_Message_Send_Successfully'));
-        return back();
+        return redirect()->route('contact.conversation', $contact->id);
     }
 
     public function captcha($tmp)
@@ -1714,7 +1782,9 @@ class WebController extends Controller
 
     public function pay_offline_method_list(Request $request): JsonResponse
     {
-        $method = OfflinePaymentMethod::where(['id' => $request['method_id'], 'status' => 1])->first();
+        $method = OfflinePaymentMethod::where(['id' => $request['method_id'], 'status' => 1])
+            ->whereIn('payment_channel', ['wallet', 'instapay'])
+            ->first();
 
         $vendorWiseCartList = \App\Utils\OrderManager::processOrderGenerateData(data: [
             'coupon_code' => session('coupon_code') ?? '',
@@ -1729,8 +1799,12 @@ class WebController extends Controller
         $couponDiscount = session()->has('coupon_discount') ? session('coupon_discount') : 0;
         $totalTax = $vendorWiseCartListCollection?->sum('total_tax_amount') ?? 0;
         $totalOfflineAmount = $grandTotal - $referralDiscount - $freeDeliveryDiscount - $couponDiscount + $totalTax;
-        if($request->filled('edit_due_amount')){
-            $totalOfflineAmount = $request->edit_due_amount;
+        if (app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {
+            $totalOfflineAmount = $vendorWiseCartListCollection->sum('first_payment_amount');
+        }
+        if ($request->filled('edit_due_amount')) {
+            $dueOrder = Order::with('latestEditHistory')->where('customer_id',auth('customer')->id())->where('is_guest',0)->findOrFail($request->input('order_id'));
+            $totalOfflineAmount = (float) ($dueOrder->latestEditHistory?->order_due_amount ?? 0);
         }
         return response()->json([
             'methodHtml' => view(VIEW_FILE_NAMES['pay_offline_method_list_partials'], compact('method', 'totalOfflineAmount'))->render(),

@@ -221,6 +221,7 @@
                     @endif
 
                     @if ($categoryType == 'category' || ($categoryType == 'sub_category' && theme_root_path() == 'theme_aster'))
+                        @include('admin-views.category.partials._medical-icon-picker', ['selectedMedicalIcon' => old('medical_icon')])
                         <div class="d-flex flex-column gap-20">
                             <div class="text-center">
                                 <label for="" class="form-label fw-semibold mb-1">

@@ -8,10 +8,11 @@
     use App\Utils\CartManager;
     use function App\Utils\get_shop_name;
     $shippingMethod = getWebConfig(name: 'shipping_method');
+    $automaticDistanceShipping = app(\App\Services\CustomerThreeStepShippingService::class)->isEnabled();
     $cart = CartManager::getCartListQuery()->groupBy('cart_group_id');
 @endphp
 <div class="container">
-    <h4 class="text-center mb-3 text-capitalize">{{ translate('cart_list') }}</h4>
+    <h4 class="text-center mb-3 text-capitalize">{{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart') }}</h4>
     <form action="javascript:">
         <div class="row gy-3">
             <div class="col-lg-8">
@@ -21,7 +22,7 @@
                             <ul class="cart-step-list">
                                 <li class="current cursor-pointer get-view-by-onclick"
                                     data-link="{{route('shop-cart')}}">
-                                    <span><i class="bi bi-check2"></i></span> {{ translate('cart') }}</li>
+                                    <span><i class="bi bi-check2"></i></span> {{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart') }}</li>
                                 <li class="cursor-pointer text-capitalize" data-link="{{ route('checkout-details') }}">
                                     <span><i class="bi bi-check2"></i></span> {{ translate('shopping_details') }}</li>
                                 <li><span><i class="bi bi-check2"></i></span> {{ translate('payment') }}</li>
@@ -99,7 +100,7 @@
                                                     </span>
                                                     @endif
                                                 </div>
-                                                @if($physical_product && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
+                                                @if(!$automaticDistanceShipping && $physical_product && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
                                                     @php
                                                         $choosen_shipping=CartShipping::where(['cart_group_id'=>$cartItem['cart_group_id']])->first()
                                                     @endphp
@@ -110,7 +111,7 @@
                                                     @php
                                                         $shippings=Helpers::getShippingMethods($cartItem['seller_id'],$cartItem['seller_is']);
                                                     @endphp
-                                                    @if($physical_product && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
+                                                    @if(!$automaticDistanceShipping && $physical_product && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
                                                         @if(count($shippings) > 0)
                                                             <div class="border border-primary-light bg-white rounded px-2 px-sm-3 flex-grow-1 max-w-max-content">
                                                                 <div class="shiiping-method-btn d-flex gap-2 p-2 flex-wrap text-dark">
@@ -125,7 +126,8 @@
                                                                                 $shippings_title = translate('choose_shipping_method');
                                                                                 foreach ($shippings as $shipping) {
                                                                                     if ($choosen_shipping['shipping_method_id'] == $shipping['id']) {
-                                                                                        $shippings_title = ucfirst($shipping['title']) . ' ( ' . $shipping['duration'] . ' ) ' . webCurrencyConverter($shipping['cost']);
+                                                                                        $promise = app(\App\Services\ShippingPromiseService::class)->forMethod($shipping['id']);
+                                                                                        $shippings_title = ucfirst($shipping['title']) . ' — ' . $promise['display_date'] . ' — ' . webCurrencyConverter($shipping['cost']);
                                                                                     }
                                                                                 }
                                                                                 ?>
@@ -133,8 +135,13 @@
                                                                         </button>
                                                                         <ul class="dropdown-menu dropdown-left-auto bs-dropdown-min-width--8rem">
                                                                             @foreach($shippings as $shipping)
+                                                                                @php
+                                                                                    $promise = app(\App\Services\ShippingPromiseService::class)->forMethod($shipping['id']);
+                                                                                @endphp
                                                                                 <li class="cursor-pointer set-shipping-id" data-id="{{$shipping['id']}}" data-cart-group="{{$cartItem['cart_group_id']}}">
-                                                                                    {{$shipping['title'].' ( '.$shipping['duration'].' ) '.webCurrencyConverter($shipping['cost'])}}
+                                                                                    <strong>{{ $shipping['title'] }}</strong>
+                                                                                    <small class="d-block text-muted">{{ $promise['display_date'] }}</small>
+                                                                                    <span>{{ webCurrencyConverter($shipping['cost']) }}</span>
                                                                                 </li>
                                                                             @endforeach
                                                                         </ul>
@@ -286,7 +293,7 @@
                                                                                    data-current-stock="{{ $getProductCurrentStock }}"
                                                                                    data-min="{{ $cartItem?->product?->minimum_order_qty ?? 1 }}">
                                                                             <span
-                                                                                class="quantity__plus cart-qty-btn update-cart-quantity-list-cart-data  {{ $isProductCountChangeable ? '' : 'd-none' }}""
+                                                                                class="quantity__plus cart-qty-btn update-cart-quantity-list-cart-data  {{ $isProductCountChangeable ? '' : 'd-none' }}"
                                                                             data-prevent=true
                                                                             data-min-order="{{ $product->minimum_order_qty }}"
                                                                             data-cart="{{ $cartItem['id'] }}" data-value="1"
@@ -530,7 +537,7 @@
                                 $admin_shipping = ShippingType::where('seller_id', 0)->first();
                                 $shipping_type = isset($admin_shipping) === true ? $admin_shipping->shipping_type : 'order_wise';
                                 ?>
-                            @if ($shipping_type == 'order_wise' && $physical_product)
+                            @if (!$automaticDistanceShipping && $shipping_type == 'order_wise' && $physical_product)
                                 @php($shippings=Helpers::getShippingMethods(1,'admin'))
                                 @php($choosen_shipping=CartShipping::where(['cart_group_id'=>$cartItem['cart_group_id']])->first())
 
@@ -564,19 +571,7 @@
                             </div>
                         @endif
 
-                        <form method="get">
-                            <div class="form-group mt-3">
-                                <div class="row">
-                                    <div class="col-12">
-                                        <label for="order_note"
-                                               class="form-label input-label">{{translate('order_note')}} <span
-                                                class="input-label-secondary">({{translate('optional')}})</span></label>
-                                        <textarea class="form-control w-100" rows="5" id="order_note"
-                                                  name="order_note">{{ session('order_note')}}</textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
+                        
                     </div>
                 </div>
             </div>

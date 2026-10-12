@@ -27,9 +27,9 @@
         </div>
         <div class="offcanvas-body">
             @php
-                $filterSections = ['sorting', 'product_type', 'product_status', 'brand', 'category'];
+                $filterSections = ['sorting', 'product_status', 'brand', 'category'];
                 if (request('type') == 'vendor' && (!in_array(request('request_status', ''), [1]))) {
-                    $filterSections = ['sorting', 'product_type', 'brand', 'category'];
+                    $filterSections = ['sorting', 'brand', 'category'];
                 }
             @endphp
 

@@ -7,6 +7,7 @@ use App\Models\Seller;
 use App\Models\SellerPackageSubscription;
 use App\Models\SellerProductEntitlement;
 use App\Models\SellerProductPromotion;
+use App\Services\SellerPackagePerformanceService;
 use App\Services\SellerProductPromotionService;
 use App\Utils\ProductManager;
 use DomainException;
@@ -35,6 +36,8 @@ class SellerProductPromotionServiceTest extends TestCase
     protected function tearDown(): void
     {
         foreach ([
+            'seller_package_product_metrics',
+            'order_details',
             'seller_package_transactions',
             'seller_product_promotions',
             'seller_product_entitlements',
@@ -50,7 +53,7 @@ class SellerProductPromotionServiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_search_promotion_consumes_quota_once_and_is_idempotent(): void
+    public function test_search_promotion_is_pending_idempotent_and_consumes_quota_only_after_approval(): void
     {
         $subscription = $this->createSubscription(searchLimit: 2, durationDays: 7);
         $product = $this->createProduct();
@@ -60,8 +63,13 @@ class SellerProductPromotionServiceTest extends TestCase
         $second = $service->activateSearchPromotion($product, Seller::findOrFail(1));
 
         $this->assertSame($first->id, $second->id);
+        $this->assertSame(0, $subscription->fresh()->used_search_promotion_limit);
+        $this->assertSame(SellerProductPromotion::APPROVAL_PENDING, $first->approval_status);
+        $this->assertNull($first->starts_at);
+        $approved = $service->reviewPromotion($first, 'approve', 99, 'Approved placement', 'search_results', null, 1, badgeLabel: 'Sponsored');
         $this->assertSame(1, $subscription->fresh()->used_search_promotion_limit);
-        $this->assertSame(7.0, $first->starts_at->diffInDays($first->expires_at));
+        $this->assertSame(7.0, $approved->starts_at->diffInDays($approved->expires_at));
+        $this->assertSame('Sponsored', data_get($approved->metadata, 'badge_label'));
         $this->assertDatabaseHas('seller_package_transactions', [
             'quota_type' => 'search_promotion',
             'transaction_type' => 'quota_usage',
@@ -74,11 +82,40 @@ class SellerProductPromotionServiceTest extends TestCase
     {
         $this->createSubscription(searchLimit: 1);
         $service = app(SellerProductPromotionService::class);
-        $service->activateSearchPromotion($this->createProduct(), Seller::findOrFail(1));
+        $first = $service->activateSearchPromotion($this->createProduct(), Seller::findOrFail(1));
+        $second = $service->activateSearchPromotion($this->createProduct(), Seller::findOrFail(1));
+        $service->reviewPromotion($first, 'approve', 99, 'First slot', 'search_results', null, 1);
 
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('seller_package_search_promotion_limit_has_been_reached');
-        $service->activateSearchPromotion($this->createProduct(), Seller::findOrFail(1));
+        $service->reviewPromotion($second, 'approve', 99, 'Second slot', 'search_results', null, 2);
+    }
+
+    public function test_rejected_request_never_consumes_advertising_quota(): void
+    {
+        $subscription = $this->createSubscription(searchLimit: 1);
+        $service = app(SellerProductPromotionService::class);
+        $request = $service->activateSearchPromotion($this->createProduct(), Seller::findOrFail(1));
+
+        $rejected = $service->reviewPromotion($request, 'reject', 99, 'Creative does not meet policy');
+
+        $this->assertSame(SellerProductPromotion::APPROVAL_REJECTED, $rejected->approval_status);
+        $this->assertSame(SellerProductPromotion::STATUS_CANCELLED, $rejected->status);
+        $this->assertSame(0, $subscription->fresh()->used_search_promotion_limit);
+        $this->assertDatabaseMissing('seller_package_transactions', ['seller_product_promotion_id' => $request->id]);
+    }
+
+    public function test_admin_cannot_assign_two_campaigns_to_the_same_slot_and_period(): void
+    {
+        $this->createSubscription(searchLimit: 2);
+        $service = app(SellerProductPromotionService::class);
+        $first = $service->activateSearchPromotion($this->createProduct(), Seller::findOrFail(1));
+        $second = $service->activateSearchPromotion($this->createProduct(), Seller::findOrFail(1));
+        $service->reviewPromotion($first, 'approve', 99, 'Slot one', 'keyword_search', 'mask', 1);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('advertising_placement_conflicts_with_an_existing_campaign');
+        $service->reviewPromotion($second, 'approve', 99, 'Same slot', 'keyword_search', 'mask', 1);
     }
 
     public function test_inactive_product_cannot_be_promoted(): void
@@ -97,7 +134,7 @@ class SellerProductPromotionServiceTest extends TestCase
         }
     }
 
-    public function test_listing_must_cover_the_full_search_promotion_duration(): void
+    public function test_legacy_listing_expiry_does_not_block_advertising_request(): void
     {
         $subscription = $this->createSubscription(searchLimit: 1, durationDays: 10);
         $product = $this->createProduct();
@@ -113,13 +150,9 @@ class SellerProductPromotionServiceTest extends TestCase
             'activated_at' => now()->subDays(25),
         ]);
 
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('product_listing_duration_must_cover_search_promotion_duration');
-        try {
-            app(SellerProductPromotionService::class)->activateSearchPromotion($product, Seller::findOrFail(1));
-        } finally {
-            $this->assertSame(0, $subscription->fresh()->used_search_promotion_limit);
-        }
+        $promotion = app(SellerProductPromotionService::class)->activateSearchPromotion($product, Seller::findOrFail(1));
+        $this->assertSame(SellerProductPromotion::APPROVAL_PENDING, $promotion->approval_status);
+        $this->assertSame(0, $subscription->fresh()->used_search_promotion_limit);
     }
 
     public function test_expired_promotion_is_removed_without_restoring_used_quota(): void
@@ -127,6 +160,7 @@ class SellerProductPromotionServiceTest extends TestCase
         $subscription = $this->createSubscription(searchLimit: 1);
         $service = app(SellerProductPromotionService::class);
         $promotion = $service->activateSearchPromotion($this->createProduct(), Seller::findOrFail(1));
+        $promotion = $service->reviewPromotion($promotion, 'approve', 99, 'Approved', 'search_results', null, 1);
         $promotion->update(['expires_at' => now()->subMinute()]);
 
         $this->assertSame(1, $service->expireDuePromotions());
@@ -158,6 +192,102 @@ class SellerProductPromotionServiceTest extends TestCase
         $this->assertFalse($sorted->last()->is_search_promoted);
     }
 
+    public function test_lower_package_priority_wins_before_manual_promotion_order(): void
+    {
+        $priorityOne = $this->createProduct(name: 'Priority One');
+        $priorityThree = $this->createProduct(name: 'Priority Three');
+        $priorityOne->setRelation('activeSearchPromotion', new SellerProductPromotion([
+            'search_priority' => 1,
+            'sort_order' => 1,
+        ]));
+        $priorityThree->setRelation('activeSearchPromotion', new SellerProductPromotion([
+            'search_priority' => 3,
+            'sort_order' => 999,
+        ]));
+
+        $sorted = ProductManager::prioritizeSearchPromotions(collect([$priorityThree, $priorityOne]));
+
+        $this->assertSame($priorityOne->id, $sorted->first()->id);
+    }
+
+    public function test_keyword_campaign_is_featured_only_for_its_approved_keyword(): void
+    {
+        $product = $this->createProduct(name: 'Medical Mask');
+        $product->setRelation('activeSearchPromotion', new SellerProductPromotion([
+            'placement_scope' => 'keyword_search',
+            'placement_key' => 'mask',
+            'search_priority' => 1,
+            'sort_order' => 1,
+        ]));
+
+        $matching = ProductManager::prioritizeSearchPromotions(collect([$product]), 'mask')->first();
+        $this->assertTrue($matching->is_search_promoted);
+        $notMatching = ProductManager::prioritizeSearchPromotions(collect([$product]), 'gloves')->first();
+
+        $this->assertFalse($notMatching->is_search_promoted);
+    }
+
+    public function test_package_performance_is_aggregated_without_customer_identity(): void
+    {
+        $subscription = $this->createSubscription(searchLimit: 1);
+        $product = $this->createProduct();
+        SellerProductEntitlement::create([
+            'seller_id' => 1,
+            'product_id' => $product->id,
+            'seller_package_subscription_id' => $subscription->id,
+            'seller_package_id' => 1,
+            'duration_days' => 30,
+            'status' => SellerProductEntitlement::STATUS_ACTIVE,
+            'starts_at' => now()->subDay(),
+            'expires_at' => now()->addDays(29),
+            'activated_at' => now()->subDay(),
+        ]);
+        SellerProductPromotion::create([
+            'seller_id' => 1,
+            'product_id' => $product->id,
+            'seller_package_subscription_id' => $subscription->id,
+            'promotion_type' => SellerProductPromotion::TYPE_SEARCH,
+            'duration_days' => 7,
+            'status' => SellerProductPromotion::STATUS_ACTIVE,
+            'approval_status' => SellerProductPromotion::APPROVAL_APPROVED,
+            'starts_at' => now()->subDay(),
+            'expires_at' => now()->addDays(6),
+            'activated_at' => now()->subDay(),
+        ]);
+        DB::table('seller_package_product_metrics')->insert([
+            'seller_id' => 1,
+            'seller_package_subscription_id' => $subscription->id,
+            'product_id' => $product->id,
+            'metric_date' => today(),
+            'impressions' => 20,
+            'visits' => 5,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('order_details')->insert([
+            'order_id' => 10,
+            'seller_id' => 1,
+            'product_id' => $product->id,
+            'delivery_status' => 'delivered',
+            'qty' => 2,
+            'price' => 100,
+            'discount' => 10,
+            'tax' => 5,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $report = app(SellerPackagePerformanceService::class)->report($subscription);
+
+        $this->assertSame(1, $report['published_products']);
+        $this->assertSame(20, $report['impressions']);
+        $this->assertSame(5, $report['visits']);
+        $this->assertSame(1, $report['orders']);
+        $this->assertSame(2, $report['units_sold']);
+        $this->assertSame(190.0, $report['sales_amount']);
+        $this->assertArrayNotHasKey('customer_id', $report);
+    }
+
     public function test_homepage_promotion_uses_an_independent_quota_and_is_idempotent(): void
     {
         $subscription = $this->createSubscription(
@@ -172,9 +302,11 @@ class SellerProductPromotionServiceTest extends TestCase
         $second = $service->activateHomepagePromotion($product, Seller::findOrFail(1));
 
         $this->assertSame($first->id, $second->id);
-        $this->assertSame(1, $subscription->fresh()->used_homepage_promotion_limit);
+        $this->assertSame(0, $subscription->fresh()->used_homepage_promotion_limit);
         $this->assertSame(0, $subscription->fresh()->used_search_promotion_limit);
-        $this->assertSame(14.0, $first->starts_at->diffInDays($first->expires_at));
+        $approved = $service->reviewPromotion($first, 'approve', 99, 'Approved', 'homepage_featured', null, 1);
+        $this->assertSame(1, $subscription->fresh()->used_homepage_promotion_limit);
+        $this->assertSame(14.0, $approved->starts_at->diffInDays($approved->expires_at));
         $this->assertDatabaseHas('seller_package_transactions', [
             'quota_type' => 'homepage_promotion',
             'transaction_type' => 'quota_usage',
@@ -189,8 +321,10 @@ class SellerProductPromotionServiceTest extends TestCase
         $product = $this->createProduct();
         $service = app(SellerProductPromotionService::class);
 
-        $service->activateSearchPromotion($product, Seller::findOrFail(1));
-        $service->activateHomepagePromotion($product, Seller::findOrFail(1));
+        $search = $service->activateSearchPromotion($product, Seller::findOrFail(1));
+        $homepage = $service->activateHomepagePromotion($product, Seller::findOrFail(1));
+        $service->reviewPromotion($search, 'approve', 99, 'Approved search', 'search_results', null, 1);
+        $service->reviewPromotion($homepage, 'approve', 99, 'Approved homepage', 'homepage_featured', null, 1);
 
         $this->assertSame(1, $subscription->fresh()->used_search_promotion_limit);
         $this->assertSame(1, $subscription->fresh()->used_homepage_promotion_limit);
@@ -217,6 +351,7 @@ class SellerProductPromotionServiceTest extends TestCase
             'promotion_type' => SellerProductPromotion::TYPE_HOMEPAGE,
             'duration_days' => 7,
             'status' => SellerProductPromotion::STATUS_ACTIVE,
+            'approval_status' => SellerProductPromotion::APPROVAL_APPROVED,
             'starts_at' => now()->subDays(8),
             'expires_at' => now()->subDay(),
             'activated_at' => now()->subDays(8),
@@ -312,6 +447,7 @@ class SellerProductPromotionServiceTest extends TestCase
             $table->unsignedInteger('used_homepage_promotion_limit')->default(0);
             $table->integer('homepage_promotion_adjustment_limit')->default(0);
             $table->unsignedInteger('homepage_promotion_duration_days')->default(0);
+            $table->unsignedInteger('search_priority')->default(100);
             $table->unsignedInteger('package_validity_days')->nullable();
             $table->string('status');
             $table->string('payment_status');
@@ -361,7 +497,17 @@ class SellerProductPromotionServiceTest extends TestCase
             $table->string('promotion_type');
             $table->unsignedInteger('duration_days')->default(0);
             $table->integer('sort_order')->default(0);
+            $table->unsignedInteger('search_priority')->default(100);
             $table->string('status')->default('reserved');
+            $table->string('approval_status')->default('pending_admin_review');
+            $table->timestamp('requested_at')->nullable();
+            $table->unsignedBigInteger('reviewed_by_admin_id')->nullable();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->text('review_note')->nullable();
+            $table->string('placement_scope')->nullable();
+            $table->string('placement_key')->nullable();
+            $table->unsignedInteger('requested_position')->nullable();
+            $table->unsignedInteger('approved_position')->nullable();
             $table->boolean('quota_restored')->default(false);
             $table->timestamp('starts_at')->nullable();
             $table->timestamp('expires_at')->nullable();
@@ -393,6 +539,28 @@ class SellerProductPromotionServiceTest extends TestCase
             $table->text('note')->nullable();
             $table->unsignedBigInteger('created_by_admin_id')->nullable();
             $table->json('metadata')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('seller_package_product_metrics', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('seller_id');
+            $table->unsignedBigInteger('seller_package_subscription_id');
+            $table->unsignedBigInteger('product_id');
+            $table->date('metric_date');
+            $table->unsignedBigInteger('impressions')->default(0);
+            $table->unsignedBigInteger('visits')->default(0);
+            $table->timestamps();
+        });
+        Schema::create('order_details', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('order_id');
+            $table->unsignedBigInteger('seller_id');
+            $table->unsignedBigInteger('product_id');
+            $table->string('delivery_status')->nullable();
+            $table->unsignedInteger('qty')->default(1);
+            $table->decimal('price', 24, 2)->default(0);
+            $table->decimal('discount', 24, 2)->default(0);
+            $table->decimal('tax', 24, 2)->default(0);
             $table->timestamps();
         });
     }

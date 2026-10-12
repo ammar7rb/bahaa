@@ -266,7 +266,7 @@
                         </button>
                     </div>
                     <div class="modal-body">
-                        <form action="{{route('messages')}}" method="post" id="deliveryman-chat-form">
+                        <form action="{{ route('account-tickets') }}" method="get" id="deliveryman-chat-form">
                             @csrf
                             @if($order->deliveryMan->id != 0)
                                 <input value="{{$order->deliveryMan->id}}" name="delivery_man_id" hidden>
@@ -276,7 +276,7 @@
                                       placeholder="{{ translate('Write_here') }}..."></textarea>
                             <br>
                             <div class="justify-content-end gap-2 d-flex flex-wrap">
-                                <a href="{{route('chat', ['type' => 'delivery-man'])}}"
+                                <a href="{{ route('account-tickets') }}"
                                    class="btn btn-soft-primary bg--secondary border">
                                     {{translate('go_to_chatbox')}}
                                 </a>

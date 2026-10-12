@@ -30,6 +30,30 @@
                     <div class="row gy-4 align-items-end">
                         <div class="col-md-6 col-lg-4">
                             <div class="form-group">
+                                <label class="form-label" for="production_date">
+                                    {{ translate('production_date') }}
+                                    <span class="input-required-icon">*</span>
+                                </label>
+                                <input type="date" name="production_date" id="production_date"
+                                       value="{{ old('production_date', $product->production_date?->format('Y-m-d')) }}"
+                                       class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-lg-4">
+                            <div class="form-group">
+                                <label class="form-label" for="expiry_date">
+                                    {{ translate('expiry_date') }}
+                                    <span class="input-required-icon">*</span>
+                                </label>
+                                <input type="date" name="expiry_date" id="expiry_date"
+                                       min="{{ now()->addDay()->toDateString() }}"
+                                       value="{{ old('expiry_date', $product->expiry_date?->format('Y-m-d')) }}"
+                                       class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-4">
+                            <div class="form-group">
                                 <label class="form-label">
                                     {{ translate('Unit_Price') }}
                                     <span class="input-required-icon">*</span>
@@ -144,6 +168,24 @@
                             </div>
                         @endif
 
+                        @if(getWebConfig(name: 'customer_three_step_shipping_status'))
+                            {{-- Two customer-facing rates are controlled by admin; Sigma changes its promise at the cutoff. --}}
+                            <input type="hidden" name="shipping_cost" value="0">
+                            <input type="hidden" name="multiply_qty" value="0">
+                            <div class="col-md-6 col-lg-4 show-for-physical-product">
+                                <div class="form-group">
+                                    <label class="form-label">{{ translate('Sigma_Delivery') }} {{ translate('cost') }} <span class="input-required-icon">*</span></label>
+                                    <input type="number" min="0" value="{{ usdToDefaultCurrency($product->same_day_shipping_cost ?? 0) }}" step="0.01" name="same_day_shipping_cost" class="form-control" required>
+                                </div>
+                            </div>
+                            <input type="hidden" name="next_day_shipping_cost" value="{{ usdToDefaultCurrency($product->same_day_shipping_cost ?? 0) }}">
+                            <div class="col-md-6 col-lg-4 show-for-physical-product">
+                                <div class="form-group">
+                                    <label class="form-label">{{ translate('Normal_Delivery') }} {{ translate('cost') }} <span class="input-required-icon">*</span></label>
+                                    <input type="number" min="0" value="{{ usdToDefaultCurrency($product->normal_shipping_cost ?? 0) }}" step="0.01" name="normal_shipping_cost" class="form-control" required>
+                                </div>
+                            </div>
+                        @else
                         <div class="col-md-6 col-lg-4 show-for-physical-product" id="shipping_cost">
                             <div class="form-group">
                                 <label class="form-label">
@@ -187,6 +229,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>

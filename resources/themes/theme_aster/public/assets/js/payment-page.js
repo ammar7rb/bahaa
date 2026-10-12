@@ -8,6 +8,12 @@ $("#digital-payment-btn").on("click", function () {
 $("#pay-offline-method").on("change", function () {
     payOfflineMethodField(this.value);
 });
+
+$(document).on("click", ".js-offline-channel", function () {
+    const methodId = String($(this).data("method-id") || "");
+    if (!methodId) return;
+    $("#pay-offline-method").val(methodId).trigger("change");
+});
 function payOfflineMethodField(methodId) {
     $.get(
         $(".get-payment-method-list").data("action"),

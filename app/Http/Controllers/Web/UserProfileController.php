@@ -37,9 +37,11 @@ use App\Utils\CustomerManager;
 use App\Utils\Helpers;
 use App\Utils\ImageManager;
 use App\Utils\OrderManager;
+use App\Services\GoogleMapsShippingLocationService;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -72,6 +74,7 @@ class UserProfileController extends Controller
 
     public function user_profile(Request $request)
     {
+        if (empty(VIEW_FILE_NAMES['user_profile'])) return redirect()->route('user-account');
         $wishlists = $this->wishlist->whereHas('wishlistProduct', function ($q) {
             return $q;
         })->where('customer_id', auth('customer')->id())->count();
@@ -96,12 +99,15 @@ class UserProfileController extends Controller
     {
         $imageName = $request->file('image') ? ImageManager::update('profile/', auth('customer')->user()->image, 'webp', $request->file('image')) : auth('customer')->user()->image;
         $user = auth('customer')->user();
+        $phones = app(\App\Services\EgyptPhoneService::class);
+        $effectivePhone = $phones->normalizeLocal($user['is_phone_verified'] ? $user['phone'] : $request['phone']);
+        $phoneChanged = $effectivePhone !== $phones->normalizeLocal($user['phone']);
         User::find($user['id'])->update([
             'f_name' => $request['f_name'],
             'l_name' => $request['l_name'],
-            'phone' => $user['is_phone_verified'] ? $user['phone'] : $request['phone'],
+            'phone' => $effectivePhone,
             'email' => $request['email'],
-            'is_phone_verified' => $request['phone'] == $user['phone'] ? $user['is_phone_verified'] : 0,
+            'is_phone_verified' => $phoneChanged ? 0 : $user['is_phone_verified'],
             'is_email_verified' => $request['email'] == $user['email'] ? $user['is_email_verified'] : 0,
             'image' => $imageName,
             'password' => strlen($request['password']) > 5 ? bcrypt($request['password']) : auth('customer')->user()->password,
@@ -126,27 +132,7 @@ class UserProfileController extends Controller
 
     public function account_delete($id)
     {
-        if (auth('customer')->id() == $id) {
-            $user = User::find($id);
-
-            $ongoing = ['out_for_delivery', 'processing', 'confirmed', 'pending'];
-            $order = Order::where('customer_id', $user->id)->whereIn('order_status', $ongoing)->count();
-            if ($order > 0) {
-                Toastr::warning(translate('you_can_not_delete_account_due_ongoing_order'));
-                return redirect()->back();
-            }
-            auth()->guard('customer')->logout();
-
-            ImageManager::delete('/profile/' . $user['image']);
-            session()->forget('wish_list');
-
-            $user->delete();
-            Toastr::info(translate('Your_account_deleted_successfully!!'));
-            return redirect()->route('home');
-        }
-
-        Toastr::warning(translate('access_denied') . '!!');
-        return back();
+        abort(405, 'استخدم خطوات حذف الحساب الآمنة.');
     }
 
     public function account_address(): View|RedirectResponse
@@ -177,7 +163,13 @@ class UserProfileController extends Controller
         $request->validate([
             'name' => 'required',
             'phone' => 'required|max:20',
+            'state' => 'required',
             'city' => 'required',
+            'district' => 'required',
+            'area' => 'required',
+            'street' => 'required',
+            'building_number' => 'required|string|max:100',
+            'landmark' => 'nullable|string|max:255',
             'zip' => 'required',
             'country' => 'required',
             'address' => 'required',
@@ -210,7 +202,9 @@ class UserProfileController extends Controller
             return back();
         }
 
-        $address = [
+        $locationService = app(GoogleMapsShippingLocationService::class);
+        $resolution = $locationService->resolve($request->all());
+        $address = array_merge([
             'customer_id' => auth('customer')->check() ? auth('customer')->id() : null,
             'contact_person_name' => $request['name'],
             'address_type' => Str::lower($request['address_type'] ?? ''),
@@ -220,14 +214,16 @@ class UserProfileController extends Controller
             'country' => $request['country'],
             'phone' => $request['phone'],
             'is_billing' => $request['is_billing'],
-            'latitude' => $request['latitude'],
-            'longitude' => $request['longitude'],
             'created_at' => now(),
             'updated_at' => now(),
-        ];
+        ], $locationService->persistedLocationFields($request->all(), $resolution));
         DB::table('shipping_addresses')->insert($address);
 
-        Toastr::success(translate('address_added_successfully!'));
+        if (($resolution['status'] ?? null) === GoogleMapsShippingLocationService::STATUS_RESOLVED) {
+            Toastr::success(translate('address_added_successfully!'));
+        } else {
+            Toastr::warning('تم حفظ العنوان، لكنه يحتاج مراجعة قبل عرض تكلفة الشحن النهائية.');
+        }
 
         if (theme_root_path() == 'default') {
             return back();
@@ -265,7 +261,13 @@ class UserProfileController extends Controller
         $request->validate([
             'name' => 'required',
             'phone' => 'required|max:20',
+            'state' => 'required',
             'city' => 'required',
+            'district' => 'required',
+            'area' => 'required',
+            'street' => 'required',
+            'building_number' => 'required|string|max:100',
+            'landmark' => 'nullable|string|max:255',
             'zip' => 'required',
             'country' => 'required',
             'address' => 'required',
@@ -298,7 +300,9 @@ class UserProfileController extends Controller
             return back();
         }
 
-        $updateAddress = [
+        $locationService = app(GoogleMapsShippingLocationService::class);
+        $resolution = $locationService->resolve($request->all());
+        $updateAddress = array_merge([
             'contact_person_name' => $request->name,
             'address_type' => Str::lower($request['address_type'] ?? ''),
             'address' => $request->address,
@@ -307,14 +311,15 @@ class UserProfileController extends Controller
             'country' => $request->country,
             'phone' => $request->phone,
             'is_billing' => $request->is_billing,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'created_at' => now(),
             'updated_at' => now(),
-        ];
+        ], $locationService->persistedLocationFields($request->all(), $resolution));
         if (auth('customer')->check()) {
             ShippingAddress::where('id', $request->id)->update($updateAddress);
-            Toastr::success(translate('address_updated_successfully!'));
+            if (($resolution['status'] ?? null) === GoogleMapsShippingLocationService::STATUS_RESOLVED) {
+                Toastr::success(translate('address_updated_successfully!'));
+            } else {
+                Toastr::warning('تم حفظ العنوان، لكنه يحتاج مراجعة قبل عرض تكلفة الشحن النهائية.');
+            }
         } else {
             Toastr::error(translate('Insufficient_permission!'));
         }
@@ -355,7 +360,7 @@ class UserProfileController extends Controller
 
             $array = ['pending', 'confirmed', 'out_for_delivery', 'processing'];
             $orders = $this->order->withSum('orderDetails', 'qty')
-                ->with('orderEditHistory', 'details', 'seller.shop')
+                ->with('orderEditHistory', 'details.productAllStatus', 'seller.shop', 'postPurchaseInvoice')
                 ->where(['customer_id' => auth('customer')->id(), 'is_guest' => '0'])
                 ->when($show_order == 'ongoing', function ($query) use ($array) {
                     $query->whereIn('order_status', $array);
@@ -368,7 +373,7 @@ class UserProfileController extends Controller
                 })
                 ->orderBy('id', $order_by)->paginate(10)->appends(['show_order' => $show_order, 'search' => $request->search]);
         } else {
-            $orders = $this->order->with('orderEditHistory', 'details', 'seller.shop')
+            $orders = $this->order->with('orderEditHistory', 'details.productAllStatus', 'seller.shop', 'postPurchaseInvoice')
                 ->withSum('orderDetails', 'qty')
                 ->where(['customer_id' => auth('customer')->id(), 'is_guest' => '0'])
                 ->orderBy('id', $order_by)
@@ -387,7 +392,7 @@ class UserProfileController extends Controller
     public function account_order_details(Request $request): View|RedirectResponse
     {
         $availablePaymentMethod = [];
-        $order = $this->order->with(['deliveryManReview', 'customer', 'offlinePayments', 'details.productAllStatus', 'details.refundRequest'])->where(['id' => $request['id'], 'customer_id' => auth('customer')->id(), 'is_guest' => '0'])->first();
+        $order = $this->order->with(['deliveryManReview', 'customer', 'offlinePayments', 'postPurchaseInvoice', 'details.productAllStatus', 'details.refundRequest'])->where(['id' => $request['id'], 'customer_id' => auth('customer')->id(), 'is_guest' => '0'])->first();
 
         if ($order) {
             $offlinePaymentMethods = OfflinePaymentMethod::where('status', 1)->get();
@@ -556,15 +561,22 @@ class UserProfileController extends Controller
     public function account_tickets()
     {
         if (auth('customer')->check()) {
-            $supportTickets = SupportTicket::where('customer_id', auth('customer')->id())->latest()->paginate(10);
+            $supportTickets = SupportTicket::visibleToSubject()->where('customer_id', auth('customer')->id())->latest()->paginate(10);
             return view(VIEW_FILE_NAMES['account_tickets'], compact('supportTickets'));
         } else {
             return redirect()->route('home');
         }
     }
 
-    public function submitSupportTicket(Request $request): RedirectResponse
+    public function submitSupportTicket(Request $request): RedirectResponse|JsonResponse
     {
+        if ($request->boolean('care_support_drawer')) {
+            abort_unless(auth('customer')->check(), 401);
+            $request->validate([
+                'ticket_description' => 'required|string|min:3|max:5000',
+            ]);
+            $request->merge(['ticket_subject' => mb_substr(trim($request->ticket_description),0,100), 'ticket_type' => 'Website problem', 'ticket_priority' => 'Medium']);
+        }
         $request->validate([
             'ticket_subject' => 'required',
             'ticket_type' => 'required',
@@ -603,17 +615,45 @@ class UserProfileController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ];
-        DB::table('support_tickets')->insert($ticket);
+        $ticketId = DB::table('support_tickets')->insertGetId(array_merge($ticket, [
+            'purpose' => $request['ticket_type'] === 'account_activation' ? 'account_activation' : null,
+            'review_status' => $request['ticket_type'] === 'account_activation' ? 'pending' : null,
+        ]));
+        if ($request['ticket_type'] === 'account_activation') {
+            \App\Models\AccountActivationCase::query()->updateOrCreate([
+                'subject_type' => \App\Models\AccountActivationCase::SUBJECT_CUSTOMER,
+                'subject_id' => auth('customer')->id(),
+            ], [
+                'source_type' => 'support_ticket',
+                'source_id' => $ticketId,
+                'status' => \App\Models\AccountActivationCase::STATUS_PENDING,
+                'metadata' => ['created_from' => 'customer_web'],
+            ]);
+        }
+        if ($request->boolean('care_support_drawer')) {
+            return response()->json(['ticket_id' => $ticketId, 'url' => route('support-ticket.index', $ticketId)], 201);
+        }
         return back();
     }
 
     public function single_ticket(Request $request)
     {
+        $activationTicket = SupportTicket::query()
+            ->where('id', $request->id)
+            ->where('customer_id', auth('customer')->id())
+            ->where('purpose', \App\Services\CustomerActivationService::PURPOSE)
+            ->first();
+
+        if ($activationTicket && $activationTicket->review_status === 'approved') {
+            Toastr::success(translate('customer_account_activated'));
+            return redirect()->route('home');
+        }
+
         $ticket = SupportTicket::with(['conversations' => function ($query) {
             $query->when(theme_root_path() == 'default', function ($sub_query) {
                 $sub_query->orderBy('id', 'desc');
             });
-        }])->where('id', $request->id)->where('customer_id', auth()->guard('customer')->id())->first();
+        }])->visibleToSubject()->where('id', $request->id)->where('customer_id', auth()->guard('customer')->id())->first();
         if (!$ticket) {
             Toastr::warning(translate('Invalid_ticket'));
             return back();
@@ -621,8 +661,67 @@ class UserProfileController extends Controller
         return view(VIEW_FILE_NAMES['ticket_view'], compact('ticket'));
     }
 
-    public function comment_submit(Request $request, $id)
+    /**
+     * Lets a customer who is already viewing the activation ticket receive the
+     * administrator's decision without manually refreshing the page.
+     */
+    public function activationStatus(\App\Services\CustomerActivationService $activationService): JsonResponse
     {
+        $status = $activationService->status(auth('customer')->user()->fresh());
+
+        return response()->json([
+            'status' => $status['status'],
+            'is_active' => (bool) $status['is_active'],
+            'message' => $status['banner']['message'] ?? translate('customer_account_activated'),
+            'redirect_url' => route('home'),
+        ]);
+    }
+
+    /** Return customer/admin support messages without reloading the page. */
+    public function ticketMessages(int $id): JsonResponse
+    {
+        $ticket = SupportTicket::query()
+            ->with(['conversations' => fn ($query) => $query->orderBy('id')])
+            ->where('id', $id)
+            ->where('customer_id', auth('customer')->id())
+            ->firstOrFail();
+
+        if ($ticket->purpose === \App\Services\CustomerActivationService::PURPOSE
+            && $ticket->review_status === 'approved') {
+            return response()->json([
+                'ticket_id' => $ticket->id,
+                'status' => $ticket->status,
+                'activation_approved' => true,
+                'message' => translate('customer_account_activated'),
+                'redirect_url' => route('home'),
+                'messages' => [],
+            ]);
+        }
+
+        if ($ticket->hidden_from_subject_at) {
+            abort(404);
+        }
+
+        return response()->json([
+            'ticket_id' => $ticket->id,
+            'status' => $ticket->status,
+            'messages' => $ticket->conversations->map(fn ($conversation) => [
+                'id' => $conversation->id,
+                'sender_type' => $conversation->admin_id ? 'admin' : 'customer',
+                'body' => $conversation->admin_message ?: $conversation->customer_message,
+                'created_at' => optional($conversation->created_at)->format('Y-m-d H:i'),
+            ])->values(),
+        ]);
+    }
+
+    public function comment_submit(Request $request, $id): RedirectResponse|JsonResponse
+    {
+        $ticket = SupportTicket::query()->visibleToSubject()
+            ->where('id', $id)->where('customer_id', auth('customer')->id())->first();
+        if (! $ticket) {
+            Toastr::warning(translate('Invalid_ticket'));
+            return back();
+        }
         if ($request->file('image') == null && empty($request['comment'])) {
             Toastr::error(translate('type_something') . '!');
             return back();
@@ -654,14 +753,26 @@ class UserProfileController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ];
-        SupportTicketConv::create($data);
+        $conversation = SupportTicketConv::create($data);
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => translate('message_send_successfully').'!',
+                'conversation' => [
+                    'id' => $conversation->id,
+                    'sender_type' => 'customer',
+                    'body' => $conversation->customer_message,
+                    'created_at' => optional($conversation->created_at)->format('Y-m-d H:i'),
+                ],
+            ]);
+        }
         Toastr::success(translate('message_send_successfully') . '!');
         return back();
     }
 
     public function support_ticket_close($id)
     {
-        DB::table('support_tickets')->where(['id' => $id])->update([
+        DB::table('support_tickets')->where(['id' => $id, 'customer_id' => auth('customer')->id()])
+            ->whereNull('hidden_from_subject_at')->update([
             'status' => 'close',
             'updated_at' => now(),
         ]);
@@ -1083,3 +1194,4 @@ class UserProfileController extends Controller
         return redirect()->route('user-restock-requests');
     }
 }
+

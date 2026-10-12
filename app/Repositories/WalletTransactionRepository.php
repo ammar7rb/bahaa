@@ -106,6 +106,7 @@ class WalletTransactionRepository implements WalletTransactionRepositoryInterfac
 
     public function addWalletTransaction(string $user_id, float $amount, string $transactionType, ?string $reference = null, array $payment_data = []): bool|WalletTransaction
     {
+        app(\App\Services\CustomerPurchaseWalletPolicyService::class)->assertTransactionAllowed($transactionType);
         if ($this->businessSetting->where('type', 'wallet_status')->first()->value != 1) return false;
         $user = $this->user->where('id', $user_id)->first();
         if (!$user) return false;

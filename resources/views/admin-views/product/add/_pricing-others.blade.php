@@ -138,6 +138,29 @@
                             </div>
                         @endif
 
+                        @if(getWebConfig(name: 'customer_three_step_shipping_status'))
+                            {{-- Three product-level rates are controlled by admin; sellers cannot enter delivery pricing. --}}
+                            <input type="hidden" name="shipping_cost" value="0">
+                            <input type="hidden" name="multiply_qty" value="0">
+                            <div class="col-md-6 col-lg-4 show-for-physical-product">
+                                <div class="form-group">
+                                    <label class="form-label">{{ translate('Same_Day_Delivery') }} {{ translate('cost') }} <span class="input-required-icon">*</span></label>
+                                    <input type="number" min="0" value="0" step="0.01" name="same_day_shipping_cost" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 show-for-physical-product">
+                                <div class="form-group">
+                                    <label class="form-label">{{ translate('Next_Day_Delivery') }} {{ translate('cost') }} <span class="input-required-icon">*</span></label>
+                                    <input type="number" min="0" value="0" step="0.01" name="next_day_shipping_cost" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 show-for-physical-product">
+                                <div class="form-group">
+                                    <label class="form-label">{{ translate('Normal_Delivery') }} {{ translate('cost') }} <span class="input-required-icon">*</span></label>
+                                    <input type="number" min="0" value="0" step="0.01" name="normal_shipping_cost" class="form-control" required>
+                                </div>
+                            </div>
+                        @else
                         <div class="col-md-6 col-lg-4 show-for-physical-product" id="shipping_cost">
                             <div class="form-group">
                                 <label class="form-label">
@@ -181,11 +204,11 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
 

@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Shop;
 use App\Traits\CacheManagerTrait;
 use App\Utils\Helpers;
+use App\Services\HomepageSectionBuilderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,9 +17,33 @@ class BannerController extends Controller
 {
     use CacheManagerTrait;
 
+    public function __construct(private readonly HomepageSectionBuilderService $homepageBuilder)
+    {
+    }
+
     public function getBannerList(Request $request): JsonResponse
     {
-        $banners = $this->cacheBannerTable();
+        $banners = collect($this->cacheBannerTable());
+        $theme = theme_root_path();
+        $theme = in_array($theme, HomepageSectionBuilderService::THEMES, true) ? $theme : 'default';
+        if (in_array($theme, HomepageSectionBuilderService::THEMES, true)) {
+            $layout = $this->homepageBuilder->layout($theme);
+            $sectionMap = [
+                'Main Banner' => 'main_banner',
+                'Main Section Banner' => 'main_section_banner',
+                'Footer Banner' => 'footer_banners',
+            ];
+            $managed = collect();
+            foreach ($sectionMap as $bannerType => $sectionKey) {
+                $managed = $managed->concat($this->homepageBuilder->resolveBanners(
+                    $theme,
+                    $sectionKey,
+                    $banners->where('banner_type', $bannerType),
+                    $layout
+                ));
+            }
+            $banners = $managed->concat($banners->whereNotIn('banner_type', array_keys($sectionMap)))->unique('id')->values();
+        }
         $productIds = [];
         $shopIds = [];
         $brandIds = [];
@@ -47,5 +72,21 @@ class BannerController extends Controller
 
         return response()->json($bannerData, 200);
 
+    }
+
+    public function getHomepageLayout(): JsonResponse
+    {
+        $theme = theme_root_path();
+        $theme = in_array($theme, HomepageSectionBuilderService::THEMES, true) ? $theme : 'default';
+        $layout = $this->homepageBuilder->layout(
+            in_array($theme, HomepageSectionBuilderService::THEMES, true) ? $theme : 'default'
+        );
+        $catalog = collect($this->homepageBuilder->catalog($layout['theme'] ?? $theme))->keyBy('key');
+        $layout['product_sections'] = collect($layout['sections'])->filter(fn ($s, $key) => $s['is_visible'] && ($catalog[$key]['type'] ?? null) === 'product')
+            ->sortBy('sort_order')->map(function ($section, $key) use ($theme, $layout, $catalog) {
+                return ['key' => $key, 'title' => $key === 'savings_offers' ? (app()->getLocale() === 'ar' ? 'عروض التوفير' : 'Savings Offers') : translate($catalog[$key]['label']),
+                    'products' => Helpers::product_data_formatting($this->homepageBuilder->resolveProducts($theme, $key, collect(), $layout, false), true)];
+            })->values();
+        return response()->json($layout);
     }
 }

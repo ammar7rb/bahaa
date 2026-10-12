@@ -12,11 +12,17 @@ use App\Services\DeliveryCountryCodeService;
 use App\Services\OrderEditService;
 use App\Services\OrderService;
 use App\Services\SellerCommissionService;
+use App\Services\SellerDashboardOverviewService;
+use App\Models\AccountActivationCase;
 use App\Traits\OrderEditManager;
 use Exception;
 use App\Enums\WebConfigKey;
 use App\Traits\CommonTrait;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Services\ShopService;
@@ -39,6 +45,7 @@ use App\Contracts\Repositories\ShopRepositoryInterface;
 use App\Contracts\Repositories\OrderRepositoryInterface;
 use Modules\TaxModule\app\Traits\VatTaxManagement;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 use App\Contracts\Repositories\ReviewRepositoryInterface;
 use App\Contracts\Repositories\VendorRepositoryInterface;
 use App\Contracts\Repositories\ProductRepositoryInterface;
@@ -83,6 +90,7 @@ class VendorController extends BaseController
         private readonly OrderEditService                         $orderEditService,
         private readonly OrderEditHistoryRepositoryInterface      $orderEditHistoryRepo,
         private readonly SellerCommissionService                  $sellerCommissionService,
+        private readonly SellerDashboardOverviewService            $sellerDashboardOverviewService,
 
     )
     {
@@ -203,6 +211,97 @@ class VendorController extends BaseController
         }
         event(new VendorRegistrationEvent(email: $vendor['email'], data: $data));
         return back();
+    }
+
+    /**
+     * Permanently remove an empty seller account. Financial and order records are
+     * intentionally retained by blocking deletion once they exist.
+     */
+    public function destroy(int $id): RedirectResponse
+    {
+        $seller = $this->vendorRepo->getFirstWhere(params: ['id' => $id], relations: ['shops', 'wallet']);
+        if (!$seller) {
+            ToastMagic::error(translate('vendor_not_found'));
+            return back();
+        }
+
+        if ($this->hasSellerOperationalHistory($id)) {
+            ToastMagic::error(translate('account_cannot_be_deleted_has_operational_history'));
+            return back();
+        }
+
+        try {
+            DB::transaction(function () use ($seller, $id) {
+                $this->deleteActivationCases(AccountActivationCase::SUBJECT_SELLER, $id);
+                $seller->wallet?->delete();
+                $seller->shops()->delete();
+                $this->vendorRepo->delete(params: ['id' => $id]);
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+            ToastMagic::error(translate('account_delete_failed'));
+            return back();
+        }
+
+        ToastMagic::success(translate('vendor_deleted_successfully'));
+        return redirect()->route('admin.vendors.vendor-list');
+    }
+
+    private function hasSellerOperationalHistory(int $sellerId): bool
+    {
+        $references = [
+            'orders' => ['seller_id'],
+            'products' => ['user_id'],
+            'seller_ledger_entries' => ['seller_id'],
+            'seller_order_insurances' => ['seller_id'],
+            'seller_settlements' => ['seller_id'],
+            'seller_insurances' => ['seller_id'],
+            'seller_package_subscriptions' => ['seller_id'],
+            'seller_package_transactions' => ['seller_id'],
+            'seller_balance_fundings' => ['seller_id'],
+            'withdraw_requests' => ['seller_id'],
+        ];
+
+        foreach ($references as $table => $columns) {
+            if (!Schema::hasTable($table)) {
+                continue;
+            }
+
+            foreach ($columns as $column) {
+                if (Schema::hasColumn($table, $column) && DB::table($table)->where($column, $sellerId)->exists()) {
+                    return true;
+                }
+            }
+        }
+
+        return Schema::hasTable('insurance_balance_actions')
+            && Schema::hasColumn('insurance_balance_actions', 'subject_type')
+            && Schema::hasColumn('insurance_balance_actions', 'subject_id')
+            && DB::table('insurance_balance_actions')
+                ->where('subject_type', AccountActivationCase::SUBJECT_SELLER)
+                ->where('subject_id', $sellerId)
+                ->exists();
+    }
+
+    private function deleteActivationCases(string $subjectType, int $subjectId): void
+    {
+        AccountActivationCase::query()
+            ->where('subject_type', $subjectType)
+            ->where('subject_id', $subjectId)
+            ->with('documents')
+            ->get()
+            ->each(function (AccountActivationCase $case) {
+                foreach ($case->documents as $document) {
+                    if ($document->storage_path && Storage::disk($document->storage_disk ?: 'public')->exists($document->storage_path)) {
+                        Storage::disk($document->storage_disk ?: 'public')->delete($document->storage_path);
+                    }
+                }
+
+                $case->events()->delete();
+                $case->fields()->delete();
+                $case->documents()->delete();
+                $case->delete();
+            });
     }
 
     public function exportList(Request $request): BinaryFileResponse
@@ -397,6 +496,27 @@ class VendorController extends BaseController
         if (!$seller) {
             return redirect()->route('admin.vendors.vendor-list');
         }
+
+        // Keep the activation workspace and seller profile on one source of truth.
+        $sellerOverview = $this->sellerDashboardOverviewService->build($seller);
+        $activationCase = null;
+        if (Schema::hasTable('account_activation_cases')) {
+            try {
+                $activationCase = AccountActivationCase::query()
+                    ->where('subject_type', AccountActivationCase::SUBJECT_SELLER)
+                    ->where('subject_id', $seller->id)
+                    ->with([
+                        'assignedAdmin', 'reviewedBy',
+                        'fields.createdBy', 'fields.verifiedBy',
+                        'documents.uploadedBy', 'documents.verifiedBy',
+                    ])
+                    ->latest('id')
+                    ->first();
+            } catch (Throwable) {
+                // Keep the normal vendor profile available during a migration rollout.
+                $activationCase = null;
+            }
+        }
         $seller?->product?->map(function ($product) {
             $product['rating'] = $product?->reviews->pluck('rating')->sum();
             $product['rating_count'] = $product->reviews->count();
@@ -451,7 +571,31 @@ class VendorController extends BaseController
             'seller' => $seller,
             'productWiseTax' => $productWiseTax,
             'current_date' => date('Y-m-d'),
+            'sellerOverview' => $sellerOverview,
+            'activationCase' => $activationCase,
         ]);
+    }
+
+    /** Reset a vendor password after support has verified account ownership. */
+    public function resetPassword(Request $request, int $id): RedirectResponse
+    {
+        $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $vendor = $this->vendorRepo->getFirstWhere(params: ['id' => $id]);
+        if (!$vendor) {
+            ToastMagic::error(translate('vendor_not_found'));
+            return back();
+        }
+
+        $this->vendorRepo->update(id: $id, data: [
+            'password' => Hash::make($request->input('password')),
+            'auth_token' => Str::random(80),
+        ]);
+
+        ToastMagic::success(translate('password_reset_by_administrator'));
+        return back();
     }
 
     public function getOrderListTabView(Request $request, $seller): View
@@ -736,33 +880,14 @@ class VendorController extends BaseController
 
     public function withdrawStatus(Request $request, $id): RedirectResponse
     {
-        $withdrawData = [
-            'approved' => $request['approved'],
-            'transaction_note' => $request['note'],
-        ];
-
-        $withdraw = $this->withdrawRequestRepo->getFirstWhere(params: ['id' => $id], relations: ['seller']);
-        if (isset($withdraw->seller->cm_firebase_token) && $withdraw->seller->cm_firebase_token) {
-            event(new WithdrawStatusUpdateEvent(key: 'withdraw_request_status_message', type: 'seller', lang: $withdraw->deliveryMan?->app_language ?? getDefaultLanguage(), status: $request['approved'], fcmToken: $withdraw->seller?->cm_firebase_token));
-        }
-
-        if ($request['approved'] == 1) {
-            $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => $withdraw['seller_id']])->increment('withdrawn', $withdraw['amount']);
-            $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => $withdraw['seller_id']])->decrement('pending_withdraw', $withdraw['amount']);
-
-            $this->withdrawRequestRepo->update(id: $id, data: $withdrawData);
-            ToastMagic::success(translate('Vendor_Payment_has_been_approved_successfully'));
-            return redirect()->route('admin.vendors.withdraw_list');
-        }
-
-        $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => $withdraw['seller_id']])->increment('total_earning', $withdraw['amount']);
-        $this->vendorWalletRepo->getFirstWhere(params: ['seller_id' => $withdraw['seller_id']])->decrement('pending_withdraw', $withdraw['amount']);
-        $this->withdrawRequestRepo->update(id: $id, data: $withdrawData);
-
-        ToastMagic::info(translate('Vendor_Payment_request_has_been_Denied_successfully'));
+        $input = $request->validate(['approved' => 'required|integer|in:1,2', 'note' => 'nullable|string|max:1000']);
+        try {
+            $withdraw = app(\App\Services\SellerWithdrawalService::class)->finish((int) $id, (int) $input['approved'], note: $input['note'] ?? null);
+            ToastMagic::success(translate('withdraw_request_updated'));
+        } catch (\DomainException | \InvalidArgumentException $exception) { return back()->withErrors(['approved' => translate($exception->getMessage())]); }
         return redirect()->route('admin.vendors.withdraw_list');
-
     }
+
 
 
     public function loadMoreStores(Request $request): JsonResponse

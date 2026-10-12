@@ -5,7 +5,7 @@
                 <span><i class="czi-search"></i></span>
                 <div class="text-truncate">{{$product['name']}}</div>
                 @if($product->is_search_promoted ?? false)
-                    <span class="badge badge-warning mx-2">{{ translate('Featured_Ad') }}</span>
+                    <span class="badge badge-warning mx-2">{{ translate($product->advertising_badge_label ?: 'Featured_Ad') }}</span>
                 @endif
                 <span class="px-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-up-left" viewBox="0 0 16 16">

@@ -20,6 +20,8 @@ class CustomerPurchasePackage extends Model
         'is_custom',
         'status',
         'sort_order',
+        'duration_unit',
+        'duration_value',
         'created_by_admin_id',
         'updated_by_admin_id',
     ];
@@ -32,6 +34,7 @@ class CustomerPurchasePackage extends Model
         'is_custom' => 'boolean',
         'status' => 'boolean',
         'sort_order' => 'integer',
+        'duration_value' => 'integer',
         'created_by_admin_id' => 'integer',
         'updated_by_admin_id' => 'integer',
         'created_at' => 'datetime',

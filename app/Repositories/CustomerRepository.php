@@ -20,6 +20,17 @@ class CustomerRepository implements CustomerRepositoryInterface
 
     public function add(array $data): string|object
     {
+        $data['onboarding_journey'] ??= 'standard';
+        if (!empty($data['phone'])) {
+            $phones = app(\App\Services\EgyptPhoneService::class);
+            if ($phones->isValid($data['phone'])) {
+                if ($this->user->whereIn('phone', $phones->aliases($data['phone']))->orWhere('canonical_phone', $phones->normalizeLocal($data['phone']))->exists()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['phone' => 'هذا الرقم مسجل بالفعل. سجّل الدخول إلى حسابك.']);
+                }
+                $data['canonical_phone'] = $phones->normalizeLocal($data['phone']);
+                $data['phone'] = $data['canonical_phone'];
+            }
+        }
         return $this->user->create($data);
     }
 
@@ -30,6 +41,11 @@ class CustomerRepository implements CustomerRepositoryInterface
 
     public function getByIdentity(array $filters = []): ?Model
     {
+        $identity = $filters['identity'] ?? $filters['phone'] ?? null;
+        if ($identity && app(\App\Services\EgyptPhoneService::class)->isValid($identity)) {
+            return $this->user->whereIn('phone', app(\App\Services\EgyptPhoneService::class)->aliases($identity))
+                ->orWhere('canonical_phone', app(\App\Services\EgyptPhoneService::class)->normalizeLocal($identity))->first();
+        }
         return $this->user
             ->when(isset($filters['phone']) && $filters['phone'], function ($query) use ($filters) {
                 return $query->where(['phone' => $filters['phone']]);
@@ -104,7 +120,10 @@ class CustomerRepository implements CustomerRepositoryInterface
                         ->orWhere('phone', 'like', "%$searchValue%")
                         ->orWhere('f_name', 'like', "%$searchValue%")
                         ->orWhere('l_name', 'like', "%$searchValue%")
-                        ->orWhereRaw("CONCAT(f_name, ' ', l_name) LIKE ?", ["%$searchValue%"]);
+                        ->orWhereRaw("CONCAT(f_name, ' ', l_name) LIKE ?", ["%$searchValue%"])
+                        ->when(is_numeric($searchValue), function ($q) use ($searchValue) {
+                            $q->orWhere('id', (int) $searchValue);
+                        });
                 })->where('email', '!=', 'abc@gm.com');
             })
             ->when(isset($filters['order_date']) && !empty($filters['order_date']), function ($query) use ($filters) {
@@ -127,6 +146,12 @@ class CustomerRepository implements CustomerRepositoryInterface
             })
             ->when(isset($filters['sort_by']) && $filters['sort_by'] == 'order_amount', function ($query) use ($filters) {
                 return $query->withSum('orders', 'order_amount')->orderBy('orders_sum_order_amount', 'desc');
+            })
+            ->when(isset($filters['sort_by']) && $filters['sort_by'] === 'orders_count', function ($query) {
+                return $query->withCount('orders')->orderBy('orders_count', 'desc');
+            })
+            ->when(isset($filters['sort_by']) && $filters['sort_by'] === 'orders_count_asc', function ($query) {
+                return $query->withCount('orders')->orderBy('orders_count', 'asc');
             })
             ->when(isset($filters['avoid_walking_customer']) && $filters['avoid_walking_customer'] == 1, function ($query) {
                 return $query->where(function ($q) {

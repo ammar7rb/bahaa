@@ -15,7 +15,6 @@ use App\Utils\CustomerManager;
 use App\Models\BusinessSetting;
 use App\Services\FirebaseService;
 use Illuminate\Http\JsonResponse;
-use App\Services\RecaptchaService;
 use App\Traits\EmailTemplateTrait;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Contracts\View\View;
@@ -37,6 +36,8 @@ use App\Contracts\Repositories\ReferByEarnCustomerRepositoryInterface;
 use App\Contracts\Repositories\PhoneOrEmailVerificationRepositoryInterface;
 use App\Events\CustomerRegisteredViaReferralEvent;
 use App\Models\ReferralCustomer;
+use App\Services\CustomerActivationService;
+use App\Services\PolicyAcceptanceService;
 
 class RegisterController extends Controller
 {
@@ -59,25 +60,19 @@ class RegisterController extends Controller
     {
         $this->customerAuthService->storeCustomerAuthReturnURL();
         $keepCustomerLoginRedirectUrl = session('keep_customer_login_redirect_url');
-        $recaptcha = getWebConfig(name: 'recaptcha');
         return view('web-views.customer-views.auth.register', [
-            'recaptcha' => $recaptcha,
             'keepCustomerLoginRedirectUrl' => $keepCustomerLoginRedirectUrl,
+            'requiredPolicies' => app(PolicyAcceptanceService::class)->requiredFor('customer'),
         ]);
     }
 
     public function submitRegisterData(CustomerRegistrationRequest $request): JsonResponse|RedirectResponse
     {
-        $result = RecaptchaService::verificationStatus(request: $request, session: 'default_recaptcha_id_customer_auth', action: "customer_auth", firebase: true);
-        if ($result && !$result['status']) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'error' => $result['message'],
-                ]);
-            }
-
-            Toastr::error($result['message']);
-            return back();
+        $policyService = app(PolicyAcceptanceService::class);
+        $requiredPolicyIds = $policyService->requiredFor('customer')->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $submittedPolicyIds = collect($request->input('policy_version_ids', []))->map(fn ($id) => (int) $id)->unique()->all();
+        if (array_diff($requiredPolicyIds, $submittedPolicyIds)) {
+            return response()->json(['errors' => [['code' => 'required_policies_not_accepted', 'message' => translate('required_policies_must_be_accepted')]]], 422);
         }
 
         if ($request['keep_customer_login_redirect_url']) {
@@ -102,6 +97,8 @@ class RegisterController extends Controller
         $referralConfig = getWebConfig(name: 'ref_earning_customer');
         $referralEarningRate = $this->businessSettingRepo->getFirstWhere(params: ['type' => 'ref_earning_exchange_rate']);
         $user = $this->customerRepo->add(data: $this->customerAuthService->getCustomerRegisterData($request, $referUser));
+        $policyService->accept('customer', (int) $user->id, $requiredPolicyIds);
+        $activationTicket = app(CustomerActivationService::class)->ensureTicket($user);
         if (!empty($referUser) && isset($referralConfig['ref_earning_discount_status']) && $referralConfig['ref_earning_discount_status'] == 1) {
             $referralCustomer = $this->referByEarnCustomerService->addReferralCustomerData(referralData: $referralConfig, referralEarningRate: $referralEarningRate, referUser: $referUser, userId: $user->id);
             event(new CustomerRegisteredViaReferralEvent($referralCustomer, $referUser));
@@ -131,7 +128,8 @@ class RegisterController extends Controller
             return response()->json([
                 'status' => 1,
                 'message' => translate('registration_successful'),
-                'redirect_url' => $this->customerAuthService->getCustomerAuthReturnURL(),
+                'activation' => app(CustomerActivationService::class)->status($user->fresh()),
+                'redirect_url' => route('support-ticket.index', ['id' => $activationTicket->id]),
             ]);
         } else {
             if ($phoneVerification && !$user->is_phone_verified) {
@@ -148,7 +146,7 @@ class RegisterController extends Controller
             CustomerManager::updateCustomerSessionData(userId: auth('customer')->id());
             CartManager::cartListSessionToDatabase();
             Toastr::success(translate('registration_successful'));
-            return redirect($this->customerAuthService->getCustomerAuthReturnURL());
+            return redirect()->route('support-ticket.index', ['id' => $activationTicket->id]);
         }
     }
 
@@ -232,18 +230,6 @@ class RegisterController extends Controller
         Validator::make($request->all(), [
             'token' => 'required',
         ]);
-
-        $result = RecaptchaService::verificationStatus(request: $request, session: 'default_recaptcha_id_customer_auth', action: "customer_auth", firebase: true);
-        if ($result && !$result['status']) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'error' => $result['message'],
-                ]);
-            }
-
-            Toastr::error($result['message']);
-            return back();
-        }
 
         $maxOTPHit = getWebConfig(name: 'maximum_otp_hit') ?? 5;
         $maxOTPHitTime = getWebConfig(name: 'otp_resend_time') ?? 60; // seconds
@@ -499,18 +485,6 @@ class RegisterController extends Controller
 
     public function resendOTPToCustomer(Request $request): JsonResponse|RedirectResponse
     {
-        $result = RecaptchaService::verificationStatus(request: $request, session: 'default_recaptcha_id_customer_auth', action: "customer_auth", firebase: true);
-        if ($result && !$result['status']) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'error' => $result['message'],
-                ]);
-            }
-
-            Toastr::error($result['message']);
-            return back();
-        }
-
         $maxOTPHit = getWebConfig(name: 'maximum_otp_hit') ?? 5;
         $maxOTPHitTime = getWebConfig(name: 'otp_resend_time') ?? 60; // seconds
         $tempBlockTime = getWebConfig(name: 'temporary_block_time') ?? 600; // seconds

@@ -1,4 +1,9 @@
 "use strict";
+const egyptMapBounds = {north: 31.7, south: 22.0, east: 36.9, west: 24.7};
+function egyptPlace(place) {
+    const country = (place.address_components || []).find(component => component.types.includes('country'));
+    return country && country.short_name.toUpperCase() === 'EG';
+}
 $(document).ready(function () {
     mapsLoading();
     if ($('[name="shipping_method_id"]').prop('checked')) {
@@ -22,7 +27,13 @@ function shippingMethodSelect(cardBody) {
     let shippingPerson = cardBody.find('.shipping-contact-person').text();
     let shippingPhone = cardBody.find('.shipping-contact-phone').text();
     let shippingAddress = cardBody.find('.shipping-contact-address').text();
+    let shippingState = cardBody.find('.shipping-contact-state').text() || cardBody.find('.shipping-contact-city').text();
     let shippingCity = cardBody.find('.shipping-contact-city').text();
+    let shippingDistrict = cardBody.find('.shipping-contact-district').text();
+    let shippingArea = cardBody.find('.shipping-contact-area').text();
+    let shippingStreet = cardBody.find('.shipping-contact-street').text();
+    let shippingBuildingNumber = cardBody.find('.shipping-contact-building-number').text();
+    let shippingLandmark = cardBody.find('.shipping-contact-landmark').text();
     let shippingZip = cardBody.find('.shipping-contact-zip').text();
     let shippingCountry = cardBody.find('.shipping-contact-country').text();
     let shippingContactAddressType = cardBody.find('.shipping-contact-address-type').text();
@@ -33,7 +44,13 @@ function shippingMethodSelect(cardBody) {
     $('#name').val(shippingPerson);
     $('[name="phone"]').val(shippingPhone);
     $('#address').val(shippingAddress);
+    $('#state').val(shippingState);
     $('#city').val(shippingCity);
+    $('#district').val(shippingDistrict);
+    $('#area').val(shippingArea);
+    $('#street').val(shippingStreet);
+    $('#building-number').val(shippingBuildingNumber);
+    $('#landmark').val(shippingLandmark);
     $('#zip').val(shippingZip);
     $('#select2-zip-container').text(shippingZip);
     $('#country').val(shippingCountry);
@@ -56,6 +73,7 @@ function billingMethodSelect(cardBody) {
     let billingPerson = cardBody.find('.billing-contact-name').text();
     let billingPhone = cardBody.find('.billing-contact-phone').text();
     let billingAddress = cardBody.find('.billing-contact-address').text();
+    let billingState = cardBody.find('.billing-contact-state').text() || cardBody.find('.billing-contact-city').text();
     let billingCity = cardBody.find('.billing-contact-city').text();
     let billingZip = cardBody.find('.billing-contact-zip').text();
     let billingCountry = cardBody.find('.billing-contact-country').text();
@@ -66,6 +84,7 @@ function billingMethodSelect(cardBody) {
     $('#billing-contact-person-name').val(billingPerson);
     $('[name="billing_phone"]').val(billingPhone);
     $('#billing_address').val(billingAddress);
+    $('#billing-state').val(billingState);
     $('#billing-city').val(billingCity);
     $('#billing-zip').val(billingZip);
     $('#select2-billing_zip-container').text(billingZip);
@@ -107,6 +126,7 @@ async function initAutoComplete() {
         center: myLatLng,
         zoom: 13,
         mapId: "roadmap",
+        restriction: {latLngBounds: egyptMapBounds, strictBounds: true},
     });
 
     let marker = new AdvancedMarkerElement({
@@ -157,6 +177,7 @@ async function initAutoComplete() {
 
         places.forEach((place) => {
             if (!place.geometry || !place.geometry.location) return;
+            if (!egyptPlace(place)) { input.value = ''; return; }
             input.value = place.formatted_address || place.name;
 
             const mrkr = new AdvancedMarkerElement({
@@ -194,6 +215,7 @@ async function billingMap() {
         center: myLatLng,
         zoom: 13,
         mapId: "roadmap",
+        restriction: {latLngBounds: egyptMapBounds, strictBounds: true},
     });
 
     let marker = new AdvancedMarkerElement({
@@ -244,6 +266,7 @@ async function billingMap() {
 
         places.forEach((place) => {
             if (!place.geometry || !place.geometry.location) return;
+            if (!egyptPlace(place)) { input.value = ''; return; }
 
             input.value = place.formatted_address || place.name;
 
@@ -274,18 +297,16 @@ $(document).on("keydown", "input", function (e) {
 });
 
 function mapsLoading() {
-    try {
-        initAutoComplete();
-    } catch (error) {
-    }
-    try {
-        billingMap();
-    } catch (error) {
-    }
+    // Checkout location is text-only. Google is called from the server after
+    // the customer submits the structured address; no map is loaded here.
 }
 
 $('#proceed-to-next-action').on('click', function () {
     let physicalProduct = $('#physical-product').val();
+    if (physicalProduct === 'yes' && Number($('#automatic-shipping-selected').data('value')) === 1) {
+        location.href = $('#route-checkout-payment').data('url');
+        return;
+    }
     let billingAddressSameAsShipping = $('#same-as-shipping-address').is(":checked");
     if (physicalProduct === 'yes') {
         let allAreFilled = true;
@@ -354,7 +375,11 @@ $('#proceed-to-next-action').on('click', function () {
                     });
                 }
             } else {
-                location.href = redirectUrl;
+                // Address first, shipping quote second, payment last.
+                const preferredShipping = $('#address-form input[name="preferred_shipping_option"]:checked').val();
+                if (preferredShipping) sessionStorage.setItem('sigma_preferred_shipping', preferredShipping);
+                window.location.hash = 'automatic-shipping-options';
+                location.reload();
             }
         },
         complete: function () {

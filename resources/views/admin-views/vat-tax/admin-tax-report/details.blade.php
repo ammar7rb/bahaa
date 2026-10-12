@@ -142,35 +142,35 @@
 
                         <nav>
                             <ul class="pagination">
-                                <li class="page-item disabled" aria-disabled="true" aria-label="« Previous">
-                                    <span class="page-link" aria-hidden="true">‹</span>
+                                <li class="page-item disabled" aria-disabled="true" aria-label="?? Previous">
+                                    <span class="page-link" aria-hidden="true">???</span>
                                 </li>
                                 <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2">2</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=3">3</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=4">4</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=5">5</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=6">6</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=7">7</a>
                                 </li>
                                 <li class="page-item"><a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=8">8</a>
                                 </li>
                                 <li class="page-item">
                                     <a class="page-link"
-                                        href="http://localhost/Backend-6Valley-eCommerce-CMS/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
-                                        rel="next" aria-label="Next »">›</a>
+                                        href="{{ url('') }}/admin/report/inhouse-product-sale?added_by=in_house&amp;page=2"
+                                        rel="next" aria-label="Next ??">???</a>
                                 </li>
                             </ul>
                         </nav>

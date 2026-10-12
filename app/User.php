@@ -18,6 +18,7 @@ use Laravel\Passport\HasApiTokens;
 
 class User extends Authenticatable
 {
+    use \App\Traits\CanonicalCustomerPhone;
     use Notifiable, HasApiTokens, StorageTrait;
 
     public mixed $email;

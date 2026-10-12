@@ -74,6 +74,7 @@ class OfflinePaymentMethodController extends BaseController
         $methodFields = $this->offlinePaymentMethodService->getMethodFieldsData(request: $request);
         $this->offlinePaymentMethodRepo->add($this->offlinePaymentMethodService->getOfflinePaymentMethodData(
             methodName: $request['method_name'],
+            paymentChannel: $request['payment_channel'],
             methodFields: $methodFields,
             methodInformation: $methodInformation, addOrUpdate: 'add'
         ));
@@ -120,6 +121,7 @@ class OfflinePaymentMethodController extends BaseController
         $methodFields = $this->offlinePaymentMethodService->getMethodFieldsData(request: $request);
         $this->offlinePaymentMethodRepo->update(id: $method['id'], data: $this->offlinePaymentMethodService->getOfflinePaymentMethodData(
             methodName: $request['method_name'],
+            paymentChannel: $request['payment_channel'],
             methodFields: $methodFields,
             methodInformation: $methodInformation, addOrUpdate: 'update'
         ));

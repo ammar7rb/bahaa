@@ -9,11 +9,18 @@ use App\Models\Order;
 use App\Models\OrderEditHistory;
 use App\Models\ShippingAddress;
 use App\Models\SellerInsurance;
+use App\Models\SellerOrderInsurance;
 use App\Models\SellerPackageSubscription;
+use App\Models\SellerBalanceDeposit;
+use App\Models\PostPurchaseInvoice;
 use App\Models\User;
 use App\Services\CustomerActivationInvoiceService;
+use App\Services\PostPurchaseInvoiceService;
 use App\Services\SellerInsuranceService;
+use App\Services\SellerOrderInsuranceService;
 use App\Services\SellerPackagePurchaseService;
+use App\Services\SellerBalanceDepositService;
+use App\Services\CustomerPostPurchaseInsuranceService;
 use App\Utils\Convert;
 use App\Utils\CustomerManager;
 use App\Utils\OrderManager;
@@ -27,6 +34,18 @@ if (!function_exists('digital_payment_success')) {
     {
         if (isset($paymentData) && $paymentData['is_paid'] == 1) {
             $additionalData = json_decode($paymentData['additional_data'], true);
+
+            if (app(\App\Services\CustomerPurchaseEligibilityService::class)->enabled() && empty($additionalData['customer_checkout_operation_id'])) {
+                // A pre-update verified transfer must remain visible for reconciliation;
+                // it cannot create an account or bypass the new server eligibility rules.
+                app(\App\Services\CustomerLegacyPaymentService::class)->record(
+                    'legacy-order:'.$paymentData['id'],
+                    empty($additionalData['is_guest_in_order']) ? (int)($additionalData['customer_id'] ?? 0) ?: null : null,
+                    (float)$paymentData['payment_amount'], (string)$paymentData['currency_code'],
+                    ['kind'=>'legacy_order_payment','payment_request_id'=>$paymentData['id'], 'transaction_id'=>$paymentData['transaction_id'] ?? null]
+                );
+                return;
+            }
 
             $addCustomer = null;
             $newCustomerInfo = $additionalData['new_customer_info'] ?? null;
@@ -75,8 +94,10 @@ if (!function_exists('digital_payment_success')) {
             request()->merge($requestObj);
 
             $activationInvoiceService = app(CustomerActivationInvoiceService::class);
+            $postPurchaseInvoiceService = app(PostPurchaseInvoiceService::class);
             $customerForActivation = $addCustomer ?: User::find($additionalData['customer_id']);
-            $holdForActivation = $customerForActivation
+            $holdForActivation = ! $postPurchaseInvoiceService->isEnabled()
+                && $customerForActivation
                 && (int) ($additionalData['is_guest_in_order'] ?? 0) === 0
                 && $activationInvoiceService->shouldHoldPaidOrderForActivation($customerForActivation);
 
@@ -90,6 +111,7 @@ if (!function_exists('digital_payment_success')) {
                 'payment_method' => $paymentData['payment_method'],
                 'payment_status' => 'paid',
                 'transaction_ref' => $paymentData['transaction_id'],
+                'customer_checkout_operation_id' => $additionalData['customer_checkout_operation_id'] ?? null,
                 'new_customer_id' => $addCustomer ? $addCustomer['id'] : ($additionalData['new_customer_id'] ?? null),
                 'newCustomerRegister' => $addCustomer,
 
@@ -104,10 +126,21 @@ if (!function_exists('digital_payment_success')) {
                 ? $activationInvoiceService->createForPaidOrderGroup($orderIds)
                 : null;
 
+            $postPurchaseInvoice = $postPurchaseInvoiceService->isEnabled()
+                ? PostPurchaseInvoice::query()->whereIn('order_id', $orderIds)->latest('id')->first()
+                : null;
+
             if ($activationInvoice) {
                 session([
                     'customer_activation_invoice_id' => $activationInvoice->id,
                     'customer_activation_hold_message' => $activationInvoiceService->getActivationHoldMessage($activationInvoice),
+                ]);
+            }
+
+            if ($postPurchaseInvoice?->isPayable()) {
+                session([
+                    'post_purchase_invoice_id' => $postPurchaseInvoice->id,
+                    'post_purchase_invoice_message' => 'Your merchandise payment was received. Complete tax and order insurance to continue.',
                 ]);
             }
 
@@ -124,6 +157,32 @@ if (!function_exists('digital_payment_fail')) {
     function digital_payment_fail($payment_data)
     {
 
+    }
+}
+
+if (!function_exists('customer_order_insurance_payment_success')) {
+    function customer_order_insurance_payment_success($paymentData): void
+    {
+        if (!isset($paymentData) || (int) ($paymentData['is_paid'] ?? 0) !== 1) {
+            return;
+        }
+        $additional = json_decode($paymentData['additional_data'] ?? '{}', true) ?: [];
+        $insurance = \App\Models\OrderInsurance::query()->find($additional['order_insurance_id'] ?? null);
+        if (!$insurance || (int) $insurance->customer_id !== (int) ($paymentData['payer_id'] ?? 0)) {
+            return;
+        }
+        app(CustomerPostPurchaseInsuranceService::class)->markPaid(
+            $insurance,
+            'digital_payment',
+            (string) ($paymentData['transaction_id'] ?? ('customer-order-insurance-' . $insurance->id)),
+        );
+    }
+}
+
+if (!function_exists('customer_order_insurance_payment_fail')) {
+    function customer_order_insurance_payment_fail($paymentData): void
+    {
+        // A failed attempt leaves the claim payable until payment_due_at.
     }
 }
 if (!function_exists('customer_order_edit_pay_due_amount_success')) {
@@ -190,7 +249,22 @@ if (!function_exists('add_fund_to_wallet_success')) {
 
             $paymentAmount = Convert::usdPaymentModule(floatval($payment_data['payment_amount']), $payment_data['currency_code']);
             $paymentAmount = usdToDefaultCurrency(amount: $paymentAmount);
-            $wallet_transaction = CustomerManager::create_wallet_transaction($payment_data['payer_id'], $paymentAmount, 'add_fund', 'add_funds_to_wallet', $payment_data);
+            $wallet_transaction = \Illuminate\Support\Facades\DB::transaction(function () use ($payment_data, $paymentAmount) {
+                $payment = \App\Models\PaymentRequest::query()->lockForUpdate()->findOrFail($payment_data['id']);
+                if ($payment->is_paid != 1 || $payment->attribute !== 'add_funds_to_wallet') return null;
+                $metadata = json_decode($payment->additional_data ?? '{}', true) ?: [];
+                if (!empty($metadata['wallet_credit_transaction_id'])) {
+                    return null;
+                }
+                \App\Models\User::query()->lockForUpdate()->findOrFail($payment_data['payer_id']);
+                $transaction = CustomerManager::create_wallet_transaction($payment_data['payer_id'], $paymentAmount, 'add_fund', 'add_funds_to_wallet', $payment_data);
+                if (!$transaction) {
+                    throw new \RuntimeException('purchase_wallet_deposit_credit_failed');
+                }
+                $metadata['wallet_credit_transaction_id'] = $transaction->transaction_id;
+                $payment->update(['additional_data' => json_encode($metadata)]);
+                return $transaction;
+            });
 
             if ($wallet_transaction) {
                 try {
@@ -212,6 +286,13 @@ if (!function_exists('add_fund_to_wallet_success')) {
 }
 
 // Add Fund To Wallet - Fail
+if (!function_exists('customer_insurance_deposit_success')) {
+    function customer_insurance_deposit_success($payment_data): void
+    {
+        app(\App\Services\CustomerInsuranceDepositService::class)->complete($payment_data);
+    }
+}
+
 if (!function_exists('add_fund_to_wallet_fail')) {
     function add_fund_to_wallet_fail($payment_data)
     {
@@ -416,6 +497,51 @@ if (!function_exists('customer_activation_invoice_payment_fail')) {
     }
 }
 
+if (!function_exists('post_purchase_invoice_payment_success')) {
+    /**
+     * The gateway callback settles only the external portion of the second
+     * invoice. Insurance-wallet usage is applied separately and is never
+     * accepted as a tax payment.
+     */
+    function post_purchase_invoice_payment_success($paymentData): void
+    {
+        if (! isset($paymentData) || ($paymentData['is_paid'] ?? 0) != 1) {
+            return;
+        }
+
+        $additionalData = json_decode($paymentData['additional_data'] ?? '{}', true);
+        $invoiceId = (int) ($additionalData['post_purchase_invoice_id'] ?? $paymentData['attribute_id'] ?? 0);
+        $customerId = (int) ($additionalData['customer_id'] ?? $paymentData['payer_id'] ?? 0);
+        $invoice = PostPurchaseInvoice::query()
+            ->whereKey($invoiceId)
+            ->where('customer_id', $customerId)
+            ->first();
+        if (! $invoice || ! $invoice->isPayable()) {
+            return;
+        }
+
+        try {
+            app(PostPurchaseInvoiceService::class)->markExternalPaymentPaid(
+                $invoice,
+                (float) ($additionalData['external_amount_due'] ?? $paymentData['payment_amount'] ?? 0),
+                (string) ($paymentData['payment_method'] ?? 'digital_payment'),
+                (string) ($paymentData['transaction_id'] ?? $paymentData['id'] ?? '')
+            );
+        } catch (\DomainException) {
+            // Payment providers can retry success callbacks. A completed or
+            // duplicate callback is deliberately ignored here.
+        }
+    }
+}
+
+if (!function_exists('post_purchase_invoice_payment_fail')) {
+    function post_purchase_invoice_payment_fail($paymentData): void
+    {
+        // The invoice stays payable. No payment or insurance balance is
+        // altered on gateway failure, so the customer can safely retry.
+    }
+}
+
 if (!function_exists('customer_extra_credit_payment_fail')) {
     function customer_extra_credit_payment_fail($payment_data): void
     {
@@ -472,6 +598,33 @@ if (!function_exists('seller_insurance_payment_fail')) {
     }
 }
 
+if (!function_exists('seller_order_insurance_payment_success')) {
+    function seller_order_insurance_payment_success($paymentData): void
+    {
+        // Trust the persisted gateway result, never a redirect or callback payload.
+        $verified = \App\Models\PaymentRequest::query()->whereKey($paymentData['id'] ?? '')
+            ->where('is_paid', 1)->where('attribute', 'seller_order_insurance')->first();
+        if (!$verified) return;
+        $insurance = SellerOrderInsurance::query()->whereKey((int) $verified->attribute_id)
+            ->where('seller_id', (int) $verified->payer_id)->first();
+        if (! $insurance) return;
+        if ($insurance->payment_request_id && $insurance->payment_request_id !== $verified->id) return;
+        $paidAmount = Convert::usdPaymentModule((float) $verified->payment_amount, $verified->currency_code);
+        if ($paidAmount === null || abs((float) $paidAmount - (float) $insurance->amount) > 0.01) return;
+        app(SellerOrderInsuranceService::class)->markPaid($insurance, (string) $verified->payment_method, (string) ($verified->transaction_id ?: $verified->id), null, null);
+    }
+}
+
+if (!function_exists('seller_order_insurance_payment_fail')) {
+    function seller_order_insurance_payment_fail($paymentData): void
+    {
+        $data = json_decode($paymentData['additional_data'] ?? '{}', true);
+        $insurance = SellerOrderInsurance::query()->where('id', (int) ($data['seller_order_insurance_id'] ?? $paymentData['attribute_id'] ?? 0))
+            ->where('seller_id', (int) ($data['seller_id'] ?? $paymentData['payer_id'] ?? 0))->first();
+        if ($insurance) app(SellerOrderInsuranceService::class)->recordPaymentFailure($insurance, (array) $paymentData);
+    }
+}
+
 if (!function_exists('seller_package_payment_success')) {
     function seller_package_payment_success($paymentData): void
     {
@@ -514,6 +667,27 @@ if (!function_exists('seller_package_payment_fail')) {
                 : (array) $paymentData;
             app(SellerPackagePurchaseService::class)->recordPaymentFailure($subscription, $paymentPayload);
         }
+    }
+}
+
+if (!function_exists('seller_balance_deposit_payment_success')) {
+    function seller_balance_deposit_payment_success($paymentData): void
+    {
+        if (!isset($paymentData) || ($paymentData['is_paid'] ?? 0) != 1) return;
+        $additional = json_decode($paymentData['additional_data'] ?? '{}', true);
+        $depositId = (int) ($additional['seller_balance_deposit_id'] ?? $paymentData['attribute_id'] ?? 0);
+        $sellerId = (int) ($additional['seller_id'] ?? $paymentData['payer_id'] ?? 0);
+        $deposit = SellerBalanceDeposit::query()->whereKey($depositId)->where('seller_id', $sellerId)->first();
+        if (!$deposit) return;
+        $payload = is_object($paymentData) && method_exists($paymentData, 'toArray') ? $paymentData->toArray() : (array) $paymentData;
+        app(SellerBalanceDepositService::class)->markPaid($deposit, $payload);
+    }
+}
+
+if (!function_exists('seller_balance_deposit_payment_fail')) {
+    function seller_balance_deposit_payment_fail($paymentData): void
+    {
+        // Failed digital payments remain pending and can be retried; no ledger movement is posted.
     }
 }
 

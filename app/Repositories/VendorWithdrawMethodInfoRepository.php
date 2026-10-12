@@ -59,6 +59,12 @@ class VendorWithdrawMethodInfoRepository implements VendorWithdrawMethodInfoRepo
             ->when(isset($filters['is_default']), function ($query) use ($filters) {
                 return $query->where(['is_default' => $filters['is_default']]);
             })
+            ->when(isset($filters['approval_status']), function ($query) use ($filters) {
+                return $query->where(['approval_status' => $filters['approval_status']]);
+            })
+            ->when(isset($filters['method_type']), function ($query) use ($filters) {
+                return $query->where(['method_type' => $filters['method_type']]);
+            })
             ->when(!empty($orderBy), function ($query) use ($orderBy) {
                 $query->orderBy(key($orderBy), current($orderBy));
             });

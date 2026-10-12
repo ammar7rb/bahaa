@@ -2,17 +2,16 @@
 
 namespace App\Http\Requests\Vendor;
 
-use App\Traits\RecaptchaTrait;
 use App\Traits\CalculatorTrait;
 use App\Traits\ResponseHandler;
 use Illuminate\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use App\Services\EgyptPhoneService;
 
 class VendorAddRequest extends FormRequest
 {
-    use RecaptchaTrait;
     use CalculatorTrait, ResponseHandler;
 
     /**
@@ -23,6 +22,14 @@ class VendorAddRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'email' => strtolower(trim((string) $this->input('email'))),
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -31,17 +38,18 @@ class VendorAddRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'f_name' => 'required',
-            'l_name' => 'required',
-            'phone' => 'required|unique:sellers|max:20',
-            'email' => 'required|unique:sellers',
-            'image' => 'required|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
+            'terms_accepted' => 'required|accepted',
+            'f_name' => 'required|string|max:100',
+            'l_name' => 'nullable|string|max:100',
+            'phone' => ['required', 'string', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueSellerPhone],
+            'email' => 'required|email|max:255|unique:sellers',
+            'image' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
             'password' => 'required|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W)(?!.*\s).{8,}$/|same:confirm_password',
-            'shop_name' => 'required',
-            'shop_address' => 'required',
-            'logo' => 'required|mimes: jpg,jpeg,png,webp,gif,bmp,tif,tiff',
-            'banner' => 'required|mimes: jpg,jpeg,png,webp,gif,bmp,tif,tiff',
-            'bottom_banner' => 'mimes: jpg,jpeg,png,webp,gif,bmp,tif,tiff',
+            'shop_name' => 'required|string|max:255',
+            'shop_address' => 'required|string|max:1000',
+            'logo' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
+            'banner' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
+            'bottom_banner' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
             'tax_identification_number' => 'nullable|string',
             'tin_expire_date' => 'nullable|date|after_or_equal:today',
             'tin_certificate' => 'nullable|mimes:pdf,doc,docx,jpg|max:5120',
@@ -54,17 +62,18 @@ class VendorAddRequest extends FormRequest
             'f_name.required' => translate('The_first_name_field_is_required'),
             'l_name.required' => translate('The_last_name_field_is_required'),
             'phone.required' => translate('The_phone_field_is_required'),
+            'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'phone.unique' => translate('The_phone_number_has_already_been_taken'),
             'phone.max' => translate('please_ensure_your_phone_number_is_valid_and_does_not_exceed_20_characters'),
             'email.required' => translate('The_email_field_is_required'),
             'email.unique' => translate('The_email_has_already_been_taken'),
-            'image.required' => translate('The_image_field_is_required'),
             'image.mimes' => translate('The_image_type_must_be') . '.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',
             'password.required' => translate('The_password_field_is_required'),
             'password.same' => translate('The_password_and_confirm_password_must_match'),
             'password.regex' => translate('The_password_must_be_at_least_8_characters_long_and_contain_at_least_one_uppercase_letter') . ',' . translate('_one_lowercase_letter') . ',' . translate('_one_digit_') . ',' . translate('_one_special_character') . ',' . translate('_and_no_spaces') . '.',
+            'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
+            'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
             'shop_name.required' => translate('The_shop_name_field_is_required'),
-            'shop_address.required' => translate('The_shop_address_field_is_required'),
             'logo.mimes' => translate('The_logo_type_must_be') . '.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',
             'banner.mimes' => translate('The_banner_type_must_be') . '.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',
             'bottom_banner.mimes' => translate('The_bottom_banner_type_must_be') . '.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',
@@ -92,6 +101,12 @@ class VendorAddRequest extends FormRequest
                 if ($numericLength > 20) {
                     $validator->errors()->add(
                         'phone.max', translate('The_phone_number_may_not_be_greater_than_20_characters')
+                    );
+                }
+
+                if (!app(EgyptPhoneService::class)->isValid($this->input('phone'))) {
+                    $validator->errors()->add(
+                        'phone', translate('please_ensure_your_phone_number_is_valid_and_does_not_exceed_20_characters') . '.'
                     );
                 }
             }

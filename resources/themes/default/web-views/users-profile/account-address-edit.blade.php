@@ -72,9 +72,16 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group col-md-6">
-                                <label for="city">{{translate('city')}}</label>
-
-                                <input class="form-control" type="text" id="city" name="city" value="{{$shippingAddress->city}}" required>
+                                <label for="state">{{translate('governorate')}}</label>
+                                <select class="form-control" id="state" name="state" required>
+                                    @if($shippingAddress->state && !in_array($shippingAddress->state, config('egypt_governorates'), true))
+                                        <option value="{{ $shippingAddress->state }}" selected>{{ $shippingAddress->state }}</option>
+                                    @endif
+                                    <option value="">{{ translate('select') }} {{ translate('governorate') }}</option>
+                                    @foreach(config('egypt_governorates') as $governorate)
+                                        <option value="{{ $governorate }}" @selected(($shippingAddress->state ?? $shippingAddress->city) === $governorate)>{{ $governorate }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="form-group col-md-6">
                                 <label for="zip_code">{{translate('zip_code')}}</label>
@@ -90,19 +97,36 @@
                             </div>
                         </div>
                         <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="city">المدينة / المركز</label>
+                                <input class="form-control" type="text" id="city" name="city" value="{{ $shippingAddress->city }}" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="district">الحي أو القسم</label>
+                                <input class="form-control" type="text" id="district" name="district" value="{{ $shippingAddress->district }}" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="area">المنطقة</label>
+                                <input class="form-control" type="text" id="area" name="area" value="{{ $shippingAddress->area }}" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="street">الشارع</label>
+                                <input class="form-control" type="text" id="street" name="street" value="{{ $shippingAddress->street }}" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="building-number">رقم العقار</label>
+                                <input class="form-control" type="text" id="building-number" name="building_number" value="{{ $shippingAddress->building_number }}" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="landmark">أقرب علامة مميزة</label>
+                                <input class="form-control" type="text" id="landmark" name="landmark" value="{{ $shippingAddress->landmark }}">
+                            </div>
+                        </div>
+                        <div class="form-row">
                             <div class="form-group col-md-12">
                                 <label for="city">{{translate('country')}}</label>
-                                <select name="country" class="form-control selectpicker" data-live-search="true" id="" required>
-                                    @if($country_restrict_status)
-                                        @foreach($delivery_countries as $country)
-                                            <option value="{{$country['name']}}" {{ $country['name'] == $shippingAddress->country? 'selected' : ''}}>{{$country['name']}}</option>
-                                        @endforeach
-                                    @else
-                                        @foreach(COUNTRIES as $country)
-                                            <option value="{{ $country['name'] }}" {{ $shippingAddress->country == $country['name']? 'selected' : '' }}>{{ $country['name'] }}</option>
-                                        @endforeach
-                                    @endif
-                                </select>
+                                <input type="hidden" name="country" value="Egypt">
+                                <input type="text" class="form-control" value="Egypt" readonly>
                             </div>
                         </div>
 
@@ -117,14 +141,6 @@
                                     </span>
                                 </div>
                             </div>
-                            @if(getWebConfig('map_api_status') ==1 )
-                                <div class="col-md-12">
-                                    <div class="form-group map-area-alert-border location-map-address-canvas-area">
-                                        <input id="pac-input" class="controls rounded __inline-46 location-search-input-field" title="{{translate('search_your_location_here')}}" type="text" placeholder="{{translate('search_here')}}"/>
-                                        <div class="__h-200px" id="location_map_canvas"></div>
-                                    </div>
-                                </div>
-                            @endif
                         </div>
                         @php($shipping_latitude=$shippingAddress->latitude)
                         @php($shipping_longitude=$shippingAddress->longitude)
@@ -166,19 +182,21 @@
 </script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/bootstrap-select.min.js') }}"></script>
 
-@if(getWebConfig('map_api_status') ==1 )
+{{-- Customer maps are intentionally disabled; address resolution runs on the server. --}}
+@if(false)
     <script
         src="https://maps.googleapis.com/maps/api/js?key={{getWebConfig('map_api_key')}}&callback=callBackFunction&loading=async&libraries=places&v=3.56" defer>
     </script>
     <script>
         async function initAutocomplete() {
-            var myLatLng = { lat: {{$shipping_latitude??'-33.8688'}}, lng: {{$shipping_longitude??'151.2195'}} };
+            var myLatLng = { lat: {{$shipping_latitude??'30.0444'}}, lng: {{$shipping_longitude??'31.2357'}} };
             const { Map } = await google.maps.importLibrary("maps");
             const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
             const map = new google.maps.Map(document.getElementById("location_map_canvas"), {
                 center: { lat: {{$shipping_latitude??'-33.8688'}}, lng: {{$shipping_longitude??'151.2195'}} },
                 zoom: 13,
-                mapId: 'roadmap'
+                mapId: 'roadmap',
+                restriction: {latLngBounds: {north: 31.7, south: 22.0, east: 36.9, west: 24.7}, strictBounds: true}
             });
 
             var marker = new AdvancedMarkerElement({

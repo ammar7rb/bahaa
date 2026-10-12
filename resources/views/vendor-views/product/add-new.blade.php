@@ -37,14 +37,10 @@
 
             @include('vendor-views.product.add._basic-setup')
             @include("vendor-views.product.add._general-setup")
+            @include('vendor-views.product.partials._seller-product-specification')
             @include("vendor-views.product.add._pricing-others")
             @include("vendor-views.product.add._product-variation-setup")
-            <div class="row product-image-wrapper gx-2 gy-3 mt-0">
-                @include("vendor-views.product.add._additional-images")
-                @include("vendor-views.product.add._digital-product-file")
-            </div>
-            @include("vendor-views.product.add._product-video")
-            @include("vendor-views.product.add._seo-section")
+            <input type="hidden" name="product_type" value="physical">
 
             @include('vendor-views.product.partials.ai-sidebar')
 
@@ -98,6 +94,9 @@
 
     <span id="message-click-to-upload" data-text="{{ translate('click_to_upload') }}"></span>
     <span id="message-drag-and-drop" data-text="{{ translate('Or_drag_and_drop') }}"></span>
+    <span id="message-seller-product-minimum-images-required" data-text="{{ translate('seller_product_minimum_images_required') }}"></span>
+    <span id="message-seller-product-pieces-per-unit-required" data-text="{{ translate('seller_product_pieces_per_unit_required') }}"></span>
+    <span id="message-seller-product-measurement-invalid" data-text="{{ translate('seller_product_measurement_invalid') }}"></span>
 
 @endsection
 

@@ -20,7 +20,7 @@
                                                 <img width="16"
                                                      src="{{ theme_asset('assets/img/icons/profile-icon2.png') }}"
                                                      class="dark-support" alt="">
-                                                <span>{{translate('Orders')}}</span>
+                                                <span>{{(getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'طلبات' : 'Orders')}}</span>
                                             </div>
                                         </div>
                                     </div>

@@ -1,18 +1,6 @@
 {{-- v1 body — wraps the rail + header + ctxpanel + @yield('content') in the grid shell.
      All shell markup uses v2- prefixed classes so no styling leaks into @yield('content'). --}}
-@if (env('APP_MODE') == 'demo')
-    <div class="__announcement-bar" style="background-image: url({{ dynamicAsset(path: 'public/assets/website-top-header.png') }})">
-        <div class="container">
-            <div class="wrapper">
-                <div class="txt">
-                    This is a demo website - Buy genuine 6Valley using our official link !
-                </div>
-                <a href="https://codecanyon.net/item/6valley-multivendor-ecommerce-complete-ecommerce-mobile-app-web-and-admin-panel/31448597?s_rank=19" class="click" target="_blank">Click Now <img src="{{ asset('public/assets/arrowww.png') }}" alt=""></a>
-                <a href="https://codecanyon.net/item/6valley-multivendor-ecommerce-complete-ecommerce-mobile-app-web-and-admin-panel/31448597?s_rank=19" class="px-3 py-1 rounded" style="background-color: #FF7500; color:#ffffff" target="_blank">Buy Now</a>
-            </div>
-        </div>
-    </div>
-@endif
+{{-- The legacy vendor demo banner is intentionally omitted from the project preview. --}}
 
 {{-- v2 sidebar/header chrome uses its own built-in colour palette (the
      defaults defined inside .app-v2 in admin-v2.css). The system
@@ -75,7 +63,6 @@
 @include('layouts.admin.partials._sign-out-modal')
 @include('layouts.admin.partials._modals')
 @include('layouts.admin.partials._alert-message')
-@include('layouts.admin.partials.v2._setup-popover')
 
 {{-- Server-side pin shortcuts: load the current admin's saved pin list
      so the v2 JS can render the pin section on first paint without an
@@ -98,7 +85,4 @@
     window.__v2PinsCsrf       = "{{ csrf_token() }}";
 </script>
 
-{{-- v2 advance-search wiring — opens the same #advanceSearchModal the
-     classic UI uses (markup in _modals, included above), but with no
-     backdrop dimming so it reads as a popover. --}}
-@include('layouts.admin.partials.v2._advance-search-script')
+@include('layouts.admin.partials.v2._workspace-script')

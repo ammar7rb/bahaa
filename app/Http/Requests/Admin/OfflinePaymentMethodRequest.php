@@ -24,6 +24,7 @@ class OfflinePaymentMethodRequest extends FormRequest
     {
         return [
             'method_name' => 'required|string|max:255',
+            'payment_channel' => 'required|in:wallet,instapay,other',
             'input_name' => 'required|array|min:1',
             'input_name.*' => 'required|string|max:255',
             'input_data' => 'required|array|min:1',

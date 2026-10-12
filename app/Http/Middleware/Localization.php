@@ -17,9 +17,10 @@ class Localization
      */
     public function handle(Request $request, Closure $next)
     {
-        if (session()->has('locale')) {
-            App::setLocale(session()->get('locale'));
-        }
+        // The storefront language selector stores `local`. Resolve it before
+        // controllers and child Blade views read localized page content.
+        $locale = session('local') ?? session('locale') ?? getDefaultLanguage();
+        App::setLocale($locale);
         return $next($request);
     }
 }

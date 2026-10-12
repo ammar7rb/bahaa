@@ -5,6 +5,7 @@ namespace App\Http\Requests\Web;
 use App\Traits\RecaptchaTrait;
 use App\Traits\CalculatorTrait;
 use App\Traits\ResponseHandler;
+use App\Services\EgyptPhoneService;
 use Devrabiul\ToastMagic\Facades\ToastMagic;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Validator;
@@ -29,10 +30,11 @@ class CustomerRegistrationRequest extends FormRequest
         return [
             'f_name' => 'required',
             'email' => 'required|email|unique:users',
-            'phone' => 'required|unique:users|max:20',
+            'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueCustomerPhone],
             'password' => 'required|same:con_password',
             'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
+            'policy_version_ids' => 'nullable|array',
+            'policy_version_ids.*' => 'integer',
         ];
     }
 
@@ -43,11 +45,9 @@ class CustomerRegistrationRequest extends FormRequest
             'email.unique' => translate('email_already_has_been_taken'),
             'phone.required' => translate('phone_number_is_required'),
             'phone.unique' => translate('phone_number_already_has_been_taken'),
-            'phone.max' => translate('The_phone_number_may_not_be_greater_than_20_characters'),
+            'phone.regex' => translate('please_provide_valid_phone_number'),
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ];
     }
 
@@ -56,23 +56,15 @@ class CustomerRegistrationRequest extends FormRequest
         return [
             function (Validator $validator) {
 
-                $numericPhoneValue = preg_replace('/[^0-9]/', '', $this['phone']);
-                $numericLength = strlen($numericPhoneValue);
-                if ($numericLength < 4) {
-                    $validator->errors()->add(
-                        'phone.min',
-                        translate('The_phone_number_must_be_at_least_4_characters')
-                    );
-                }
-
-                if ($numericLength > 20) {
-                    $validator->errors()->add(
-                        'phone.max',
-                        translate('The_phone_number_may_not_be_greater_than_20_characters')
-                    );
-                }
             }
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
+        ]);
     }
 
     protected function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)

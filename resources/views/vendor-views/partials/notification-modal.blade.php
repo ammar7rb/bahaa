@@ -1,24 +1,22 @@
-<div class="modal-header border-0 pb-0 d-flex justify-content-end">
-    <button type="button" class="btn-close border-0" data-dismiss="modal" aria-label="Close"><i
-            class="tio-clear"></i></button>
+<div class="modal-header border-0 pb-0">
+    <h5 class="modal-title">{{ translate('Notifications') }}</h5>
+    <button type="button" class="btn-close border-0" data-dismiss="modal" aria-label="{{ translate('close') }}"><i class="tio-clear"></i></button>
 </div>
 <div class="modal-body px-4 px-sm-5 text-center">
-    <div class="mb-3 text-center">
-        <img width="75" src="{{dynamicAsset(path: 'public/assets/back-end/img/shift.png')}}" alt="">
+    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle bg-soft-primary text-primary" style="width:72px;height:72px">
+        <i class="fi fi-sr-bell-notification-social-media fs-28"></i>
     </div>
-
-    <h3>{{ $companyName }} {{ translate('switched') }} {{ $data->title }}</h3>
-    <p class="text-muted">{{ translate('at') }} {{ $data->created_at->diffforHumans() }}</p>
-    <p class="p-3">
-        {{ translate('hello') }} {{ translate('sir') }}/{{ translate('mam') }}
-        {{ translate('we_have_updated_our_website_theme') }}! {{ translate('please_take_a_moment_to_review_the_changes_in_your_shop.') }}{{ translate('if_you_come_across_any_image_size_issues_kindly_resize_and_upload_them_to_ensure_a_refreshed_look_for_your_shop.') }}
-    </p>
-
-    <p class="mb-5 px-5"><span class="text-danger">{{ translate('note') }} :</span>
-        {{ translate('your_attention_to_detail_and_effort_in_maintaining_the_visual_integrity_of_our_website_are_invaluable.') }}
-    </p>
-
-    <div class="d-flex flex-column gap-2 justify-content-center align-items-center" id="notify_all_the_sellers_area">
-        <a class="fs-16 btn btn--primary px-sm-5 w-fit-content" target="_blank" href="{{ route('vendor-shop',['slug'=>$shop->slug]) }}">{{ translate('visit_store') }}</a>
+    <span class="badge badge-soft-primary mb-2">{{ translate('new') }}</span>
+    <h3 class="mb-2">{{ translate($data->title) }}</h3>
+    <p class="text-muted mb-3">{{ $data->created_at->diffForHumans() }}</p>
+    <div class="rounded bg-light p-3 mb-4 text-start">
+        {{ translate($data->description) }}
     </div>
+    @if($actionUrl)
+        <a class="btn btn--primary px-5" href="{{ $actionUrl }}">
+            <i class="fi fi-sr-arrow-up-right-from-square me-1"></i>{{ $actionLabel }}
+        </a>
+    @else
+        <button type="button" class="btn btn-outline-secondary px-5" data-dismiss="modal">{{ translate('close') }}</button>
+    @endif
 </div>

@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 use ZipArchive;
 
@@ -16,6 +17,13 @@ class ThemeService
 
     use SettingsTrait;
     use FileManagerTrait;
+
+    public function __construct(
+        private readonly ThemeAssetPublisher $themeAssetPublisher,
+        private readonly HomepageSectionBuilderService $homepageBuilder,
+    )
+    {
+    }
 
     public function getUploadData(object $request): array
     {
@@ -77,6 +85,15 @@ class ThemeService
 
     public function getPublishData(object $request): array
     {
+        if (in_array((string) $request['theme'], HomepageSectionBuilderService::THEMES, true)) {
+            $readiness = $this->homepageBuilder->readiness((string) $request['theme']);
+            if (! $readiness['ready']) {
+                return [
+                    'errors' => collect($readiness['errors'])->map(fn (string $error) => ['message' => translate($error)])->values()->all(),
+                    'homepage_builder_url' => route('admin.system-setup.theme.homepage-builder.index', ['theme' => $request['theme']]),
+                ];
+            }
+        }
         $themeInfo = include(base_path('resources/themes/' . $request['theme'] . '/public/addon/info.php'));
         if ($request['theme'] != 'default' && (empty($themeInfo['purchase_code']) || empty($themeInfo['username']) || $themeInfo['is_active'] == '0')) {
             $theme = $request['theme'];
@@ -84,6 +101,23 @@ class ThemeService
                 'flag' => 'inactive',
                 'view' => view('admin-views.system-setup.themes.theme-activate-modal-data', compact('themeInfo', 'theme'))->render(),
             ];
+        }
+
+        if (defined('DOMAIN_POINTED_DIRECTORY') && DOMAIN_POINTED_DIRECTORY === 'public') {
+            try {
+                $this->themeAssetPublisher->sync((string) $request['theme']);
+            } catch (Throwable $exception) {
+                Log::error('Theme asset synchronization failed.', [
+                    'theme' => $request['theme'],
+                    'exception' => $exception,
+                ]);
+
+                return [
+                    'errors' => [[
+                        'message' => translate('theme_assets_could_not_be_prepared_theme_was_not_changed'),
+                    ]],
+                ];
+            }
         }
 
         $currentTheme = theme_root_path();

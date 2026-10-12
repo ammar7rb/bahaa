@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\After;
 use App\Packages\AdvanceSearch\Traits\ModelsWithRoutesTrait;
 use App\Packages\AdvanceSearch\Traits\AdminMenuWithRoutesTrait;
+use App\Services\AdministrativeReferenceService;
 
 class AdvanceSearch
 {
@@ -249,7 +250,8 @@ class AdvanceSearch
         })->where('locale', getDefaultLanguage());
 
         if (!empty($this->keyword)) {
-            $keyword = strtolower($this->keyword);
+            $administrativeReference = AdministrativeReferenceService::parse($this->keyword);
+            $keyword = $administrativeReference ? (string) $administrativeReference['id'] : strtolower($this->keyword);
 
             if (!empty($models)) {
                 foreach ($models as $key => $table) {
@@ -267,7 +269,11 @@ class AdvanceSearch
                             return $query->get();
                         });
 
-                        $filteredItems = $allItems->filter(function ($item) use ($keyword, $table, $allTranslation) {
+                        $filteredItems = $allItems->filter(function ($item) use ($keyword, $table, $allTranslation, $administrativeReference) {
+                            if ($administrativeReference) {
+                                return $table['type'] === $administrativeReference['type']
+                                    && (int) ($item->id ?? 0) === $administrativeReference['id'];
+                            }
                             foreach ($table['column'] as $column) {
                                 $value = strtolower((string)($item->{$column} ?? ''));
                                 if (preg_match('/(?<![a-zA-Z0-9])' . preg_quote($keyword, '/') . '(?![a-zA-Z0-9])/i', $value)) {
@@ -351,6 +357,10 @@ class AdvanceSearch
                                                 break;
                                             }
                                         }
+                                        if ($administrativeReference && $table['type'] === $administrativeReference['type']
+                                            && (int) ($item->id ?? 0) === $administrativeReference['id']) {
+                                            $isExactMatch = true;
+                                        }
                                         if (!$isExactMatch) {
                                             continue;
                                         }
@@ -369,9 +379,18 @@ class AdvanceSearch
                                         $thumbnail = getStorageImages(path: $item->image_full_url, type: $this->getImageType($table['model']));
                                     }
 
+                                    $displayName = $item->name
+                                        ?? trim(($item->f_name ?? '') . ' ' . ($item->l_name ?? ''))
+                                        ?: ucfirst($this->getRouteName($route));
+                                    if ($table['type'] === 'users') {
+                                        $displayName = 'C' . $item->id . ' — ' . $displayName;
+                                    } elseif ($table['type'] === 'sellers') {
+                                        $displayName = 'M' . $item->id . ' — ' . $displayName;
+                                    }
+
                                     $result[] = [
-                                        "page_title" => $item->name ?? ucfirst($this->getRouteName($route)),
-                                        "page_title_value" => $item->name ?? ucfirst($this->getRouteName($route)),
+                                        "page_title" => $displayName,
+                                        "page_title_value" => $displayName,
                                         "key" => base64_encode("dbsearch" . $route . '' . $item->id),
                                         "uri" => $finalRoute,
                                         "uri_count" => count(explode('/', $route)),
@@ -476,4 +495,5 @@ class AdvanceSearch
         }
         return $routeName;
     }
+
 }

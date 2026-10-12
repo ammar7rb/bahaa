@@ -79,7 +79,11 @@ class LoginController extends Controller
                     'updated_at' => now(),
                 ]);
             }
-            return response()->json(['token' => $token], 200);
+            if (!$seller->registration_reference) {
+                $seller->registration_reference = (string) Str::uuid();
+                $seller->save();
+            }
+            return response()->json(['token' => $token, 'registration_reference' => $seller->registration_reference], 200);
         } elseif ($passwordMatches && $seller['status'] == 'pending') {
             $errors = [];
             $errors[] = ['code' => 'auth-001', 'message' => translate('your_account_is_in_review_process').'. '.translate('please_wait_for_admin_approval')];

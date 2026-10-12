@@ -1,4 +1,6 @@
 @php($announcement=getWebConfig(name: 'announcement'))
+{{-- The shared header can render without controller-provided variables. --}}
+@php($businessMode = getWebConfig(name: 'business_mode') ?? 'single')
 
 @if (isset($announcement) && $announcement['status']==1)
     <div class="text-center position-relative px-4 py-1 d--none" id="announcement"
@@ -46,11 +48,7 @@
                         @foreach($web_config['language'] as $data)
                             @if($data['code'] == getDefaultLanguage())
                                     <?php
-                                    $langFlagCode = $data['code'];
-                                    if (\Illuminate\Support\Str::contains($data['code'], '-')) {
-                                        $countryCodeArr = explode('-', $data['code']);
-                                        $langFlagCode = $countryCodeArr[0];
-                                    }
+                                    $langFlagCode = getLanguageFlagCode($data['code']);
                                     ?>
                                 <img class="mr-2" width="20"
                                      src="{{theme_asset(path: 'public/assets/front-end/img/flags/'.strtolower($langFlagCode).'.png')}}"
@@ -63,11 +61,7 @@
                         @foreach($web_config['language'] as $key =>$data)
                             @if($data['status'] == 1)
                                     <?php
-                                    $langFlagCode = $data['code'];
-                                    if (\Illuminate\Support\Str::contains($data['code'], '-')) {
-                                        $countryCodeArr = explode('-', $data['code']);
-                                        $langFlagCode = $countryCodeArr[0];
-                                    }
+                                    $langFlagCode = getLanguageFlagCode($data['code']);
                                     ?>
                                 <li class="change-language" data-action="{{route('change-language')}}" data-language-code="{{$data['code']}}">
                                     <a class="dropdown-item pb-1" href="javascript:">
@@ -94,13 +88,13 @@
                 </button>
                 <a class="navbar-brand d-none d-sm-block me-3 flex-shrink-0 __min-w-7rem"
                    href="{{route('home')}}">
-                    <img class="__inline-11"
+                    <img class="__inline-11 ba-platform-logo"
                          src="{{ getStorageImages(path: $web_config['web_logo'], type: 'logo') }}"
                          alt="{{$web_config['company_name']}}">
                 </a>
                 <a class="navbar-brand d-sm-none"
                    href="{{route('home')}}">
-                    <img class="mobile-logo-img"
+                    <img class="mobile-logo-img ba-platform-logo"
                          src="{{ getStorageImages(path: $web_config['mob_logo'], type: 'logo') }}"
                          alt="{{$web_config['company_name']}}"/>
                 </a>
@@ -158,6 +152,15 @@
                            </span>
                             <i class="navbar-tool-icon czi-heart"></i>
                         </a>
+                    </div>
+                    <div class="navbar-tool {{Session::get('direction') === "rtl" ? 'mr-md-3' : 'ml-md-3'}}">
+                        <button type="button" class="customer-theme-toggle navbar-tool-icon-box bg-secondary"
+                                data-storefront-theme-toggle aria-pressed="false"
+                                onclick="event.stopPropagation(); window.baToggleStorefrontTheme(); return false;"
+                                title="{{ app()->getLocale() === 'ar' ? 'تبديل المظهر' : 'Toggle theme' }}">
+                            <span aria-hidden="true" data-theme-icon>☾</span>
+                            <span class="sr-only">{{ app()->getLocale() === 'ar' ? 'تبديل المظهر' : 'Toggle theme' }}</span>
+                        </button>
                     </div>
                     @if(auth('customer')->check())
                         <div class="dropdown">
@@ -496,13 +499,7 @@
                             </li>
                         @endif
 
-                        @php($businessMode = getWebConfig(name: 'business_mode'))
-                        @if ($businessMode == 'multi')
-                            <li class="nav-item dropdown {{request()->is('/')?'active':''}}">
-                                <a class="nav-link text-capitalize"
-                                   href="{{route('vendors')}}">{{ translate('all_vendors')}}</a>
-                            </li>
-                        @endif
+                        {{-- The public navigation does not expose the vendor directory. --}}
 
                         @if(auth('customer')->check())
                             <li class="nav-item d-md-none">

@@ -69,6 +69,15 @@
                             </h4>
                         </div>
                         <div class="card-body d-flex flex-column gap-2">
+                            @foreach(\Illuminate\Support\Facades\DB::table('contact_conversation_messages')->where('contact_id', $contact->id)->orderBy('id')->get() as $conversationMessage)
+                                <div class="border rounded p-3">
+                                    <strong>{{ in_array($conversationMessage->sender, ['admin', 'admin_password']) ? translate('admin') : $contact->name }}</strong>
+                                    <p class="mb-0 mt-2" style="white-space:pre-wrap;overflow-wrap:anywhere">{{ \App\Services\ContactPasswordResetService::displayBody($conversationMessage) }}</p>
+                                    @foreach(json_decode($conversationMessage->attachments ?? '[]', true) ?: [] as $attachment)
+                                        <a class="btn btn-outline-primary btn-sm mt-2" target="_blank" rel="noopener" href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($attachment['path']) }}">{{ $attachment['name'] }}</a>
+                                    @endforeach
+                                </div>
+                            @endforeach
                             <div class="mb-3">
                                 <h5 class="badge text-bg-info badge-info rounded mb-3 d-flex">{{ $contact->name }}</h5>
                                 <div class="d-flex gap-2 mb-1">
@@ -92,7 +101,7 @@
                                         <strong>{{translate('message')}}: </strong>
                                         <div>{{$data['body']}}</div>
                                     </div>
-                                @else
+                                @elseif(!\Illuminate\Support\Facades\DB::table('contact_conversation_messages')->where('contact_id', $contact->id)->where('sender', 'admin')->exists())
                                     <label class="badge text-white bg-danger">{{translate('no_reply')}}.</label>
                                 @endif
                             </div>
@@ -101,11 +110,29 @@
                 </div>
                 <div class="col-lg-6">
                     <div class="card">
+                        <div class="card-body border-bottom">
+                            <h3>{{ translate('admin_reset_account_password') }}</h3>
+                            <p class="text-muted">{{ translate('admin_reset_identity_notice') }} <bdi>{{ $contact->email }}</bdi></p>
+                            <form method="post" action="{{ route('admin.contact.reset-password', $contact->id) }}" autocomplete="off">
+                                @csrf
+                                <label for="reset-account-type">{{ translate('account_type') }}</label>
+                                <select class="form-control mb-3" id="reset-account-type" name="account_type" required>
+                                    <option value="customer">{{ translate('customer') }}</option>
+                                    <option value="seller">{{ translate('seller') }}</option>
+                                </select>
+                                <label for="admin-new-password">{{ translate('new_password') }}</label>
+                                <input id="admin-new-password" class="form-control mb-3" type="password" name="password" minlength="8" maxlength="72" autocomplete="new-password" required>
+                                <label for="admin-confirm-password">{{ translate('confirm_password') }}</label>
+                                <input id="admin-confirm-password" class="form-control mb-3" type="password" name="password_confirmation" minlength="8" maxlength="72" autocomplete="new-password" required>
+                                <label class="d-flex gap-2 mb-3"><input type="checkbox" name="identity_verified" value="1" required> {{ translate('admin_identity_verified') }}</label>
+                                <button class="btn btn-primary" type="submit">{{ translate('admin_reset_and_send') }}</button>
+                            </form>
+                        </div>
                         <div class="card-body mt-3 mx-lg-4">
                             <div class="row text-start">
                                 <div class="col-12">
                                     <div class="d-flex justify-content-center">
-                                        <h3>{{translate('send_Mail')}}</h3>
+                                        <h3>{{translate('reply_in_conversation')}}</h3>
                                         <?php
                                             $emailServices_smtp = getWebConfig(name: 'mail_config');
                                             if ($emailServices_smtp['status'] == 0) {
@@ -113,7 +140,7 @@
                                             }
                                         ?>
                                         @if($emailServices_smtp['status'] != 1)
-                                            <label class="badge-soft-danger px-1">{{translate('configure_your_mail_setup_first').'.'}}</label>
+                                            <label class="badge-soft-info px-1">{{translate('conversation_email_optional_notice')}}</label>
                                         @endif
                                     </div>
                                     <form action="{{route('admin.contact.send-mail', $contact->id)}}" method="post">
@@ -122,7 +149,7 @@
                                             <div class="row">
                                                 <div class="col-md-12">
                                                     <label class="mb-2">{{translate('subject')}}</label>
-                                                    <input class="form-control" name="subject" required placeholder="{{translate('subject')}}">
+                                                    <input class="form-control" name="subject" value="{{ translate('contact_technical_support') }}" readonly>
                                                 </div>
                                                 <div class="col-md-12 mt-3">
                                                     <label class="mb-2">{{translate('mail_Body')}}</label>

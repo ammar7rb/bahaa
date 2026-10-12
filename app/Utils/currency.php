@@ -237,10 +237,13 @@ if (!function_exists('setCurrencySymbol')) {
     {
         $decimalPointSettings = getWebConfig('decimal_point_settings');
         $position = getWebConfig('currency_symbol_position');
+        $formattedAmount = number_format($amount, (!empty($decimalPointSettings) ? $decimalPointSettings : 0));
+        $symbol = getCurrencySymbol(currencyCode: $currencyCode, type: $type);
+
         if ($position === 'left') {
-            $string = getCurrencySymbol(currencyCode: $currencyCode, type: $type) . '' . number_format($amount, (!empty($decimalPointSettings) ? $decimalPointSettings : 0));
+            $string = $symbol . ' ' . $formattedAmount;
         } else {
-            $string = number_format($amount, !empty($decimalPointSettings) ? $decimalPointSettings : 0) . getCurrencySymbol(currencyCode: $currencyCode, type: $type);
+            $string = $formattedAmount . ' ' . $symbol;
         }
         return $string;
     }

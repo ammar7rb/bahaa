@@ -33,12 +33,15 @@ use App\Http\Controllers\Vendor\Shipping\ShippingTypeController;
 use App\Http\Controllers\Vendor\ShopController;
 use App\Http\Controllers\Vendor\SellerInsuranceController;
 use App\Http\Controllers\Vendor\SellerHomepagePromotionController;
+use App\Http\Controllers\Vendor\SellerBalanceController;
 use App\Http\Controllers\Vendor\SellerPackageController;
 use App\Http\Controllers\Vendor\SellerSearchPromotionController;
 use App\Http\Controllers\Vendor\SystemController;
 use App\Http\Controllers\Vendor\WithdrawController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Vendor\Order\OrderController;
+use App\Http\Controllers\Vendor\Order\SellerOrderInsuranceWebController;
+use App\Http\Controllers\Vendor\Order\ShippingProofController;
 use App\Http\Controllers\Vendor\TransactionReportController;
 use App\Http\Controllers\Vendor\ProductReportController;
 use App\Http\Controllers\Vendor\OrderReportController;
@@ -66,18 +69,50 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             Route::group(['prefix' => 'registration', 'as' => 'registration.'], function () {
                 Route::controller(RegisterController::class)->group(function () {
                     Route::get('index', 'index')->name('index');
+                    Route::get('check-availability', 'checkAvailability')->name('check-availability');
                     Route::post('add', 'add')->name('add');
                     Route::get('verify-phone', 'getPhoneVerificationView')->name('verify-phone');
                     Route::post('verify-phone', 'verifyPhone')->name('verify-phone.submit');
                     Route::post('resend-otp', 'resendOtp')->name('resend-otp');
+                    Route::get('activation', 'activation')->name('activation');
+                    Route::get('activation/messages', 'activationMessages')->name('activation.messages');
+                    Route::post('activation/message', 'activationMessage')->name('activation.message');
                 });
             });
         });
 
         Route::group(['middleware' => ['seller']], function () {
+            Route::get('account', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'show'])->name('account');
+            Route::post('account', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'update'])->name('account.update');
+            Route::post('account/password', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'password'])->middleware('throttle:6,1')->name('account.password');
+            Route::get('account/document/{kind}', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'document'])->name('account.document');
+            Route::get('messages', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index'])->name('messages');
+            Route::get('messages/{thread}', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'thread'])->whereNumber('thread')->name('messages.thread');
+            Route::get('notifications', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index'])->name('notifications');
+            Route::post('inbox/read', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'read'])->name('inbox.read');
+            Route::get('inbox/counts', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'counts'])->name('inbox.counts');
+            Route::controller('\\App\\Http\\Controllers\\Vendor\\VendorFinanceWorkspaceController')->group(function () {
+                Route::get('invoices', 'invoices')->name('invoices');
+                Route::get('account/withdrawal-methods', 'methods')->name('account.withdrawal-methods');
+                Route::post('account/withdrawal-methods', 'saveMethod')->name('account.withdrawal-methods.save');
+                Route::post('account/withdrawal-methods/{method}/disable', 'disableMethod')->name('account.withdrawal-methods.disable');
+                Route::post('balance/withdraw', 'withdraw')->name('balance.withdraw');
+            });
+            Route::group(['prefix' => 'balance', 'as' => 'balance.'], function () {
+                Route::controller(SellerBalanceController::class)->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::get('insurance', 'insurance')->name('insurance');
+                    Route::get('payments', 'payments')->name('payments');
+                    Route::post('pay', 'pay')->name('pay');
+                    Route::post('offline-payment', 'submitOfflinePayment')->name('offline-payment');
+                });
+            });
+
             Route::group(['prefix' => 'packages', 'as' => 'packages.'], function () {
                 Route::controller(SellerPackageController::class)->group(function () {
                     Route::get('/', 'index')->name('index');
+                    Route::get('performance/{subscription}', 'performance')->name('performance');
+                    Route::post('cancel/{subscription}', 'cancel')->name('cancel');
                     Route::post('pay', 'pay')->name('pay');
                     Route::post('offline-payment', 'submitOfflinePayment')->name('offline-payment');
                 });
@@ -175,6 +210,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::get('barcode/{id}', 'getBarcodeView')->name('barcode');
                     Route::delete('delete/{id}', 'delete')->name('delete');
                     Route::get('stock-limit-list', 'getStockLimitListView')->name('stock-limit-list');
+                    Route::get('stock-violations', 'getStockViolationsView')->name('stock-violations');
                     Route::post('update-quantity', 'updateQuantity')->name('update-quantity');
                     Route::get('update/{id}', 'getUpdateView')->name('update');
                     Route::post('update/{id}', 'update');
@@ -196,6 +232,10 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             });
 
             Route::group(['prefix' => 'orders', 'as' => 'orders.'], function () {
+                Route::get('insurance-pending', [SellerOrderInsuranceWebController::class, 'pending'])->name('insurance-pending');
+                Route::post('seller-order-insurance/{reference}/pay', [SellerOrderInsuranceWebController::class, 'pay'])->name('seller-order-insurance.pay');
+                Route::post('seller-order-insurance/{reference}/offline-payment', [SellerOrderInsuranceWebController::class, 'offline'])->name('seller-order-insurance.offline-payment');
+                Route::post('{order}/shipping-response', [\App\Http\Controllers\Vendor\Order\SellerShippingResponseController::class, 'store'])->name('shipping-response.store');
                 Route::controller(OrderController::class)->group(function () {
                     Route::get('list/{status}', 'index')->name('list');
                     Route::get('customers', 'getCustomers')->name('customers');
@@ -205,7 +245,8 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::post('address-update', 'updateAddress')->name('address-update');// update address from order details
                     Route::post('payment-status', 'updatePaymentStatus')->name('payment-status');
                     Route::post('update-deliver-info', 'updateDeliverInfo')->name('update-deliver-info');
-                    Route::get('add-delivery-man/{order_id}/{d_man_id}', 'addDeliveryMan')->name('add-delivery-man');
+                    // Delivery assignment is owned by admin shipping and is hidden from the vendor portal.
+                    Route::get('add-delivery-man/{order_id}/{d_man_id}', 'addDeliveryMan')->middleware('vendor_hidden_feature')->name('add-delivery-man');
                     Route::post('amount-date-update', 'updateAmountDate')->name('amount-date-update');
                     Route::post('digital-file-upload-after-sell', 'uploadDigitalFileAfterSell')->name('digital-file-upload-after-sell');
                     Route::post('status', 'updateStatus')->name('status');
@@ -213,6 +254,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::post('customer-due-amount', 'orderDueAmountSwitchToCOD')->name('customer-due-amount');
                     Route::post('customer-due-amount-mark-as-paid', 'orderDueAmountMarkAsPaid')->name('customer-due-amount-mark-as-paid');
                 });
+                Route::post('{order}/shipping-proof', [ShippingProofController::class, 'store'])->name('shipping-proof.store');
                 Route::controller(OrderEditController::class)->group(function () {
                     Route::get('search-for-edit-order-product', 'getSearchEditOrderProductsView')->name('search-for-edit-order-product');
                     Route::post('edit-order-product-modal-view', 'getEditOrderProductModalView')->name('edit-order-product-modal-view');
@@ -231,7 +273,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                 });
             });
 
-            Route::group(['prefix' => 'reviews', 'as' => 'reviews.'], function () {
+            Route::group(['prefix' => 'reviews', 'as' => 'reviews.', 'middleware' => ['vendor_hidden_feature']], function () {
                 Route::controller(ReviewController::class)->group(function () {
                     Route::get(Review::INDEX[URI], 'index')->name('index');
                     Route::get(Review::UPDATE_STATUS[URI] . '/{id}/{status}', 'updateStatus')->name('update-status');
@@ -269,21 +311,15 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                 });
             });
 
-            Route::group(['prefix' => 'messages', 'as' => 'messages.'], function () {
-                Route::controller(ChattingController::class)->group(function () {
-                    Route::get(Chatting::INDEX[URI] . '/{type}', 'index')->name('index');
-                    Route::get(Chatting::MESSAGE[URI], 'getMessageByUser')->name('message');
-                    Route::post(Chatting::MESSAGE[URI], 'addVendorMessage');
-                    Route::get(Chatting::NEW_NOTIFICATION[URI], 'getNewNotification')->name('new-notification');
-                });
-            });
+            // Seller-to-customer/delivery chat is intentionally unavailable;
+            // seller activation and support use the administration center.
 
             Route::group(['prefix' => 'notification', 'as' => 'notification.'], function () {
                 Route::post('index', [NotificationController::class, 'getNotificationModalView'])->name('index');
             });
 
             /* DeliveryMan */
-            Route::group(['prefix' => 'delivery-man', 'as' => 'delivery-man.'], function () {
+            Route::group(['prefix' => 'delivery-man', 'as' => 'delivery-man.', 'middleware' => ['vendor_hidden_feature']], function () {
                 Route::controller(DeliveryManController::class)->group(function () {
                     Route::get('index', 'index')->name('index');
                     Route::post('index', 'add');
@@ -367,7 +403,8 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             });
 
             Route::group(['prefix' => 'business-settings', 'as' => 'business-settings.'], function () {
-                Route::group(['prefix' => 'shipping-method', 'as' => 'shipping-method.'], function () {
+                // Legacy seller-managed shipping stays in the database but is unavailable on the vendor website.
+                Route::group(['prefix' => 'shipping-method', 'as' => 'shipping-method.', 'middleware' => ['vendor_hidden_feature']], function () {
                     Route::controller(ShippingMethodController::class)->group(function () {
                         Route::get('index', 'index')->name('index');
                         Route::post('index', 'add');
@@ -378,11 +415,11 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     });
                 });
 
-                Route::group(['prefix' => 'shipping-type', 'as' => 'shipping-type.'], function () {
+                Route::group(['prefix' => 'shipping-type', 'as' => 'shipping-type.', 'middleware' => ['vendor_hidden_feature']], function () {
                     Route::post('index', [ShippingTypeController::class, 'addOrUpdate'])->name('index');
                 });
 
-                Route::group(['prefix' => 'category-wise-shipping-cost', 'as' => 'category-wise-shipping-cost.'], function () {
+                Route::group(['prefix' => 'category-wise-shipping-cost', 'as' => 'category-wise-shipping-cost.', 'middleware' => ['vendor_hidden_feature']], function () {
                     Route::post('index', [CategoryShippingCostController::class, 'index'])->name('index');
                 });
 
@@ -390,7 +427,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::controller(WithdrawController::class)->group(function () {
                         Route::get('index', 'index')->name('index');
                         Route::post('index', 'getListByStatus');
-                        Route::get('close/{id}', 'closeWithdrawRequest')->name('close');
+                        Route::post('close/{id}', 'closeWithdrawRequest')->name('close');
                         Route::get('export', 'exportList')->name('export-withdraw-list');
                         Route::post('render-withdraw-method-infos', 'renderInfosView')->name('render-withdraw-method-infos');
                     });

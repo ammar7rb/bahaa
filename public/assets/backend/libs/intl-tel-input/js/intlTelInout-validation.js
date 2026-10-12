@@ -241,15 +241,16 @@ const mobileExamples = {
 
 function initializeIntlTelInput() {
     const inputs = document.querySelectorAll(
-        'input[type="tel"]:not([data-intl-initialized])'
+        'input[type="tel"]:not([data-intl-initialized]):not([data-egypt-phone])'
     );
 
-    const defaultCountryCodeElement = document.querySelector(".system-default-country-code");
-    const defaultCountry = defaultCountryCodeElement?.dataset?.value?.toLowerCase() || "bd";
+    const defaultCountry = "eg";
 
     inputs.forEach(input => {
         const iti = window.intlTelInput(input, {
             initialCountry: defaultCountry,
+            onlyCountries: ["eg"],
+            allowDropdown: false,
             autoInsertDialCode: false,
             nationalMode: false,
             formatOnDisplay: false,

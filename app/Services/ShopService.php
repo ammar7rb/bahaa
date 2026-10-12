@@ -74,20 +74,26 @@ class ShopService
         $storage = config('filesystems.disks.default') ?? 'public';
         return [
             'seller_id' => $vendorId,
-            'name' => $request['shop_name'],
-            'slug' => Str::slug($request['shop_name'], '-') . '-' . Str::random(6),
-            'address' => $request['shop_address'],
-            'contact' => $request['phone'],
-            'image' => $this->upload(dir: 'shop/', format: 'webp', image: $request->file('logo')),
-            'image_storage_type' => $request->has('logo') ? $storage : null,
-            'banner' => $this->upload(dir: 'shop/banner/', format: 'webp', image: $request->file('banner')),
-            'banner_storage_type' => $request->has('banner') ? $storage : null,
-            'bottom_banner' => $this->upload(dir: 'shop/banner/', format: 'webp', image: $request->file('bottom_banner')),
-            'bottom_banner_storage_type' => $request->has('banner') ? $storage : null,
-            'tax_identification_number' => $request['tax_identification_number'],
+            'name' => trim((string) $request->input('shop_name')),
+            'slug' => Str::slug((string) $request->input('shop_name'), '-') . '-' . Str::random(6),
+            'address' => trim((string) $request->input('shop_address', '')),
+            'contact' => $request->input('phone'),
+            'image' => $request->hasFile('logo')
+                ? $this->upload(dir: 'shop/', format: 'webp', image: $request->file('logo'))
+                : 'def.png',
+            'image_storage_type' => $request->hasFile('logo') ? $storage : null,
+            'banner' => $request->hasFile('banner')
+                ? $this->upload(dir: 'shop/banner/', format: 'webp', image: $request->file('banner'))
+                : 'def.png',
+            'banner_storage_type' => $request->hasFile('banner') ? $storage : null,
+            'bottom_banner' => $request->hasFile('bottom_banner')
+                ? $this->upload(dir: 'shop/banner/', format: 'webp', image: $request->file('bottom_banner'))
+                : null,
+            'bottom_banner_storage_type' => $request->hasFile('bottom_banner') ? $storage : null,
+            'tax_identification_number' => $request->input('tax_identification_number'),
             'tin_expire_date' => $request['tin_expire_date'] ?? null,
             'tin_certificate' => $request->file('tin_certificate') ? $this->fileUpload(dir: 'shop/documents/', format: $request->file('tin_certificate')->getClientOriginalExtension(), file: $request->file('tin_certificate')) : null,
-            'tin_certificate_storage_type' => $request->has('tin_certificate') ? $storage : null,
+            'tin_certificate_storage_type' => $request->hasFile('tin_certificate') ? $storage : null,
         ];
     }
 

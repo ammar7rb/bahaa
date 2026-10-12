@@ -349,7 +349,8 @@ trait InstallationTrail
         $existingEnv = file_exists($envPath) ? file_get_contents($envPath) : '';
 
         $updates = [
-            'APP_NAME' => '6valley' . time(),
+            // Keep future installations from restoring the legacy platform identity.
+            'APP_NAME' => 'Baha' . time(),
             'APP_ENV' => 'live',
             'APP_KEY' => 'base64:' . $key,
             'APP_DEBUG' => 'false',

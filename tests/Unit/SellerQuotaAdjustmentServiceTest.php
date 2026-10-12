@@ -34,10 +34,13 @@ class SellerQuotaAdjustmentServiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_admin_can_add_product_quota_with_audited_transaction(): void
+    public function test_product_quota_is_no_longer_adjustable(): void
     {
-        $subscription = $this->createSubscription();
-        $result = $this->service()->adjustQuota(
+        $this->createSubscription();
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('invalid_seller_quota_type');
+        $this->service()->adjustQuota(
             Seller::findOrFail(1),
             SellerPackageTransaction::QUOTA_PRODUCT,
             'add',
@@ -46,17 +49,6 @@ class SellerQuotaAdjustmentServiceTest extends TestCase
             'Customer support compensation',
             (string) Str::uuid()
         );
-
-        $this->assertTrue($result['applied']);
-        $this->assertSame(3, $subscription->fresh()->product_adjustment_limit);
-        $this->assertDatabaseHas('seller_package_transactions', [
-            'transaction_type' => SellerPackageTransaction::TYPE_QUOTA_ADJUSTMENT,
-            'quota_type' => SellerPackageTransaction::QUOTA_PRODUCT,
-            'credit' => 3,
-            'debit' => 0,
-            'balance_after' => 8,
-            'created_by_admin_id' => 9,
-        ]);
     }
 
     public function test_adjustment_request_token_prevents_double_application(): void
@@ -77,14 +69,14 @@ class SellerQuotaAdjustmentServiceTest extends TestCase
     public function test_quota_cannot_be_deducted_below_already_used_amount(): void
     {
         $subscription = $this->createSubscription();
-        $subscription->update(['used_product_limit' => 4]);
+        $subscription->update(['used_search_promotion_limit' => 2]);
 
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('quota_cannot_be_reduced_below_the_already_used_amount');
         try {
             $this->service()->adjustQuota(
                 Seller::findOrFail(1),
-                SellerPackageTransaction::QUOTA_PRODUCT,
+                SellerPackageTransaction::QUOTA_SEARCH_PROMOTION,
                 'deduct',
                 2,
                 9,
@@ -92,7 +84,7 @@ class SellerQuotaAdjustmentServiceTest extends TestCase
                 (string) Str::uuid()
             );
         } finally {
-            $this->assertSame(0, $subscription->fresh()->product_adjustment_limit);
+            $this->assertSame(0, $subscription->fresh()->search_promotion_adjustment_limit);
         }
     }
 
@@ -101,12 +93,12 @@ class SellerQuotaAdjustmentServiceTest extends TestCase
         $subscription = $this->createSubscription();
         $service = $this->service();
 
-        $service->adjustQuota(Seller::findOrFail(1), 'product', 'add', 1, 9, 'Product bonus', (string) Str::uuid());
+        $service->adjustQuota(Seller::findOrFail(1), 'search_promotion', 'add', 1, 9, 'Search bonus', (string) Str::uuid());
         $service->adjustQuota(Seller::findOrFail(1), 'homepage_promotion', 'add', 4, 9, 'Homepage bonus', (string) Str::uuid());
 
         $subscription->refresh();
-        $this->assertSame(1, $subscription->product_adjustment_limit);
-        $this->assertSame(0, $subscription->search_promotion_adjustment_limit);
+        $this->assertSame(0, $subscription->product_adjustment_limit);
+        $this->assertSame(1, $subscription->search_promotion_adjustment_limit);
         $this->assertSame(4, $subscription->homepage_promotion_adjustment_limit);
     }
 
@@ -125,6 +117,17 @@ class SellerQuotaAdjustmentServiceTest extends TestCase
         $this->assertSame(1, $subscription->fresh()->used_homepage_promotion_limit);
         $this->assertSame(2, SellerPackageTransaction::where('transaction_type', SellerPackageTransaction::TYPE_PROMOTION_ADMIN_UPDATE)->count());
         $this->assertSame(0, SellerPackageTransaction::where('transaction_type', SellerPackageTransaction::TYPE_QUOTA_RESTORE)->count());
+    }
+
+    public function test_admin_cannot_move_an_active_campaign_into_an_overlapping_slot(): void
+    {
+        $this->createSubscription();
+        $first = $this->createPromotion(productId: 10, position: 1);
+        $this->createPromotion(productId: 11, position: 2);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('advertising_placement_conflicts_with_an_existing_campaign');
+        $this->service()->updatePromotion($first, 'update_order', 2, 9, 'Conflicting move');
     }
 
     private function service(): SellerQuotaAdjustmentService
@@ -159,16 +162,19 @@ class SellerQuotaAdjustmentServiceTest extends TestCase
         ]);
     }
 
-    private function createPromotion(): SellerProductPromotion
+    private function createPromotion(int $productId = 10, int $position = 1): SellerProductPromotion
     {
         return SellerProductPromotion::create([
             'seller_id' => 1,
-            'product_id' => 10,
+            'product_id' => $productId,
             'seller_package_subscription_id' => 1,
             'promotion_type' => SellerProductPromotion::TYPE_HOMEPAGE,
             'duration_days' => 7,
-            'sort_order' => 0,
+            'sort_order' => $position,
             'status' => SellerProductPromotion::STATUS_ACTIVE,
+            'approval_status' => SellerProductPromotion::APPROVAL_APPROVED,
+            'placement_scope' => 'homepage_featured',
+            'approved_position' => $position,
             'starts_at' => now(),
             'expires_at' => now()->addDays(7),
             'activated_at' => now(),
@@ -223,6 +229,10 @@ class SellerQuotaAdjustmentServiceTest extends TestCase
             $table->unsignedInteger('duration_days')->default(0);
             $table->integer('sort_order')->default(0);
             $table->string('status')->default('reserved');
+            $table->string('approval_status')->default('legacy_auto_approved');
+            $table->string('placement_scope')->nullable();
+            $table->string('placement_key')->nullable();
+            $table->unsignedInteger('approved_position')->nullable();
             $table->boolean('quota_restored')->default(false);
             $table->timestamp('starts_at')->nullable();
             $table->timestamp('expires_at')->nullable();

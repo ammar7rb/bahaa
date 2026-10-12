@@ -13,224 +13,65 @@ use Illuminate\Support\Str;
 
 class SellerProductEntitlementService
 {
-    public function __construct(
-        private readonly SellerInsuranceService $sellerInsuranceService,
-    ) {}
-
     public function getSummary(Seller $seller): array
     {
-        $this->expireSubscription($seller);
         $subscription = $this->activeSubscriptionQuery($seller)->first();
-        $insuranceSatisfied = $this->sellerInsuranceService->getSummary($seller)['active'];
-        $total = $subscription ? $this->productQuotaTotal($subscription) : 0;
-        $used = $subscription?->used_product_limit ?? 0;
 
         return [
-            'insurance_satisfied' => $insuranceSatisfied,
+            // Product publishing is a core seller capability. Advertising
+            // packages only grant promotional placements and never gate product
+            // creation, review, publication or lifetime.
+            'insurance_satisfied' => true,
             'active_subscription' => $subscription,
-            'product_limit' => $total,
-            'used_product_limit' => $used,
-            'remaining_product_limit' => max(0, $total - $used),
-            'can_add_product' => $insuranceSatisfied && $subscription && $used < $total,
+            'product_limit' => null,
+            'used_product_limit' => 0,
+            'remaining_product_limit' => null,
+            'can_add_product' => $seller->getAttribute('activation_status') === null
+                || $seller->getAttribute('activation_status') === 'active',
+            'package_required' => false,
         ];
     }
 
-    public function assertCanReserve(Seller $seller): SellerPackageSubscription
+    public function assertCanReserve(Seller $seller): ?SellerPackageSubscription
     {
-        $summary = $this->getSummary($seller);
-        if (! $summary['insurance_satisfied']) {
-            throw new DomainException('active_seller_insurance_is_required_before_adding_products');
-        }
-        if (! $summary['active_subscription']) {
-            throw new DomainException('active_seller_package_is_required_before_adding_products');
-        }
-        if ($summary['active_subscription']->product_duration_days <= 0) {
-            throw new DomainException('seller_package_product_duration_is_not_configured');
-        }
-        if (! $summary['can_add_product']) {
-            throw new DomainException('seller_package_product_limit_has_been_reached');
+        $activationStatus = $seller->getAttribute('activation_status');
+        if ($activationStatus !== null && $activationStatus !== 'active') {
+            throw new DomainException('seller_activation_is_required_before_adding_products');
         }
 
-        return $summary['active_subscription'];
+        return $this->activeSubscriptionQuery($seller)->first();
     }
 
-    public function reserveForProduct(Product $product, Seller $seller): SellerProductEntitlement
+    public function reserveForProduct(Product $product, Seller $seller): ?SellerProductEntitlement
     {
-        return DB::transaction(function () use ($product, $seller) {
-            Seller::query()->whereKey($seller->id)->lockForUpdate()->firstOrFail();
-            $product = Product::query()->withoutGlobalScopes()->whereKey($product->id)->lockForUpdate()->firstOrFail();
-            $this->assertSellerOwnsProduct($seller, $product);
+        $this->assertSellerOwnsProduct($seller, $product);
+        $this->assertCanReserve($seller);
 
-            $existing = $product->sellerProductEntitlements()
-                ->whereIn('status', [
-                    SellerProductEntitlement::STATUS_RESERVED,
-                    SellerProductEntitlement::STATUS_ACTIVE,
-                ])
-                ->latest('id')
-                ->lockForUpdate()
-                ->first();
-            if ($existing) {
-                return $existing;
-            }
-
-            $insuranceSatisfied = $this->sellerInsuranceService->getSummary($seller)['active'];
-            if (! $insuranceSatisfied) {
-                throw new DomainException('active_seller_insurance_is_required_before_adding_products');
-            }
-
-            $subscription = $this->activeSubscriptionQuery($seller)->lockForUpdate()->first();
-            if (! $subscription) {
-                throw new DomainException('active_seller_package_is_required_before_adding_products');
-            }
-            if ($subscription->product_duration_days <= 0) {
-                throw new DomainException('seller_package_product_duration_is_not_configured');
-            }
-
-            $total = $this->productQuotaTotal($subscription);
-            if ($subscription->used_product_limit >= $total) {
-                throw new DomainException('seller_package_product_limit_has_been_reached');
-            }
-
-            $subscription->increment('used_product_limit');
-            $subscription->refresh();
-            $entitlement = SellerProductEntitlement::create([
-                'seller_id' => $seller->id,
-                'product_id' => $product->id,
-                'seller_package_subscription_id' => $subscription->id,
-                'seller_package_id' => $subscription->seller_package_id,
-                'duration_days' => $subscription->product_duration_days,
-                'status' => SellerProductEntitlement::STATUS_RESERVED,
-                'metadata' => ['reserved_at' => now()->toDateTimeString()],
-            ]);
-
-            $this->recordQuotaTransaction(
-                $subscription,
-                $product,
-                $entitlement,
-                SellerPackageTransaction::TYPE_QUOTA_USAGE,
-                debit: 1,
-                balanceAfter: max(0, $total - $subscription->used_product_limit),
-                note: 'Seller product quota reserved.'
-            );
-
-            return $entitlement;
-        });
+        // Keep historical entitlement rows readable, but do not create a new
+        // package entitlement for ordinary product publishing.
+        return null;
     }
 
-    public function activateForPublication(Product $product, Seller $seller): SellerProductEntitlement
+    public function activateForPublication(Product $product, Seller $seller): ?SellerProductEntitlement
     {
-        return DB::transaction(function () use ($product, $seller) {
-            Seller::query()->whereKey($seller->id)->lockForUpdate()->firstOrFail();
-            $product = Product::query()->withoutGlobalScopes()->whereKey($product->id)->lockForUpdate()->firstOrFail();
-            $this->assertSellerOwnsProduct($seller, $product);
+        $this->assertSellerOwnsProduct($seller, $product);
+        $this->assertCanReserve($seller);
+        if ((int) $product->request_status !== 1) {
+            throw new DomainException('product_must_be_approved_before_publication');
+        }
 
-            if ((int) $product->request_status !== 1) {
-                throw new DomainException('product_must_be_approved_before_publication');
-            }
-            if (! $this->sellerInsuranceService->getSummary($seller)['active']) {
-                throw new DomainException('active_seller_insurance_is_required_before_publishing_products');
-            }
-
-            $entitlement = $product->sellerProductEntitlements()
-                ->whereIn('status', [
-                    SellerProductEntitlement::STATUS_RESERVED,
-                    SellerProductEntitlement::STATUS_ACTIVE,
-                ])
-                ->latest('id')
-                ->lockForUpdate()
-                ->first();
-
-            if (! $entitlement) {
-                $entitlement = $this->reserveForProduct($product, $seller);
-            }
-            if ($entitlement->status === SellerProductEntitlement::STATUS_ACTIVE) {
-                if ($entitlement->expires_at && $entitlement->expires_at->isPast()) {
-                    $this->expireEntitlement($entitlement, $product);
-                    throw new DomainException('seller_product_publication_duration_has_expired');
-                }
-
-                return $entitlement;
-            }
-
-            $subscription = SellerPackageSubscription::query()
-                ->whereKey($entitlement->seller_package_subscription_id)
-                ->where('status', SellerPackageSubscription::STATUS_ACTIVE)
-                ->where('payment_status', 'paid')
-                ->where(function ($query) {
-                    $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
-                })
-                ->lockForUpdate()
-                ->first();
-            if (! $subscription) {
-                $this->restoreReservedEntitlement($entitlement, 'Package expired before product publication.');
-                $entitlement = $this->reserveForProduct($product, $seller);
-            }
-
-            $startsAt = now();
-            $expiresAt = $startsAt->copy()->addDays($entitlement->duration_days);
-            $metadata = $entitlement->metadata ?: [];
-            $metadata['activated_at'] = $startsAt->toDateTimeString();
-            $entitlement->update([
-                'status' => SellerProductEntitlement::STATUS_ACTIVE,
-                'starts_at' => $startsAt,
-                'expires_at' => $expiresAt,
-                'activated_at' => $startsAt,
-                'metadata' => $metadata,
-            ]);
-
-            return $entitlement->fresh();
-        });
+        return null;
     }
 
     public function restoreAfterRejection(Product $product): void
     {
-        DB::transaction(function () use ($product) {
-            $product = Product::query()->withoutGlobalScopes()->whereKey($product->id)->lockForUpdate()->first();
-            if (! $product || $product->added_by !== 'seller') {
-                return;
-            }
-
-            $entitlement = $product->sellerProductEntitlements()
-                ->where('status', SellerProductEntitlement::STATUS_RESERVED)
-                ->latest('id')
-                ->lockForUpdate()
-                ->first();
-            if ($entitlement) {
-                $this->restoreReservedEntitlement($entitlement, 'Product rejected before first publication.');
-            }
-        });
+        // Product review no longer owns or restores advertising-package quota.
     }
 
     public function cancelForDeletion(Product $product): void
     {
-        DB::transaction(function () use ($product) {
-            $product = Product::query()->withoutGlobalScopes()->whereKey($product->id)->lockForUpdate()->first();
-            if (! $product || $product->added_by !== 'seller') {
-                return;
-            }
-
-            $entitlement = $product->sellerProductEntitlements()
-                ->whereIn('status', [
-                    SellerProductEntitlement::STATUS_RESERVED,
-                    SellerProductEntitlement::STATUS_ACTIVE,
-                ])
-                ->latest('id')
-                ->lockForUpdate()
-                ->first();
-            if (! $entitlement) {
-                return;
-            }
-            if ($entitlement->status === SellerProductEntitlement::STATUS_RESERVED) {
-                $this->restoreReservedEntitlement($entitlement, 'Unpublished product deleted.');
-
-                return;
-            }
-
-            $entitlement->update([
-                'status' => SellerProductEntitlement::STATUS_CANCELLED,
-                'cancelled_at' => now(),
-            ]);
-        });
+        // Deleting a product does not alter package purchase history. Active ad
+        // requests are handled by the promotion service/admin workflow.
     }
 
     public function expireDueEntitlements(?int $sellerId = null): int
@@ -330,9 +171,8 @@ class SellerProductEntitlementService
             'status' => SellerProductEntitlement::STATUS_EXPIRED,
             'expired_at' => now(),
         ]);
-        if ($product) {
-            $product->update(['status' => 0]);
-        }
+        // Legacy listing entitlement expiry must never unpublish a product now
+        // that packages are advertising-only.
     }
 
     private function recordQuotaTransaction(

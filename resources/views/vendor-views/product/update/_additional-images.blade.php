@@ -4,9 +4,12 @@
             <h3 class="mb-1">{{ translate('Product_Additional_Images') }}</h3>
             <p class="fs-12 mb-0">
                 {{ translate('Upload_additional_images_for_this_product_from_here.') }}
+                <strong class="d-block mt-1" id="seller-product-images-count" data-existing-count="{{ count($product->images_full_url ?? []) }}" data-label="{{ translate('seller_product_images_count') }}">
+                    {{ translate('seller_product_images_count') }}: {{ count($product->images_full_url ?? []) }}/5
+                </strong>
                 <span class="text-info">
                     {{ getFileUploadFormats(skip: '.svg,.gif', asBladeMessage: true).' '. translate('Image_size'). ' : '. translate('Max').' '. getFileUploadMaxSize() . 'MB' }}
-                    ({{ THEME_RATIO[theme_root_path()]['Product Image'] }})
+                    ({{ (THEME_RATIO[theme_root_path()]['Product Image'] ?? THEME_RATIO['default']['Product Image']) }})
                 </span>
             </p>
         </div>
@@ -15,6 +18,8 @@
                 <div class="multi_image_picker d-flex gap-4 p-3"
                     data-ratio="1/1"
                     data-field-name="images[]"
+                    data-max-count="{{ max(0, 5 - count($product->images_full_url ?? [])) }}"
+                    data-batch-selection="true"
                     data-max-filesize="{{ getFileUploadMaxSize() }}"
                      data-required-msg="{{ translate('additional_image_is_required') }}"
                      data-max-filesize="{{getFileUploadMaxSize()}}"

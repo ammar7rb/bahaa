@@ -29,13 +29,13 @@
                         <ul class="nav nav-tabs gap-1 border-0 mb-3 mx-4" id="pills-tab" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link bg-transparent p-2 {{ request('type') == 'customer' ? 'active' : '' }}"
-                                   href="{{ route('vendor.messages.index', ['type' => 'customer']) }}">
+                                   href="{{ route('vendor.auth.registration.activation') }}">
                                     {{translate("customer")}}
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link bg-transparent p-2 {{ request('type') == 'delivery-man' ? 'active' : '' }}"
-                                   href="{{ route('vendor.messages.index', ['type' => 'delivery-man']) }}">
+                                   href="{{ route('vendor.auth.registration.activation') }}">
                                     {{translate('delivery_Man')}}
                                 </a>
                             </li>
@@ -283,8 +283,8 @@
                 </div>
             </section>
         </div>
-        <span id="chatting-post-url"
-              data-url="{{ Request::is('vendor/messages/index/customer') ? route('vendor.messages.message').'?user_id=' : route('vendor.messages.message').'?delivery_man_id=' }}"></span>
+        {{-- Direct seller/customer and seller/delivery chat is disabled. Use activation/support instead. --}}
+        <span id="chatting-post-url" data-url=""></span>
         <span id="image-url" data-url="{{ dynamicAsset('storage/app/public/chatting') }}"></span>
     </div>
 

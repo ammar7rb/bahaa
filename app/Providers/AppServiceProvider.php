@@ -122,7 +122,7 @@ class AppServiceProvider extends ServiceProvider
                         'digital_product_authors' => Schema::hasTable('authors') ? ProductManager::getProductAuthorList() : null,
                         'firebase_otp_verification' => $firebaseOTPVerification,
                         'firebase_otp_verification_status' => $firebaseOTPVerificationStatus,
-                        'meta_title' => getWebConfig(name: 'company_name') . ' ' . translate('Online_Shopping') . ' | ' . getWebConfig(name: 'company_name') . ' ' . translate('ecommerce'),
+                        'meta_title' => 'SIGMA Medical Supplies',
                         'meta_description' => substr(strip_tags(str_replace('&nbsp;', ' ', (BusinessPage::where('slug', 'about-us')->first()?->description ?? ''))), 0, 160),
                     ];
 

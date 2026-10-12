@@ -192,12 +192,62 @@ class CategoryController extends BaseController
 
     public function delete(Request $request): RedirectResponse
     {
-        $this->productRepo->updateByParams(params: ['category_id' => $request['id']], data: ['category_ids' => json_encode($this->productService->getCategoriesArray(request: $request)), 'category_id' => $request['category_id'], 'sub_category_id' => null, 'sub_sub_category_id' => null]);
         $category = $this->categoryRepo->getFirstWhere(params: ['id' => $request['id']], relations: ['childes.childes']);
+        if (!$category) {
+            ToastMagic::error(translate('category_not_found'));
+            return back();
+        }
+        $hasChildren = $category->childes->isNotEmpty();
+        $hasProducts = \App\Models\Product::withoutGlobalScopes()->where('category_id', $category->id)->exists();
+        if ($hasChildren || $hasProducts) {
+            ToastMagic::error(translate('used_categories_cannot_be_deleted_deactivate_them_instead'));
+            return back();
+        }
         $this->categoryService->deleteImages(data: $category);
         $this->categoryRepo->delete(params: ['id' => $request['id']]);
         ToastMagic::success(translate('deleted_successfully'));
         return redirect()->back();
+    }
+
+    public function medicalIndex(): View
+    {
+        $categories = \App\Models\Category::withoutGlobalScopes()
+            ->where('position', 0)
+            ->with(['childes' => function ($query) {
+                $query->withCount('product')->with(['childes' => function ($query) {
+                    $query->withCount('product');
+                }]);
+            }])
+            ->withCount('product')
+            ->orderBy('priority')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin-views.category.medical-management', compact('categories'));
+    }
+
+    public function updateMedicalStatus(Request $request): RedirectResponse
+    {
+        $validated = $request->validate(['id' => 'required|integer', 'is_active' => 'required|boolean']);
+        $category = \App\Models\Category::withoutGlobalScopes()->find($validated['id']);
+        if (!$category) {
+            return back()->withErrors(['id' => translate('category_not_found')]);
+        }
+        $category->update(['is_active' => (bool) $validated['is_active']]);
+        updateSetupGuideCacheKey(key: 'category_setup', panel: 'admin');
+        return back()->with('success', translate('status_updated_successfully'));
+    }
+
+    public function updateMedicalPriority(Request $request): RedirectResponse
+    {
+        $validated = $request->validate(['id' => 'required|integer', 'priority' => 'required|integer|min:0|max:999999']);
+        $category = \App\Models\Category::withoutGlobalScopes()->find($validated['id']);
+        if (!$category) {
+            return back()->withErrors(['id' => translate('category_not_found')]);
+        }
+        $category->update(['priority' => $validated['priority']]);
+        updateSetupGuideCacheKey(key: 'category_setup', panel: 'admin');
+        return back()->with('success', translate('priority_updated_successfully'));
     }
 
     public function getExportList(Request $request): BinaryFileResponse

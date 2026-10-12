@@ -11,18 +11,19 @@
         </div>
         @include('admin-views.business-settings.business-setup-inline-menu')
 
+        {{-- Egypt pricing is the primary workspace and stays visible first. --}}
+        @include('admin-views.shipping-method._egypt-zone-rates')
+
         <form action="{{ route('admin.business-settings.shipping-method.update-shipping-responsibility') }}"
               method="post">
             @csrf
             @php($shippingMethod = getWebConfig('shipping_method'))
             <div class="card mb-3">
                 <div class="card-body">
-                    <div class="mb-3 mb-sm-20">
-                        <h3 class="text-capitalize">{{ translate('Shipping_Responsibility') }}</h3>
-                        <p class="mb-0 fs-12">
-                            {{ translate('set_up_the_shipping_responsibility_and_associated_charges_for_order_delivery.') }}
-                        </p>
-                    </div>
+                    <button class="btn btn-link text-dark text-decoration-none p-0 w-100 d-flex justify-content-between align-items-center text-start" type="button" data-bs-toggle="collapse" data-bs-target="#shipping-responsibility-settings" aria-expanded="false">
+                        <span><h3 class="text-capitalize mb-1">{{ translate('Shipping_Responsibility') }}</h3><small class="text-muted">اضغط لإظهار أو إخفاء الإعدادات</small></span><i class="fi fi-sr-angle-down"></i>
+                    </button>
+                    <div class="collapse mt-4" id="shipping-responsibility-settings">
                     <div class="p-12 p-sm-20 bg-section rounded">
                         <div class="form-group mb-20">
                             <div class="bg-white p-3 rounded">
@@ -90,18 +91,17 @@
                             </button>
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
         </form>
 
         <div class="card mb-3">
             <div class="card-body">
-                <div class="mb-4">
-                    <h3 class="text-capitalize">{{ translate('Shipping_Methods') }}</h3>
-                    <p class="mb-0 fs-12">
-                        {{ translate('vendors_will_handle_the_shipping_responsibilities_when_you_choose_vendor_wise_shipping_method.') }}
-                    </p>
-                </div>
+                <button class="btn btn-link text-dark text-decoration-none p-0 w-100 d-flex justify-content-between align-items-center text-start" type="button" data-bs-toggle="collapse" data-bs-target="#shipping-method-type-settings" aria-expanded="false">
+                    <span><h3 class="text-capitalize mb-1">{{ translate('Shipping_Methods') }}</h3><small class="text-muted">اضغط لإظهار أو إخفاء الإعدادات</small></span><i class="fi fi-sr-angle-down"></i>
+                </button>
+                <div class="collapse mt-4" id="shipping-method-type-settings">
                 <div class="p-12 p-sm-20 bg-section rounded">
                     <form action="{{ route('admin.business-settings.shipping-type.index') }}" method="post" id="shipping-type-form">
                         @csrf
@@ -190,6 +190,7 @@
                         </div>
                     </form>
                 </div>
+                </div>
             </div>
         </div>
 
@@ -199,14 +200,10 @@
                     <div class="d-flex flex-column gap-20">
                         <div class="card card-sm shadow-2">
                             <div class="card-body">
-                                <div class="mb-4">
-                                    <h3 class="text-capitalize">
-                                        {{ translate('add_order_wise_shipping_method') }}
-                                    </h3>
-                                    <p class="mb-0 fs-12">
-                                        {{ translate('set_up_shipping_fee_calculation_based_on_order_and_shipping_time.') }}
-                                    </p>
-                                </div>
+                                <button class="btn btn-link text-dark text-decoration-none p-0 w-100 d-flex justify-content-between align-items-center text-start" type="button" data-bs-toggle="collapse" data-bs-target="#add-order-wise-method" aria-expanded="false">
+                                    <span><h3 class="text-capitalize mb-1">{{ translate('add_order_wise_shipping_method') }}</h3><small class="text-muted">اضغط لإظهار نموذج الإضافة</small></span><i class="fi fi-sr-angle-down"></i>
+                                </button>
+                                <div class="collapse mt-4" id="add-order-wise-method">
                                 <form action="{{route('admin.business-settings.shipping-method.index')}}" method="post" class="form-advance-validation  form-advance-inputs-validation form-advance-file-validation non-ajax-form-validate" novalidate="novalidate">
                                     @csrf
                                     <div class="px-20 py-4 bg-section rounded mb-20">
@@ -269,10 +266,15 @@
                                         </button>
                                     </div>
                                 </form>
+                                </div>
                             </div>
                         </div>
                         <div class="card shadow-2">
                             <div class="card-body">
+                                <button class="btn btn-link text-dark text-decoration-none p-0 w-100 d-flex justify-content-between align-items-center text-start" type="button" data-bs-toggle="collapse" data-bs-target="#order-wise-method-list" aria-expanded="false">
+                                    <span><h3 class="text-capitalize mb-1">{{ translate('list_of_order_wise_shipping_method') }}</h3><small class="text-muted">اضغط لإظهار القائمة</small></span><i class="fi fi-sr-angle-down"></i>
+                                </button>
+                                <div class="collapse mt-4" id="order-wise-method-list">
                                 <div class="d-flex flex-column gap-20">
                                     <div class="d-flex justify-content-between align-items-center gap-20 flex-wrap">
                                         <h4 class="text-capitalize">{{ translate('list_of_order_wise_shipping_method') }}
@@ -377,6 +379,7 @@
                                             ['image' => 'default']
                                         )
                                     @endif
+                                </div>
                                 </div>
                             </div>
                         </div>

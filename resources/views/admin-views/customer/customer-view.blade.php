@@ -8,6 +8,8 @@
 
 @section('content')
     <div class="content container-fluid">
+        @if($customer->account_deleted_at)<div class="alert alert-warning" role="status">حساب محذوف منذ {{ $customer->account_deleted_at }}. تُحتفظ بهوية العميل وسجلاته المالية، والوصول للحساب مغلق.</div>@endif
+        @include('admin-views.customer.purchase-state')
         <div class="d-print-none pb-2">
             <div class="row align-items-center">
                 <div class="col-sm mb-2 mb-sm-0">
@@ -27,7 +29,8 @@
             <div class="col-lg-8">
                 <div class="card card-body h-100">
                     <div class="d-flex gap-3 align-items-center justify-content-between flex-wrap mb-2">
-                        <h3 class="mb-0"> {{ translate('customer').' # '.$customer['id']}}</h3>
+                        <h3 class="mb-0"> {{ translate('customer').' '.$customer->administrative_reference }}</h3>
+                        <span class="badge {{ $customer->activation_status === 'active' ? 'badge-soft-success' : 'badge-soft-warning' }}">{{ translate('activation') }}: {{ translate($customer->activation_status ?? 'pending_support') }}</span>
                         <p class="mb-0 fs-12">
                             {{ translate('Join Date') }} : <span
                                 class="fw-bold">{{date('d M Y',strtotime($customer['created_at'])) }}</span>
@@ -62,8 +65,35 @@
                                             </p>
                                         </div>
                                     </div>
-                                    <a href="#profileUpdateOffcanvas" data-bs-toggle="offcanvas"><i
-                                            class="fi fi-sr-pencil text-primary fs-16"></i></a>
+                                    <div class="d-flex gap-3 align-items-center d-print-none">
+                                        <button type="button" class="btn btn-outline-primary btn-sm"
+                                                data-bs-toggle="modal" data-bs-target="#resetCustomerPasswordModal"
+                                                title="{{ translate('reset_password') }}">
+                                            <i class="fi fi-rr-key"></i>
+                                        </button>
+                                        <a href="#profileUpdateOffcanvas" data-bs-toggle="offcanvas"><i
+                                                class="fi fi-sr-pencil text-primary fs-16"></i></a>
+                                        <a href="#customerNotify" data-bs-toggle="collapse" title="{{ translate('Notify_Customer') }}">
+                                            <i class="fi fi-rr-bell text-primary fs-16"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div id="customerNotify" class="collapse border rounded p-3 mt-3 d-print-none">
+                                    <form action="{{ route('admin.customer.notify') }}" method="POST">
+                                        @csrf
+                                        <input type="hidden" name="customer_ids[]" value="{{ $customer['id'] }}">
+                                        <div class="mb-2">
+                                            <label class="form-label">{{ translate('notification_title') }}</label>
+                                            <input type="text" name="title" class="form-control" maxlength="120" required>
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label">{{ translate('message') }}</label>
+                                            <textarea name="message" class="form-control" rows="2" maxlength="1000" required></textarea>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="fi fi-rr-paper-plane"></i> {{ translate('send_notification') }}
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
@@ -99,6 +129,46 @@
                 </div>
             </div>
 
+            <div class="col-lg-12">
+                <div class="card card-body">
+                    <div class="row g-3 align-items-stretch">
+                        <div class="col-md-6">
+                            <div class="bg-section rounded-10 p-3 h-100">
+                                <div class="d-flex justify-content-between align-items-center gap-2">
+                                    <div>
+                                        <p class="fs-12 text-muted mb-1">{{ translate('payment_method') }}</p>
+                                        @if($customer['payment_card_last_four'])
+                                            <h4 class="mb-0">{{ $customer['payment_card_brand'] ?: translate('card') }} **** {{ $customer['payment_card_last_four'] }}</h4>
+                                            <span class="fs-12 text-muted">{{ translate('masked_payment_details_only') }}</span>
+                                        @elseif($customer['payment_card_fawry_token'])
+                                            <h4 class="mb-0">{{ translate('digital_payment_method') }}</h4>
+                                            <span class="fs-12 text-muted">{{ translate('tokenized_payment_method') }}</span>
+                                        @else
+                                            <h4 class="mb-0 text-muted">{{ translate('no_data_found') }}</h4>
+                                        @endif
+                                    </div>
+                                    <i class="fi fi-rr-credit-card text-primary fs-24"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-section rounded-10 p-3 h-100 d-flex justify-content-between align-items-center gap-3">
+                                <div>
+                                    <p class="fs-12 text-muted mb-1">{{ translate('support_actions') }}</p>
+                                    <h4 class="mb-1">{{ translate('customer_support_history') }}</h4>
+                                    <span class="fs-12 text-muted">{{ translate('admin_only_customer_contact') }}</span>
+                                </div>
+                                <a class="btn btn-outline-primary text-nowrap"
+                                   href="{{ route('admin.support-ticket.view', ['searchValue' => $customer['email'] ?: $customer['phone']]) }}">
+                                    <i class="fi fi-rr-ticket"></i> {{ translate('view_support_tickets') }}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if(config('customer_purchase_packages.enabled'))
             <div class="col-lg-12">
                 <div class="card">
                     <div class="card-body">
@@ -235,6 +305,8 @@
                     </div>
                 </div>
             </div>
+
+            @endif
 
             {{-- Order-stats are always rendered as a horizontal scrollable
                  row (col-lg-12), regardless of whether the customer has any
@@ -571,6 +643,39 @@
                     </div>
                 @endforeach
             @endif
+        </div>
+    </div>
+
+    <div class="modal fade" id="resetCustomerPasswordModal" tabindex="-1"
+         aria-labelledby="resetCustomerPasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" method="POST"
+                  action="{{ route('admin.customer.reset-password', $customer->id) }}">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title" id="resetCustomerPasswordModalLabel">{{ translate('reset_password') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning small">
+                        {{ translate('admin_password_reset_notice') }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="customer-reset-password">{{ translate('new_password') }}</label>
+                        <input class="form-control" id="customer-reset-password" name="password" type="password"
+                               minlength="8" required autocomplete="new-password">
+                    </div>
+                    <div>
+                        <label class="form-label" for="customer-reset-password-confirmation">{{ translate('confirm_password') }}</label>
+                        <input class="form-control" id="customer-reset-password-confirmation" name="password_confirmation"
+                               type="password" minlength="8" required autocomplete="new-password">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ translate('cancel') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ translate('reset_password') }}</button>
+                </div>
+            </form>
         </div>
     </div>
 

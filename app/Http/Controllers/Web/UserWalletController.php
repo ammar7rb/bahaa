@@ -7,6 +7,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use App\Models\WalletTransaction;
+use App\Services\CustomerInsuranceBalanceService;
 use App\Utils\Helpers;
 use App\Models\AddFundBonusCategories;
 use Brian2694\Toastr\Facades\Toastr;
@@ -16,50 +17,43 @@ use function App\Utils\payment_gateways;
 
 class UserWalletController extends Controller
 {
+    public function balances(Request $request): RedirectResponse
+    {
+        return redirect()->route('wallet', $request->query());
+    }
+
+    private function walletView(): View
+    {
+        $customerId = (int) auth('customer')->id();
+        $service = app(CustomerInsuranceBalanceService::class);
+        $gateways = payment_gateways();
+        $digitalPayment = getWebConfig(name: 'digital_payment');
+
+        return view('web-views.users-profile.customer-balances', [
+            'purchaseBalance' => (float) auth('customer')->user()->wallet_balance,
+            'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status($customerId),
+            'purchaseEntries' => WalletTransaction::query()->where('user_id', $customerId)
+                ->latest('id')->paginate(10, ['*'], 'purchase_page')->withQueryString(),
+            'paymentGatewayList' => $gateways,
+            'canDeposit' => getWebConfig(name: 'add_funds_to_wallet') == 1 && ($digitalPayment['status'] ?? 0) && $gateways->isNotEmpty(),
+            'purchaseWalletEnabled' => getWebConfig(name: 'wallet_status') == 1,
+            'canDepositOffline' => getWebConfig('add_funds_to_wallet') == 1 && (getWebConfig('offline_payment')['status'] ?? 0),
+            'offlinePaymentMethods' => \App\Models\OfflinePaymentMethod::where('status', 1)->get(),
+            'depositRequests' => \App\Models\CustomerBalanceDeposit::where('customer_id', $customerId)->where('wallet_type', 'purchase')
+                ->latest('id')->paginate(10, ['*'], 'deposits_page')->withQueryString(),
+        ]);
+    }
 
     public function index(Request $request): View|RedirectResponse
     {
-        $walletStatus = getWebConfig(name: 'wallet_status');
-        if ($walletStatus == 1) {
-            $transactionTypes = $this->getSelectTransactionTypes(types: $request->get('types', []));
-            $totalWalletBalance = auth('customer')->user()->wallet_balance;
-
-            $walletTransactionList = $this->getWalletTransactionList(request: $request, types: $transactionTypes);
-            $paymentGatewayList = payment_gateways();
-            $addFundBonusList = $this->getAddFundBonusList();
-
-            $filterCount = count($request['types']??[]) + (int)!empty($request['transaction_range']) + (int)!empty($request['filter_by']);
-
-            if ($request->has('flag') && $request['flag'] == 'success') {
-                Toastr::success(translate('add_fund_to_wallet_success'));
-                return redirect()->route('wallet');
-            } else if ($request->has('flag') && $request['flag'] == 'fail') {
-                Toastr::error(translate('add_fund_to_wallet_unsuccessful'));
-                return redirect()->route('wallet');
-            }
-
-            $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
-            $addFundsToWallet = getWebConfig(name: 'add_funds_to_wallet');
-            $addFundsToWalletStatus = $addFundsToWallet && count($paymentGatewayList) > 0 && ($digitalPaymentStatus['status'] ?? 0);
-
-            return view(VIEW_FILE_NAMES['user_wallet'], [
-                'addFundsToWalletStatus' => $addFundsToWalletStatus,
-                'totalWalletBalance' => $totalWalletBalance,
-                'walletTransactionList' => $walletTransactionList,
-                'paymentGatewayList' => $paymentGatewayList,
-                'addFundBonusList' => $addFundBonusList,
-                'transactionTypes' => $request->get('types', []),
-                'filterCount' => $filterCount,
-                'filterBy' => $request['filter_by'] ?? '',
-                'transactionRange' => $request['transaction_range'] ?? '',
-            ]);
-
-        } else {
-            Toastr::warning(translate('access_denied!'));
-            return redirect()->route('home');
+        if (in_array($request->get('flag'), ['success','fail'],true)) {
+            $request->get('flag') === 'success'
+                ? Toastr::success(translate('add_fund_to_wallet_success'))
+                : Toastr::error(translate('add_fund_to_wallet_unsuccessful'));
+            return redirect()->route('wallet');
         }
+        return $this->walletView();
     }
-
     public function myWalletAccount(): View
     {
         return view(VIEW_FILE_NAMES['wallet_account']);

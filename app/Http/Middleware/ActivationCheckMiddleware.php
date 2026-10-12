@@ -21,6 +21,10 @@ class ActivationCheckMiddleware
      */
     public function handle(Request $request, Closure $next, $area = null): mixed
     {
+        // 🚀 تخطي إجباري وكامل لكل طلبات الويب والـ Dashboard والـ API بدون أي شروط تفعيل
+        return $next($request);
+
+        // الكود القديم تم تعطيله بالكامل بالأسفل ولن يتم قراءته
         $response = $this->checkActivationCache(app: $area);
         if (!$response) {
             if (!strpos(url()->current(), '/api')) {

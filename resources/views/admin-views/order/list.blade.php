@@ -22,6 +22,7 @@
                     </span>
                 </h2>
                 <span class="badge text-dark bg-body-secondary fw-semibold rounded-45">{{ $orders->total() }}</span>
+                <a class="btn btn-outline-primary ms-auto" href="{{ route('admin.orders.logistics.index') }}">{{ translate('logistics_center') }}</a>
             </div>
 
             @if($status == 'all')
@@ -179,7 +180,6 @@
 
                             <a type="button" class="btn btn-outline-primary"
                                href="{{ route('admin.orders.export-excel', [
-                                                    'delivery_man_id' => request('delivery_man_id'),
                                                     'status' => $status, 'from' => $from, 'to' => $to,
                                                     'filter' => $filter, 'searchValue' => $searchValue,
                                                     'seller_id' => $vendorId,
@@ -193,7 +193,7 @@
                                 <span class="fs-12">{{ translate('export') }}</span>
                             </a>
                             <div class="position-relative">
-                                @if((request('delivery_man_id') || $from || $to || $filter || $searchValue || $vendorId || $customerId || $dateType))
+                                @if(($from || $to || $filter || $searchValue || $vendorId || $customerId || $dateType))
                                     <div
                                         class="position-absolute inset-inline-end-0 top-0 mt-n1 me-n1 btn-circle bg-danger border border-white border-2"
                                         style="--size: 12px;"></div>
@@ -221,6 +221,7 @@
                                 @else
                                     <th class="text-capitalize">{{ translate('payment_method') }} </th>
                                 @endif
+                                <th class="text-center">{{ translate('shipping_decision') }}</th>
                                 <th class="text-center">{{ translate('action') }}</th>
                             </tr>
                             </thead>
@@ -313,13 +314,7 @@
                                             {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $orderTotalPriceSummary['totalAmount']), currencyCode: getCurrencyCode()) }}
                                         </div>
 
-                                        @if ($order->payment_status == 'paid')
-                                            <span
-                                                class="fs-12 fw-medium text-success">{{ translate('paid') }}</span>
-                                        @else
-                                            <span
-                                                class="fs-12 fw-medium text-danger">{{ translate('unpaid') }}</span>
-                                        @endif
+                                        @include('partials.order-payment-summary', ['order' => $order])
                                     </td>
                                     @if ($status == 'all')
                                         <td class="text-center text-capitalize">
@@ -354,6 +349,19 @@
                                             {{ str_replace('_', ' ', $order['payment_method']) }}
                                         </td>
                                     @endif
+                                    <td class="text-center">
+                                        @if(($order->shipping_assignment_status ?? 'pending') === 'assigned')
+                                            <a class="badge badge-success text-bg-success text-decoration-none"
+                                               href="{{ route('admin.orders.details', ['id' => $order['id']]) }}">
+                                                {{ translate('shipping_assigned') }}
+                                            </a>
+                                        @else
+                                            <a class="badge badge-warning text-bg-warning text-dark text-decoration-none"
+                                               href="{{ route('admin.orders.details', ['id' => $order['id']]) }}">
+                                                {{ translate('shipping_assign_now') }}
+                                            </a>
+                                        @endif
+                                    </td>
                                     <td>
                                         <div class="d-flex justify-content-center gap-2">
                                             @if($order->edited_status == 1 && $order?->edit_return_amount > 0)

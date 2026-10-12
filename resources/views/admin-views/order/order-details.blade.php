@@ -23,8 +23,131 @@
             </div>
         </div>
 
+        @if($order->customer && !$order->is_guest) @include('admin-views.customer.purchase-state', ['customer' => $order->customer]) @endif
+        @include('admin-views.order.partials._admin-review-panel')
+        <details class="mb-3"><summary class="card p-3 cursor-pointer">{{ translate('Shipping_promise,_settlement_and_proofs') }}</summary>
+            @include('admin-views.order.partials._shipping-settlement-refund')
+        </details>
+
         <div class="row g-3" id="printableArea">
             <div class="col-xl-8">
+                @if($order->insurance)
+                    <div class="card mb-3 border-info">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+                                <h5 class="mb-0">{{ translate('order_insurance') }}</h5>
+                                <span class="badge badge-info text-bg-info">{{ translate($order->insurance->status) }}</span>
+                            </div>
+                            <div class="row g-2 fs-13 mb-3">
+                                <div class="col-md-4"><span class="text-muted">{{ translate('Amount') }}:</span> {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->insurance->amount), currencyCode: getCurrencyCode()) }}</div>
+                                <div class="col-md-4"><span class="text-muted">{{ translate('Order_Value_Threshold') }}:</span> {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->insurance->threshold_amount), currencyCode: getCurrencyCode()) }}</div>
+                                <div class="col-md-4"><span class="text-muted">{{ translate('Insurance_Calculation_Type') }}:</span> {{ translate($order->insurance->calculation_type) }}</div>
+                                <div class="col-md-4"><span class="text-muted">{{ translate('Insurance_Recovery_Days') }}:</span> {{ $order->insurance->maturity_days }} {{ translate('days') }}</div>
+                                <div class="col-md-4"><span class="text-muted">{{ translate('insurance_matures_at') }}:</span> {{ $order->insurance->matures_at?->format('d M, Y') ?? '-' }}</div>
+                            </div>
+                            @if($order->insurance->status === 'pending_payment' && $order->payment_method === 'offline_payment')
+                                <form method="post" action="{{ route('admin.orders.insurance-decision', $order->id) }}" class="d-flex gap-2 flex-wrap align-items-end">
+                                    @csrf
+                                    <div class="flex-grow-1">
+                                        <label class="form-label mb-1">{{ translate('insurance_decision_note') }}</label>
+                                        <input class="form-control" name="admin_note" required maxlength="5000">
+                                    </div>
+                                    <button class="btn btn-primary" name="decision" value="approve_payment" type="submit">{{ translate('approve_offline_payment') }}</button>
+                                </form>
+                            @elseif($order->insurance->status === 'held' && $order->payment_status === 'paid')
+                                <form method="post" action="{{ route('admin.orders.insurance-decision', $order->id) }}" class="d-flex gap-2 flex-wrap align-items-end">
+                                    @csrf
+                                    <div class="flex-grow-1">
+                                        <label class="form-label mb-1">{{ translate('insurance_decision_note') }}</label>
+                                        <input class="form-control" name="admin_note" required maxlength="5000">
+                                    </div>
+                                    <span class="text-muted fs-12">{{ translate('order_insurance_auto_release_notice') }}</span>
+                                    <button class="btn btn-danger" name="decision" value="forfeit" type="submit">{{ translate('forfeit_insurance') }}</button>
+                                </form>
+                            @elseif($order->insurance->status === 'pending_payment')
+                                <p class="text-muted fs-12 mb-0">{{ translate('payment_status_must_be_paid') }}</p>
+                            @elseif($order->insurance->status === 'matured')
+                                <p class="text-success fs-12 mb-0">{{ translate('order_insurance_matured_notice') }}</p>
+                            @elseif($order->insurance->admin_note)
+                                <p class="text-muted fs-12 mb-0">{{ $order->insurance->admin_note }}</p>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+                @php($sellerOrderInsurance = $order->sellerOrderInsurance)
+                @if($sellerOrderInsurance)
+                    <div class="card h-100 mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                <div>
+                                    <h4 class="mb-1">{{ translate('Seller_Order_Insurance') }}</h4>
+                                    <p class="text-muted fs-12 mb-0">{{ translate('seller_order_insurance_admin_decision_note') }}</p>
+                                </div>
+                                <span class="badge badge-soft-{{ $sellerOrderInsurance->status === 'paid' || $sellerOrderInsurance->status === 'waived' ? 'success' : ($sellerOrderInsurance->status === 'expired' ? 'danger' : 'warning') }}">
+                                    {{ translate($sellerOrderInsurance->status) }}
+                                </span>
+                            </div>
+                            <div class="row g-2 fs-13 mb-3">
+                                <div class="col-md-3"><span class="text-muted">{{ translate('Amount') }}:</span> {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $sellerOrderInsurance->amount), currencyCode: getCurrencyCode()) }}</div>
+                                <div class="col-md-3"><span class="text-muted">{{ translate('Insurance_Calculation') }}:</span>
+                                    {{ ($sellerOrderInsurance->calculation_type ?? 'percentage') === 'fixed'
+                                        ? setCurrencySymbol(amount: usdToDefaultCurrency(amount: $sellerOrderInsurance->calculation_value))
+                                        : ($sellerOrderInsurance->calculation_value ?: $sellerOrderInsurance->percentage).'%' }}
+                                </div>
+                                <div class="col-md-3"><span class="text-muted">{{ translate('Expires_At') }}:</span> {{ $sellerOrderInsurance->expires_at?->format('d M, Y h:i A') ?? '-' }}</div>
+                                <div class="col-md-3"><span class="text-muted">{{ translate('Payment_Status') }}:</span> {{ translate($sellerOrderInsurance->payment_status) }}</div>
+                            </div>
+
+                            @if($sellerOrderInsurance->status === \App\Models\SellerOrderInsurance::STATUS_EXPIRED)
+                                <form method="post" action="{{ route('admin.orders.seller-order-insurance-decision', $order->id) }}" class="p-3 bg-section rounded">
+                                    @csrf
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-lg-3">
+                                            <label class="form-label">{{ translate('Administrative_Decision') }}</label>
+                                            <select class="form-select" name="action" id="seller-insurance-expired-action" required>
+                                                <option value="">{{ translate('Select') }}</option>
+                                                <option value="extend">{{ translate('Extend_Payment_Deadline') }}</option>
+                                                <option value="waive">{{ translate('Waive_Insurance') }}</option>
+                                                <option value="keep_locked">{{ translate('Keep_Order_Locked') }}</option>
+                                                <option value="transfer_to_operations">{{ translate('Transfer_To_Operations') }}</option>
+                                                <option value="request_cancellation">{{ translate('Request_Order_Cancellation') }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-lg-2">
+                                            <label class="form-label">{{ translate('Extension_Days') }}</label>
+                                            <input type="number" min="1" max="90" class="form-control" name="extension_days" id="seller-insurance-extension-days">
+                                        </div>
+                                        <div class="col-lg-5">
+                                            <label class="form-label">{{ translate('Decision_Reason') }} <span class="text-danger">*</span></label>
+                                            <input type="text" maxlength="5000" class="form-control" name="reason" required>
+                                        </div>
+                                        <div class="col-lg-2">
+                                            <button type="submit" class="btn btn-primary w-100">{{ translate('Save_Decision') }}</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            @endif
+
+                            @if($sellerOrderInsurance->decisions()->exists())
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <thead><tr><th>{{ translate('Date') }}</th><th>{{ translate('Decision') }}</th><th>{{ translate('Status') }}</th><th>{{ translate('Reason') }}</th></tr></thead>
+                                        <tbody>
+                                        @foreach($sellerOrderInsurance->decisions()->get() as $decision)
+                                            <tr>
+                                                <td>{{ $decision->created_at?->format('d M, Y h:i A') }}</td>
+                                                <td>{{ translate($decision->action) }}</td>
+                                                <td>{{ translate($decision->status_before) }} → {{ translate($decision->status_after) }}</td>
+                                                <td>{{ $decision->reason }}</td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @endif
                 <div class="card h-100">
                     <div class="card-body">
                         <div class="d-flex flex-wrap flex-md-nowrap gap-10 justify-content-between mb-4">
@@ -177,6 +300,10 @@
                                     @endif
 
                                 </div>
+                            </div>
+                            <div class="mt-2 p-2 rounded bg-section">
+                                <label class="form-check mb-2"><input class="form-check-input" id="workflow_override" type="checkbox" value="1"> <span class="form-check-label">{{ translate('admin_status_transition_override') }}</span></label>
+                                <input class="form-control form-control-sm" id="workflow_reason" placeholder="{{ translate('override_reason_required') }}">
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -676,20 +803,11 @@
                                     @if (isset($item) && $key != 'method_id')
                                         <div class="d-flex gap-3 align-items-center overflow-wrap-anywhere">
                                             <span class="w-120 flex-shrink-0 text-capitalize text-capitalize">
-                                                {{ translatePaymentText($key) }}
+                                                {{ translate($key) }}
                                             </span>
                                             <span>:</span>
-                                            <span class="fw-semibold">
-                                                @php($proofUrl = getOfflinePaymentProofUrl($item, ['offline-payment/order-proof']))
-                                                @if($proofUrl)
-                                                    <a href="{{ $proofUrl }}" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">
-                                                        <img src="{{ $proofUrl }}" width="52" height="52" class="rounded border object-cover" alt="{{ translatePaymentText($key) }}">
-                                                        <span>{{ translate('View') }}</span>
-                                                    </a>
-                                                @else
-                                                    {{ formatOrderPaymentInfoValue($item, 'N/a') }}
-                                                @endif
-                                            </span>
+                                        @php($displayPaymentItem = is_array($item) || is_object($item) ? json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : $item)
+                                        <span class="fw-semibold">{{ $displayPaymentItem ?? 'N/a' }}</span>
                                         </div>
                                     @endif
                                 @endforeach
@@ -854,28 +972,22 @@
                                                     <div class="d-flex gap-3 align-items-center overflow-wrap-anywhere">
                                                         <span
                                                             class="w-120 flex-shrink-0 text-capitalize text-capitalize">
-                                                            {{ translatePaymentText($orderDuePaymentInfoKey) }}
+                                                            {{ translate($orderDuePaymentInfoKey) }}
                                                         </span>
                                                         <span>:</span>
                                                         <span class="fw-semibold">
-                                                        @php($proofUrl = getOfflinePaymentProofUrl($orderDuePaymentInfo, ['offline-payment/order-proof']))
-                                                        @php($formattedOrderDuePaymentInfo = formatOrderPaymentInfoValue($orderDuePaymentInfo))
-                                                        @if($proofUrl)
-                                                            <a href="{{ $proofUrl }}" target="_blank" rel="noopener" class="d-inline-flex align-items-center gap-2">
-                                                                <img src="{{ $proofUrl }}" width="52" height="52" class="rounded border object-cover" alt="{{ translatePaymentText($orderDuePaymentInfoKey) }}">
-                                                                <span>{{ translate('View') }}</span>
-                                                            </a>
-                                                        @elseif($orderDuePaymentInfoKey === 'payment_note' && strlen($formattedOrderDuePaymentInfo) > 250)
-                                                                {{ Str::limit($formattedOrderDuePaymentInfo, 250) }}
+                                                        @php($displayDuePaymentInfo = is_array($orderDuePaymentInfo) || is_object($orderDuePaymentInfo) ? json_encode($orderDuePaymentInfo, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : $orderDuePaymentInfo)
+                                                        @if($orderDuePaymentInfoKey === 'payment_note' && is_string($displayDuePaymentInfo) && strlen($displayDuePaymentInfo) > 250)
+                                                                {{ Str::limit($displayDuePaymentInfo, 250) }}
                                                                 <a href="javascript:void(0)"
                                                                    class="text-primary ms-1"
                                                                    data-bs-toggle="modal"
                                                                    data-bs-target="#paymentNoteModal-{{$orderDuePaymentInfoKey}}">
                                                                     {{ translate('Read more') }}
                                                                     </a>
-                                                        @else
-                                                                {{ $formattedOrderDuePaymentInfo }}
-                                                        @endif
+                                                            @else
+                                                                {{ $displayDuePaymentInfo ?? 'N/A' }}
+                                                            @endif
                                                         </span>
                                                     </div>
                                                 @endif
@@ -886,14 +998,14 @@
                                                         class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                                                         <div class="modal-content">
                                                             <div class="modal-header">
-                                                                <h5 class="modal-title">{{ translate('Payment_Note') }}</h5>
+                                                                <h5 class="modal-title">Payment Note</h5>
                                                                 <button type="button" class="btn-close"
                                                                         data-bs-dismiss="modal"></button>
                                                             </div>
 
                                                             <div class="modal-body">
                                                                 <p class="mb-0" style="white-space: pre-wrap;">
-                                                                    {{ formatOrderPaymentInfoValue($order?->latestEditHistory?->order_due_payment_info['payment_note'] ?? null) }}
+                                                                    {{ $order?->latestEditHistory?->order_due_payment_info['payment_note'] ?? 'N/A' }}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -996,6 +1108,7 @@
                                 </button>
                             </div>
                         @endif
+                        @php($adminOrderAwaitingRelease = $order->seller_is === 'seller' && !app(\App\Services\SellerOrderVisibilityService::class)->canSellerAccess($order))
                         <div class="text-capitalize">
                             <label
                                 class="form-label fw-bold mb-2">{{translate('change_order_status')}}</label>
@@ -1006,26 +1119,29 @@
                                     <option
                                         value="pending" {{$order->order_status == 'pending'?'selected':''}} > {{translate('pending')}}</option>
                                     <option
-                                        value="confirmed" {{$order->order_status == 'confirmed'?'selected':''}} > {{translate('confirmed')}}</option>
+                                        value="confirmed" {{$order->order_status == 'confirmed'?'selected':''}} @disabled($adminOrderAwaitingRelease)> {{translate('confirmed')}}</option>
                                     <option
-                                        value="processing" {{$order->order_status == 'processing'?'selected':''}} >{{translate('packaging')}} </option>
+                                        value="processing" {{$order->order_status == 'processing'?'selected':''}} @disabled($adminOrderAwaitingRelease)>{{translate('packaging')}} </option>
                                     <option class="text-capitalize"
-                                            value="out_for_delivery" {{$order->order_status == 'out_for_delivery'?'selected':''}} >{{translate('out_for_delivery')}} </option>
+                                            value="out_for_delivery" {{$order->order_status == 'out_for_delivery'?'selected':''}} @disabled($adminOrderAwaitingRelease)>{{translate('out_for_delivery')}} </option>
                                     <option
-                                        value="delivered" {{$order->order_status == 'delivered'?'selected':''}} >{{translate('delivered')}} </option>
+                                        value="delivered" {{$order->order_status == 'delivered'?'selected':''}} @disabled($adminOrderAwaitingRelease)>{{translate('delivered')}} </option>
                                     <option
-                                        value="returned" {{$order->order_status == 'returned'?'selected':''}} > {{translate('returned')}}</option>
+                                        value="returned" {{$order->order_status == 'returned'?'selected':''}} @disabled($adminOrderAwaitingRelease)> {{translate('returned')}}</option>
                                     <option
-                                        value="failed" {{$order->order_status == 'failed'?'selected':''}} >{{translate('failed_to_Deliver')}} </option>
+                                        value="failed" {{$order->order_status == 'failed'?'selected':''}} @disabled($adminOrderAwaitingRelease)>{{translate('failed_to_Deliver')}} </option>
                                     <option
                                         value="canceled" {{$order->order_status == 'canceled'?'selected':''}} >{{translate('canceled')}} </option>
                                 </select>
                             </div>
+                            @if($adminOrderAwaitingRelease)
+                                <p class="small text-warning mt-2 mb-0">{{ translate('admin_order_release_required_before_confirmation') }}</p>
+                            @endif
                         </div>
                         <div
                             class="d-flex justify-content-between align-items-center gap-10 form-control py-10 h-auto flex-wrap  text-capitalize">
                             <span class="text-dark">
-                                {{translate('payment_status')}}
+                                {{translate('purchase_and_shipping_payment')}}
                             </span>
                             <div class="d-flex justify-content-end align-items-center gap-2">
                                 <span
@@ -1041,6 +1157,7 @@
                                 </label>
                             </div>
                         </div>
+                        @include('partials.order-payment-summary', ['order' => $order])
                         <?php $disableDeliveryType = !$physicalProduct && $shippingAddress; ?>
                         @if($physicalProduct || $shippingAddress)
                             <ul class="list-unstyled list-unstyled-py-4 d-flex flex-column gap-4 mb-0 pe-0">
@@ -1052,6 +1169,77 @@
                                             )
                                         </label>
                                     @endif
+                                    @if($order->shipping_quantity !== null)
+                                        {{-- Snapshot values keep the shipping review accurate after admin settings change. --}}
+                                        <div class="bg-section rounded p-3 mb-3">
+                                            <h5 class="mb-3">{{ translate('shipping_review') }}</h5>
+                                            <div class="d-flex justify-content-between gap-3 mb-2">
+                                                <span>{{ translate('product_shipping_subtotal') }} ({{ $order->shipping_quantity }} {{ translate('items') }})</span>
+                                                <span>{{ webCurrencyConverter(amount: $order->shipping_product_subtotal) }}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between gap-3 mb-2">
+                                                <span>{{ translate('quantity_surcharge') }}</span>
+                                                <span>{{ webCurrencyConverter(amount: $order->shipping_quantity_surcharge) }}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between gap-3 fw-bold">
+                                                <span>{{ translate('final_shipping_charge') }}</span>
+                                                <span>{{ webCurrencyConverter(amount: $order->shipping_cost) }}</span>
+                                            </div>
+                                        </div>
+                                    @endif
+                                    @php($shippingDecision = $order->shippingDecisionHistory?->first())
+                                    <div class="bg-section rounded p-3 mb-3 border border-primary-subtle">
+                                        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+                                            <h5 class="mb-0">{{ translate('administrative_shipping_decision') }}</h5>
+                                            <span class="badge {{ ($order->shipping_assignment_status ?? 'pending') === 'assigned' ? 'bg-success' : 'bg-warning text-dark' }}">
+                                                {{ ($order->shipping_assignment_status ?? 'pending') === 'assigned' ? translate('shipping_assigned') : translate('shipping_decision_pending') }}
+                                            </span>
+                                        </div>
+                                        <a href="#admin-order-review" class="btn btn-outline-primary">{{ translate('insurance_and_shipping_decision') }}</a>
+                                        @if($order->shippingDecisionHistory?->isNotEmpty())
+                                            <div class="table-responsive mt-4">
+                                                <table class="table table-sm align-middle mb-0">
+                                                    <thead><tr><th>{{ translate('shipping_decision_date') }}</th><th>{{ translate('shipping_decision_action_label') }}</th><th>{{ translate('customer_shipping_cost') }}</th><th>{{ translate('tracking_number') }}</th><th>{{ translate('shipping_administrator') }}</th></tr></thead>
+                                                    <tbody>
+                                                    @foreach($order->shippingDecisionHistory as $decision)
+                                                        <tr>
+                                                            <td>{{ optional($decision->created_at)->format('Y-m-d H:i') }}</td>
+                                                            <td>{{ $decision->mode === 'seller_shipping' ? translate('shipping_seller_label') : translate('shipping_company_label') }}</td>
+                                                            <td>{{ $decision->customer_cost !== null ? webCurrencyConverter(amount: $decision->customer_cost) : '-' }}</td>
+                                                            <td>{{ $decision->tracking_number ?: '-' }}</td>
+                                                            <td>{{ $decision->admin?->name ?: '-' }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        @endif
+                                        <div class="bg-section rounded p-3 mt-3 border border-info-subtle">
+                                            <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+                                                <h5 class="mb-0">{{ translate('logistics_status_and_history') }}</h5>
+                                                <span class="badge bg-info text-dark">{{ translate($order->shipping_operational_status ?: 'pending_assignment') }}</span>
+                                            </div>
+                                            <div class="row g-2 fs-13 mb-3">
+                                                <div class="col-md-4"><span class="text-muted">{{ translate('shipping_party') }}:</span> {{ translate($order->shipping_responsible_party ?: 'not_assigned') }}</div>
+                                                <div class="col-md-4"><span class="text-muted">{{ translate('customer_confirmation') }}:</span> {{ translate($order->customer_delivery_confirmation_status ?: 'not_applicable') }}</div>
+                                                <div class="col-md-4"><span class="text-muted">{{ translate('confirmation_due_date') }}:</span> {{ optional($order->customer_delivery_confirmation_due_at)->format('Y-m-d H:i') ?: '-' }}</div>
+                                                @if($order->return_started_at)
+                                                    <div class="col-md-4"><span class="text-muted">{{ translate('return_responsibility') }}:</span> {{ translate($order->return_responsible_party ?: 'not_assigned') }}</div>
+                                                    <div class="col-md-4"><span class="text-muted">{{ translate('return_shipping_cost') }}:</span> {{ webCurrencyConverter(amount: $order->return_shipping_cost ?? 0) }}</div>
+                                                    <div class="col-md-4"><span class="text-muted">{{ translate('return_tracking_number') }}:</span> {{ $order->return_tracking_number ?: '-' }}</div>
+                                                @endif
+                                            </div>
+                                            @if($order->logisticsEvents?->isNotEmpty())
+                                                <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>{{ translate('date') }}</th><th>{{ translate('shipping_status') }}</th><th>{{ translate('shipping_party') }}</th><th>{{ translate('tracking_number') }}</th><th>{{ translate('note') }}</th></tr></thead><tbody>
+                                                    @foreach($order->logisticsEvents as $event)
+                                                        <tr><td>{{ optional($event->created_at)->format('Y-m-d H:i') }}</td><td>{{ translate($event->shipping_status ?: '-') }}</td><td>{{ translate($event->responsible_party ?: 'not_assigned') }}</td><td>{{ $event->tracking_number ?: '-' }}</td><td>{{ $event->note ?: '-' }}</td></tr>
+                                                    @endforeach
+                                                </tbody></table></div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    {{-- Historical Delivery Man controls are intentionally unavailable in order review. --}}
+                                    @if(false)
                                     <div class="select-wrapper"
                                          @if($disableDeliveryType)
                                              data-bs-toggle="tooltip"
@@ -1076,8 +1264,10 @@
                                             </option>
                                         </select>
                                     </div>
+                                    @endif
                                 </li>
 
+                                @if(false)
                                 @if(!$disableDeliveryType)
                                     <li class="choose_delivery_man">
                                         <label class="form-label fw-bold mb-2">
@@ -1170,6 +1360,7 @@
                                             </div>
                                         </div>
                                     </li>
+                                @endif
                                 @endif
                             </ul>
                         @endif
@@ -2129,21 +2320,6 @@
     <span id="order-status-url" data-url="{{route('admin.orders.status')}}"></span>
     <span id="payment-status-url" data-url="{{ route('admin.orders.payment-status') }}"></span>
 
-    <span id="message-deliveryman-add-success-text"
-          data-text="{{ translate("delivery_man_successfully_assigned/changed") }}"></span>
-    <span id="message-deliveryman-add-error-text"
-          data-text="{{ translate("deliveryman_man_can_not_assign_or_change_in_that_status") }}"></span>
-    <span id="message-deliveryman-add-invalid-text"
-          data-text="{{ translate("deliveryman_man_can_not_assign_or_change_in_that_status") }}"></span>
-    <span id="delivery-type" data-type="{{ $order->delivery_type }}"></span>
-    <span id="add-delivery-man-url" data-url="{{url('/admin/orders/add-delivery-man/'.$order['id'])}}/"></span>
-
-    <span id="message-deliveryman-charge-success-text"
-          data-text="{{ translate("deliveryman_charge_add_successfully") }}"></span>
-    <span id="message-deliveryman-charge-error-text"
-          data-text="{{ translate("failed_to_add_deliveryman_charge") }}"></span>
-    <span id="message-deliveryman-charge-invalid-text" data-text="{{ translate("add_valid_data") }}"></span>
-    <span id="add-date-update-url" data-url="{{route('admin.orders.amount-date-update')}}"></span>
 
     <span id="customer-name" data-text="{{$order->customer['f_name']??""}} {{$order->customer['l_name']??""}}}"></span>
     <span id="is-shipping-exist" data-status="{{$shippingAddress ? 'true':'false'}}"></span>
@@ -2156,8 +2332,6 @@
           data-path="{{ dynamicAsset(path: 'public/assets/front-end/img/customer_location.png')}}"></span>
     <span id="customer-image"
           data-path="{{dynamicStorage(path: 'storage/app/public/profile/')}}{{$order->customer->image??""}}"></span>
-    <span id="deliveryman-charge-alert-message"
-          data-message="{{translate('when_order_status_delivered_you_can`t_update_the_delivery_man_incentive').'.'}}"></span>
     <span id="payment-status-alert-message"
           data-message="{{translate('when_payment_status_paid_then_you_can`t_change_payment_status_paid_to_unpaid').'.'}}"></span>
     <span id="amount-cannot-be-empty-message"

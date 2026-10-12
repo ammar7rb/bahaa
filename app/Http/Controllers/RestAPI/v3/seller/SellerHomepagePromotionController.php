@@ -23,7 +23,7 @@ class SellerHomepagePromotionController extends Controller
         $seller = $request->seller;
         $products = Product::query()
             ->withoutGlobalScopes()
-            ->with('activeHomepagePromotion')
+            ->with(['activeHomepagePromotion', 'latestHomepagePromotion'])
             ->where(['added_by' => 'seller', 'user_id' => $seller->id])
             ->where(['status' => 1, 'request_status' => 1])
             ->latest('id')
@@ -68,7 +68,7 @@ class SellerHomepagePromotionController extends Controller
             $promotion = $this->promotionService->activateHomepagePromotion($product, $seller);
 
             return response()->json([
-                'message' => translate('homepage_promotion_activated_successfully'),
+                'message' => translate('Advertising_request_sent_for_admin_review'),
                 'promotion' => $this->formatPromotion($promotion),
                 'summary' => $this->formatSummary($this->promotionService->getHomepageSummary($seller)),
             ]);
@@ -102,8 +102,9 @@ class SellerHomepagePromotionController extends Controller
             'name' => $product->name,
             'thumbnail_full_url' => $product->thumbnail_full_url,
             'is_homepage_promoted' => (bool) $product->activeHomepagePromotion,
-            'homepage_promotion' => $product->activeHomepagePromotion
-                ? $this->formatPromotion($product->activeHomepagePromotion)
+            'has_pending_ad_request' => $product->latestHomepagePromotion?->approval_status === SellerProductPromotion::APPROVAL_PENDING,
+            'homepage_promotion' => $product->latestHomepagePromotion
+                ? $this->formatPromotion($product->latestHomepagePromotion)
                 : null,
         ];
     }
@@ -117,6 +118,15 @@ class SellerHomepagePromotionController extends Controller
             'promotion_type' => $promotion->promotion_type,
             'duration_days' => $promotion->duration_days,
             'status' => $promotion->status,
+            'approval_status' => $promotion->approval_status,
+            'review_note' => $promotion->review_note,
+            'placement_scope' => $promotion->placement_scope,
+            'placement_key' => $promotion->placement_key,
+            'requested_position' => $promotion->requested_position,
+            'approved_position' => $promotion->approved_position,
+            'badge_label' => data_get($promotion->metadata, 'badge_label'),
+            'requested_at' => $promotion->requested_at,
+            'reviewed_at' => $promotion->reviewed_at,
             'starts_at' => $promotion->starts_at,
             'expires_at' => $promotion->expires_at,
         ];

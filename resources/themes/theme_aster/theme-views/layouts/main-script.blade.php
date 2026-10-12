@@ -2,9 +2,6 @@
     use Illuminate\Support\Facades\Cookie;
 @endphp
 
-@php($recaptcha = getWebConfig(name: 'recaptcha'))
-<span id="get-google-recaptcha-key"
-data-value="{{ isset($recaptcha) && $recaptcha['status'] == 1 ? $recaptcha['site_key'] : '' }}"></span>
 
 <script src="{{ theme_asset('assets/js/jquery-3.6.0.min.js') }}"></script>
 <script src="{{ theme_asset('assets/js/bootstrap.bundle.min.js') }}"></script>
@@ -16,18 +13,15 @@ data-value="{{ isset($recaptcha) && $recaptcha['status'] == 1 ? $recaptcha['site
 <script src="{{ theme_asset('assets/js/toastr.js') }}"></script>
 <script src="{{ theme_asset('assets/js/main.js') }}"></script>
 
-<script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInput.js') }}"></script>
-<script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/utils.js') }}"></script>
-<script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInout-validation.js') }}"></script>
+@if (!request()->routeIs('vendor.auth.registration.*'))
+    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInput.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/utils.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInout-validation.js') }}"></script>
+@endif
 
 <script src="{{ dynamicAsset(path: 'public/assets/backend/file-validation/polyfills.js') }}"></script>
 <script src="{{ dynamicAsset(path: 'public/assets/backend/file-validation/just-validate.min.js') }}"></script>
 <script src="{{ dynamicAsset(path: 'public/assets/backend/file-validation/form-advance-validation.js') }}"></script>
-
-@if (isset($recaptcha) && $recaptcha['status'] == 1)
-    <script src="https://www.google.com/recaptcha/api.js?render={{ $recaptcha['site_key'] }}"></script>
-@endif
-<script src="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.js') }}"></script>
 
 @if(env('APP_MODE') == 'demo')
     <script>

@@ -14,7 +14,33 @@
                 </p>
             </div>
             <div class="d-flex align-items-stretch justify-content-end flex-wrap gap-3">
-                @if ($product['added_by'] == 'seller' && $product['request_status'] == 2)
+                @php
+                    $sellerReviewStatus = $product->seller_review_status ?: match (true) {
+                        (int) $product->request_status === 2 => 'rejected',
+                        (int) $product->request_status === 1 && (int) $product->status === 1 => 'approved_published',
+                        (int) $product->request_status === 1 => 'suspended',
+                        default => 'submitted',
+                    };
+                    $sellerReviewReason = $product->seller_review_reason ?: $product->denied_note;
+                    $sellerVisibleStatus = in_array($sellerReviewStatus, ['submitted', 'under_review'], true) ? 'active' : $sellerReviewStatus;
+                    $sellerReviewStatusClass = match ($sellerVisibleStatus) {
+                        'active' => 'success',
+                        'approved_published' => 'success',
+                        'rejected', 'suspended', 'deleted' => 'danger',
+                        default => 'warning',
+                    };
+                @endphp
+                <div class="alert alert-soft-{{ $sellerReviewStatusClass }} text-body fw-normal fs-12 px-3 py-2 rounded mb-0">
+                    <strong>{{ translate('seller_product_review_status') }}:</strong>
+                    {{ $sellerVisibleStatus === 'active' ? translate('active') : translate('seller_product_review_' . $sellerReviewStatus) }}
+                    @if(in_array($sellerReviewStatus, ['submitted', 'under_review'], true))
+                        <span class="badge badge-soft-warning ms-1">{{ translate('under_admin_review') }}</span>
+                    @endif
+                    @if($sellerReviewReason)
+                        <div class="mt-1"><strong>{{ translate('seller_product_review_reason') }}:</strong> {{ $sellerReviewReason }}</div>
+                    @endif
+                </div>
+                @if ($product['added_by'] == 'seller' && $product['request_status'] == 2 && !$product->seller_review_reason)
                     <div
                         class="alert-danger text-body fw-normal fs-12 px-2 py-1 rounded d-flex justify-content-center align-items-center max-w-500 single-line-text-break">
                     <span>
@@ -432,6 +458,32 @@
                                                 <span class="value fs-12 text-dark">{{ $product['unit']}}</span>
                                             </div>
                                             <div>
+                                                <span class="key text-nowrap fs-12">{{ translate('seller_product_sale_unit_type') }}</span>
+                                                <span>:</span>
+                                                <span class="value fs-12 text-dark">{{ translate('seller_product_sale_unit_' . ($product->sale_unit_type === 'box' ? 'package' : ($product->sale_unit_type ?: 'piece'))) }}</span>
+                                            </div>
+                                            @if(in_array($product->sale_unit_type, ['package', 'box'], true))
+                                                <div>
+                                                    <span class="key text-nowrap fs-12">{{ translate('seller_product_pieces_per_unit') }}</span>
+                                                    <span>:</span>
+                                                    <span class="value fs-12 text-dark">{{ $product->pieces_per_unit }}</span>
+                                                </div>
+                                            @endif
+                                            @if($product->length || $product->width || $product->height)
+                                                <div>
+                                                    <span class="key text-nowrap fs-12">{{ translate('seller_product_dimensions') }}</span>
+                                                    <span>:</span>
+                                                    <span class="value fs-12 text-dark">{{ $product->length ?? '-' }} × {{ $product->width ?? '-' }} × {{ $product->height ?? '-' }} {{ $product->dimension_unit }}</span>
+                                                </div>
+                                            @endif
+                                            @if($product->weight)
+                                                <div>
+                                                    <span class="key text-nowrap fs-12">{{ translate('seller_product_weight') }}</span>
+                                                    <span>:</span>
+                                                    <span class="value fs-12 text-dark">{{ $product->weight }} {{ $product->weight_unit }}</span>
+                                                </div>
+                                            @endif
+                                            <div>
                                                 <span
                                                     class="key text-nowrap fs-12">{{ translate('current_Stock') }}</span>
                                                 <span>:</span>
@@ -694,6 +746,8 @@
                 </div>
             </div>
 
+            {{-- Product reviews and replies are administered centrally and are not exposed to vendors. --}}
+            @if(false)
             <div class="col-12">
                 <div class="card">
                     @php($vendorReviewReplyStatus = getWebConfig('vendor_review_reply_status') ?? 0)
@@ -1044,6 +1098,7 @@
                     @endif
                 </div>
             </div>
+            @endif
         </div>
     </div>
     <?php

@@ -120,8 +120,26 @@ if (!function_exists('translatePaymentText')) {
             'payment screenshot' => 'payment_screenshot',
             'payment proof' => 'payment_proof',
             'instructions' => 'instructions',
+            'wallet_number' => 'wallet_number',
+            'instapay_account' => 'instapay_account',
+            'account_holder_name' => 'account_holder_name',
         ];
 
         return translate($knownKeys[strtolower($text)] ?? $text);
+    }
+}
+
+if (!function_exists('offlinePaymentMethodDisplayName')) {
+    function offlinePaymentMethodDisplayName(mixed $method): string
+    {
+        $channel = is_array($method) ? ($method['payment_channel'] ?? 'other') : ($method->payment_channel ?? 'other');
+        $name = is_array($method) ? ($method['method_name'] ?? '') : ($method->method_name ?? '');
+        $arabic = in_array(app()->getLocale(), ['ar', 'sa'], true);
+
+        return match ($channel) {
+            'wallet' => $arabic ? 'محفظة إلكترونية' : 'Electronic Wallet',
+            'instapay' => $arabic ? 'إنستا باي' : 'InstaPay',
+            default => translatePaymentText($name),
+        };
     }
 }
