@@ -1,0 +1,38 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import cp from 'node:child_process';
+const out='E:/project/deliverables/customer-packages';
+const mode=process.argv[2];
+const root=mode==='mobile'?'E:/project/user-app-main':'E:/xampp/htdocs/ba';
+const env={...process.env,GIT_INDEX_FILE:`${out}/${mode}-github.index`};
+const git=(...args)=>cp.execFileSync('git',args,{cwd:root,env,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+const branch='codex/customer-updates-profile-payments';
+const stageBlob=(file,content)=>{const hash=cp.execFileSync('git',['hash-object','-w','--stdin'],{cwd:root,env,input:content,encoding:'utf8'}).trim();git('update-index','--add','--cacheinfo',`100644,${hash},${file}`);};
+let commit,parent;
+if(mode==='mobile'){
+ parent=git('rev-parse','origin/main');git('read-tree',parent);
+ git('add','-f','--','lib','assets/language','pubspec.yaml','pubspec.lock');
+ const tests=[];
+ for(const entry of fs.readdirSync(`${root}/test`))if(entry.endsWith('.dart'))tests.push(`test/${entry}`);
+ git('add','-f','--',...tests,'test/goldens','test/fixtures');
+ const changed=git('diff','--cached',parent,'--name-only').split('\n').filter(Boolean);
+ if(changed.some(file=>file.includes('/failures/')||file.endsWith('.log')||file.startsWith('android/build/')))throw new Error('Generated output in release');
+ commit=git('commit-tree',git('write-tree'),'-p',parent,'-m','Complete customer package, allowance, onboarding and profile updates');
+}else if(mode==='backend'){
+ parent=git('rev-parse','refs/remotes/github/main');
+ const release=JSON.parse(fs.readFileSync(`${out}/profile-payment-manifest.json`)).commit;
+ git('read-tree',release);
+ const tests=fs.readdirSync(`${root}/tests/Unit`).filter(file=>/^Customer.*Test\.php$/.test(file)||['AdminWorkspaceTest.php','SigmaCareSupportDrawerTest.php'].includes(file)).map(file=>`tests/Unit/${file}`);
+ git('add','-f','--',...tests,'tests/Feature/CustomerPaymentThrottleTest.php','tests/Feature/CustomerProfileImageTest.php');
+ for(const file of git('ls-tree','-r','--name-only',parent,'.github').split('\n').filter(Boolean))stageBlob(file,cp.execFileSync('git',['show',`${parent}:${file}`],{cwd:root}));
+ for(const file of ['tools/package-customer-monthly-release.mjs','tools/package-profile-payment-correction.mjs','tools/deploy-customer-monthly-release.php','tools/deploy-profile-payment-correction.php','tools/verify-customer-monthly-live.php','tools/configure-customer-package-demo.php'])stageBlob(file,fs.readFileSync(`${root}/${file}`));
+ stageBlob('docs/customer_packages_execution_ar.md',fs.readFileSync('E:/project/docs/customer_packages_execution_ar.md'));
+ stageBlob('docs/customer_packages_design_deployment_ar.md',fs.readFileSync('E:/project/docs/customer_packages_design_deployment_ar.md'));
+ git('update-index','--force-remove','resources/views/web-views/users-profile/partials/customer-profile-shortcuts.blade.php');
+ const paths=git('ls-files').split('\n');
+ if(paths.some(file=>/(^|\/)(\.env$|oauth-private\.key$|.*\.pem$)|^tmp\//.test(file)))throw new Error('Private file in source tree');
+ commit=git('commit-tree',git('write-tree'),'-p',parent,'-m','Publish current customer website and backend with original profile and repaired payments');
+}else throw new Error('Select backend or mobile');
+git('update-ref',`refs/heads/${branch}`,commit);
+fs.writeFileSync(`${out}/${mode}-github-release.json`,JSON.stringify({parent,commit,branch},null,2));
+console.log(JSON.stringify({mode,parent,commit,branch}));
