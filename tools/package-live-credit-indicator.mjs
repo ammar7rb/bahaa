@@ -1,0 +1,32 @@
+import fs from 'node:fs';
+import cp from 'node:child_process';
+import {createHash} from 'node:crypto';
+const root='E:/xampp/htdocs/ba',out='E:/project/deliverables/customer-packages';
+const env={...process.env,GIT_INDEX_FILE:`${out}/live-credit.index`};
+const git=(...args)=>cp.execFileSync('git',args,{cwd:root,env,encoding:'utf8'}).trim();
+const parent=git('rev-parse','codex/customer-vps-release');
+const layouts=['resources/themes/default/layouts/front-end/app.blade.php','resources/themes/theme_aster/theme-views/layouts/app.blade.php','resources/themes/theme_sigma_care/theme-views/layouts/app.blade.php'];
+const files=[...layouts,'resources/views/web-views/users-profile/partials/purchasing-limit-strip.blade.php','public/assets/front-end/js/customer-purchasing-limit.js','public/assets/front-end/css/customer-credit-indicator.css','resources/themes/theme_sigma_care/theme-views/partials/_order-summery.blade.php','resources/lang/sa/messages.php','app/Http/Controllers/Web/CouponController.php'];
+git('read-tree',parent);git('add','-f','--',...files);
+const blob=(file,content)=>{const hash=cp.execFileSync('git',['hash-object','-w','--stdin'],{cwd:root,env,input:content,encoding:'utf8'}).trim();git('update-index','--cacheinfo',`100644,${hash},${file}`);};
+for(const file of layouts) {
+ let s=cp.execFileSync('git',['show',`${parent}:${file}`],{cwd:root,encoding:'utf8'});
+ s=s.replace(/@if\(request\(\)->routeIs\('home'\) \|\| request\(\)->is\('products\*','\*-products','shopView\*','category\*','search\*'\)\)\r?\n<div class="container">@include\('web-views.users-profile.partials.purchasing-limit-strip'\)<\/div>/,"@if(!request()->routeIs('shop-cart') && !request()->is('checkout*','customer/checkout*'))\n<div class=\"container\">@include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'browsing'])</div>");
+ s=s.replace(/customer-purchasing-limit.js'\) }}(?:\?v=[0-9.]+)?"/,"customer-purchasing-limit.js') }}?v=20261013.2\"");
+ if(!s.includes('customer-credit-indicator.css')) s=s.replace('</head>',"<link rel=\"stylesheet\" href=\"{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013\">\n</head>");
+ if(!s.includes("['limitVariant'=>'browsing']"))throw new Error('Browsing slot not found');
+ s=s.replace(/customer-credit-indicator.css'\) }}(?:\?v=[0-9.]+)?"/,"customer-credit-indicator.css') }}?v=20261013.2\"");
+ blob(file,s);
+}
+const locale='resources/lang/sa/messages.php';
+let localeSource=cp.execFileSync('git',['show',`${parent}:${locale}`],{cwd:root,encoding:'utf8'});
+const labels={"Cart_is_empty":"سلة المشتريات فارغة","Update_Cart":"تحديث سلة المشتريات","cart":"سلة المشتريات","cart_is_empty":"سلة المشتريات فارغة","cart_list":"سلة المشتريات","cart_shippings":"شحنات سلة المشتريات","cart_updated":"تم تحديث سلة المشتريات","clear_Cart":"إفراغ سلة المشتريات","empty_Cart":"سلة المشتريات فارغة","empty_cart":"سلة المشتريات فارغة","shopping_cart":"سلة المشتريات","update_cart":"تحديث سلة المشتريات","want_to_clear_all_cart":"هل تريد إفراغ سلة المشتريات؟","view_cart":"عرض سلة المشتريات"};
+for(const [key,value] of Object.entries(labels)) localeSource=localeSource.replace(new RegExp('"'+key+'" => "[^"]*"'),'"'+key+'" => "'+value+'"');
+blob(locale,localeSource);
+console.log(git('diff','--cached',parent,'--stat'));
+const commit=git('commit-tree',git('write-tree'),'-p',parent,'-m','Replace Care coupon area with live credit indicator and block over-limit continuation');
+const baseHashes=Object.fromEntries(files.map(file=>{try{return [file,createHash('sha256').update(cp.execFileSync('git',['show',`${parent}:${file}`],{cwd:root,stdio:['ignore','pipe','ignore']})).digest('hex')];}catch{return [file,null];}}));
+fs.writeFileSync(`${out}/live-credit-manifest.json`,JSON.stringify({parent,commit,files,baseHashes},null,2));
+git('archive','--format=tar',`--output=${out}/live-credit.tar`,commit,'--',...files);
+git('archive','--format=tar',`--output=${out}/live-credit-base.tar`,parent,'--',...files.filter(file=>baseHashes[file]));
+console.log(JSON.stringify({parent,commit}));

@@ -147,6 +147,20 @@ class CustomerMonthlyPackagesTest extends \Tests\TestCase
         $this->assertEquals(200, DB::table('users')->where('id', 1)->value('wallet_balance'));
     }
 
+    public function test_customer_coupon_api_rejects_coupon_and_backend_rejects_over_limit_cart(): void
+    {
+        session()->put(['coupon_discount'=>100,'coupon_code'=>'OLD']);
+        $request = \Illuminate\Http\Request::create('/coupon/apply','POST',['code'=>'ANY']);
+        $request->headers->set('Accept','application/json');
+        $response = app(\App\Http\Controllers\Web\CouponController::class)->apply($request);
+        $this->assertSame(422,$response->getStatusCode());
+        $this->assertFalse(session()->has('coupon_discount'));
+        $service = app(CustomerMonthlySubscriptionService::class);
+        $service->payFromWallet(1,$service->checkout(1,(string) Str::uuid(),1)->id);
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(CustomerMonthlyAllowanceService::class)->assertCart(1,3001);
+    }
+
     public function test_order_reservation_and_refund_retry_never_count_twice(): void
     {
         Schema::create('orders', function (Blueprint $t) { $t->id(); $t->unsignedBigInteger('customer_id'); });

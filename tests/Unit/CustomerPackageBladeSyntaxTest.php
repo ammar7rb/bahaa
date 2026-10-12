@@ -21,5 +21,14 @@ class CustomerPackageBladeSyntaxTest extends TestCase
                 unlink($temporary);
             }
         }
+        foreach (['theme_sigma_care/theme-views/partials/_order-summery.blade.php','theme_sigma_care/theme-views/layouts/app.blade.php','theme_aster/theme-views/layouts/app.blade.php','default/layouts/front-end/app.blade.php'] as $view) {
+            $compiled = app('blade.compiler')->compileString(file_get_contents(resource_path('themes/'.$view)));
+            $temporary = tempnam(sys_get_temp_dir(), 'credit-blade-');
+            try {
+                file_put_contents($temporary,$compiled);
+                $process = new Process([PHP_BINARY,'-l',$temporary]); $process->run();
+                $this->assertTrue($process->isSuccessful(),$view.': '.$process->getOutput());
+            } finally { unlink($temporary); }
+        }
     }
 }
