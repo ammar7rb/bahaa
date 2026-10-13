@@ -582,16 +582,14 @@ class CustomerController extends Controller
 
     public function update_profile(UpdateProfileApiRequest $request):JsonResponse
     {
-        $user = User::where(['id' => $request->user()->id])->first();
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+        $user = User::lockForUpdate()->findOrFail($request->user()->id);
+        $password = app(\App\Services\CustomerPasswordChangeService::class)->password($user,$request);
         $imageName = $request->user()->image;
         if ($request->has('image')) {
             $imageName = $this->update('profile/', $request->user()->image, 'webp', $request->file('image'));
         }
 
-        $password = $request->user()->password;
-        if ($request['password'] != null && strlen($request['password']) > 5) {
-            $password = bcrypt($request['password']);
-        }
 
         $phones = app(\App\Services\EgyptPhoneService::class);
         $effectivePhone = $phones->normalizeLocal($user['is_phone_verified'] ? $user['phone'] : $request['phone']);
@@ -609,6 +607,7 @@ class CustomerController extends Controller
             'updated_at' => now(),
         ]);
         return response()->json(['message' => translate('successfully updated!')], 200);
+        });
     }
 
     public function update_cm_firebase_token(Request $request):JsonResponse

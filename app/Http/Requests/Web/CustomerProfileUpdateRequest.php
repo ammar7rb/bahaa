@@ -27,6 +27,9 @@ class CustomerProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'password' => ['nullable','string','min:8','max:255'],
+            'current_password' => ['required_with:password','nullable','string','max:255'],
+            'password_confirmation' => ['required_with:password','nullable','string','same:password'],
             'f_name' => 'required',
             'l_name' => 'required',
             'phone' => [
@@ -53,6 +56,9 @@ class CustomerProfileUpdateRequest extends FormRequest
     {
         return [
             'f_name.required' => translate('first_name_is_required'),
+            'current_password.required_with'=>'أدخل كلمة المرور الحالية لتغييرها.',
+            'password.min'=>'كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف.',
+            'password_confirmation.same'=>'تأكيد كلمة المرور لا يطابق الجديدة.',
             'l_name.required' => translate('last_name_is_required'),
             'phone.required' => translate('phone_number_is_required'),
             'phone.unique' => translate('phone_number_already_has_been_taken'),
@@ -86,6 +92,7 @@ class CustomerProfileUpdateRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
+            'password_confirmation' => $this->input('confirm_password'),
             'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
         ]);
     }

@@ -50,6 +50,7 @@
                         </a>
                     </li>
 @include('customer-account.sidebar-communication')
+<li><a href="{{ route('customer.tracking.index') }}">@include('customer-subscription.icon',['name'=>'orders'])<span>تتبع الطلبات</span></a></li>
                     <li class="{{Request::is('account-oder*') || Request::is('account-order-details*') || Request::is('refund-details*') || Request::is('track-order/order-wise-result-view') ? 'active' :''}}">
                         <a href="{{route('account-oder')}}">
                             <img width="20" src="{{ theme_asset('assets/img/icons/profile-icon2.png') }}"
@@ -79,7 +80,7 @@
                         </a>
                     </li>
 
-                    <li class="{{ request()->routeIs('customer.subscription.*') ? 'active' : '' }}"><a href="{{ route('customer.subscription.index') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>الاشتراك الشهري</span></a></li>
+                    <li class="{{ request()->routeIs('customer.subscription.*') ? 'active' : '' }}"><a href="{{ route('customer.subscription.index') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>الاشتراكات</span></a></li>
                     @if ($web_config['wallet_status'] == 1)
                         <li class="{{Request::is('wallet') ? 'active' :''}}">
                             <a href="{{route('wallet')}}">

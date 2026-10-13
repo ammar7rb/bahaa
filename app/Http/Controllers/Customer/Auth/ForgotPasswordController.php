@@ -40,13 +40,12 @@ class ForgotPasswordController extends Controller
         private readonly FirebaseService                             $firebaseService,
         private readonly PhoneOrEmailVerificationRepositoryInterface $phoneOrEmailVerificationRepo,
     ) {
-        $this->middleware('guest:customer', ['except' => ['logout']]);
+        $this->middleware('guest:customer', ['except' => ['logout','reset_password']]);
     }
 
     public function reset_password()
     {
-        $verification_by = getWebConfig(name: 'forgot_password_verification');
-        return view(VIEW_FILE_NAMES['recover_password'], compact('verification_by'));
+        return redirect()->route(auth('customer')->check() ? 'customer.messages.index' : 'contacts',['password_help'=>1]);
     }
 
     public function resetPasswordRequest(Request $request): RedirectResponse|JsonResponse
