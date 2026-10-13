@@ -59,15 +59,6 @@
                 <div class="fw-semibold">{{ webCurrencyConverter($product_price_total) }}</div>
             </div>
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 fs-16">
-                <div class="opacity-75 text-capitalize">{{ translate('product_discount') }}</div>
-                <div class="fw-semibold">{{ webCurrencyConverter($total_discount_on_product) }}</div>
-            </div>
-
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 fs-16">
-                <div class="opacity-75 text-capitalize">{{ translate('sub_total') }}</div>
-                <div class="fw-semibold">{{ webCurrencyConverter($product_price_total - $total_discount_on_product) }}</div>
-            </div>
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 fs-16">
                 <div class="opacity-75 text-capitalize">{{ translate('shipping') }}</div>
                 <div class="fw-semibold">{{ webCurrencyConverter($total_shipping_cost) }}</div>
             </div>

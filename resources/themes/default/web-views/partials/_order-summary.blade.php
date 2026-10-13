@@ -71,23 +71,10 @@
                 </div>
                 @php($coupon_dis = 0)
             @endif
-
-            <div class="d-flex justify-content-between">
-                <span class="cart_title">{{ translate('sub_total') }}</span>
-                <span class="cart_value">
-                    {{ webCurrencyConverter(amount: $subTotal) }}
-                </span>
-            </div>
             <div class="d-flex justify-content-between">
                 <span class="cart_title">{{ translate('shipping') }}</span>
                 <span class="cart_value">
                     {{ webCurrencyConverter(amount: $totalShippingCost) }}
-                </span>
-            </div>
-            <div class="d-flex justify-content-between">
-                <span class="cart_title">{{ translate('discount_on_product') }}</span>
-                <span class="cart_value">
-                    - {{ webCurrencyConverter(amount: $totalDiscountOnProduct) }}
                 </span>
             </div>
             @if(!$taxCollectedInSecondStage && $systemTaxConfig['SystemTaxVat']['is_active'] && !$systemTaxConfig['is_included'])
