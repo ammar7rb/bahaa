@@ -13,9 +13,7 @@
                     </button>
                     <ul class="dropdown-menu">
                         <li>
-                            <a href="javascript:" class="delete-action"
-                               data-action="{{route('account-delete',[$customer_info['id']])}}"
-                               data-text="{{translate('want_to_delete_this_account').'?'}}">
+                            <a class="d-flex align-items-center gap-2" href="{{ route('customer.deletion.show') }}">
                                 {{ translate('delete_my_account') }}
                             </a>
                         </li>
@@ -41,8 +39,11 @@
                 <div class="profile-menu-aside-close d-lg-none">
                     <i class="bi bi-x-lg text-primary"></i>
                 </div>
-<ul class="list-unstyled profile-menu gap-1 mt-3"><li><a href="{{ route('user-profile') }}"><i class="bi bi-person" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الملف الشخصي' : 'Profile' }}</span></a></li><li><a href="{{ route('shop-cart') }}"><i class="bi bi-cart3" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Cart' }}</span></a></li><li><a href="{{ route('customer.subscription.index') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>الاشتراك الشهري</span></a></li><li><a href="{{ route('wallet') }}"><i class="bi bi-wallet2" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'المحفظة' : 'Wallet' }}</span></a></li><li><a href="{{ route('account-address') }}"><i class="bi bi-geo-alt" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'العناوين المحفوظة' : 'Saved addresses' }}</span></a></li><li><a href="{{ route('account-oder') }}"><i class="bi bi-box-seam" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الطلبات' : 'Orders' }}</span></a></li><li><a href="{{ route('wishlists') }}"><i class="bi bi-heart" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'المفضلة' : 'Wishlist' }}</span></a></li><li><a href="{{ route('customer.auth.recover-password') }}"><i class="bi bi-key" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'نسيت كلمة المرور؟' : 'Forgot password?' }}</span></a></li><li><a href="{{ route('customer.auth.logout') }}"><i class="bi bi-box-arrow-right" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'تسجيل الخروج' : 'Log out' }}</span></a></li></ul>
+<ul class="list-unstyled profile-menu gap-1 mt-3"><li><a href="{{ route('user-profile') }}"><i class="bi bi-person" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الملف الشخصي' : 'Profile' }}</span></a></li>
+@include('customer-account.sidebar-communication')
+<li><a href="{{ route('shop-cart') }}"><i class="bi bi-cart3" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Cart' }}</span></a></li><li><a href="{{ route('customer.subscription.index') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>الاشتراك الشهري</span></a></li><li><a href="{{ route('wallet') }}"><i class="bi bi-wallet2" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'المحفظة' : 'Wallet' }}</span></a></li><li><a href="{{ route('account-address') }}"><i class="bi bi-geo-alt" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'العناوين المحفوظة' : 'Saved addresses' }}</span></a></li><li><a href="{{ route('account-oder') }}"><i class="bi bi-box-seam" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الطلبات' : 'Orders' }}</span></a></li><li><a href="{{ route('wishlists') }}"><i class="bi bi-heart" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'المفضلة' : 'Wishlist' }}</span></a></li><li><a href="{{ route('customer.auth.recover-password') }}"><i class="bi bi-key" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'نسيت كلمة المرور؟' : 'Forgot password?' }}</span></a></li><li><a href="{{ route('customer.auth.logout') }}"><i class="bi bi-box-arrow-right" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'تسجيل الخروج' : 'Log out' }}</span></a></li></ul>
             </div><div class="aside-overlay"></div>
         </div>
     </div>
 </div>
+

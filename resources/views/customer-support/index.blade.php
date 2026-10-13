@@ -1,10 +1,10 @@
 @extends('layouts.front-end.app')
-@section('title','التواصل مع الدعم')
+@section('title','الرسائل')
+@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-communication.css') }}?v=20261013">@endpush
 @section('content')
-<main class="container py-5" dir="rtl"><h1>التواصل مع الدعم</h1>
+<main class="container customer-communication-page" dir="rtl"><div class="row g-4">@includeFirst(['theme-views.partials._profile-aside','web-views.partials._profile-aside'])<section class="col-lg-9"><header class="customer-communication-heading"><h1>الرسائل</h1><p>محادثاتك مع الدعم والإدارة، بما فيها الرسائل السابقة.</p></header>
     @if($errors->any())<div role="alert" class="alert alert-danger">{{ $errors->first() }}</div>@endif
-    <form method="post" action="{{ route('customer.support.report') }}">@csrf<label for="support-problem">الإبلاغ عن مشكلة</label><textarea class="form-control" id="support-problem" name="message" required minlength="3" maxlength="5000" rows="4" placeholder="اكتب ما حدث وكيف يمكننا مساعدتك"></textarea><button class="btn btn-primary mt-3" type="submit">إرسال إلى الدعم</button></form>
-    <h2 class="mt-5">محادثاتك السابقة</h2>
-    @forelse($conversations as $conversation)<a class="d-block border-bottom py-3" href="{{ route('support-ticket.index',$conversation->id) }}">{{ $conversation->purpose === 'account_activation' ? 'تفعيل الحساب' : $conversation->subject }}<br><small>{{ $conversation->updated_at }}</small></a>@empty<p>ستظهر محادثتك هنا بعد إرسال المشكلة.</p>@endforelse
-</main>
+    <details class="customer-communication-report"><summary>الإبلاغ عن مشكلة / التواصل مع الدعم</summary><form method="post" action="{{ route('customer.support.report') }}">@csrf<label for="support-problem">كيف يمكننا مساعدتك؟</label><textarea class="form-control" id="support-problem" name="message" required minlength="3" maxlength="5000" rows="4" placeholder="اكتب ما حدث وكيف يمكننا مساعدتك"></textarea><button class="btn btn-primary mt-3" type="submit">إرسال إلى الدعم</button></form></details>
+    <div class="customer-communication-list">@forelse($conversations as $conversation)<a class="customer-communication-item" href="{{ route('support-ticket.index',$conversation->id) }}"><span class="customer-communication-icon" aria-hidden="true">@include('customer-subscription.icon',['name'=>'message'])</span><div><h2>{{ $conversation->purpose === 'account_activation' ? 'تفعيل الحساب' : $conversation->subject }}</h2><p>{{ \Illuminate\Support\Str::limit($conversation->description,140) }}</p><time datetime="{{ $conversation->updated_at?->toIso8601String() }}">{{ $conversation->updated_at?->format('Y/m/d · H:i') }}</time></div></a>@empty<div class="customer-communication-empty"><h2>لا توجد محادثات بعد</h2><p>ابدأ بالتواصل مع الدعم، وستجد الرسائل والردود هنا.</p></div>@endforelse</div>
+</section></div></main>
 @endsection

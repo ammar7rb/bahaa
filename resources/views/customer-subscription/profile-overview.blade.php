@@ -11,6 +11,3 @@
         <a href="{{ route('wallet') }}#purchase-balance" class="profile-subscription profile-account-metric"><span class="profile-overview-icon" aria-hidden="true">@include('customer-subscription.icon',['name'=>'wallet'])</span><span class="profile-subscription-copy"><strong>رصيد المحفظة</strong><span class="profile-metric-value" dir="auto">{{ webCurrencyConverter($totalWalletBalance ?? auth('customer')->user()->wallet_balance ?? 0) }}</span><small>عرض المحفظة <span aria-hidden="true">←</span></small></span></a>
     </div>
 </section>
-@if($monthly['allowance'])
-<section class="profile-credit-details" aria-labelledby="profile-credit-title"><h3 id="profile-credit-title">الحد الائتماني</h3><a href="{{ route('customer.subscription.index') }}#credit-increase">{{ $monthly['active'] ? 'زيادة الحد أو ترقية الباقة' : 'اختيار باقة' }} <span aria-hidden="true">←</span></a></section>
-@endif
