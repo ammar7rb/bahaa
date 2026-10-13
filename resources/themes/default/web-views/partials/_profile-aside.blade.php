@@ -26,8 +26,9 @@
                 </div>
             </div>
 @include('customer-account.sidebar-communication',['defaultSidebar'=>true])
+<div class="widget-title"><a href="{{ route('customer.tracking.index') }}"><span class="aside-link">تتبع الطلبات</span></a></div>
             <div class="widget-title">
-                <a class="{{ request()->routeIs('customer.subscription.*') ? 'active-menu' : '' }}" href="{{ route('customer.subscription.index') }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5 3 3 5-5"/></svg><span class="aside-link">الاشتراك الشهري</span></a>
+                <a class="{{ request()->routeIs('customer.subscription.*') ? 'active-menu' : '' }}" href="{{ route('customer.subscription.index') }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5 3 3 5-5"/></svg><span class="aside-link">الاشتراكات</span></a>
             </div>
             <div class="widget-title">
                 <a class="{{ request()->routeIs('wallet', 'customer-balances') ? 'active-menu' : '' }}" href="{{ route('wallet') }}">

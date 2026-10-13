@@ -130,6 +130,7 @@
                                             @endif
                                         </div>
                                     </div>
+<div class="form-group col-12 mb-3"><label for="current-password">كلمة المرور الحالية</label><input class="form-control" type="password" id="current-password" name="current_password" autocomplete="current-password"><small>مطلوبة فقط عند تغيير كلمة المرور. أدخل الحالية أو التي أعطتها لك الإدارة.</small></div>
                                     <div class="form-group col-md-6 mb-0">
                                         <label for="si-password"
                                                class="mb-2 text-capitalize">{{translate('new_password')}}</label>

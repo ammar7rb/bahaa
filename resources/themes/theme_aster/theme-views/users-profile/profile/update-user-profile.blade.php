@@ -81,11 +81,10 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-sm-6">
-                                            <div class="form-group">
-                                                <label for="password2">{{translate('password')}}</label>
+<div class="col-12"><label for="current-password">كلمة المرور الحالية</label><input class="form-control" type="password" id="current-password" name="current_password" autocomplete="current-password"><small>لتغيير كلمة المرور، أدخل الحالية أو التي أعطتها لك الإدارة. اترك حقول كلمة المرور فارغة لتعديل بياناتك فقط.</small></div>
+                                        <div class="col-sm-6"><div class="form-group"><label for="password">كلمة المرور الجديدة</label>
                                                 <div class="input-inner-end-ele">
-                                                    <input type="password" minlength="6" id="password" class="form-control" name="password" placeholder="{{translate('ex').':'.'7+'.translate('character')}}">
+                                                    <input type="password" minlength="8" id="password" class="form-control" name="password" autocomplete="new-password" placeholder="8 أحرف على الأقل">
                                                     <i class="bi bi-eye-slash-fill togglePassword"></i>
                                                 </div>
                                                 <span class="text-danger mx-1 password-error"></span>
@@ -95,7 +94,7 @@
                                             <div class="form-group">
                                                 <label class="text-capitalize" for="confirm_password2">{{translate('confirm_password')}}</label>
                                                 <div class="input-inner-end-ele">
-                                                    <input type="password" minlength="6" id="confirm-password" name="confirm_password" class="form-control" placeholder="{{translate('ex').':'.'7+'.translate('character')}}">
+                                                    <input type="password" minlength="8" id="confirm-password" name="confirm_password" class="form-control" placeholder="8 أحرف على الأقل">
                                                     <i class="bi bi-eye-slash-fill togglePassword"></i>
                                                 </div>
                                             </div>

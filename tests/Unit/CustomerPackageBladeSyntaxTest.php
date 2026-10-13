@@ -9,7 +9,7 @@ class CustomerPackageBladeSyntaxTest extends TestCase
 {
     public function test_customer_package_and_cart_templates_compile_to_valid_php(): void
     {
-        foreach (['customer-account/notifications.blade.php','customer-account/sidebar-communication.blade.php','customer-support/index.blade.php','admin-views/customer/monthly-packages.blade.php', 'customer-subscription/packages.blade.php', 'customer-subscription/profile-overview.blade.php', 'customer-subscription/payment-dialogs.blade.php', 'web-views/users-profile/partials/purchasing-limit-strip.blade.php'] as $view) {
+        foreach (['customer-account/tracking.blade.php','customer-account/notifications.blade.php','customer-account/sidebar-communication.blade.php','customer-support/index.blade.php','admin-views/customer/monthly-packages.blade.php', 'customer-subscription/packages.blade.php', 'customer-subscription/profile-overview.blade.php', 'customer-subscription/payment-dialogs.blade.php', 'web-views/users-profile/partials/purchasing-limit-strip.blade.php'] as $view) {
             $compiled = app('blade.compiler')->compileString(file_get_contents(resource_path('views/'.$view)));
             $temporary = tempnam(sys_get_temp_dir(), 'customer-blade-');
             try {
@@ -21,7 +21,7 @@ class CustomerPackageBladeSyntaxTest extends TestCase
                 unlink($temporary);
             }
         }
-        foreach (['theme_sigma_care/theme-views/partials/_order-summery.blade.php','theme_sigma_care/theme-views/layouts/app.blade.php','theme_aster/theme-views/layouts/app.blade.php','default/layouts/front-end/app.blade.php'] as $view) {
+        foreach (['theme_sigma_care/theme-views/users-profile/profile/update-user-profile.blade.php','theme_aster/theme-views/users-profile/profile/update-user-profile.blade.php','default/web-views/users-profile/user-account.blade.php','theme_sigma_care/theme-views/partials/_order-summery.blade.php','theme_sigma_care/theme-views/layouts/app.blade.php','theme_aster/theme-views/layouts/app.blade.php','default/layouts/front-end/app.blade.php'] as $view) {
             $compiled = app('blade.compiler')->compileString(file_get_contents(resource_path('themes/'.$view)));
             $temporary = tempnam(sys_get_temp_dir(), 'credit-blade-');
             try {

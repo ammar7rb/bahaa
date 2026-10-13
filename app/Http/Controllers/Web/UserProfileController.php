@@ -97,6 +97,9 @@ class UserProfileController extends Controller
 
     public function getUserProfileUpdate(CustomerProfileUpdateRequest $request): RedirectResponse
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+        $lockedCustomer = User::lockForUpdate()->findOrFail(auth('customer')->id());
+        $password = app(\App\Services\CustomerPasswordChangeService::class)->password($lockedCustomer,$request);
         $imageName = $request->file('image') ? ImageManager::update('profile/', auth('customer')->user()->image, 'webp', $request->file('image')) : auth('customer')->user()->image;
         $user = auth('customer')->user();
         $phones = app(\App\Services\EgyptPhoneService::class);
@@ -110,11 +113,12 @@ class UserProfileController extends Controller
             'is_phone_verified' => $phoneChanged ? 0 : $user['is_phone_verified'],
             'is_email_verified' => $request['email'] == $user['email'] ? $user['is_email_verified'] : 0,
             'image' => $imageName,
-            'password' => strlen($request['password']) > 5 ? bcrypt($request['password']) : auth('customer')->user()->password,
+            'password' => $password,
         ]);
 
         Toastr::info(translate('updated_successfully'));
         return redirect()->back();
+        });
     }
 
     public function account_address_add()
@@ -868,6 +872,11 @@ class UserProfileController extends Controller
 
     public function track_order_result(Request $request)
     {
+        $request->validate(['order_id'=>'required|integer|min:1']);
+        if (!auth('customer')->check() || !$request->boolean('from_order_details')) {
+            $request->merge(['phone_number'=>app(\App\Services\EgyptPhoneService::class)->normalizeLocal($request->input('phone_number'))]);
+            $request->validate(['phone_number'=>['required','regex:/^01[0125][0-9]{8}$/']]);
+        }
         $isOrderOnlyDigital = false;
         $user = auth('customer')->user();
         $user_phone = $request['phone_number'] ?? '';
@@ -888,7 +897,7 @@ class UserProfileController extends Controller
             ->first();
 
         if (!isset($user)) {
-            $userInfo = User::where('phone', $request['phone_number'])->orWhere('phone', 'like', "%{$request['phone_number']}%")->first();
+            $userInfo = User::where('phone', $request['phone_number'])->first();
 
             if ($order && $order->is_guest) {
 
@@ -974,7 +983,9 @@ class UserProfileController extends Controller
 
     public function track_last_order()
     {
-        $order_id = Order::where('customer_id', auth('customer')->id())->latest()->first()->id;
+        if (!auth('customer')->check()) return redirect()->route('customer.auth.login');
+        $order_id = Order::where('customer_id', auth('customer')->id())->latest()->value('id');
+        if (!$order_id) return redirect()->route('customer.tracking.index')->with('tracking_message','لا توجد طلبات لتتبعها بعد.');
         $orderDetails = Order::with(['deliveryMan', 'orderStatusHistory' => function ($query) {
             return $query->latest();
         }])->where(['id' => $order_id])->first();

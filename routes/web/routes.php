@@ -221,6 +221,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::post('refund-store', 'store_refund')->name('refund-store');
         Route::get('account-tickets', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->middleware('customer')->name('account-tickets');
         Route::get('account-notifications', [\App\Http\Controllers\Customer\NotificationCenterController::class, 'index'])->middleware('customer')->name('customer.notifications.index');
+        Route::get('account-order-tracking', [\App\Http\Controllers\Customer\OrderTrackingController::class, 'index'])->middleware('customer')->name('customer.tracking.index');
         Route::get('account-messages', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->middleware('customer')->name('customer.messages.index');
         Route::get('order-cancel/{id}', 'order_cancel')->name('order-cancel');
         Route::post('ticket-submit', 'submitSupportTicket')->name('ticket-submit');
