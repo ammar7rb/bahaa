@@ -80,6 +80,7 @@
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013.2">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-communication.css') }}?v=20261014">
 </head>
 <body class="toolbar-enabled sigma-care" theme="light">
 @if(theme_root_path() !== (env('WEB_THEME') ?: 'default'))
