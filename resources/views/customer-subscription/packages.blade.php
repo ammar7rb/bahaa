@@ -3,7 +3,7 @@
 @push('css_or_js')
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-subscription.css') }}">
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-transfer.css') }}?v=20261012.3">
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-packages.css') }}?v=20261012">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-packages.css') }}?v=20261013.4">
 @endpush
 @section('content')
 <main class="monthly-page package-page" dir="rtl">
@@ -19,11 +19,12 @@
     @endif
     @php($open = $subscription['open_payment'])
     @if($open)
-    <section class="package-pending"><h2>{{ $open->terms_name ?: 'عملية دفع سابقة' }}</h2><p>المبلغ <bdi>{{ number_format((float)$open->quoted_amount,2) }}</bdi> {{ $open->currency_code }} · الحد الائتماني <bdi>{{ number_format((float)$open->granted_allowance,2) }}</bdi> ج.م</p>
+    <section class="package-pending" aria-labelledby="pending-package-title"><div class="package-pending-header"><div class="package-pending-heading"><span class="package-pending-icon" aria-hidden="true">@include('customer-subscription.icon',['name'=>'wallet'])</span><div><h2 id="pending-package-title">{{ $open->terms_name ?: 'عملية دفع سابقة' }}</h2><p>{{ $open->status === 'pending_review' ? 'تم إرسال الدفع إلى الإدارة للمراجعة.' : 'راجع تفاصيل اختيارك، ثم تابع إلى طريقة الدفع.' }}</p></div></div><span class="package-pending-status">{{ $open->status === 'pending_review' ? 'قيد المراجعة' : 'بانتظار الدفع' }}</span></div><dl class="package-pending-facts"><div><dt>المبلغ المطلوب</dt><dd><bdi>{{ number_format((float)$open->quoted_amount,2) }}</bdi> <small>{{ $open->currency_code === 'EGP' ? 'ج.م' : $open->currency_code }}</small></dd></div><div><dt>الحد الائتماني</dt><dd><bdi>{{ number_format((float)$open->granted_allowance,2) }}</bdi> <small>ج.م</small></dd></div></dl><div class="package-pending-actions">
         @if($open->status === 'pending_review')<div class="monthly-notice" role="status">الدفع قيد المراجعة. سيظهر قرار الإدارة هنا.</div>
         @elseif($open->package_id || $open->offer_id)<button class="monthly-button" type="button" data-payment-open="subscription-methods">{{ $open->purchase_kind === 'increase' ? 'دفع زيادة الحد الائتماني' : ($open->purchase_kind === 'upgrade' ? 'دفع الترقية' : 'دفع الباقة') }}</button>@include('customer-subscription.payment-dialogs')
         @endif
-        @if($open->status === 'draft')<form method="post" action="{{ route('customer.subscription.cancel',$open->id) }}">@csrf<button class="package-text-button" type="submit">إلغاء المسودة واختيار عرض آخر</button></form>@endif
+        @if($open->status === 'draft')<form method="post" action="{{ route('customer.subscription.cancel',$open->id) }}">@csrf<button class="package-pending-cancel" type="submit">إلغاء الاختيار واختيار عرض آخر</button></form>@endif
+        </div>
     </section>
     @endif
     @if($subscription['active'])

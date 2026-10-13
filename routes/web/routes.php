@@ -219,7 +219,9 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('refund-request/{id}', 'refund_request')->name('refund-request');
         Route::get('refund-details/{id}', 'refund_details')->name('refund-details');
         Route::post('refund-store', 'store_refund')->name('refund-store');
-        Route::get('account-tickets', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->name('account-tickets');
+        Route::get('account-tickets', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->middleware('customer')->name('account-tickets');
+        Route::get('account-notifications', [\App\Http\Controllers\Customer\NotificationCenterController::class, 'index'])->middleware('customer')->name('customer.notifications.index');
+        Route::get('account-messages', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->middleware('customer')->name('customer.messages.index');
         Route::get('order-cancel/{id}', 'order_cancel')->name('order-cancel');
         Route::post('ticket-submit', 'submitSupportTicket')->name('ticket-submit');
         Route::get('account-delete/{id}', [\App\Http\Controllers\Customer\AccountDeletionController::class, 'show'])->name('account-delete');

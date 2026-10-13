@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 class SupportConversationController extends Controller
 {
     public function index() {
+        abort_unless(auth('customer')->check(), 401);
         return view('customer-support.index', ['conversations' => SupportTicket::visibleToSubject()->where('customer_id', auth('customer')->id())->latest('updated_at')->get()]);
     }
     public function report(Request $request) {
