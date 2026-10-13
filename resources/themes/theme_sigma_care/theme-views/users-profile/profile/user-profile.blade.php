@@ -148,5 +148,5 @@
 @endsection
 
 @push("css_or_js")
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-overview.css') }}?v=20261012.4">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-overview.css') }}?v=20261013.3">
 @endpush
