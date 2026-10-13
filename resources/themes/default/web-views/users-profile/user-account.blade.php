@@ -86,7 +86,7 @@
 
                                         <input class="form-control phone-input-with-country-picker" id="phone" type="tel" name="phone"
                                                value="{{ $customerDetail['phone'] }}" placeholder="{{ translate('enter_phone_number') }}" required
-                                            {{ $customerDetail['is_phone_verified'] ? 'disabled' : '' }}>
+                                            >
 
                                         @if($customerDetail['phone'] && getLoginConfig(key: 'phone_verification'))
                                             @if($customerDetail['is_phone_verified'])

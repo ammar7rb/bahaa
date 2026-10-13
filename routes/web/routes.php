@@ -236,6 +236,8 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     // Customer-to-seller/delivery chat is intentionally unavailable. Customers
     // use the support-ticket center for administration communication.
 
+    Route::get('customer/communication', [\App\Http\Controllers\Customer\CommunicationController::class, 'index'])->middleware(['customer', 'throttle:60,1'])->name('customer.communication.index');
+    Route::post('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'update'])->middleware(['customer','throttle:10,1'])->name('customer.contact-phones.update');
     Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['customer', 'throttle:10,1,customer-support-report:'])->name('customer.support.report');
     Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show'])->name('customer.purchasing-limit');
     Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['customer', 'throttle:10,1,customer-profile-image:'])->name('customer.profile-image');

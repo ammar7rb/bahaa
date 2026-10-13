@@ -24,6 +24,10 @@ use Illuminate\Support\Carbon;
  */
 class SupportTicketConv extends Model
 {
+    protected static function booted(): void
+    {
+        static::created(fn (self $reply) => app(\App\Services\CustomerCommunicationService::class)->recordSupportReply($reply));
+    }
     Use StorageTrait;
     protected $fillable = [
         'support_ticket_id',

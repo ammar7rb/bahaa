@@ -270,7 +270,7 @@ class User extends Authenticatable
 
     public function getAdministrativeReferenceAttribute(): string
     {
-        return 'C' . $this->id;
+        return \App\Services\AdministrativeReferenceService::format('customer', (int) $this->id);
     }
 
     public function supportTickets(): HasMany
@@ -281,6 +281,7 @@ class User extends Authenticatable
     protected static function boot(): void
     {
         parent::boot();
+        static::updated(fn ($user) => app(\App\Services\CustomerProfileAuditService::class)->profile($user));
         static::saved(function ($model) {
             if($model->isDirty('image')){
                 $storage = config('filesystems.disks.default') ?? 'public';

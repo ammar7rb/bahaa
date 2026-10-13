@@ -38,6 +38,7 @@ function shipping_method_select(get_value){
     $('#area').val(shipping_value.area);
     $('#street').val(shipping_value.street);
     $('#building-number').val(shipping_value.building_number);
+    ['floor','unit_number','company_details'].forEach(field=>$('[name="'+field+'"]').val(shipping_value[field] || ''));
     $('#landmark').val(shipping_value.landmark);
     $('#select2-zip-container').val(shipping_value.zip).selectpicker('refresh');
     $('#zip').val(shipping_value.zip);

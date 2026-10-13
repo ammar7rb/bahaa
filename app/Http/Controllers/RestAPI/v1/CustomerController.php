@@ -298,7 +298,7 @@ class CustomerController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ], $locationService->persistedLocationFields($request->all(), $resolution));
-        $addressId = ShippingAddress::query()->insertGetId($address);
+        $addressId = ShippingAddress::create($address)->id;
         return response()->json([
             'message' => translate('successfully added!'),
             'address_id' => $addressId,
@@ -334,6 +334,7 @@ class CustomerController extends Controller
 
         $shippingAddress = ShippingAddress::where([
             'customer_id' => $user == 'offline' ? $request->guest_id : $user->id,
+            'is_guest' => $user == 'offline' ? 1 : 0,
             'id' => $request->id
         ])->first();
 
@@ -585,14 +586,14 @@ class CustomerController extends Controller
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
         $user = User::lockForUpdate()->findOrFail($request->user()->id);
         $password = app(\App\Services\CustomerPasswordChangeService::class)->password($user,$request);
-        $imageName = $request->user()->image;
+        $imageName = $user->image;
         if ($request->has('image')) {
-            $imageName = $this->update('profile/', $request->user()->image, 'webp', $request->file('image'));
+            $imageName = $this->update('profile/', $user->image, 'webp', $request->file('image'));
         }
 
 
         $phones = app(\App\Services\EgyptPhoneService::class);
-        $effectivePhone = $phones->normalizeLocal($user['is_phone_verified'] ? $user['phone'] : $request['phone']);
+        $effectivePhone = $phones->normalizeLocal($request['phone']);
         $phoneChanged = $effectivePhone !== $phones->normalizeLocal($user['phone']);
         $user->update([
             'f_name' => $request->f_name,
@@ -678,4 +679,3 @@ class CustomerController extends Controller
         return response()->json(['message' => 'Successfully change'], 200);
     }
 }
-

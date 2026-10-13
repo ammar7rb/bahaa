@@ -148,7 +148,8 @@
                                                         </div>
                                                         <div class="col-6">
                                                             <div class="form-group">
-                                                                <label>أقرب علامة مميزة</label>
+                                                                @include('customer-account.address-extra-fields')
+<label>أقرب علامة مميزة</label>
                                                                 <input type="text" class="form-control" name="landmark" id="landmark">
                                                             </div>
                                                         </div>

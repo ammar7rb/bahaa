@@ -7,7 +7,7 @@ class SupportConversationController extends Controller
 {
     public function index() {
         abort_unless(auth('customer')->check(), 401);
-        return view('customer-support.index', ['conversations' => SupportTicket::visibleToSubject()->where('customer_id', auth('customer')->id())->latest('updated_at')->get()]);
+        return view('customer-support.index', ['conversations' => app(\App\Services\CustomerCommunicationService::class)->messages((int) auth('customer')->id())->paginate(20)]);
     }
     public function report(Request $request) {
         $data = $request->validate(['message' => 'required|string|min:3|max:5000']);

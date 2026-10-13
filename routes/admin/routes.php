@@ -522,6 +522,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
     // Customer Routes, Customer wallet Routes, Customer Loyalty Routes
     Route::group(['prefix' => 'customer', 'as' => 'customer.', 'middleware' => ['module:people']], function () {
+        Route::get('profile-snapshot/{customer}', [\App\Http\Controllers\Admin\Customer\CustomerProfileSnapshotController::class, 'index'])->middleware('throttle:60,1')->name('profile-snapshot');
         Route::controller(CustomerController::class)->group(function () {
             Route::get('list', 'index')->name('list');
             Route::get('view/{user_id}', 'getView')->name('view');

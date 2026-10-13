@@ -10,6 +10,7 @@
     <div class="content container-fluid">
         @if($customer->account_deleted_at)<div class="alert alert-warning" role="status">حساب محذوف منذ {{ $customer->account_deleted_at }}. تُحتفظ بهوية العميل وسجلاته المالية، والوصول للحساب مغلق.</div>@endif
         @include('admin-views.customer.purchase-state')
+        @include('admin-views.customer.profile-history')
         <div class="d-print-none pb-2">
             <div class="row align-items-center">
                 <div class="col-sm mb-2 mb-sm-0">
@@ -42,25 +43,25 @@
                                 <div class="d-flex gap-2 justify-content-between align-items-start">
                                     <div class="flex-grow-1 d-flex gap-2 align-items-center">
                                         <img src="{{ getStorageImages(path: $customer->image_full_url , type: 'backend-profile') }}"
-                                            alt="{{ translate('image') }}" class="rounded-circle aspect-1 w-60">
+                                            alt="{{ translate('image') }}" class="rounded-circle aspect-1 w-60" data-customer-live-image>
                                         <div>
-                                            <h3 class="mb-1">{{ $customer['f_name'].' '.$customer['l_name'] }}</h3>
+                                            <h3 class="mb-1" data-customer-live-name>{{ $customer['f_name'].' '.$customer['l_name'] }}</h3>
                                             <p class="fs-12 mb-0">
                                                 @if(!empty($customer['phone']))
-                                                    <a href="tel:{{ $customer['phone'] }}" class="text-decoration-none text-dark">
+                                                    <a href="tel:{{ $customer['phone'] }}" class="text-decoration-none text-dark" data-customer-live-phone>
                                                         {{ $customer['phone'] }}
                                                     </a>
                                                 @else
-                                                    {{ translate('no_data_found') }}
+                                                    <a class="text-decoration-none text-dark" data-customer-live-phone>{{ translate('no_data_found') }}</a>
                                                 @endif
                                             </p>
                                             <p class="fs-12 mb-0">
                                                 @if(!empty($customer['email']))
-                                                    <a href="mailto:{{ $customer['email'] }}" class="text-decoration-none text-dark">
+                                                    <a href="mailto:{{ $customer['email'] }}" class="text-decoration-none text-dark" data-customer-live-email>
                                                         {{ $customer['email'] }}
                                                     </a>
                                                 @else
-                                                    {{ translate('no_data_found') }}
+                                                    <a class="text-decoration-none text-dark" data-customer-live-email>{{ translate('no_data_found') }}</a>
                                                 @endif
                                             </p>
                                         </div>

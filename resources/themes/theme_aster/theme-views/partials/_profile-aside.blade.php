@@ -13,9 +13,7 @@
                     </button>
                     <ul class="dropdown-menu">
                         <li>
-                            <a href="javascript:" class="delete-action"
-                               data-action="{{route('account-delete',[$customer_info['id']])}}"
-                               data-text="{{translate('want_to_delete_this_account').'?'}}">
+                            <a class="d-flex align-items-center gap-2" href="{{ route('customer.deletion.show') }}">
                                 {{ translate('delete_my_account') }}
                             </a>
                         </li>
@@ -49,13 +47,12 @@
                             <span class="text-capitalize">{{translate('my_profile')}}</span>
                         </a>
                     </li>
-@include('customer-account.sidebar-communication')
 <li><a href="{{ route('customer.tracking.index') }}">@include('customer-subscription.icon',['name'=>'orders'])<span>تتبع الطلبات</span></a></li>
                     <li class="{{Request::is('account-oder*') || Request::is('account-order-details*') || Request::is('refund-details*') || Request::is('track-order/order-wise-result-view') ? 'active' :''}}">
                         <a href="{{route('account-oder')}}">
                             <img width="20" src="{{ theme_asset('assets/img/icons/profile-icon2.png') }}"
                                  class="dark-support" alt="">
-                            <span>{{translate('Orders')}}</span>
+                            <span>{{(getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'طلبات' : 'Orders')}}</span>
                         </a>
                     </li>
                     <li class="{{ Request::is('post-purchase-invoices*') ? 'active' : '' }}">
@@ -104,7 +101,7 @@
                         <a href="{{route('account-tickets')}}">
                             <img width="20" src="{{theme_asset('assets/img/icons/profile-icon8.png')}}"
                                  class="dark-support" alt="">
-                            <span class="text-capitalize">{{translate('support_ticket')}}</span>
+                            <span class="text-capitalize">{{(getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'التواصل مع الدعم' : 'Contact Support')}}</span>
                         </a>
                     </li>
                     @if ($web_config['ref_earning_status'])
@@ -124,10 +121,7 @@
                         </a>
                     </li>
                     <li class="d-lg-none">
-                        <a class="d-flex align-items-center" href="javascript:"
-                           class="delete-action"
-                           data-action="{{route('account-delete',[$customer_info['id']])}}"
-                           data-text="{{translate('want_to_delete_this_account').'?'}}">
+                        <a class="d-flex align-items-center gap-2" href="{{ route('customer.deletion.show') }}">
                             <i class="bi bi-trash3-fill text-danger fs-16"></i>
                             {{ translate('delete_my_account') }}
                         </a>
@@ -137,3 +131,4 @@
         </div>
     </div>
 </div>
+

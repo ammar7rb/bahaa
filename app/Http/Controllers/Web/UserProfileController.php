@@ -100,12 +100,12 @@ class UserProfileController extends Controller
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
         $lockedCustomer = User::lockForUpdate()->findOrFail(auth('customer')->id());
         $password = app(\App\Services\CustomerPasswordChangeService::class)->password($lockedCustomer,$request);
-        $imageName = $request->file('image') ? ImageManager::update('profile/', auth('customer')->user()->image, 'webp', $request->file('image')) : auth('customer')->user()->image;
-        $user = auth('customer')->user();
+        $imageName = $request->file('image') ? ImageManager::update('profile/', $lockedCustomer->image, 'webp', $request->file('image')) : $lockedCustomer->image;
+        $user = $lockedCustomer;
         $phones = app(\App\Services\EgyptPhoneService::class);
-        $effectivePhone = $phones->normalizeLocal($user['is_phone_verified'] ? $user['phone'] : $request['phone']);
+        $effectivePhone = $phones->normalizeLocal($request['phone']);
         $phoneChanged = $effectivePhone !== $phones->normalizeLocal($user['phone']);
-        User::find($user['id'])->update([
+        $lockedCustomer->update([
             'f_name' => $request['f_name'],
             'l_name' => $request['l_name'],
             'phone' => $effectivePhone,
@@ -221,7 +221,7 @@ class UserProfileController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ], $locationService->persistedLocationFields($request->all(), $resolution));
-        DB::table('shipping_addresses')->insert($address);
+        ShippingAddress::create($address);
 
         if (($resolution['status'] ?? null) === GoogleMapsShippingLocationService::STATUS_RESOLVED) {
             Toastr::success(translate('address_added_successfully!'));
@@ -238,7 +238,7 @@ class UserProfileController extends Controller
 
     public function address_edit(Request $request, $id)
     {
-        $shippingAddress = ShippingAddress::where('customer_id', auth('customer')->id())->find($id);
+        $shippingAddress = ShippingAddress::where('customer_id', auth('customer')->id())->where('is_guest', 0)->find($id);
         $country_restrict_status = getWebConfig(name: 'delivery_country_restriction');
         $zip_restrict_status = getWebConfig(name: 'delivery_zip_code_area_restriction');
 
@@ -318,7 +318,7 @@ class UserProfileController extends Controller
             'updated_at' => now(),
         ], $locationService->persistedLocationFields($request->all(), $resolution));
         if (auth('customer')->check()) {
-            ShippingAddress::where('id', $request->id)->update($updateAddress);
+            ShippingAddress::where('customer_id', auth('customer')->id())->where('is_guest', 0)->findOrFail($request->id)->update($updateAddress);
             if (($resolution['status'] ?? null) === GoogleMapsShippingLocationService::STATUS_RESOLVED) {
                 Toastr::success(translate('address_updated_successfully!'));
             } else {
@@ -333,7 +333,7 @@ class UserProfileController extends Controller
     public function address_delete(Request $request)
     {
         if (auth('customer')->check()) {
-            ShippingAddress::destroy($request->id);
+            ShippingAddress::where('customer_id', auth('customer')->id())->where('is_guest', 0)->findOrFail($request->id)->delete();
             Toastr::success(translate('address_Delete_Successfully'));
             return redirect()->back();
         } else {
@@ -1205,4 +1205,3 @@ class UserProfileController extends Controller
         return redirect()->route('user-restock-requests');
     }
 }
-

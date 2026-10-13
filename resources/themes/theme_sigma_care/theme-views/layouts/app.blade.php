@@ -112,7 +112,9 @@
 @if(!request()->routeIs('shop-cart') && !request()->is('checkout*','customer/checkout*'))
 <div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'browsing'])</div>
 @endif
+@include('customer-account.profile-header')
 @yield('content')
+@include('customer-account.contact-phones')
 @include('web-views.users-profile.partials.customer-payment-notices')
 @include('theme-views.layouts.partials._feature')
 @include('theme-views.layouts.partials._footer')

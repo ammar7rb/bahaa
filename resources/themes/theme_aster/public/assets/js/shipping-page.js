@@ -51,6 +51,7 @@ function shippingMethodSelect(cardBody) {
     $('#street').val(shippingStreet);
     $('#building-number').val(shippingBuildingNumber);
     $('#landmark').val(shippingLandmark);
+    ['floor','unit_number','company_details'].forEach(field=>$('[name="'+field+'"]').val(cardBody.find('.shipping-contact-'+field).text()));
     $('#zip').val(shippingZip);
     $('#select2-zip-container').text(shippingZip);
     $('#country').val(shippingCountry);

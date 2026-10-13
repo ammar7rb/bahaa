@@ -11,10 +11,7 @@ class NotificationCenterController extends Controller
     {
         $customerId = auth('customer')->id();
         abort_unless($customerId, 401);
-        $notifications = Notification::active()->forCustomer((int) $customerId)
-            ->where('sent_to', 'customer')->whereIn('sent_by', ['admin', 'system'])
-            ->select(['id', 'title', 'description', 'created_at'])
-            ->latest('id')->paginate(20);
+        $notifications = app(\App\Services\CustomerCommunicationService::class)->notifications((int) $customerId)->paginate(20);
         return view('customer-account.notifications', compact('notifications'));
     }
 }

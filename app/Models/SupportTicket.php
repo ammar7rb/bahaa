@@ -82,6 +82,10 @@ class SupportTicket extends Model
     {
         return $this->hasMany(SupportTicketConv::class);
     }
+    public function latestConversation(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(SupportTicketConv::class)->latestOfMany();
+    }
     public function getAttachmentFullUrlAttribute():array|null
     {
         $images = [];

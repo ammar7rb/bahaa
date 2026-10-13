@@ -186,7 +186,9 @@
 @if(!request()->routeIs('shop-cart') && !request()->is('checkout*','customer/checkout*'))
 <div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'browsing'])</div>
 @endif
+@include('customer-account.profile-header')
 @yield('content')
+@include('customer-account.contact-phones')
 @include('web-views.users-profile.partials.customer-payment-notices')
 
 <span id="message-otp-sent-again" data-text="{{ translate('OTP_has_been_sent_again.') }}"></span>

@@ -14,7 +14,7 @@
                                 <ul class="cart-step-list">
                                     <li class="done cursor-pointer get-view-by-onclick"
                                         data-link="{{route('shop-cart')}}"><span><i
-                                                class="bi bi-check2"></i></span> {{ translate('cart') }}</li>
+                                                class="bi bi-check2"></i></span> {{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart') }}</li>
                                     <li class="current cursor-pointer get-view-by-onclick text-capitalize"
                                         data-link="{{ route('checkout-details') }}"><span><i
                                                 class="bi bi-check2"></i></span> {{ translate('shipping_details') }}
@@ -108,6 +108,7 @@
                                                                                                     <span class="shipping-contact-street d-none">{{ $address['street'] }}</span>
                                                                                                     <span class="shipping-contact-building-number d-none">{{ $address['building_number'] }}</span>
                                                                                                     <span class="shipping-contact-landmark d-none">{{ $address['landmark'] }}</span>
+                                                                                                    @foreach(['floor','unit_number','company_details'] as $detailField)<span class="shipping-contact-{{ $detailField }} d-none">{{ $address[$detailField] }}</span>@endforeach
                                                                                                     <span
                                                                                                         class="shipping-contact-zip d-none">{{ $address['zip'] }}</span>
                                                                                                     <span class="shipping-contact-country d-none">{{ $address['country'] }}</span>
@@ -238,7 +239,8 @@
                                                          </div>
                                                          <div class="col-sm-6">
                                                              <div class="form-group mb-4">
-                                                                 <label for="landmark">أقرب علامة مميزة</label>
+                                                                 @include('customer-account.address-extra-fields',['addressDetails'=>$shippingAddress ?? null])
+<label for="landmark">أقرب علامة مميزة</label>
                                                                  <input type="text" name="landmark" id="landmark" class="form-control" placeholder="مثال: بجوار مسجد السلام">
                                                              </div>
                                                          </div>

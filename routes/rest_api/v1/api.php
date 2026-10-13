@@ -48,6 +48,9 @@ use App\Http\Controllers\Customer\PaymentController;
  */
 
 Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
+    Route::get('customer/communication', [\App\Http\Controllers\Customer\CommunicationController::class, 'index'])->middleware(['auth:api', 'throttle:60,1']);
+    Route::get('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'index'])->middleware('auth:api');
+    Route::put('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'update'])->middleware(['auth:api','throttle:10,1']);
     Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['auth:api', 'throttle:10,1,customer-support-report:']);
     Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show']);
     Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['auth:api', 'throttle:10,1,customer-profile-image:']);

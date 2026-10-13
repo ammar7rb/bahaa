@@ -11,7 +11,7 @@
 <button class="no-print" onclick="window.print()">{{ translate('print') }}</button>
 <div class="head">
     <h2>{{ translate('support_conversation') }} #{{ $ticket->id }}</h2>
-    <p>{{ translate('customer') }}: {{ $ticket->customer?->administrative_reference ?? ('C'.$ticket->customer_id) }} &middot; {{ $ticket->customer?->email }} &middot; {{ $ticket->customer?->phone }}</p>
+    <p>{{ translate('customer') }}: {{ $ticket->customer?->administrative_reference ?? \App\Services\AdministrativeReferenceService::format('customer', (int) $ticket->customer_id) }} &middot; {{ $ticket->customer?->email }} &middot; {{ $ticket->customer?->phone }}</p>
     <p>{{ translate('subject') }}: {{ $ticket->subject }} &middot; {{ translate('status') }}: {{ translate($ticket->status) }} &middot; {{ translate('printed_at') }}: {{ now()->format('Y-m-d H:i') }}</p>
 </div>
 

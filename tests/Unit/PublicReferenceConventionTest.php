@@ -16,7 +16,7 @@ class PublicReferenceConventionTest extends TestCase
     public function test_every_requested_prefix_and_vendor_search(): void
     {
         foreach (['seller'=>'M','customer'=>'C','product'=>'P','invoice'=>'IV','customer_balance_deposit'=>'ADC','customer_insurance_deposit'=>'AIC','seller_balance_deposit'=>'ADM','seller_insurance_deposit'=>'AIM','seller_payment'=>'MP','seller_insurance_payment'=>'MIP','customer_insurance_payment'=>'CIP'] as $type=>$prefix) {
-            $this->assertSame($prefix.'42', Reference::format($type,42));
+            $this->assertSame($prefix.(in_array($type,['seller','customer'],true)?'000042':'42'), Reference::format($type,42));
         }
         $this->assertSame(['type'=>'sellers','id'=>42],Reference::parse('m-42'));
         $this->assertSame(['type'=>'sellers','id'=>42],Reference::parse('V42'));

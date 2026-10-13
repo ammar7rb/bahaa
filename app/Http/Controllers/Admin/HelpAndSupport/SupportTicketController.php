@@ -106,6 +106,7 @@ class SupportTicketController extends BaseController
             ToastMagic::warning(translate('you_cannot_send_more_than_189_characters_text_!'));
             return back();
         }
+        $request->merge(['adminId' => (int) auth('admin')->id()]);
         $dataArray = $supportTicketService->getAddData(request: $request);
         $this->supportTicketConvRepo->add(data: $dataArray);
         $this->supportTicketRepo->update(id: $request['id'], data: ['status' => 'open', 'closed_at' => null, 'archived_at' => null]);

@@ -20,8 +20,8 @@ class AdministrativeReferenceService
     public static function format(string $subjectType, int $id): string
     {
         return match ($subjectType) {
-            'customer', 'users' => 'C' . $id,
-            'seller', 'sellers', 'vendor' => 'M' . $id,
+            'customer', 'users' => 'C' . str_pad((string) $id, 6, '0', STR_PAD_LEFT),
+            'seller', 'sellers', 'vendor' => 'M' . str_pad((string) $id, 6, '0', STR_PAD_LEFT),
             'product' => 'P' . $id,
             'invoice' => 'IV' . $id,
             'customer_balance_deposit' => 'ADC' . $id,

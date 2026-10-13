@@ -128,11 +128,17 @@ class User extends Authenticatable
     }
 
     protected $with = ['storage'];
-    protected $appends = ['image_full_url'];
+    protected $appends = ['image_full_url', 'administrative_reference'];
+
+    public function getAdministrativeReferenceAttribute(): string
+    {
+        return \App\Services\AdministrativeReferenceService::format('customer', (int) $this->id);
+    }
 
     protected static function boot(): void
     {
         parent::boot();
+        static::updated(fn ($user) => app(\App\Services\CustomerProfileAuditService::class)->profile($user));
         static::saved(function ($model) {
             if ($model->isDirty('image')) {
                 $value = getWebConfig(name: 'storage_connection_type') ?? 'public';
