@@ -248,6 +248,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show'])->name('customer.purchasing-limit');
     Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['customer', 'throttle:10,1,customer-profile-image:'])->name('customer.profile-image');
     Route::prefix('customer/account-deletion')->name('customer.deletion.')->middleware('customer')->controller('\App\Http\Controllers\Customer\AccountDeletionController')->group(function () {
+        Route::post('confirm', 'confirm')->middleware('throttle:5,1,customer-deletion-confirm:')->name('confirm');
         Route::get('/', 'show')->name('show');
         Route::post('begin', 'begin')->middleware('throttle:5,1,customer-deletion-password:')->name('begin');
         Route::post('reason', 'reason')->middleware('throttle:10,1,customer-deletion-reason:')->name('reason');

@@ -8,7 +8,20 @@ use Illuminate\Http\Request;
 class AccountDeletionController extends Controller
 {
     private function id(Request $r): int { return (int) ($r->is('api/*') ? $r->user('api')->id : auth('customer')->id()); }
-    public function show() { return view('customer-account.delete', ['stage' => 1, 'token' => null]); }
+    public function show() { return view('customer-account.delete'); }
+    public function confirm(Request $r, CustomerAccountDeletionService $service) {
+        try {
+            $r->validate(['confirmation' => 'required|accepted']);
+            $service->confirm($this->id($r));
+            if ($r->is('api/*')) return response()->json(['deleted' => true]);
+            auth('customer')->logout();
+            $r->session()->invalidate();
+            $r->session()->regenerateToken();
+            return redirect()->route('home');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->error($r, 1, null, $e);
+        }
+    }
     public function begin(Request $r, CustomerAccountDeletionService $service) {
         try {
         $data = $r->validate(['password' => 'required|string|max:128']);

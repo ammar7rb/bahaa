@@ -9,6 +9,33 @@ use Illuminate\Validation\ValidationException;
 
 class CustomerAccountDeletionService
 {
+    public function confirm(int $customerId): void
+    {
+        DB::transaction(function () use ($customerId) {
+            $user = User::lockForUpdate()->findOrFail($customerId);
+            if ($user->account_deleted_at) return;
+            $this->closeAccount($customerId);
+            DB::table('customer_deletion_flows')->where('customer_id', $customerId)
+                ->whereNull('consumed_at')->update(['consumed_at' => now(), 'updated_at' => now()]);
+        });
+    }
+
+    private function closeAccount(int $customerId): void
+    {
+        if (DB::table('orders')->where('customer_id', $customerId)->where('is_guest', 0)
+            ->whereIn('order_status', ['pending', 'confirmed', 'processing', 'out_for_delivery'])->exists()) {
+            $this->invalid('لا يمكن حذف الحساب أثناء وجود طلبات جارية. تواصل مع الدعم لإتمامها أولًا.');
+        }
+        // Keep the financial owner and balances; closing access does not settle or refund funds.
+        DB::table('users')->where('id', $customerId)->update([
+            'account_deleted_at' => now(), 'is_active' => 0, 'password' => Hash::make(Str::random(80)),
+            'remember_token' => null, 'temporary_token' => null, 'cm_firebase_token' => null,
+        ]);
+        $tokens = DB::table('oauth_access_tokens')->where('user_id', $customerId)->pluck('id');
+        DB::table('oauth_access_tokens')->whereIn('id', $tokens)->update(['revoked' => true]);
+        DB::table('oauth_refresh_tokens')->whereIn('access_token_id', $tokens)->update(['revoked' => true]);
+    }
+
     private function invalid(string $message): never { throw ValidationException::withMessages(['deletion' => $message]); }
     private function password(User $user, string $password): void {
         if ($user->account_deleted_at || !Hash::check($password, (string) $user->password)) $this->invalid('كلمة المرور غير صحيحة.');
@@ -40,16 +67,7 @@ class CustomerAccountDeletionService
     public function finish(int $customerId, string $token, string $password): void {
         DB::transaction(function () use ($customerId, $token, $password) {
             $user = User::lockForUpdate()->findOrFail($customerId); $flow = $this->flow($user, $token, 2); $this->password($user, $password);
-            if (DB::table('orders')->where('customer_id', $customerId)->where('is_guest', 0)->whereIn('order_status', ['pending','confirmed','processing','out_for_delivery'])->exists()) {
-                $this->invalid('لا يمكن حذف الحساب أثناء وجود طلبات جارية. تواصل مع الدعم لإتمامها أولًا.');
-            }
-            // Retain identity and financial relations. A random password and revoked
-            // credentials permanently close access without deleting ledger owners.
-            DB::table('users')->where('id', $customerId)->update(['account_deleted_at' => now(), 'is_active' => 0,
-                'password' => Hash::make(Str::random(80)), 'remember_token' => null, 'temporary_token' => null, 'cm_firebase_token' => null]);
-            $tokens = DB::table('oauth_access_tokens')->where('user_id', $customerId)->pluck('id');
-            DB::table('oauth_access_tokens')->whereIn('id', $tokens)->update(['revoked' => true]);
-            DB::table('oauth_refresh_tokens')->whereIn('access_token_id', $tokens)->update(['revoked' => true]);
+            $this->closeAccount($customerId);
             DB::table('customer_deletion_flows')->where('id', $flow->id)->update(['stage' => 3, 'consumed_at' => now(), 'updated_at' => now()]);
         });
     }

@@ -62,6 +62,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
     Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show']);
     Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['auth:api', 'throttle:10,1,customer-profile-image:']);
     Route::prefix('customer/account-deletion')->middleware('auth:api')->controller('\App\Http\Controllers\Customer\AccountDeletionController')->group(function () {
+        Route::post('confirm', 'confirm')->middleware('throttle:5,1,customer-deletion-confirm:');
         Route::post('begin', 'begin')->middleware('throttle:5,1,customer-deletion-password:');
         Route::post('reason', 'reason')->middleware('throttle:10,1,customer-deletion-reason:');
         Route::post('finish', 'finish')->middleware('throttle:5,1,customer-deletion-password:');

@@ -62,6 +62,7 @@
         <a href="{{ route('products') }}">{{ translate('products') }}</a>
         <a href="{{ route('discounted-products') }}">{{ translate('offers') }}</a>
         <a href="{{ route('business-page.view', ['slug' => 'medical-devices-accessories']) }}" @if(request()->routeIs('business-page.view') && request()->route('slug') === 'medical-devices-accessories') aria-current="page" @endif>{{ $careArabic ? 'الأجهزة الطبية وملحقاتها' : 'Medical Devices & Accessories' }}</a>
+        <a href="{{ route('business-page.view', ['slug' => 'veterinary-services']) }}" @if(request()->routeIs('business-page.view') && request()->route('slug') === 'veterinary-services') aria-current="page" @endif>{{ $careArabic ? 'خدمات بيطرية' : 'Veterinary Services' }}</a>
         <a href="{{ route('buy-now-pay-later') }}" @if(request()->routeIs('buy-now-pay-later')) aria-current="page" @endif>{{ $careArabic ? 'اشترِ الآن وادفع لاحقًا' : 'Buy Now, Pay Later' }}</a>
         <a href="#careSupportPanel" data-bs-toggle="offcanvas" aria-controls="careSupportPanel">{{ translate('contact_us') }}</a>
         </div>
