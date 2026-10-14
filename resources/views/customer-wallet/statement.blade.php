@@ -1,7 +1,7 @@
 <h2 class="h5">حركة رصيد المحفظة</h2>
                 <form method="get" action="{{ route('wallet') }}" class="row g-2 mb-3">
                     <input type="hidden" name="wallet_tab" value="balances">
-                    <div class="col-sm-4"><label for="statement-type" class="form-label">نوع العملية</label><select id="statement-type" name="entry_type" class="form-select"><option value="">كل العمليات</option>@foreach(\App\Services\CustomerWalletStatementService::LABELS as $key=>$label)<option value="{{ $key }}" @selected(request('entry_type')===$key)>{{ $label }}</option>@endforeach</select></div>
+                    <div class="col-sm-4"><label for="statement-type" class="form-label">نوع العملية</label><select id="statement-type" name="entry_type" class="form-select"><option value="">كل العمليات</option>@foreach(\Illuminate\Support\Arr::except(\App\Services\CustomerWalletStatementService::LABELS, ['increase']) as $key=>$label)<option value="{{ $key }}" @selected(request('entry_type')===$key)>{{ $label }}</option>@endforeach</select></div>
                     <div class="col-sm-3"><label for="statement-from" class="form-label">من تاريخ</label><input id="statement-from" type="date" name="from" value="{{ request('from') }}" class="form-control"></div>
                     <div class="col-sm-3"><label for="statement-to" class="form-label">إلى تاريخ</label><input id="statement-to" type="date" name="to" value="{{ request('to') }}" class="form-control"></div>
                     <div class="col-sm-2 align-self-end"><button class="btn btn--primary">تصفية</button></div>

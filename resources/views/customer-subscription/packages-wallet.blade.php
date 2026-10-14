@@ -2,7 +2,7 @@
 @section('title','الباقات الشهرية')
 @push('css_or_js')
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-subscription.css') }}">
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-packages.css') }}?v=20261014">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-packages.css') }}?v=20261014b">
 @endpush
 @section('content')
 @php($money = fn($value) => rtrim(rtrim(number_format((float)$value,3,'.',','),'0'),'.'))
@@ -11,7 +11,10 @@
     <header class="package-heading"><h1>الباقات الشهرية</h1><p>تُخصم معاملات الباقات من محفظة المنصة وتُفعّل فورًا. الحد الائتماني لا يُضاف إلى رصيد المحفظة.</p></header>
     @if($errors->any())<div class="monthly-error" role="alert">{{ $errors->first() }}</div>@endif
     @if(session('subscription_message'))<div class="monthly-notice" role="status">{{ session('subscription_message') }}</div>@endif
-    <p>رصيد محفظتك: <bdi>{{ $money($purchase_balance) }}</bdi> ج.م · <a href="{{ route('wallet') }}#purchase-balance">شحن محفظة المنصة</a></p>
+    <section class="package-wallet-bar" aria-label="رصيد محفظتك">
+        <div class="package-wallet-balance"><span>رصيد محفظتك</span><strong><bdi>{{ $money($purchase_balance) }}</bdi> <small>ج.م</small></strong></div>
+        <a class="package-wallet-topup" href="{{ route('wallet') }}#purchase-balance">شحن محفظة المنصة</a>
+    </section>
     @unless($purchase_wallet_enabled)<p class="monthly-error">محفظة المنصة غير متاحة حاليًا.</p>@endunless
     @if($subscription['active'])
     <section class="package-account" aria-label="باقتك الحالية">
