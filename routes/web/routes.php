@@ -71,6 +71,12 @@ Route::controller(WebController::class)->group(function () {
     Route::get('maintenance-mode', 'maintenance_mode')->name('maintenance-mode');
 });
 
+Route::controller(\App\Http\Controllers\Customer\PasswordRecoveryController::class)->prefix('customer/password-recovery')->name('customer.password-recovery.')->group(function(){
+    Route::get('/', 'form')->name('form');
+    Route::post('request','request')->middleware('throttle:5,1,customer-recovery:')->name('request');
+    Route::get('change','changeForm')->middleware('customer')->name('change-form');
+    Route::post('change','change')->middleware(['customer','throttle:5,1,customer-recovery-change:'])->name('change');
+});
 Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestCheck']], function () {
     Route::group(['prefix' => 'product-compare', 'as' => 'product-compare.'], function () {
         Route::controller(ProductCompareController::class)->group(function () {
@@ -251,6 +257,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('/', 'index')->name('index');
         Route::post('{payment}/cancel', 'cancel')->middleware('throttle:10,1,customer-package-cancel:')->name('cancel');
         Route::post('checkout', 'checkout')->middleware('throttle:10,1,customer-package-quote:')->name('checkout');
+        Route::post('transact','transact')->middleware('throttle:10,1,customer-package-transaction:')->name('transact');
         Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1,customer-package-wallet:')->name('wallet');
         Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1,customer-package-transfer:')->name('offline');
     });
@@ -383,7 +390,7 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
 
         Route::controller(ForgotPasswordController::class)->group(function () {
             Route::get('recover-password', 'reset_password')->name('recover-password');
-            Route::post('forgot-password', 'resetPasswordRequest')->name('forgot-password');
+            Route::post('forgot-password', 'resetPasswordRequest')->middleware('throttle:5,1,customer-recovery:')->name('forgot-password');
             Route::post('verify-recover-password', 'verifyRecoverPassword')->name('verify-recover-password');
             Route::get('otp-verification', 'otp_verification')->name('otp-verification');
             Route::post('otp-verification', 'otp_verification_submit');

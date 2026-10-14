@@ -50,6 +50,7 @@
         if (!response.ok) return;
         const data = await response.json(); if (!data.limit) return;
         document.querySelectorAll('[data-purchasing-limit]').forEach(element => {
+          if (data.limit.show_credit_indicator === false) { element.remove(); return; }
           element.dataset.available = data.limit.available_limit; element.dataset.granted = data.limit.granted_limit;
           element.dataset.cart = data.limit.cart_amount; element.dataset.items = JSON.stringify(data.cart_items || []);
           element.dataset.reserved = data.limit.cart_reserved_amount || 0;

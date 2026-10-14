@@ -6,4 +6,4 @@
     <h4 class="h6 mt-3">ما الذي تغير ومتى؟</h4><div data-profile-change-list></div>
     <nav class="d-flex gap-2 mt-3" aria-label="صفحات سجل التحديثات"><button type="button" class="btn btn-outline-primary" data-history-previous>السابق</button><span data-history-page></span><button type="button" class="btn btn-outline-primary" data-history-next>التالي</button></nav>
 </section>
-@push('script')<script src="{{ asset('assets/back-end/js/customer-profile-history.js') }}" defer></script>@endpush
+@push('script')<script src="{{ asset('assets/back-end/js/customer-profile-history.js') }}?v=20261014" defer></script>@endpush

@@ -139,7 +139,7 @@ class WalletTransactionRepository implements WalletTransactionRepositoryInterfac
         $debit_amount = currencyConverter(amount: $debit);
         $wallet_transaction['credit'] = $credit_amount;
         $wallet_transaction['debit'] = $debit_amount;
-        $wallet_transaction['balance'] = $currentBalance + $credit_amount - $debit_amount;
+        $wallet_transaction['balance'] = $currentBalance + $addFundToWalletBonus + $credit_amount - $debit_amount;
         $wallet_transaction['created_at'] = now();
         $wallet_transaction['updated_at'] = now();
 

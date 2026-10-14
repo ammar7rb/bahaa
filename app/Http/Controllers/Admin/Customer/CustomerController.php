@@ -120,17 +120,9 @@ class CustomerController extends BaseController
             appends: $request->all(),
         );
         $totalCustomers = $this->customerRepo->getListWhereBetween(filters: ['avoid_walking_customer' => 1], dataLimit: 'all')->count();
-        $customerActivePackages = CustomerPurchasePackageSubscription::with('package')
+        $customerActivePackages = \App\Models\CustomerMonthlySubscription::query()
             ->whereIn('customer_id', $customers->getCollection()->pluck('id')->toArray())
-            ->where('status', 'active')
-            ->where('payment_status', 'paid')
-            ->where(function ($query) {
-                $query->whereNull('starts_at')->orWhere('starts_at', '<=', Carbon::now());
-            })
-            ->where(function ($query) {
-                $query->whereNull('expires_at')->orWhere('expires_at', '>=', Carbon::now());
-            })
-            ->orderByDesc('activated_at')
+            ->whereNotNull('package_id')->where('starts_at','<=',Carbon::now())->where('expires_at','>',Carbon::now())
             ->orderByDesc('id')
             ->get()
             ->groupBy('customer_id')

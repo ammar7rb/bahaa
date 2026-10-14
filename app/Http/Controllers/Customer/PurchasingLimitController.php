@@ -11,7 +11,7 @@ class PurchasingLimitController extends Controller
         $request->merge(['user' => $customer]);
         $request->setUserResolver(fn ($guard = null) => $customer);
         $state = $customer ? app(CustomerPurchaseEligibilityService::class)->status($customer) : null;
-        $provisional = !$customer || ($state['initial_order_exception_available'] ?? false) || ($state['can_resume_initial_checkout'] ?? false);
+        $provisional = !$customer || ($state['is_urgent_account'] ?? false);
         $cart = CartManager::getCartListQuery(type: 'checked');
         $amount = app(CustomerPurchaseLimitService::class)->getCartProductTotal($cart);
         return response()->json(['limit' => $limits->enabled() ? $limits->summary((int) ($customer?->id ?? 0), $amount, $provisional) : null, 'eligibility' => $state,

@@ -21,6 +21,7 @@ class CustomerProfileSnapshotController extends Controller
             'profile_changed_at'=>$ready ? DB::table('customer_profile_changes')->where('customer_id',$customer)->latest('id')->value('created_at') : null,
             'contact_phones'=>app(CustomerContactPhoneService::class)->list($customer)],
             'addresses'=>ShippingAddress::where('customer_id',$customer)->where('is_guest',0)->latest('id')->get(\App\Services\CustomerProfileAuditService::ADDRESS_FIELDS)->map(fn($address)=>$address->getAttributes()),
+            'subscription'=>Schema::hasTable('customer_monthly_subscriptions') && Schema::hasTable('customer_subscription_payments') ? app(\App\Services\CustomerMonthlySubscriptionService::class)->status($customer) : null,
             'history_ready'=>$ready,'history'=>$history ? $history->getCollection()->map(function($entry){
                 $changes=json_decode($entry->changes,true) ?: [];
                 if(isset($changes['password'])) $changes['password']=['changed'=>true];

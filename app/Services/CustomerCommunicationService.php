@@ -30,7 +30,11 @@ class CustomerCommunicationService
         $target = null;
         $url = null;
         $key = (string) $notice->getRawOriginal('customer_event_key');
-        if (preg_match('/^order-status-(\d+)-/', $key, $match)
+        if (preg_match('/^initial-order-(\d+)-requirements$/', $key, $match)
+            && Order::whereKey($match[1])->where('customer_id', $customerId)->where('is_guest', 0)->exists()) {
+            $target = ['type' => 'subscription', 'id' => (int) $match[1]];
+            $url = route('customer.subscription.index');
+        } elseif (preg_match('/^order-status-(\d+)-/', $key, $match)
             && Order::whereKey($match[1])->where('customer_id', $customerId)->where('is_guest', 0)->exists()) {
             $target = ['type' => 'order', 'id' => (int) $match[1]];
             $url = route('account-order-details', ['id' => (int) $match[1]]);

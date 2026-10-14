@@ -45,11 +45,12 @@ class ForgotPasswordController extends Controller
 
     public function reset_password()
     {
-        return redirect()->route(auth('customer')->check() ? 'customer.messages.index' : 'contacts',['password_help'=>1]);
+        return redirect()->route('customer.password-recovery.form');
     }
 
     public function resetPasswordRequest(Request $request): RedirectResponse|JsonResponse
     {
+        return app(\App\Http\Controllers\Customer\PasswordRecoveryController::class)->request($request,app(\App\Services\CustomerPasswordRecoveryService::class));
         $request->validate([
             'identity' => 'required',
         ]);
@@ -304,6 +305,7 @@ class ForgotPasswordController extends Controller
 
     public function resetPasswordSubmit(Request $request): View|Redirector|RedirectResponse
     {
+        return redirect()->route('customer.password-recovery.form');
         $validator = Validator::make($request->all(), [
             'password' => 'required|same:confirm_password',
         ]);

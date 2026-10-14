@@ -22,18 +22,20 @@ class UserWalletController extends Controller
         return redirect()->route('wallet', $request->query());
     }
 
-    private function walletView(): View
+    private function walletView(Request $request): View
     {
         $customerId = (int) auth('customer')->id();
         $service = app(CustomerInsuranceBalanceService::class);
         $gateways = payment_gateways();
         $digitalPayment = getWebConfig(name: 'digital_payment');
+        $statement=app(\App\Services\CustomerWalletStatementService::class);
+        $entries=$statement->query($customerId,$request)->paginate(10,['*'],'purchase_page')->withQueryString();
+        $entries->setCollection(collect($statement->decorate($entries->items())));
 
         return view('web-views.users-profile.customer-balances', [
             'purchaseBalance' => (float) auth('customer')->user()->wallet_balance,
             'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status($customerId),
-            'purchaseEntries' => WalletTransaction::query()->where('user_id', $customerId)
-                ->latest('id')->paginate(10, ['*'], 'purchase_page')->withQueryString(),
+            'purchaseEntries' => $entries,
             'paymentGatewayList' => $gateways,
             'canDeposit' => getWebConfig(name: 'add_funds_to_wallet') == 1 && ($digitalPayment['status'] ?? 0) && $gateways->isNotEmpty(),
             'purchaseWalletEnabled' => getWebConfig(name: 'wallet_status') == 1,
@@ -52,7 +54,7 @@ class UserWalletController extends Controller
                 : Toastr::error(translate('add_fund_to_wallet_unsuccessful'));
             return redirect()->route('wallet');
         }
-        return $this->walletView();
+        return $this->walletView($request);
     }
     public function myWalletAccount(): View
     {

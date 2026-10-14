@@ -163,10 +163,14 @@ class CustomerAPIAuthController extends Controller
             ];
 
             if (auth()->attempt($data)) {
+                if($user->must_change_password && (!$user->temporary_password_expires_at || now()->gte(\Carbon\Carbon::parse($user->temporary_password_expires_at)))) {
+                    auth()->logout();
+                    return response()->json(['errors'=>[['code'=>'temporary_password_expired','message'=>'انتهت صلاحية الكلمة المؤقتة. اطلب الاستعادة عبر الدعم.']]],403);
+                }
                 $temporaryToken = Str::random(40);
                 $phoneVerification = getLoginConfig(key: 'phone_verification') ?? 0;
                 $emailVerification = getLoginConfig(key: 'email_verification') ?? 0;
-                if ($user->onboarding_journey === 'checkout_first') {
+                if ($user->onboarding_journey === 'checkout_first' || $user->must_change_password) {
                     $phoneVerification = $emailVerification = 0;
                 }
                 $emailVerification = !$phoneVerification ? $emailVerification : 0;
@@ -200,7 +204,7 @@ class CustomerAPIAuthController extends Controller
                     'updated_at' => now()
                 ]);
 
-                return response()->json(['token' => $token, 'status' => true], 200);
+                return response()->json(['token' => $token, 'status' => true, 'must_change_password'=>(bool)$user->must_change_password], 200);
             } else {
                 $code = 'invalid_credentials';
                 $errorMsg = translate('credentials_doesnt_match');
@@ -873,6 +877,10 @@ class CustomerAPIAuthController extends Controller
 
     public function passwordResetRequest(Request $request): JsonResponse
     {
+        $request->validate(['email_or_phone'=>'required|string|max:191']);
+        $record=app(\App\Services\CustomerPasswordRecoveryService::class)->request($request->input('email_or_phone'));
+        return response()->json(['message'=>\App\Services\CustomerPasswordRecoveryService::MESSAGE,'support_required'=>true,
+            'conversation_url'=>\Illuminate\Support\Facades\URL::temporarySignedRoute('contact.conversation',now()->addMinutes(30),['contact'=>$record->contact_id])],200);
         $validator = Validator::make($request->all(), [
             'email_or_phone' => 'required',
             'type' => 'required|in:phone,email',

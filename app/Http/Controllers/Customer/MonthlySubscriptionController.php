@@ -4,14 +4,9 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\CustomerSubscriptionPayment;
-use App\Models\OfflinePaymentMethod;
 use App\Services\CustomerMonthlySubscriptionService;
 use DomainException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class MonthlySubscriptionController extends Controller
@@ -27,31 +22,26 @@ class MonthlySubscriptionController extends Controller
     {
         $id = $this->customer($request);
         $payload = [
-            'packages' => \Illuminate\Support\Facades\Schema::hasTable('customer_purchase_packages') ? \App\Models\CustomerPurchasePackage::where('status', 1)->where(fn ($q) => $q->where('is_custom', 0)->orWhere('customer_id', $id))->orderBy('sort_order')->get() : collect(),
-            'increase_offers' => \Illuminate\Support\Facades\Schema::hasTable('customer_credit_offers') ? \Illuminate\Support\Facades\DB::table('customer_credit_offers')->where('active', true)->get() : collect(),
+            'wallet_policy_version'=>2,
+            'packages' => \Illuminate\Support\Facades\Schema::hasTable('customer_purchase_packages') ? app(\App\Services\CustomerPackageCatalogService::class)->available()->get()->map(function($package){$package->setAttribute('quote_token',app(\App\Services\CustomerPackageCatalogService::class)->token($package,'package'));return $package;}) : collect(),
+            'increase_offers' => \Illuminate\Support\Facades\Schema::hasTable('customer_credit_offers') ? \Illuminate\Support\Facades\DB::table('customer_credit_offers')->where('active',true)->get()->map(function($offer){$offer->quote_token=app(\App\Services\CustomerPackageCatalogService::class)->token($offer,'offer');return $offer;}) : collect(),
             'subscription' => $this->subscriptions->status($id),
-            'offline_methods' => (getWebConfig('offline_payment')['status'] ?? 0)
-                ? OfflinePaymentMethod::where('status', 1)->whereIn('payment_channel', ['wallet','instapay'])->get(['id','method_name','payment_channel','method_fields','method_informations']) : collect(),
+            'offline_methods' => collect(),
             'purchase_wallet_enabled' => getWebConfig('wallet_status') == 1,
             'purchase_balance' => (float) \App\Models\User::findOrFail($id)->wallet_balance,
             'payments' => CustomerSubscriptionPayment::where('customer_id', $id)->latest('id')->paginate(10),
         ];
-        return $request->is('api/*') ? response()->json($payload) : view(app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled() ? 'customer-subscription.packages' : 'customer-subscription.index', $payload);
+        return $request->is('api/*') ? response()->json($payload) : view('customer-subscription.packages-wallet', $payload);
     }
 
     public function checkout(Request $request)
     {
-        $data = $request->validate(['request_key' => 'required|uuid', 'package_id' => 'nullable|integer|min:1', 'offer_id' => 'nullable|integer|min:1', 'quantity' => 'sometimes|integer|min:1|max:5']);
-        try {
-            return $this->result($request, $this->subscriptions->checkout($this->customer($request), $data['request_key'], $data['package_id'] ?? null, $data['offer_id'] ?? null, $data['quantity'] ?? 1));
-        } catch (DomainException $e) { throw ValidationException::withMessages(['subscription' => $e->getMessage()]); }
+        abort(410,'حدّث التطبيق أو الصفحة. معاملات الباقات الجديدة تُنفذ مباشرة من محفظة المنصة.');
     }
 
     public function wallet(Request $request, int $payment)
     {
-        try {
-            return $this->result($request, $this->subscriptions->payFromWallet($this->customer($request), $payment));
-        } catch (DomainException $e) { throw ValidationException::withMessages(['subscription' => $e->getMessage()]); }
+        abort(410,'مسار دفع مسودات الباقات مغلق. اختر معاملة جديدة من صفحة الباقات.');
     }
 
     public function cancel(Request $request, int $payment)
@@ -63,49 +53,25 @@ class MonthlySubscriptionController extends Controller
 
     public function offline(Request $request, int $payment)
     {
-        $record = CustomerSubscriptionPayment::where('customer_id', $this->customer($request))->findOrFail($payment);
-        if ($request->input('transfer_schema') === 'sender_v2') {
-            $sender = app(\App\Services\CustomerTransferInformationService::class)->sender($request->all());
-            $reference = $record->status === 'pending_review' ? $record->payment_reference : 'subscription-transfer-'.$record->id.'-'.$record->request_key;
-            $request->merge(['payment_reference' => $reference, 'method_information' => $sender]);
-        }
-        // An exact retry after a lost response doesn't create another proof or
-        // change a submission. A different transfer requires a new reviewed case.
-        if ($record->status === 'pending_review' && $record->payment_reference === trim((string) $request->input('payment_reference'))) return $this->result($request, $record);
-        $data = $request->validate([
-            'transfer_schema' => 'nullable|in:sender_v2',
-            'sender_name' => 'nullable|string|max:150', 'sender_phone' => 'nullable|string|max:40',
-            'method_id' => ['required','integer',Rule::exists('offline_payment_methods','id')->where(fn ($q) => $q->where('status',1)->whereIn('payment_channel',['wallet','instapay']))],
-            'payment_reference' => 'required|string|max:191|unique:customer_subscription_payments,payment_reference',
-            'payment_note' => 'nullable|string|max:1000',
-            'transferred_amount' => ['nullable','numeric','min:0.01','regex:/^[0-9]+(?:\.[0-9]{1,3})?$/'],
-            'method_information' => 'nullable|array', 'method_information.*' => 'nullable|string|max:255',
-            'payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+        abort(410,'الدفع الخارجي للباقات مغلق. اشحن محفظة المنصة ثم نفّذ العملية منها.');
+    }
+
+    public function transact(Request $request)
+    {
+        $data=$request->validate([
+            'request_key'=>'required|uuid','operation'=>'required|in:purchase,renew_limit',
+            'package_id'=>'nullable|integer|min:1','offer_id'=>'nullable|integer|min:1','quantity'=>'sometimes|integer|min:1|max:5',
+            'quote_token'=>'required|string|size:64|regex:/^[a-f0-9]{64}$/',
+            'expected_amount'=>'required|numeric|gt:0|max:4999999995|decimal:0,3',
+            'expected_subscription_id'=>'nullable|integer|min:1','expected_revision'=>'required|integer|min:0',
         ]);
-        abort_unless(getWebConfig('offline_payment')['status'] ?? 0, 403);
-        $method = OfflinePaymentMethod::findOrFail($data['method_id']);
-        $path = 'customer-subscriptions/'.Str::uuid().'.enc';
-        if (!Storage::disk('local')->put($path, Crypt::encryptString(file_get_contents($request->file('payment_proof')->getRealPath())))) {
-            throw ValidationException::withMessages(['payment_proof' => 'تعذر حفظ إثبات الدفع. حاول مرة أخرى.']);
-        }
-        try {
-            $record = $this->subscriptions->submitOffline($this->customer($request), $payment, $method, $data, $path);
-        } catch (\Throwable $e) {
-            Storage::disk('local')->delete($path);
-            if ($e instanceof DomainException) throw ValidationException::withMessages(['subscription' => $e->getMessage()]);
-            if ($e instanceof \Illuminate\Database\QueryException && in_array((string) $e->getCode(), ['23000','23505'], true)) {
-                $retry = $record->fresh();
-                if ($retry->status === 'pending_review' && $retry->payment_reference === trim($data['payment_reference'])) return $this->result($request,$retry);
-                throw ValidationException::withMessages(['payment_reference' => 'مرجع التحويل مستخدم بالفعل.']);
-            }
-            throw $e;
-        }
-        return $this->result($request, $record);
+        try { return $this->result($request,app(\App\Services\CustomerPackageWalletService::class)->transact($this->customer($request),$data)); }
+        catch(DomainException $e){throw ValidationException::withMessages(['subscription'=>$e->getMessage()]);}
     }
 
     private function result(Request $request, CustomerSubscriptionPayment $payment)
     {
         return $request->is('api/*') ? response()->json(['payment' => $payment, 'subscription' => $this->subscriptions->status($payment->customer_id)])
-            : redirect()->route('customer.subscription.index')->with('subscription_message', $payment->status === 'approved' ? 'تم تفعيل اشتراكك لمدة 30 يومًا.' : ($payment->status === 'pending_review' ? 'الدفع قيد المراجعة' : 'اختر طريقة دفع الاشتراك.'));
+            : redirect()->route('customer.subscription.index')->with('subscription_message', $payment->purchase_kind === 'activation' ? 'تم الاشتراك والخصم من محفظتك لمدة 30 يومًا.' : 'تم تحديث الحد الائتماني والخصم من محفظتك؛ راجع تاريخ انتهاء الباقة الموضح.');
     }
 }

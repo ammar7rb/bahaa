@@ -90,12 +90,7 @@
                 </tbody></table></div>{{ $depositRequests->links() }}
             </div></div>
             <div class="card mb-3 wallet-history" @if($walletTab !== 'balances') hidden @endif><div class="card-body">
-                <h2 class="h5">حركة رصيد المشتريات</h2>
-                <div class="table-responsive"><table class="table"><thead><tr><th>التاريخ</th><th>العملية</th><th>إضافة</th><th>خصم</th><th>الرصيد</th></tr></thead><tbody>
-                @forelse($purchaseEntries as $entry)
-                    <tr><td><bdi>{{ $entry->created_at?->format('Y/m/d H:i') }}</bdi></td><td>{{ $entry->transaction_type === 'monthly_subscription' ? 'الاشتراك الشهري' : translate($entry->transaction_type) }}</td><td>{{ webCurrencyConverter($entry->credit) }}</td><td>{{ webCurrencyConverter($entry->debit) }}</td><td>{{ webCurrencyConverter($entry->balance) }}</td></tr>
-                @empty<tr><td colspan="5" class="text-center text-muted py-4">لا توجد حركات رصيد حتى الآن</td></tr>@endforelse
-                </tbody></table></div>{{ $purchaseEntries->links() }}
+                @include('customer-wallet.statement')
             </div></div>
         </section>
     </div>

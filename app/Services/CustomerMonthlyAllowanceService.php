@@ -21,7 +21,9 @@ class CustomerMonthlyAllowanceService
     public function summary(int $customerId, float $cartAmount = 0, bool $provisional = false): array
     {
         $sub = $customerId ? $this->active($customerId) : null;
-        $granted = $sub ? (float) $sub->granted_allowance + (float) $sub->additional_allowance : ($provisional ? 3000.0 : 0.0);
+        // An initial prepaid checkout has no credit allowance until a package is selected.
+        $unlimited = !$sub && $provisional;
+        $granted = $sub ? (float) $sub->granted_allowance + (float) $sub->additional_allowance : 0.0;
         $committed = $sub ? (float) $sub->committed_allowance : 0.0;
         $available = max(0, round($granted - $committed, 3));
         $cartReservation = 0.0;
@@ -33,7 +35,8 @@ class CustomerMonthlyAllowanceService
         }
         $projected = round($available - max(0, $cartAmount - $cartReservation), 3);
         $ratio = $granted > 0 ? $projected / $granted : 0;
-        return ['has_active_package' => (bool) $sub, 'provisional' => !$sub && $provisional,
+        return ['has_active_package' => (bool) $sub, 'provisional' => $unlimited,
+            'unlimited_initial_checkout' => $unlimited, 'show_credit_indicator' => !$unlimited,
             'package_name' => $sub?->package_name, 'subscription_id' => $sub?->id,
             'base_limit' => $sub ? (float) $sub->granted_allowance : 0.0,
             'package_price' => $sub ? (float) $sub->package_price : null,
@@ -41,8 +44,8 @@ class CustomerMonthlyAllowanceService
             'cart_amount' => $cartAmount, 'projected_remaining' => $projected,
             'cart_reserved_amount' => $cartReservation,
             'open_checkout_reserved_amount' => $openReservation,
-            'can_checkout' => ($sub || $provisional) && $projected >= 0,
-            'indicator' => $ratio > .5 ? 'green' : ($ratio > .1 ? 'orange' : 'red')];
+            'can_checkout' => $unlimited || ($sub && $projected >= 0),
+            'indicator' => $unlimited ? null : ($ratio > .5 ? 'green' : ($ratio > .1 ? 'orange' : 'red'))];
     }
 
     public function assertCart(int $customerId, float $amount, bool $provisional = false): array

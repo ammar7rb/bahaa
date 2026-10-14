@@ -187,6 +187,12 @@ class CustomerAuthController extends Controller
         }
 
         $remember = (bool)$request['remember'];
+        if($user->must_change_password) {
+            $remember=false;
+            if(!$user->temporary_password_expires_at || now()->gte(\Carbon\Carbon::parse($user->temporary_password_expires_at))) {
+                return redirect()->route('customer.password-recovery.form')->with('recovery_message','انتهت صلاحية الكلمة المؤقتة. اطلب الاستعادة عبر الدعم.');
+            }
+        }
 
         $maxLoginHit = getWebConfig(name: 'maximum_login_hit') ?? 5;
         $tempBlockTime = getWebConfig(name: 'temporary_login_block_time') ?? 5; //seconds
@@ -205,7 +211,7 @@ class CustomerAuthController extends Controller
 
         $phoneVerification = getLoginConfig(key: 'phone_verification');
         $emailVerification = getLoginConfig(key: 'email_verification');
-        if ($user->onboarding_journey === 'checkout_first') {
+        if ($user->onboarding_journey === 'checkout_first' || $user->must_change_password) {
             $phoneVerification = $emailVerification = 0;
         }
         $emailVerification = !$phoneVerification ? $emailVerification : 0;

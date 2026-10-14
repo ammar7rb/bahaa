@@ -14,6 +14,11 @@
             const signature=JSON.stringify(data);
             if(signature!==previous){
                 previous=signature;
+                if(data.subscription){
+                    const sub=data.subscription,allowance=sub.allowance||{};
+                    const values={package:sub.package_name||'يلزم اختيار باقة جديدة',available:allowance.available_limit??0,granted:allowance.granted_limit??0,committed:allowance.committed_limit??0,state:sub.active?'نشط':'غير نشط',expiry:sub.expires_at?new Date(sub.expires_at).toLocaleString('ar-EG'):'—'};
+                    for(const [key,value] of Object.entries(values))document.querySelectorAll(`[data-customer-live-${key}]`).forEach(node=>node.textContent=String(value));
+                }
                 const c=data.customer;
                 root.querySelector('[data-profile-live-summary]').replaceChildren(p(`${c.reference} · ${c.name}`),p(`الهاتف الأساسي: ${text(c.phone)} · البريد: ${text(c.email)}`),p(`أرقام التواصل: ${text(c.contact_phones)}`),p(`آخر تحديث محفوظ: ${text(c.profile_changed_at || c.updated_at)}`));
                 document.querySelectorAll('[data-customer-live-name]').forEach(node=>node.textContent=c.name);

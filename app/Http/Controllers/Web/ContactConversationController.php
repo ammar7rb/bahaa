@@ -27,7 +27,7 @@ class ContactConversationController extends Controller
         $messages = DB::table('contact_conversation_messages')->where('contact_id', $contact->id)->orderBy('id')->get();
         $messages->each(function ($message) {
             $message->body = \App\Services\ContactPasswordResetService::displayBody($message);
-            if ($message->sender === 'admin_password') $message->sender = 'admin';
+            if (in_array($message->sender,['admin_password','admin_temp_password'],true)) $message->sender = 'admin';
         });
         if ($request->expectsJson()) return response()->json(['messages' => $messages])->header('Cache-Control', 'private, no-store');
         return response()->view('web-views.contact-conversation', compact('contact', 'messages'))

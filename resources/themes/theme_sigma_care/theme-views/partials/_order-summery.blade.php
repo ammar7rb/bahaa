@@ -43,7 +43,7 @@
             @include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'cart'])
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 fs-16">
                 <div class="opacity-75 text-capitalize">{{ translate('item_price') }}</div>
-                <div class="fw-semibold">{{ webCurrencyConverter($product_price_total) }}</div>
+                <div class="fw-semibold">{{ webCurrencyConverter($product_price_total - $total_discount_on_product) }}</div>
             </div>
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 fs-16">
                 <div class="opacity-75 text-capitalize">{{ translate('shipping') }}</div>

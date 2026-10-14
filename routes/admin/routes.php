@@ -257,6 +257,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     // One review queue for the offline package and insurance payments that
     // are linked from vendor settings and the operational shortcuts.
     Route::controller(PaymentReviewController::class)->prefix('payment-reviews')->name('payment-reviews.')->group(function () {
+        Route::post('customer-order/{id}/request-package', 'requestPackage')->name('request-package');
         Route::get('customer-order/{order}/retry-proof', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'proof'])->name('customer-order.retry-proof');
         Route::get('/', 'index')->name('index');
         Route::post('{type}/{id}/approve', 'approve')->name('approve');
@@ -541,12 +542,18 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::post('notify', 'notifySelected')->name('notify');
         });
 
+        Route::controller(\App\Http\Controllers\Admin\Customer\PasswordRecoveryController::class)->prefix('password-recovery')->name('password-recovery.')->group(function(){
+            Route::get('/','index')->name('index');
+            Route::post('{id}/verify','verify')->name('verify');
+            Route::post('{id}/issue','issue')->middleware('throttle:5,1,admin-recovery:')->name('issue');
+        });
         Route::group(['prefix' => 'wallet', 'as' => 'wallet.'], function () {
             Route::get('deposits', [\App\Http\Controllers\Admin\Customer\CustomerBalanceDepositController::class, 'index'])->name('deposits');
             Route::post('deposits/{deposit}/review', [\App\Http\Controllers\Admin\Customer\CustomerBalanceDepositController::class, 'review'])->name('deposits.review');
             Route::get('deposits/{deposit}/proof', [\App\Http\Controllers\Admin\Customer\CustomerBalanceDepositController::class, 'proof'])->name('deposits.proof');
             Route::controller(CustomerWalletController::class)->group(function () {
                 Route::get('report', 'index')->name('report');
+                Route::post('transactions/{transaction}/note', 'updateNote')->name('transaction-note');
                 Route::post('add-fund', 'addFund')->name('add-fund');
                 Route::get('export', 'exportList')->name('export');
                 Route::get('bonus-setup', 'getBonusSetupView')->name('bonus-setup');

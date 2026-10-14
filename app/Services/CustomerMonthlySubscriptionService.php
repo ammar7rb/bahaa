@@ -29,13 +29,16 @@ class CustomerMonthlySubscriptionService
             'package_id' => $active ? $subscription->package_id : null,
             'allowance' => $packagesEnabled ? app(CustomerMonthlyAllowanceService::class)->summary($customerId) : null,
             'price' => $packagesEnabled ? ($active ? $subscription->package_price : null) : $pricing['customer_price'], 'currency_code' => $packagesEnabled ? 'EGP' : $pricing['currency_code'],
-            'payment_available' => $packagesEnabled ? \App\Models\CustomerPurchasePackage::where('status',1)->where('package_price','>',0)->where(fn ($q) => $q->where('is_custom',0)->orWhere('customer_id',$customerId))->exists() : (float) ($pricing['customer_price'] ?? 0) > 0,
-            'open_payment' => CustomerSubscriptionPayment::where('open_customer_id', $customerId)->first(),
+            'payment_available' => $packagesEnabled ? app(CustomerPackageCatalogService::class)->available()->where('package_price','>',0)->exists() : false,
+            'limit_revision'=>$active ? (int)($subscription?->limit_revision ?? 0) : 0,
+            'legacy_open_payment' => \Illuminate\Support\Facades\Schema::hasColumn('customer_subscription_payments','wallet_policy_version') ? CustomerSubscriptionPayment::where('open_customer_id',$customerId)->first() : null,
+            'open_payment' => \Illuminate\Support\Facades\Schema::hasColumn('customer_subscription_payments','wallet_policy_version') ? null : CustomerSubscriptionPayment::where('open_customer_id', $customerId)->first(),
         ];
     }
 
     public function checkout(int $customerId, string $requestKey, ?int $packageId = null, ?int $offerId = null, int $quantity = 1): CustomerSubscriptionPayment
     {
+        if(\Illuminate\Support\Facades\Schema::hasColumn('customer_subscription_payments','wallet_policy_version'))throw new DomainException('مسار مسودات الباقات مغلق. استخدم معاملة المحفظة المباشرة.');
         if ($quantity < 1 || $quantity > 5 || (!$offerId && $quantity !== 1)) throw new DomainException('اختر مضاعف زيادة من 1 إلى 5.');
         return DB::transaction(function () use ($customerId, $requestKey, $packageId, $offerId, $quantity) {
             User::query()->lockForUpdate()->findOrFail($customerId);
@@ -89,6 +92,7 @@ class CustomerMonthlySubscriptionService
             $customer = User::query()->lockForUpdate()->findOrFail($customerId);
             $payment = CustomerSubscriptionPayment::where('customer_id', $customerId)->lockForUpdate()->findOrFail($paymentId);
             if ($payment->status === 'approved') return $payment;
+            if(\Illuminate\Support\Facades\Schema::hasColumn('customer_subscription_payments','wallet_policy_version'))throw new DomainException('لا تُخصم المسودات السابقة تلقائيًا. اختر عملية جديدة من صفحة الباقات.');
             if ($payment->status !== 'draft') throw new DomainException('طلب الدفع قيد المراجعة أو تم رفضه.');
             $this->validatePurchase($payment);
             if (!$customer->is_active) throw new DomainException('الحساب موقوف إداريًا. تواصل مع الدعم.');
@@ -111,6 +115,7 @@ class CustomerMonthlySubscriptionService
 
     public function submitOffline(int $customerId, int $paymentId, OfflinePaymentMethod $method, array $data, string $proofPath): CustomerSubscriptionPayment
     {
+        if(\Illuminate\Support\Facades\Schema::hasColumn('customer_subscription_payments','wallet_policy_version'))throw new DomainException('الدفع الخارجي للباقات مغلق. اشحن محفظة المنصة.');
         return DB::transaction(function () use ($customerId, $paymentId, $method, $data, $proofPath) {
             $customer = User::query()->lockForUpdate()->findOrFail($customerId);
             $payment = CustomerSubscriptionPayment::where('customer_id', $customerId)->lockForUpdate()->findOrFail($paymentId);

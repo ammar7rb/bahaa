@@ -48,6 +48,14 @@ class PaymentReviewController extends Controller
         return view('admin-views.payment-reviews.index', ['reviews' => $paginator, 'pendingCount' => $rows->where('status', 'pending')->count()]);
     }
 
+    public function requestPackage(int $id): RedirectResponse
+    {
+        abort_unless(\App\Utils\Helpers::module_permission_check('orders'), 403);
+        app(\App\Services\CustomerPurchaseEligibilityService::class)->requestPackageForOrder($id);
+        ToastMagic::success('تم إرسال إشعار اعتماد الدفع وطلب اختيار الباقة.');
+        return back();
+    }
+
     public function approve(Request $request, string $type, int|string $id): RedirectResponse
     {
         abort_unless(\App\Utils\Helpers::module_permission_check((str_starts_with($type, 'vendor_') || $type === 'customer_subscription') ? 'people' : 'orders'), 403);
@@ -260,4 +268,3 @@ class PaymentReviewController extends Controller
     }
 
 }
-

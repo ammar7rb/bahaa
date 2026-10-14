@@ -22,7 +22,11 @@
                 @forelse ($reviews as $review)
                     <tr>
                         <td>{{ $loop->iteration + (($reviews->currentPage() - 1) * $reviews->perPage()) }}</td>
-                        <td>{{ translate($review['audience']) }}</td>
+                        <td>{{ translate($review['audience']) }}
+                            @if($review['customer_state']['is_urgent_order'] ?? false)
+                                <div class="badge badge-soft-warning mt-1">حساب استعجالي</div>
+                            @endif
+                        </td>
                         <td><div class="fw-semibold">{{ trim(($review['actor']?->f_name ?? '') . ' ' . ($review['actor']?->l_name ?? '')) ?: '—' }}</div><small>{{ $review['actor']?->email }}</small><br><small>{{ $review['actor']?->phone }}</small></td>
                         <td>{{ translate($review['kind']) }}<br><small>{{ $review['label'] }}
                             @if(!empty($review['customer_state']['customer']))<div class="small mt-1" dir="rtl">{{ $review['customer_state']['customer']['onboarding_journey'] === 'checkout_first' ? 'عميل جديد — تسجيل من الدفع' : 'تسجيل عادي أو سابق' }} · {{ $review['customer_state']['customer']['account_activated'] ? 'مفعّل' : 'غير مفعّل' }} · {{ $review['customer_state']['customer']['subscription']['active'] ? 'اشتراك نشط' : 'اشتراك غير نشط' }}<br>{{ $review['customer_state']['message'] }}</div>@endif</small></td>
@@ -53,12 +57,22 @@
                         </td>
                         <td><span class="badge {{ $review['status'] === 'pending' ? 'badge-soft-warning' : ($review['status'] === 'approved' ? 'badge-soft-success' : 'badge-soft-danger') }}">{{ $review['status'] === 'reconciliation' ? 'تحتاج مطابقة مالية' : translate($review['status']) }}</span><br><small>{{ $review['reference'] }}</small></td>
                         <td>
+                            @if($review['customer_state']['can_request_package'] ?? false)
+                                @if($review['customer_state']['package_request_sent'] ?? false)
+                                    <span class="text-success">تم إرسال طلب اختيار الباقة</span>
+                                @else
+                                    <form method="post" action="{{ route('admin.payment-reviews.request-package', $review['id']) }}" class="mb-2">
+                                        @csrf
+                                        <button class="btn btn-sm btn--primary">إبلاغ العميل باعتماد الدفع واختيار باقة</button>
+                                    </form>
+                                @endif
+                            @endif
                             @if ($review['status'] === 'pending')
                                 <div class="d-flex gap-1">
                                     <form method="post" action="{{ route('admin.payment-reviews.approve', [$review['type'], $review['id']]) }}">@csrf<button class="btn btn-sm btn-outline-success">{{ translate('approve') }}</button></form>
                                     <form method="post" action="{{ route('admin.payment-reviews.reject', [$review['type'], $review['id']]) }}">@csrf<input class="form-control form-control-sm mb-1" name="review_note" required placeholder="{{ translate('rejection_reason') }}"><button class="btn btn-sm btn-outline-danger">{{ translate('reject') }}</button></form>
                                 </div>
-                            @else
+                            @elseif (!($review['customer_state']['can_request_package'] ?? false))
                                 &mdash;
                             @endif
                         </td>

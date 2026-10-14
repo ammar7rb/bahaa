@@ -14,6 +14,10 @@ function proceedToNextAction(){
                 $('#loading').addClass('d-grid');
             },
             success: function (response) {
+                if (response.registration_required && response.redirect) {
+                    location.href = response.redirect;
+                    return;
+                }
                 if(response.status === 0) {
                     response.message.map(function (message) {
                         toastr.error(message)

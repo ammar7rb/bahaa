@@ -614,7 +614,7 @@ class OrderController extends Controller
                 'requestObj' => $request,
             ]);
 
-            if (!CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment')) throw \Illuminate\Validation\ValidationException::withMessages(['wallet' => 'تعذر تأكيد الخصم. لم يتم إنشاء الطلب.']);
+            if (!CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment', ['order_ids'=>$orderIds,'payment_method'=>'wallet_balance'])) throw \Illuminate\Validation\ValidationException::withMessages(['wallet' => 'تعذر تأكيد الخصم. لم يتم إنشاء الطلب.']);
             $postPurchaseInvoices = \App\Models\PostPurchaseInvoice::query()->whereIn('order_id', $orderIds)->get();
             return response()->json([
                 'messages' => translate('order_placed_successfully'),

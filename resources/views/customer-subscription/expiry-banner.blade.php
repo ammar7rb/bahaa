@@ -17,7 +17,7 @@
                     <strong class="d-block">{{ $monthlyState['status'] === 'expired' ? 'انتهى اشتراكك الشهري' : 'يلزم تفعيل الاشتراك الشهري' }}</strong>
                     <span class="small">{{ $monthlyState['status'] === 'expired' ? 'جدّد الاشتراك الشهري للمتابعة إلى الشراء.' : 'تم تفعيل حسابك. فعّل الاشتراك الشهري لاستكمال متطلبات الشراء.' }}</span>
                 </div>
-                <a class="btn btn-danger" href="{{ route('customer.subscription.index') }}">{{ $monthlyState['status'] === 'expired' ? 'تجديد الاشتراك الشهري' : 'تفعيل الاشتراك الشهري' }}</a>
+                <a class="btn btn-danger" href="{{ route('customer.subscription.index') }}">{{ $monthlyState['status'] === 'expired' ? 'اختيار باقة شهرية جديدة' : 'تفعيل الاشتراك الشهري' }}</a>
             </div>
         </div>
     @endif

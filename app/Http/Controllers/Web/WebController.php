@@ -85,13 +85,12 @@ class WebController extends Controller
         if ($request->ajax()) {
             return response()->json([
                 'status' => 0,
-                'message' => translate('please_login_your_account'),
-                'redirect' => route('customer.auth.login'),
+                'message' => 'أدخل الاسم ورقم الموبايل وكلمة المرور للمتابعة إلى إتمام الشراء.',
+                'redirect' => route('customer.auth.checkout-register'),
             ]);
         }
 
-        Toastr::warning(translate('please_login_your_account'));
-        return redirect()->route('customer.auth.login');
+        return redirect()->route('customer.auth.checkout-register');
     }
 
     private function validateCustomerPurchaseLimitForCheckout(Request $request, bool $allowActivationInvoice = false): null|RedirectResponse|JsonResponse
@@ -973,7 +972,7 @@ class WebController extends Controller
                 OrderManager::generateReferBonusForFirstOrder(orderId: $order_id);
             }
 
-            if (!CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment')) throw \Illuminate\Validation\ValidationException::withMessages(['wallet' => 'تعذر تأكيد الخصم. لم يتم إنشاء الطلب.']);
+            if (!CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment', ['order_ids'=>$order_ids,'payment_method'=>'wallet_balance'])) throw \Illuminate\Validation\ValidationException::withMessages(['wallet' => 'تعذر تأكيد الخصم. لم يتم إنشاء الطلب.']);
         }
 
         if (session()->has('payment_mode') && session('payment_mode') == 'app') {

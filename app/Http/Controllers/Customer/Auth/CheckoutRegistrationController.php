@@ -13,7 +13,7 @@ class CheckoutRegistrationController extends Controller
     public function show()
     {
         if (auth('customer')->check()) {
-            return redirect()->route('shop-cart');
+            return redirect()->route('checkout-details');
         }
         return view('customer-checkout.register', ['policies' => app(PolicyAcceptanceService::class)->requiredFor('customer')]);
     }
@@ -26,7 +26,7 @@ class CheckoutRegistrationController extends Controller
         auth('customer')->login($user);
         $request->session()->regenerate();
         CartManager::cartListSessionToDatabase();
-        return redirect()->route('shop-cart');
+        return redirect()->route('checkout-details');
     }
 
     public function apiStore(Request $request, CustomerCheckoutRegistrationService $service)

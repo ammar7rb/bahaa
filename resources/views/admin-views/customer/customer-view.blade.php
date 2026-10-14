@@ -169,7 +169,7 @@
                 </div>
             </div>
 
-            @if(config('customer_purchase_packages.enabled'))
+            @if(config('customer_purchase_packages.enabled') && !app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled())
             <div class="col-lg-12">
                 <div class="card">
                     <div class="card-body">

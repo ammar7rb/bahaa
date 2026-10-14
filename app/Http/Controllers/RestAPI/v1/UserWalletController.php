@@ -25,6 +25,10 @@ class UserWalletController extends Controller
             ->where('customer_id', $customerId)
             ->whereIn('status', [PostPurchaseInvoice::STATUS_PENDING, PostPurchaseInvoice::STATUS_AWAITING_REVIEW]);
         $pendingInvoicesCount = (clone $pendingInvoicesQuery)->count();
+        $request->validate(['page'=>'nullable|integer|min:1','entries_page'=>'nullable|integer|min:1','deposits_page'=>'nullable|integer|min:1']);
+        $statement=app(\App\Services\CustomerWalletStatementService::class);
+        $entries=$statement->query($customerId,$request)->paginate(20,['*'],'entries_page',(int)$request->get('entries_page',$request->get('page',1)));
+        $entries->setCollection(collect($statement->decorate($entries->items())));
         return response()->json([
             'purchase_balance' => (float) $customer->wallet_balance,
             'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status($customerId),
@@ -51,9 +55,8 @@ class UserWalletController extends Controller
             'digital_methods' => $canDeposit && (getWebConfig('digital_payment')['status'] ?? 0)
                 ? \App\Utils\payment_gateways()->map(fn ($gateway) => ['key' => $gateway->key_name])->values() : [],
             'deposits' => \App\Models\CustomerBalanceDeposit::where('customer_id', $customerId)->where('wallet_type', 'purchase')->latest('id')
-                ->paginate(20, ['id', 'wallet_type', 'amount', 'status', 'method_name', 'payment_reference', 'review_note', 'created_at']),
-            'purchase_entries' => WalletTransaction::where('user_id', $customerId)->latest('id')
-                ->paginate(20, ['id', 'transaction_type', 'transaction_id', 'reference', 'credit', 'debit', 'balance', 'created_at']),
+                ->paginate(20, ['id', 'wallet_type', 'amount', 'status', 'method_name', 'payment_reference', 'review_note', 'created_at'],'deposits_page',(int)$request->get('deposits_page',$request->get('page',1))),
+            'purchase_entries' => $entries,
             'insurance_entries' => [],
             'orders' => \App\Models\Order::where('customer_id', $customerId)->where('is_guest', 0)
                 ->with(['insurance', 'postPurchaseInvoice'])->latest('id')->paginate(20)->through(fn ($order) => [
@@ -72,8 +75,8 @@ class UserWalletController extends Controller
     public function list(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'limit' => 'required',
-            'offset' => 'required',
+            'limit' => 'required|integer|min:1|max:100',
+            'offset' => 'required|integer|min:1',
         ]);
 
         if ($validator->errors()->count() > 0) {
@@ -135,7 +138,7 @@ class UserWalletController extends Controller
                 'insurance_next_maturity_at' => null,
                 'insurance_ledger_entries' => [],
                 'total_size' => $walletTransactionList->total(),
-                'wallet_transaction_list' => $walletTransactionList->items(),
+                'wallet_transaction_list' => app(\App\Services\CustomerWalletStatementService::class)->decorate($walletTransactionList->items()),
                 'filter_by' => $request['filter_by'],
                 'start_date' => $request['start_date'],
                 'end_date' => $request['end_date'],
@@ -165,6 +168,7 @@ class UserWalletController extends Controller
             'add_fund_by_admin' => 'add_fund_by_admin',
             'due_payment_for_order' => 'due_payment_for_order',
             'return_order_amount_by_admin' => 'return_order_amount_by_admin',
+            'monthly_subscription' => 'monthly_subscription',
         ];
 
         foreach ($typeMapping as $key => $value) {

@@ -177,7 +177,6 @@
                                             <th class="border-0">{{ translate('product_details') }}</th>
                                             <th class="border-0 text-center">{{ translate('qty') }}</th>
                                             <th class="border-0 text-center">{{ translate('price') }}</th>
-                                            <th class="border-0 text-center">{{ translate('discount') }}</th>
                                             <th class="border-0 text-center">{{ translate('total') }}</th>
                                             @if ( $shipping_type != 'order_wise')
                                                 <th class="border-0 text-center">{{ translate('shipping_cost') }} </th>
@@ -319,8 +318,7 @@
                                                                         </div>
                                                                     @endif
                                                                 </td>
-                                                                <td class="text-center">{{ webCurrencyConverter($cartItem['price']*$cartItem['quantity']) }}</td>
-                                                                <td class="text-center">{{ webCurrencyConverter($cartItem['discount']*$cartItem['quantity']) }}</td>
+                                                                <td class="text-center">{{ webCurrencyConverter($cartItem['price']-$cartItem['discount']) }}</td>
                                                                 <td class="text-center">{{ webCurrencyConverter(($cartItem['price']-$cartItem['discount'])*$cartItem['quantity']) }}</td>
                                                                 @if ( $shipping_type != 'order_wise')
                                                                     <td class="text-center">
@@ -414,9 +412,7 @@
                                                             </div>
                                                         @endif
                                                         <div class="fs-12 text-capitalize text-dark">{{ translate('unit_price') }}
-                                                            : {{ webCurrencyConverter($cartItem['price']*$cartItem['quantity']) }}</div>
-                                                        <div class="fs-12 text-dark">{{ translate('discount') }}
-                                                            : {{ webCurrencyConverter($cartItem['discount']*$cartItem['quantity']) }}</div>
+                                                            : {{ webCurrencyConverter($cartItem['price']-$cartItem['discount']) }}</div>
                                                         <div class="fs-12 text-dark">{{ translate('total') }}
                                                             : {{ webCurrencyConverter(($cartItem['price']-$cartItem['discount'])*$cartItem['quantity']) }}</div>
                                                         @if ( $shipping_type != 'order_wise')
@@ -571,7 +567,7 @@
                             </div>
                         @endif
 
-                        
+
                     </div>
                 </div>
             </div>

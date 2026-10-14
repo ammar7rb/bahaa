@@ -15,19 +15,19 @@
         <p>كل باقة تمنح 30 يومًا. الحد الائتماني سماح بالشراء، وتُدفع الطلبات بالكامل بوسيلة دفع فعلية.</p>
         <a class="btn btn-outline-primary mb-4" href="{{ route('admin.customer.monthly-subscriptions.index') }}">سجل المدفوعات والمراجعة</a>
         <h2 class="h4">باقات العملاء</h2>
-        @foreach($packages->concat([null]) as $package)
+        @foreach($packages as $package)
         <form id="package-{{ $package?->id ?? 'new' }}" method="post" action="{{ route('admin.monthly-packages.save', $package?->id) }}" class="card card-body mb-3" style="scroll-margin-top:100px">@csrf
             <h3 class="h5">{{ $package ? $package->name : 'إضافة باقة' }}</h3>
             <div class="row g-3">
-                <label class="col-md-3">الاسم<input class="form-control" name="name" required maxlength="150" value="{{ $package?->name }}"></label>
+                <label class="col-md-3">الاسم<input class="form-control" readonly value="{{ $package->name }}"></label>
                 <label class="col-md-3">السعر (ج.م)<input class="form-control" type="number" min="0.001" step="0.001" name="package_price" required value="{{ $package?->package_price }}"></label>
                 <label class="col-md-3">الحد الائتماني (ج.م)<input class="form-control" type="number" min="0.001" step="0.001" name="purchase_limit" required value="{{ $package?->purchase_limit }}"></label>
+                <label class="col-md-3">رسوم تجديد الحد (ج.م)<input class="form-control" type="number" min="0.001" step="0.001" name="renewal_price" value="{{ $package->renewal_price }}"><small>يُجدد الحد فقط حتى تاريخ انتهاء الاشتراك الحالي. اتركه فارغًا لتعطيل التجديد.</small></label>
                 <label class="col-md-3">الحالة<select class="form-control" name="status"><option value="1" @selected($package?->status !== false)>متاحة</option><option value="0" @selected($package?->status === false)>معطّلة</option></select></label>
                 <label class="col-md-9">الوصف<textarea class="form-control" name="description" maxlength="2000">{{ $package?->description }}</textarea></label>
                 <label class="col-md-3">ترتيب العرض<input class="form-control" type="number" name="sort_order" min="0" value="{{ $package?->sort_order ?? 0 }}"></label>
             </div><button class="btn btn-primary mt-3 align-self-start" type="submit">حفظ الباقة</button>
         </form>
-        @if($package)<form method="post" action="{{ route('admin.monthly-packages.delete',$package->id) }}" class="mb-4">@csrf @method('DELETE')<button class="btn btn-outline-danger" type="submit">حذف الباقة غير المستخدمة</button></form>@endif
         @endforeach
         <h2 id="credit-offers" class="h4 mt-5" style="scroll-margin-top:100px">عروض زيادة الحد الائتماني</h2><p>عدّل السعر والحد الأساسيين ثم اضغط حفظ العرض؛ تُحدّث الاختيارات الخمسة للعميل تلقائيًا. تحتفظ الزيادة بتاريخ انتهاء الباقة المرتبطة بها.</p>
         @foreach($offers->concat([null]) as $offer)

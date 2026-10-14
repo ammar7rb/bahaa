@@ -48,6 +48,13 @@ use App\Http\Controllers\Customer\PaymentController;
  */
 
 Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
+    Route::controller(\App\Http\Controllers\Customer\PasswordRecoveryController::class)->prefix('customer/password-recovery')->group(function(){
+        Route::post('request','request')->middleware('throttle:5,1,customer-recovery:');
+        Route::get('conversation','conversation')->middleware('throttle:30,1,customer-recovery-chat:');
+        Route::post('conversation','reply')->middleware('throttle:10,1,customer-recovery-chat-reply:');
+        Route::get('status','status')->middleware('auth:api');
+        Route::post('change','change')->middleware(['auth:api','throttle:5,1,customer-recovery-change:']);
+    });
     Route::get('customer/communication', [\App\Http\Controllers\Customer\CommunicationController::class, 'index'])->middleware(['auth:api', 'throttle:60,1']);
     Route::get('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'index'])->middleware('auth:api');
     Route::put('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'update'])->middleware(['auth:api','throttle:10,1']);
@@ -64,6 +71,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::get('/', 'index');
         Route::post('{payment}/cancel', 'cancel')->middleware('throttle:10,1,customer-package-cancel:');
         Route::post('checkout', 'checkout')->middleware('throttle:10,1,customer-package-quote:');
+        Route::post('transact','transact')->middleware('throttle:10,1,customer-package-transaction:');
         Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1,customer-package-wallet:');
         Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1,customer-package-transfer:');
     });
@@ -113,7 +121,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
             Route::post('registration-with-otp', 'registrationWithOTP');
             Route::post('existing-account-check', 'existingAccountCheck');
             Route::post('registration-with-social-media', 'registrationWithSocialMedia');
-            Route::post('forgot-password', 'passwordResetRequest');
+            Route::post('forgot-password', 'passwordResetRequest')->middleware('throttle:5,1,customer-recovery:');
         });
 
         Route::group(['middleware' => 'apiGuestCheck'], function () {

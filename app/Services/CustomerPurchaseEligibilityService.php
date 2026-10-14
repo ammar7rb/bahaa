@@ -22,7 +22,9 @@ class CustomerPurchaseEligibilityService
         $subscription = app(CustomerMonthlySubscriptionService::class)->status((int) $customer->id);
         $activated = $customer->activation_status === 'active'
             || (!$customer->activation_status && (bool) $customer->is_active);
-        $first = $customer->onboarding_journey === 'checkout_first'
+        $newAccount = in_array($customer->onboarding_journey, ['checkout_first', 'standard'], true)
+            && !\App\Models\CustomerMonthlySubscription::where('customer_id', $customer->id)->exists();
+        $first = ($newAccount || ($customer->onboarding_journey === 'checkout_first' && $subscription['active']))
             && !$customer->first_checkout_operation_id
             && !Order::where('customer_id', $customer->id)->where('is_guest', 0)->exists();
         $resume = $customer->first_checkout_operation_id && $this->enabled()
@@ -36,9 +38,11 @@ class CustomerPurchaseEligibilityService
             'account_activated' => $activated,
             'administratively_frozen' => !(bool) $customer->is_active || (bool) $customer->account_deleted_at,
             'subscription' => $subscription,
+            'is_urgent_account' => $newAccount,
+            'show_credit_indicator' => !$newAccount,
             'initial_order_exception_available' => $first,
             'can_resume_initial_checkout' => (bool) $resume,
-            'can_checkout' => (bool) $customer->is_active && (!$reasons || $first || $resume),
+            'can_checkout' => !in_array('administrative_freeze', $reasons, true) && (!$reasons || $first || $resume),
             'pending_reasons' => $reasons,
             'message' => $this->message($reasons),
         ];
@@ -120,7 +124,14 @@ class CustomerPurchaseEligibilityService
         $state = $customer ? $this->status($customer) : null;
         $reasons = json_decode((string) $order->getRawOriginal('customer_pending_reasons'), true) ?: [];
         $statusLabel = ['pending'=>'قيد الانتظار','confirmed'=>'تم التأكيد','processing'=>'قيد التجهيز','out_for_delivery'=>'في الطريق للتسليم','delivered'=>'تم التسليم','returned'=>'تم الإرجاع','failed'=>'تعذر التسليم','canceled'=>'ملغي'][$order->order_status] ?? $order->order_status;
-        return ['eligible_at' => $order->customer_eligible_at, 'fulfillment_status' => $order->customer_fulfillment_status,
+        $initial = DB::table('customer_checkout_operations')->where('id', $order->customer_checkout_operation_id)->value('first_exception');
+        $canRequestPackage = $initial && $order->payment_status === 'paid'
+            && (!$order->customer_initial_payment_review_status || $order->customer_initial_payment_review_status === 'approved')
+            && !$order->customer_eligible_at && in_array('monthly_subscription', $reasons, true)
+            && in_array($order->order_status, ['pending', 'confirmed', 'processing'], true);
+        return ['is_urgent_order' => (bool) $initial, 'can_request_package' => (bool) $canRequestPackage,
+            'package_request_sent' => Schema::hasColumn('notifications', 'customer_event_key') && DB::table('notifications')->where('customer_id', $order->customer_id)->where('customer_event_key', 'initial-order-'.$order->id.'-requirements')->exists(),
+            'eligible_at' => $order->customer_eligible_at, 'fulfillment_status' => $order->customer_fulfillment_status,
             'payment_review_status' => $order->payment_status === 'paid' ? ($order->customer_initial_payment_review_status ?: 'approved') : ($order->activation_status === 'offline_payment_rejected' ? 'rejected' : (in_array($order->payment_method,['cash_on_delivery','cash'],true) ? 'awaiting_collection' : 'pending')),
             'pending_reasons' => $reasons, 'message' => (!$order->customer_checkout_operation_id || !in_array($order->order_status,['pending','confirmed','processing'],true)) ? $statusLabel : $this->message($reasons), 'customer' => $state];
     }
@@ -217,9 +228,19 @@ class CustomerPurchaseEligibilityService
         if (!$reasons) $updates['customer_eligible_at'] = now();
         // Keep vendor assignment, access restrictions and fulfillment routing intact.
         DB::table('orders')->where('id', $order->id)->whereNull('customer_eligible_at')->update($updates);
-        if ($order->payment_status === 'paid' && $operation?->first_exception && $reasons && !array_intersect($reasons, ['order_payment_review', 'initial_order_review_rejected'])) {
-            app(CustomerPaymentNotificationService::class)->notify((int)$customer->id, 'initial-order-'.$order->id.'-requirements', 'تم اعتماد دفع طلبك #'.$order->id.'. '.$this->message($reasons).'. يمكنك التفعيل عبر محادثة الدعم واختيار باقة شهرية.');
-        }
+    }
+
+    public function requestPackageForOrder(int $orderId): void
+    {
+        $customerId = (int) Order::findOrFail($orderId)->customer_id;
+        DB::transaction(function () use ($orderId, $customerId) {
+            User::lockForUpdate()->findOrFail($customerId);
+            $this->reevaluateCustomer($customerId);
+            $order = Order::lockForUpdate()->findOrFail($orderId);
+            if (!$this->orderPayload($order)['can_request_package']) $this->deny(['package_request_unavailable']);
+            app(CustomerPaymentNotificationService::class)->notify($customerId, 'initial-order-'.$orderId.'-requirements',
+                'تمت مراجعة عملية الدفع لطلبك #'.$orderId.' واعتمادها. يلزم الاشتراك في باقة لاستكمال الطلب. اختر باقة تغطي قيمة مشترياتك من صفحة الباقات؛ لا تحتاج لدفع قيمة الطلب مرة أخرى.');
+        }, 3);
     }
 
     public function message(array $reasons): string
@@ -232,6 +253,7 @@ class CustomerPurchaseEligibilityService
         $labels['purchasing_limit'] = 'زيادة الحد الائتماني أو اختيار باقة تغطي الطلب';
         $labels['initial_order_review_rejected'] = 'مراجعة الطلب الأول مع الدعم؛ الدفع المسجل محفوظ';
         $labels['review_note_required'] = 'سبب الرفض مطلوب';
+        $labels['package_request_unavailable'] = 'اعتماد الدفع أولًا أو مراجعة متطلبات الطلب الحالية';
         if (!$reasons) return 'قيد التجهيز';
         if ($reasons === ['order_payment_review']) return $labels['order_payment_review'];
         return 'الطلب بانتظار '.implode(' و', array_map(fn ($reason) => $labels[$reason] ?? $reason, $reasons));

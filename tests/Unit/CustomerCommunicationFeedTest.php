@@ -46,6 +46,17 @@ class CustomerCommunicationFeedTest extends TestCase
             'created_at' => now(), 'updated_at' => now()]);
     }
 
+    public function test_urgent_package_notice_links_to_subscription_only_for_order_owner(): void
+    {
+        DB::table('orders')->insert(['id'=>12,'customer_id'=>1,'order_status'=>'pending']);
+        $notice = new \App\Models\Notification();
+        $notice->setRawAttributes(['customer_event_key'=>'initial-order-12-requirements','title'=>'اختيار باقة','description'=>'يلزم الاشتراك في باقة'],true);
+        $service = app(CustomerCommunicationService::class);
+        $this->assertSame(['type'=>'subscription','id'=>12],$service->notificationItem($notice,1)['target']);
+        $this->assertSame(route('customer.subscription.index'),$service->notificationItem($notice,1)['url']);
+        $this->assertNull($service->notificationItem($notice,2)['target']);
+    }
+
     public function test_reference_format_preserves_internal_ids_and_old_lookup(): void
     {
         $this->assertSame('C000012', AdministrativeReferenceService::format('customer', 12));

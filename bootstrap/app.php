@@ -53,6 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
             \App\Http\Middleware\EndDeletedCustomerSession::class,
+            \App\Http\Middleware\RequireCustomerPasswordChange::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
@@ -63,6 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->group('api', [
             'throttle:3000,1,api-global:',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\RequireCustomerPasswordChange::class,
             \App\Http\Middleware\RecordPrivacySafePlatformMetric::class,
         ]);
         /*

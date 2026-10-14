@@ -63,6 +63,9 @@ class CustomerManager
         $wallet_transaction->reference = $reference;
         $wallet_transaction->transaction_type = $transaction_type;
         $wallet_transaction->payment_method = isset($payment_data['payment_method']) ? $payment_data['payment_method'] : null;
+        if (\Illuminate\Support\Facades\Schema::hasColumn('wallet_transactions','order_ids') && isset($payment_data['order_ids'])) {
+            $wallet_transaction->order_ids = array_values(array_map('intval',$payment_data['order_ids']));
+        }
 
         $debit = 0.0;
         $credit = 0.0;
@@ -89,7 +92,7 @@ class CustomerManager
         $debit_amount = Convert::usd($debit);
         $wallet_transaction->credit = $credit_amount;
         $wallet_transaction->debit = $debit_amount;
-        $wallet_transaction->balance = $current_balance + $credit_amount - $debit_amount;
+        $wallet_transaction->balance = $current_balance + $add_fund_to_wallet_bonus + $credit_amount - $debit_amount;
         $wallet_transaction->created_at = now();
         $wallet_transaction->updated_at = now();
         $user->wallet_balance = $current_balance + $add_fund_to_wallet_bonus + $credit_amount - $debit_amount;
@@ -219,6 +222,8 @@ class CustomerManager
 
     public static function getReferralDiscountAmount($user = null, $couponDiscount = null)
     {
+        // Customer checkout uses catalogue prices without checkout discount mechanisms.
+        if (!auth('admin')->check() && !auth('seller')->check()) return 0;
         if ($user && isset($user['id'])) {
             $cart = CartManager::getCartListQuery(type: 'checked');
             $totalAmount = 0;

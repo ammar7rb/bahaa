@@ -13,17 +13,19 @@ class MonthlyPackageController extends Controller
     public function index(Request $request)
     {
         $request->validate(['tab' => 'nullable|in:customers,vendors']);
-        return view('admin-views.customer.monthly-packages', ['packages' => CustomerPurchasePackage::orderBy('sort_order')->get(),
+        return view('admin-views.customer.monthly-packages', ['packages' => app(\App\Services\CustomerPackageCatalogService::class)->query()->orderBy('sort_order')->get(),
             'offers' => DB::table('customer_credit_offers')->orderBy('id')->get(), 'tab' => $request->input('tab', 'customers')]);
     }
 
     public function save(Request $request, ?int $package = null)
     {
-        $data = $request->validate(['name' => 'required|string|max:150', 'description' => 'nullable|string|max:2000',
+        abort_unless($package,422);
+        $data = $request->validate(['description' => 'nullable|string|max:2000',
             'package_price' => 'required|numeric|gt:0|max:999999999|decimal:0,3',
+            'renewal_price'=>'nullable|numeric|gt:0|max:999999999|decimal:0,3',
             'purchase_limit' => 'required|numeric|gt:0|max:999999999|decimal:0,3', 'status' => 'required|boolean', 'sort_order' => 'nullable|integer|min:0|max:99999']);
         DB::transaction(function () use ($data, $package) {
-            $record = $package ? CustomerPurchasePackage::lockForUpdate()->findOrFail($package) : new CustomerPurchasePackage();
+            $record = app(\App\Services\CustomerPackageCatalogService::class)->query()->lockForUpdate()->findOrFail($package);
             $record->fill($data + ['duration_unit' => 'day', 'duration_value' => 30]);
             $record->updated_by_admin_id = auth('admin')->id();
             if (!$package) $record->created_by_admin_id = auth('admin')->id();
@@ -34,6 +36,7 @@ class MonthlyPackageController extends Controller
 
     public function delete(int $package)
     {
+        if(app(\App\Services\CustomerPackageCatalogService::class)->query()->whereKey($package)->exists())throw ValidationException::withMessages(['package'=>'الباقات الثلاث الأساسية لا تحذف؛ يمكن تعديل إعداداتها.']);
         DB::transaction(function () use ($package) {
             $record = CustomerPurchasePackage::lockForUpdate()->findOrFail($package);
             if ($record->subscriptions()->exists() || $record->transactions()->exists()

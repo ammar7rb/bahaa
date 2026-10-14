@@ -58,7 +58,12 @@ class OrderManager
     public static function getOrderSummaryBeforePlaceOrder($cart, $coupon_discount): array
     {
         $coupon_code = session()->has('coupon_code') ? session('coupon_code') : 0;
-        $coupon = Coupon::where(['code' => $coupon_code])->where('status', 1)->first();
+        $customerCheckout = !auth('admin')->check() && !auth('seller')->check();
+        if ($customerCheckout) {
+            session()->forget(['coupon_code','coupon_discount','coupon_type','coupon_bearer','coupon_seller_id']);
+            $coupon_discount = 0;
+        }
+        $coupon = $customerCheckout ? null : Coupon::where(['code' => $coupon_code])->where('status', 1)->first();
 
         $subTotal = 0;
         $totalDiscountOnProduct = 0;
@@ -1780,7 +1785,7 @@ class OrderManager
         $debitAmount = currencyConverter($debit);
         $walletTransaction->credit = $creditAmount;
         $walletTransaction->debit = $debitAmount;
-        $walletTransaction->balance = $currentBalance + $creditAmount - $debitAmount;
+        $walletTransaction->balance = $currentBalance + $addFundToWalletBonus + $creditAmount - $debitAmount;
         $walletTransaction->created_at = now();
         $walletTransaction->updated_at = now();
         $user->wallet_balance = $currentBalance + $addFundToWalletBonus + $creditAmount - $debitAmount;
@@ -2232,6 +2237,11 @@ class OrderManager
         $response['physical_product_view'] = false;
         $customer = Helpers::getCustomerInformation($request);
         $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+        if ($customer === 'offline') {
+            return ['status'=>0, 'physical_product_view'=>false, 'registration_required'=>true,
+                'message'=>['أدخل الاسم ورقم الموبايل وكلمة المرور للمتابعة إلى إتمام الشراء.'],
+                'redirect'=>route('customer.auth.checkout-register')];
+        }
         if ($customer !== 'offline' && $eligibility->enabled()) {
             $state = $eligibility->status($customer);
             if (!$state['can_checkout']) return ['status' => 0, 'physical_product_view' => false,

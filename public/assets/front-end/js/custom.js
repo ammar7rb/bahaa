@@ -678,7 +678,8 @@ $("#customer-register-form").on("submit", function (e) {
     e.preventDefault();
     $.ajax({
         type: "POST",
-        url: $(this).data("action"),
+        url: $(this).attr("action"),
+        dataType: "json",
         data: $(this).serialize(),
         beforeSend: function () {
             $("#loading").addClass("d-grid");
@@ -698,8 +699,17 @@ $("#customer-register-form").on("submit", function (e) {
                 window.location.href = response.redirect_url;
             }
         },
-        error: function () {
-
+        error: function (xhr) {
+            const response = xhr.responseJSON || {};
+            if (response.errors) {
+                Object.values(response.errors).forEach(function (error) {
+                    const messages = Array.isArray(error) ? error : [error.message || error];
+                    messages.forEach(function (message) { toastr.error(message); });
+                });
+            } else {
+                toastr.error(response.error || response.message ||
+                    (document.documentElement.lang === 'ar' ? 'تعذر إنشاء الحساب. حاول مرة أخرى.' : 'Unable to create your account. Please try again.'));
+            }
         },
         complete: function () {
             $("#loading").removeClass("d-grid");
@@ -1320,6 +1330,10 @@ function checkoutFromCartList() {
             $("#loading").show();
         },
         success: function (response) {
+            if (response.registration_required && response.redirect) {
+                location.href = response.redirect;
+                return;
+            }
             if (response.status === 0) {
                 response.message.map(function (message) {
                     toastr.error(message);

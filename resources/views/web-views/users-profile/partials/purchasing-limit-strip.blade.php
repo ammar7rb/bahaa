@@ -4,11 +4,11 @@
     $limitState = $limitCustomer ? app(\App\Services\CustomerPurchaseEligibilityService::class)->status($limitCustomer) : null;
     $limitCart = \App\Utils\CartManager::getCartListQuery(type:'checked');
     $limitAmount = app(\App\Services\CustomerPurchaseLimitService::class)->getCartProductTotal($limitCart);
-    $limitProvisional = !$limitCustomer || ($limitState['initial_order_exception_available'] ?? false) || ($limitState['can_resume_initial_checkout'] ?? false);
+    $limitProvisional = !$limitCustomer || ($limitState['is_urgent_account'] ?? false);
     $limitSummary = $limitService->enabled() ? $limitService->summary((int)($limitCustomer?->id ?? 0), $limitAmount, $limitProvisional) : null;
     $limitCartItems = collect($limitCart)->map(fn($item) => ['id'=>$item->id, 'price'=>max(0,(float)$item->price-(float)$item->discount), 'quantity'=>(int)$item->quantity])->values();
 @endphp
-@if($limitSummary && (($limitVariant ?? 'cart') !== 'browsing' || $limitSummary['has_active_package']))
+@if($limitSummary && $limitSummary['show_credit_indicator'] && (($limitVariant ?? 'cart') !== 'browsing' || $limitSummary['has_active_package']))
 <section class="purchasing-limit-strip credit-indicator credit-indicator--{{ $limitVariant ?? 'cart' }}" dir="rtl" data-purchasing-limit data-tone="{{ $limitSummary['indicator'] }}" @if($limitProvisional) data-provisional @endif
     data-granted="{{ $limitSummary['granted_limit'] }}" data-available="{{ $limitSummary['available_limit'] }}"
     data-cart="{{ $limitAmount }}" data-reserved="{{ $limitSummary['cart_reserved_amount'] }}" data-items='@json($limitCartItems)'>
