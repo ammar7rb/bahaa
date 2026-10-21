@@ -3,21 +3,19 @@
 @section('title', translate('customer_Details'))
 
 @push('css_or_js')
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/customer-profile-workspace.css') }}?v=20261021">
     <link rel="stylesheet" href="{{dynamicAsset(path:'public/assets/back-end/css/owl.min.css') }}">
 @endpush
 
 @section('content')
-    <div class="content container-fluid">
+    <div class="content container-fluid customer-profile-workspace">
         @if($customer->account_deleted_at)<div class="alert alert-warning" role="status">حساب محذوف منذ {{ $customer->account_deleted_at }}. تُحتفظ بهوية العميل وسجلاته المالية، والوصول للحساب مغلق.</div>@endif
-        @include('admin-views.customer.purchase-state')
-        @include('admin-views.customer.profile-history')
         <div class="d-print-none pb-2">
             <div class="row align-items-center">
                 <div class="col-sm mb-2 mb-sm-0">
                     <div class="mb-3">
                         <h2 class="h1 mb-0 text-capitalize d-flex gap-2">
-                            <img width="20"
-                                 src="{{dynamicAsset(path: 'public/assets/back-end/img/add-new-seller.png') }}" alt="">
+                            <i class="fi fi-rr-user" aria-hidden="true"></i>
                             {{ translate('customer_details') }}
                         </h2>
                     </div>
@@ -27,108 +25,14 @@
 
         <div class="row g-3">
 
-            <div class="col-lg-8">
-                <div class="card card-body h-100">
-                    <div class="d-flex gap-3 align-items-center justify-content-between flex-wrap mb-2">
-                        <h3 class="mb-0"> {{ translate('customer').' '.$customer->administrative_reference }}</h3>
-                        <span class="badge {{ $customer->activation_status === 'active' ? 'badge-soft-success' : 'badge-soft-warning' }}">{{ translate('activation') }}: {{ translate($customer->activation_status ?? 'pending_support') }}</span>
-                        <p class="mb-0 fs-12">
-                            {{ translate('Join Date') }} : <span
-                                class="fw-bold">{{date('d M Y',strtotime($customer['created_at'])) }}</span>
-                        </p>
-                    </div>
-                    <div class="row g-2">
-                        <div class="col-xl-6">
-                            <div class="bg-section rounded-10 p-2 h-100">
-                                <div class="d-flex gap-2 justify-content-between align-items-start">
-                                    <div class="flex-grow-1 d-flex gap-2 align-items-center">
-                                        <img src="{{ getStorageImages(path: $customer->image_full_url , type: 'backend-profile') }}"
-                                            alt="{{ translate('image') }}" class="rounded-circle aspect-1 w-60" data-customer-live-image>
-                                        <div>
-                                            <h3 class="mb-1" data-customer-live-name>{{ $customer['f_name'].' '.$customer['l_name'] }}</h3>
-                                            <p class="fs-12 mb-0">
-                                                @if(!empty($customer['phone']))
-                                                    <a href="tel:{{ $customer['phone'] }}" class="text-decoration-none text-dark" data-customer-live-phone>
-                                                        {{ $customer['phone'] }}
-                                                    </a>
-                                                @else
-                                                    <a class="text-decoration-none text-dark" data-customer-live-phone>{{ translate('no_data_found') }}</a>
-                                                @endif
-                                            </p>
-                                            <p class="fs-12 mb-0">
-                                                @if(!empty($customer['email']))
-                                                    <a href="mailto:{{ $customer['email'] }}" class="text-decoration-none text-dark" data-customer-live-email>
-                                                        {{ $customer['email'] }}
-                                                    </a>
-                                                @else
-                                                    <a class="text-decoration-none text-dark" data-customer-live-email>{{ translate('no_data_found') }}</a>
-                                                @endif
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex gap-3 align-items-center d-print-none">
-                                        <button type="button" class="btn btn-outline-primary btn-sm"
-                                                data-bs-toggle="modal" data-bs-target="#resetCustomerPasswordModal"
-                                                title="{{ translate('reset_password') }}">
-                                            <i class="fi fi-rr-key"></i>
-                                        </button>
-                                        <a href="#profileUpdateOffcanvas" data-bs-toggle="offcanvas"><i
-                                                class="fi fi-sr-pencil text-primary fs-16"></i></a>
-                                        <a href="#customerNotify" data-bs-toggle="collapse" title="{{ translate('Notify_Customer') }}">
-                                            <i class="fi fi-rr-bell text-primary fs-16"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div id="customerNotify" class="collapse border rounded p-3 mt-3 d-print-none">
-                                    <form action="{{ route('admin.customer.notify') }}" method="POST">
-                                        @csrf
-                                        <input type="hidden" name="customer_ids[]" value="{{ $customer['id'] }}">
-                                        <div class="mb-2">
-                                            <label class="form-label">{{ translate('notification_title') }}</label>
-                                            <input type="text" name="title" class="form-control" maxlength="120" required>
-                                        </div>
-                                        <div class="mb-2">
-                                            <label class="form-label">{{ translate('message') }}</label>
-                                            <textarea name="message" class="form-control" rows="2" maxlength="1000" required></textarea>
-                                        </div>
-                                        <button type="submit" class="btn btn-primary btn-sm">
-                                            <i class="fi fi-rr-paper-plane"></i> {{ translate('send_notification') }}
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-sm-6 col-xl-3">
-                            <div class="bg-FFF9F0 p-3 rounded-10 h-100">
-                                <h2 class="text-warning mb-2 fw-bold">
-                                    {{setCurrencySymbol(amount: usdToDefaultCurrency(amount: $customer['wallet_balance'])) }}
-                                </h2>
-                                <p class="fs-12 mb-0">{{ translate('Wallet Balance') }}</p>
-                            </div>
-                        </div>
-                        <div class="col-sm-6 col-xl-3">
-                            <div class="bg-F0FFF3 p-3 rounded-10 h-100">
-                                <h2 class="text-warning mb-2 fw-bold">{{$customer['loyalty_point']}}</h2>
-                                <p class="fs-12 mb-0">{{ translate('Loyalty point') }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="col-12">
+                @include('admin-views.customer.partials.profile-overview')
             </div>
-            <div class="col-lg-4">
-                <div class="card card-body h-100">
-                    <h3 class="mb-2">{{ translate('Saved Address') }}</h3>
-                    <div
-                        class="bg-section p-3 rounded-10 d-flex gap-2 align-items-center justify-content-between flex-wrap h-100">
-                        <div class="flex-grow-1">
-                            <h2 class="text-info mb-2 fw-bold">{{ count($customer->addresses) }}</h2>
-                            <p class="fs-12 mb-0">{{ translate('Address_Available') }}</p>
-                        </div>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="offcanvas"
-                                data-bs-target="#savedAddressOffcanvas">{{ translate('View Address') }}</button>
-                    </div>
-                </div>
+
+            <div class="col-12">
+                @include('admin-views.customer.partials.profile-metrics')
             </div>
+
 
             <div class="col-lg-12">
                 <div class="card card-body">
@@ -309,104 +213,6 @@
 
             @endif
 
-            {{-- Order-stats are always rendered as a horizontal scrollable
-                 row (col-lg-12), regardless of whether the customer has any
-                 saved addresses or any orders. The previous 2-row 6-cell
-                 grid (shown only when addresses === 0) didn't include the
-                 Refunded card and was visually inconsistent with the
-                 with-orders state. --}}
-                <div class="col-lg-12">
-                    <div class="card overflow-hidden">
-                        <div class="card-body">
-                            <div class="d-flex gap-3 overflow-x-auto custom-scrollable">
-                                <div class="flex-grow-1 flex-shrink-0 user-select-none">
-                                    <a class="order-stats">
-                                        <div class="order-stats__content">
-                                            <img width="20"
-                                                 src="{{dynamicAsset(path:'public/assets/back-end/img/customer/total-order.png') }}"
-                                                 alt="">
-                                            <h4 class="order-stats__subtitle text-capitalize">{{ translate('total_orders') }}</h4>
-                                        </div>
-                                        <span
-                                            class="order-stats__title text-success">{{$orderStatusArray['total_order']}}</span>
-                                    </a>
-                                </div>
-                                <div class="flex-grow-1 flex-shrink-0 user-select-none">
-                                    <a class="order-stats">
-                                        <div class="order-stats__content">
-                                            <img width="20"
-                                                 src="{{dynamicAsset(path:'public/assets/back-end/img/customer/ongoing.png') }}"
-                                                 alt="">
-                                            <h4 class="order-stats__subtitle">{{ translate('ongoing') }}</h4>
-                                        </div>
-                                        <span
-                                            class="order-stats__title text-success">{{$orderStatusArray['ongoing']}}</span>
-                                    </a>
-                                </div>
-                                <div class="flex-grow-1 flex-shrink-0 user-select-none">
-                                    <a class="order-stats">
-                                        <div class="order-stats__content">
-                                            <img width="20"
-                                                 src="{{dynamicAsset(path:'public/assets/back-end/img/customer/completed.png') }}"
-                                                 alt="">
-                                            <h4 class="order-stats__subtitle">{{ translate('completed') }}</h4>
-                                        </div>
-                                        <span
-                                            class="order-stats__title text-success">{{$orderStatusArray['completed']}}</span>
-                                    </a>
-                                </div>
-                                <div class="flex-grow-1 flex-shrink-0 user-select-none">
-                                    <a class="order-stats">
-                                        <div class="order-stats__content">
-                                            <img width="20"
-                                                 src="{{dynamicAsset(path:'public/assets/back-end/img/customer/canceled.png') }}"
-                                                 alt="">
-                                            <h4 class="order-stats__subtitle">{{ translate('canceled') }}</h4>
-                                        </div>
-                                        <span
-                                            class="order-stats__title text-success">{{$orderStatusArray['canceled']}}</span>
-                                    </a>
-                                </div>
-                                <div class="flex-grow-1 flex-shrink-0 user-select-none">
-                                    <a class="order-stats">
-                                        <div class="order-stats__content">
-                                            <img width="20"
-                                                 src="{{dynamicAsset(path:'public/assets/back-end/img/customer/returned.png') }}"
-                                                 alt="">
-                                            <h4 class="order-stats__subtitle">{{ translate('returned') }}</h4>
-                                        </div>
-                                        <span
-                                            class="order-stats__title text-success">{{$orderStatusArray['returned']}}</span>
-                                    </a>
-                                </div>
-                                <div class="flex-grow-1 flex-shrink-0 user-select-none">
-                                    <a class="order-stats">
-                                        <div class="order-stats__content">
-                                            <img width="20"
-                                                 src="{{dynamicAsset(path:'public/assets/back-end/img/customer/failed.png') }}"
-                                                 alt="">
-                                            <h4 class="order-stats__subtitle">{{ translate('failed') }}</h4>
-                                        </div>
-                                        <span
-                                            class="order-stats__title text-success">{{$orderStatusArray['failed']}}</span>
-                                    </a>
-                                </div>
-                                <div class="flex-grow-1 flex-shrink-0 user-select-none">
-                                    <a class="order-stats">
-                                        <div class="order-stats__content">
-                                            <img width="20"
-                                                 src="{{dynamicAsset(path:'public/assets/back-end/img/customer/refunded.png') }}"
-                                                 alt="">
-                                            <h4 class="order-stats__subtitle">{{ translate('refunded') }}</h4>
-                                        </div>
-                                        <span
-                                            class="order-stats__title text-success">{{$orderStatusArray['refunded']}}</span>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             <div class="col-lg-12">
                 <div class="card">
                     <div class="card-body">
@@ -572,10 +378,10 @@
     <div class="offcanvas offcanvas-end" tabindex="-1" id="savedAddressOffcanvas"
          aria-labelledby="savedAddressOffcanvasLabel">
         <div class="offcanvas-header bg-body">
-            <h3 class="mb-0">{{ translate('Saved Address') }}</h3>
+            <h3 class="mb-0" id="savedAddressOffcanvasLabel">{{ translate('Saved Address') }}</h3>
             <button type="button" class="btn-close shadow-none" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
-        <div class="offcanvas-body">
+        <div class="offcanvas-body"><div data-profile-live-addresses>
             @if($customer->addresses->isEmpty())
                 <div class="text-center">
                     <h5 class="mb-2">{{ translate('no_address_found') }}</h5>
@@ -644,6 +450,7 @@
                     </div>
                 @endforeach
             @endif
+            </div>
         </div>
     </div>
 
