@@ -3,7 +3,7 @@
 @section('title', translate('customer_Details'))
 
 @push('css_or_js')
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/customer-profile-workspace.css') }}?v=20261021">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/customer-profile-workspace.css') }}?v=20261021.2">
     <link rel="stylesheet" href="{{dynamicAsset(path:'public/assets/back-end/css/owl.min.css') }}">
 @endpush
 
