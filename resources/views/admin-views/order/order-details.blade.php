@@ -31,123 +31,7 @@
 
         <div class="row g-3" id="printableArea">
             <div class="col-xl-8">
-                @if($order->insurance)
-                    <div class="card mb-3 border-info">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
-                                <h5 class="mb-0">{{ translate('order_insurance') }}</h5>
-                                <span class="badge badge-info text-bg-info">{{ translate($order->insurance->status) }}</span>
-                            </div>
-                            <div class="row g-2 fs-13 mb-3">
-                                <div class="col-md-4"><span class="text-muted">{{ translate('Amount') }}:</span> {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->insurance->amount), currencyCode: getCurrencyCode()) }}</div>
-                                <div class="col-md-4"><span class="text-muted">{{ translate('Order_Value_Threshold') }}:</span> {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->insurance->threshold_amount), currencyCode: getCurrencyCode()) }}</div>
-                                <div class="col-md-4"><span class="text-muted">{{ translate('Insurance_Calculation_Type') }}:</span> {{ translate($order->insurance->calculation_type) }}</div>
-                                <div class="col-md-4"><span class="text-muted">{{ translate('Insurance_Recovery_Days') }}:</span> {{ $order->insurance->maturity_days }} {{ translate('days') }}</div>
-                                <div class="col-md-4"><span class="text-muted">{{ translate('insurance_matures_at') }}:</span> {{ $order->insurance->matures_at?->format('d M, Y') ?? '-' }}</div>
-                            </div>
-                            @if($order->insurance->status === 'pending_payment' && $order->payment_method === 'offline_payment')
-                                <form method="post" action="{{ route('admin.orders.insurance-decision', $order->id) }}" class="d-flex gap-2 flex-wrap align-items-end">
-                                    @csrf
-                                    <div class="flex-grow-1">
-                                        <label class="form-label mb-1">{{ translate('insurance_decision_note') }}</label>
-                                        <input class="form-control" name="admin_note" required maxlength="5000">
-                                    </div>
-                                    <button class="btn btn-primary" name="decision" value="approve_payment" type="submit">{{ translate('approve_offline_payment') }}</button>
-                                </form>
-                            @elseif($order->insurance->status === 'held' && $order->payment_status === 'paid')
-                                <form method="post" action="{{ route('admin.orders.insurance-decision', $order->id) }}" class="d-flex gap-2 flex-wrap align-items-end">
-                                    @csrf
-                                    <div class="flex-grow-1">
-                                        <label class="form-label mb-1">{{ translate('insurance_decision_note') }}</label>
-                                        <input class="form-control" name="admin_note" required maxlength="5000">
-                                    </div>
-                                    <span class="text-muted fs-12">{{ translate('order_insurance_auto_release_notice') }}</span>
-                                    <button class="btn btn-danger" name="decision" value="forfeit" type="submit">{{ translate('forfeit_insurance') }}</button>
-                                </form>
-                            @elseif($order->insurance->status === 'pending_payment')
-                                <p class="text-muted fs-12 mb-0">{{ translate('payment_status_must_be_paid') }}</p>
-                            @elseif($order->insurance->status === 'matured')
-                                <p class="text-success fs-12 mb-0">{{ translate('order_insurance_matured_notice') }}</p>
-                            @elseif($order->insurance->admin_note)
-                                <p class="text-muted fs-12 mb-0">{{ $order->insurance->admin_note }}</p>
-                            @endif
-                        </div>
-                    </div>
-                @endif
-                @php($sellerOrderInsurance = $order->sellerOrderInsurance)
-                @if($sellerOrderInsurance)
-                    <div class="card h-100 mb-3">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-                                <div>
-                                    <h4 class="mb-1">{{ translate('Seller_Order_Insurance') }}</h4>
-                                    <p class="text-muted fs-12 mb-0">{{ translate('seller_order_insurance_admin_decision_note') }}</p>
-                                </div>
-                                <span class="badge badge-soft-{{ $sellerOrderInsurance->status === 'paid' || $sellerOrderInsurance->status === 'waived' ? 'success' : ($sellerOrderInsurance->status === 'expired' ? 'danger' : 'warning') }}">
-                                    {{ translate($sellerOrderInsurance->status) }}
-                                </span>
-                            </div>
-                            <div class="row g-2 fs-13 mb-3">
-                                <div class="col-md-3"><span class="text-muted">{{ translate('Amount') }}:</span> {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $sellerOrderInsurance->amount), currencyCode: getCurrencyCode()) }}</div>
-                                <div class="col-md-3"><span class="text-muted">{{ translate('Insurance_Calculation') }}:</span>
-                                    {{ ($sellerOrderInsurance->calculation_type ?? 'percentage') === 'fixed'
-                                        ? setCurrencySymbol(amount: usdToDefaultCurrency(amount: $sellerOrderInsurance->calculation_value))
-                                        : ($sellerOrderInsurance->calculation_value ?: $sellerOrderInsurance->percentage).'%' }}
-                                </div>
-                                <div class="col-md-3"><span class="text-muted">{{ translate('Expires_At') }}:</span> {{ $sellerOrderInsurance->expires_at?->format('d M, Y h:i A') ?? '-' }}</div>
-                                <div class="col-md-3"><span class="text-muted">{{ translate('Payment_Status') }}:</span> {{ translate($sellerOrderInsurance->payment_status) }}</div>
-                            </div>
 
-                            @if($sellerOrderInsurance->status === \App\Models\SellerOrderInsurance::STATUS_EXPIRED)
-                                <form method="post" action="{{ route('admin.orders.seller-order-insurance-decision', $order->id) }}" class="p-3 bg-section rounded">
-                                    @csrf
-                                    <div class="row g-3 align-items-end">
-                                        <div class="col-lg-3">
-                                            <label class="form-label">{{ translate('Administrative_Decision') }}</label>
-                                            <select class="form-select" name="action" id="seller-insurance-expired-action" required>
-                                                <option value="">{{ translate('Select') }}</option>
-                                                <option value="extend">{{ translate('Extend_Payment_Deadline') }}</option>
-                                                <option value="waive">{{ translate('Waive_Insurance') }}</option>
-                                                <option value="keep_locked">{{ translate('Keep_Order_Locked') }}</option>
-                                                <option value="transfer_to_operations">{{ translate('Transfer_To_Operations') }}</option>
-                                                <option value="request_cancellation">{{ translate('Request_Order_Cancellation') }}</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-lg-2">
-                                            <label class="form-label">{{ translate('Extension_Days') }}</label>
-                                            <input type="number" min="1" max="90" class="form-control" name="extension_days" id="seller-insurance-extension-days">
-                                        </div>
-                                        <div class="col-lg-5">
-                                            <label class="form-label">{{ translate('Decision_Reason') }} <span class="text-danger">*</span></label>
-                                            <input type="text" maxlength="5000" class="form-control" name="reason" required>
-                                        </div>
-                                        <div class="col-lg-2">
-                                            <button type="submit" class="btn btn-primary w-100">{{ translate('Save_Decision') }}</button>
-                                        </div>
-                                    </div>
-                                </form>
-                            @endif
-
-                            @if($sellerOrderInsurance->decisions()->exists())
-                                <div class="table-responsive mt-3">
-                                    <table class="table table-sm align-middle mb-0">
-                                        <thead><tr><th>{{ translate('Date') }}</th><th>{{ translate('Decision') }}</th><th>{{ translate('Status') }}</th><th>{{ translate('Reason') }}</th></tr></thead>
-                                        <tbody>
-                                        @foreach($sellerOrderInsurance->decisions()->get() as $decision)
-                                            <tr>
-                                                <td>{{ $decision->created_at?->format('d M, Y h:i A') }}</td>
-                                                <td>{{ translate($decision->action) }}</td>
-                                                <td>{{ translate($decision->status_before) }} → {{ translate($decision->status_after) }}</td>
-                                                <td>{{ $decision->reason }}</td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                @endif
                 <div class="card h-100">
                     <div class="card-body">
                         <div class="d-flex flex-wrap flex-md-nowrap gap-10 justify-content-between mb-4">
@@ -1195,7 +1079,7 @@
                                                 {{ ($order->shipping_assignment_status ?? 'pending') === 'assigned' ? translate('shipping_assigned') : translate('shipping_decision_pending') }}
                                             </span>
                                         </div>
-                                        <a href="#admin-order-review" class="btn btn-outline-primary">{{ translate('insurance_and_shipping_decision') }}</a>
+                                        <a href="#admin-order-review" class="btn btn-outline-primary">{{ translate('shipping') }}</a>
                                         @if($order->shippingDecisionHistory?->isNotEmpty())
                                             <div class="table-responsive mt-4">
                                                 <table class="table table-sm align-middle mb-0">

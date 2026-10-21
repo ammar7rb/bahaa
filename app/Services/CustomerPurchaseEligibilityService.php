@@ -122,7 +122,7 @@ class CustomerPurchaseEligibilityService
         if (!$this->enabled()) return ['eligible_at' => null, 'fulfillment_status' => null, 'pending_reasons' => [], 'message' => '', 'customer' => null];
         $customer = User::find($order->customer_id);
         $state = $customer ? $this->status($customer) : null;
-        $reasons = json_decode((string) $order->getRawOriginal('customer_pending_reasons'), true) ?: [];
+        $reasons = array_values(array_diff(json_decode((string) $order->getRawOriginal('customer_pending_reasons'), true) ?: [], ['outstanding_invoice']));
         $statusLabel = ['pending'=>'قيد الانتظار','confirmed'=>'تم التأكيد','processing'=>'قيد التجهيز','out_for_delivery'=>'في الطريق للتسليم','delivered'=>'تم التسليم','returned'=>'تم الإرجاع','failed'=>'تعذر التسليم','canceled'=>'ملغي'][$order->order_status] ?? $order->order_status;
         $initial = DB::table('customer_checkout_operations')->where('id', $order->customer_checkout_operation_id)->value('first_exception');
         $canRequestPackage = $initial && $order->payment_status === 'paid'
@@ -222,8 +222,6 @@ class CustomerPurchaseEligibilityService
         if (!$state['subscription']['active'] && !$operation?->qualified_at) $reasons[] = 'monthly_subscription';
         if (!$reasons && app(CustomerMonthlyAllowanceService::class)->enabled()
             && !app(CustomerMonthlyAllowanceService::class)->reserveOrder($order)) $reasons[] = 'purchasing_limit';
-        if (Schema::hasTable('post_purchase_invoices') && DB::table('post_purchase_invoices')->where('order_id', $order->id)
-            ->whereNotIn('status', ['paid', 'cancelled'])->whereColumn('total_amount', '>', 'paid_amount')->exists()) $reasons[] = 'outstanding_invoice';
         $updates = ['customer_pending_reasons' => json_encode($reasons), 'customer_fulfillment_status' => $reasons ? 'pending_requirements' : 'preparing'];
         if (!$reasons) $updates['customer_eligible_at'] = now();
         // Keep vendor assignment, access restrictions and fulfillment routing intact.

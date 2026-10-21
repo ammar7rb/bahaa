@@ -18,7 +18,6 @@
                     @if($order->details->count() > 3)<p>و{{ $order->details->count() - 3 }} منتجات أخرى</p>@endif
                 </div>
                 <footer><div><small>إجمالي الطلب</small><strong>{{ webCurrencyConverter(amount:App\Utils\OrderManager::getOrderTotalPriceSummary(order:$order)['totalAmount']) }}</strong></div><span class="customer-order-payment">{{ $order->payment_status === 'paid' ? 'تم اعتماد الدفع' : 'جاري التحقق' }}</span><a class="customer-order-details" href="{{ route('account-order-details',['id'=>$order->id]) }}">تفاصيل الطلب ←</a></footer>
-                @if($order->postPurchaseInvoice?->isPayable())<a class="customer-order-invoice" href="{{ route('post-purchase-invoices.show',$order->postPurchaseInvoice->id) }}">عرض الفاتورة الإضافية</a>@endif
                 @if($state && $order->payment_status === 'paid' && !$order->customer_eligible_at && !in_array($order->order_status,['canceled','failed','delivered','returned']))<div class="customer-order-help"><span>{{ $state['message'] }}</span><a href="{{ route('account-tickets') }}">التواصل مع الإدارة</a><a href="{{ route('customer.subscription.index') }}">الاشتراك الشهري</a></div>@endif
             </article>
         @empty<div class="customer-order-empty"><h2>ليس لديك طلبات بعد</h2><p>ستظهر مشترياتك هنا لتتابعها بسهولة.</p><a href="{{ route('products') }}">تصفح المنتجات ←</a></div>@endforelse

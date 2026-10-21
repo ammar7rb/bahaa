@@ -7,7 +7,6 @@
     <style>
         .vendor-orders-toolbar { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
         .vendor-orders-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
-        .vendor-orders-insurance { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; white-space: normal; }
         .vendor-orders-search { display: flex; flex: 1 1 360px; align-items: center; gap: 12px; min-width: 0; }
         .vendor-orders-search-field { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; padding-inline: 16px; border: 1px solid #dce4f0; border-radius: 12px; background: #fff; transition: border-color .15s ease, box-shadow .15s ease; }
         .vendor-orders-search-field:focus-within { border-color: #1d4287; box-shadow: 0 0 0 3px rgba(29,66,135,.1); }
@@ -17,7 +16,6 @@
         @media (max-width: 575px) {
             .vendor-orders-toolbar { padding: 16px; }
             .vendor-orders-tools { gap: 12px; }
-            .vendor-orders-insurance { width: 100%; }
             .vendor-orders-search { flex-basis: 100%; gap: 8px; }
             .vendor-orders-search-field { padding-inline: 12px; }
             .vendor-orders-search > .btn { padding-inline: 16px; }
@@ -25,8 +23,13 @@
     </style>
 @endpush
 
+
+@push('css_or_js')
+<link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/orders-workspace.css') }}">
+@endpush
+
 @section('content')
-    <div class="content container-fluid">
+    <div class="content container-fluid orders-workspace">
         <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
             <h2 class="h1 mb-0">
                 <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/all-orders.png') }}" class="mb-1 mr-1"
@@ -48,123 +51,7 @@
         </div>
 
         @if($status == 'all')
-            <div class="card card-body mb-20">
-                <h3 class="mb-20">{{ translate('Current_Order_Summary') }}</h3>
-                <div class="row g-2">
-                    <div class="col-lg-6 col-xl-3">
-                        <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded"
-                           href="{{ route('vendor.orders.list',['pending']) }}">
-                            <div class="d-flex gap-3 align-items-center">
-                                <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/pending.png') }}"
-                                     alt="">
-                                <h4 class="mb-0">{{ translate('Pending') }}</h4>
-                            </div>
-                            <span class="text-primary h3 mb-0 overflow-wrap-anywhere">
-                            {{ $allOrdersInfo['pending_order'] }}
-                        </span>
-                        </a>
-                    </div>
-                    <div class="col-lg-6 col-xl-3">
-                        <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_confirmed"
-                           href="{{ route('vendor.orders.list',['confirmed']) }}">
-                            <div class="d-flex gap-3 align-items-center">
-                                <img width="20"
-                                     src="{{ dynamicAsset(path: 'public/assets/back-end/img/confirmed.png') }}" alt="">
-                                <h4 class="mb-0">{{ translate('Confirmed') }}</h4>
-                            </div>
-                            <span class="text-success h3 mb-0 overflow-wrap-anywhere">
-                            {{ $allOrdersInfo['confirmed_order'] }}
-                        </span>
-                        </a>
-                    </div>
-
-                    <div class="col-lg-6 col-xl-3">
-                        <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_packaging"
-                           href="{{ route('vendor.orders.list',['processing']) }}">
-                            <div class="d-flex gap-3 align-items-center">
-                                <img width="20"
-                                     src="{{ dynamicAsset(path: 'public/assets/back-end/img/packaging.png') }}" alt="">
-                                <h4 class="mb-0">{{ translate('Packaging') }}</h4>
-                            </div>
-                            <span class="text-danger h3 mb-0 overflow-wrap-anywhere">
-                            {{ $allOrdersInfo['processing_order'] }}
-                        </span>
-                        </a>
-                    </div>
-
-                    <div class="col-lg-6 col-xl-3">
-                        <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_out-for-delivery"
-                           href="{{ route('vendor.orders.list',['out_for_delivery']) }}">
-                            <div class="d-flex gap-3 align-items-center">
-                                <img width="20"
-                                     src="{{ dynamicAsset(path: 'public/assets/back-end/img/out-of-delivery.png') }}"
-                                     alt="">
-                                <h4 class="mb-0">{{ translate('Out_for_Delivery') }}</h4>
-                            </div>
-                            <span class="text-success h3 mb-0 overflow-wrap-anywhere">
-                            {{ $allOrdersInfo['out_for_delivery_order'] }}
-                        </span>
-                        </a>
-                    </div>
-
-                    <div class="col-lg-6 col-xl-3">
-                        <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_delivered cursor-pointer"
-                           href="{{ route('vendor.orders.list',['delivered']) }}">
-                            <div class="d-flex gap-3 align-items-center">
-                                <img width="20"
-                                     src="{{ dynamicAsset(path: 'public/assets/back-end/img/delivered.png') }}" alt="">
-                                <h4 class="mb-0">{{ translate('Delivered') }}</h4>
-                            </div>
-                            <span class="text-primary h3 mb-0 overflow-wrap-anywhere">
-                            {{ $allOrdersInfo['delivered_order'] }}
-                        </span>
-                        </a>
-                    </div>
-
-                    <div class="col-lg-6 col-xl-3">
-                        <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_canceled cursor-pointer"
-                           href="{{ route('vendor.orders.list',['canceled']) }}">
-                            <div class="d-flex gap-3 align-items-center">
-                                <img width="20"
-                                     src="{{ dynamicAsset(path: 'public/assets/back-end/img/canceled.png') }}" alt="">
-                                <h4 class="mb-0">{{ translate('Canceled') }}</h4>
-                            </div>
-                            <span class="text-danger h3 mb-0 overflow-wrap-anywhere">
-                            {{ $allOrdersInfo['canceled_order'] }}
-                        </span>
-                        </a>
-                    </div>
-
-                    <div class="col-lg-6 col-xl-3">
-                        <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_returned cursor-pointer"
-                           href="{{ route('vendor.orders.list',['returned']) }}">
-                            <div class="d-flex gap-3 align-items-center">
-                                <img width="20"
-                                     src="{{ dynamicAsset(path: 'public/assets/back-end/img/returned.png') }}" alt="">
-                                <h4 class="mb-0">{{ translate('Returned') }}</h4>
-                            </div>
-                            <span class="text-warning h3 mb-0 overflow-wrap-anywhere">
-                            {{ $allOrdersInfo['returned_order'] }}
-                        </span>
-                        </a>
-                    </div>
-
-                    <div class="col-lg-6 col-xl-3">
-                        <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_failed cursor-pointer"
-                           href="{{ route('vendor.orders.list',['failed']) }}">
-                            <div class="d-flex gap-3 align-items-center">
-                                <img width="20"
-                                     src="{{ dynamicAsset(path: 'public/assets/back-end/img/failed-to-deliver.png') }}"
-                                     alt="">
-                                <h4 class="mb-0">{{ translate('Failed_to_Deliver') }}</h4>
-                            </div>
-                            <span class="text-danger h3 mb-0 overflow-wrap-anywhere">
-                            {{ $allOrdersInfo['failed_order'] }}
-                        </span>
-                        </a>
-                    </div>
-                </div>
-            </div>
+            @include('partials.orders-status-overview', ['ordersRole' => 'vendor'])
         @endif
 
         <div class="row g-3 mb-20">
@@ -222,10 +109,7 @@
                         <span class="badge badge-soft-dark radius-50 fs-12">{{ $orders->total() }}</span>
                     </h5>
                     <div class="vendor-orders-tools">
-                        <a class="btn btn-outline-warning vendor-orders-insurance" href="{{ route('vendor.orders.insurance-pending') }}">
-                            <i class="fi fi-sr-shield-exclamation" aria-hidden="true"></i>
-                            {{ translate('insurance_pending_orders') }}
-                        </a>
+                        
                         <form class="vendor-orders-search" action="{{ url()->current() }}" method="GET" role="search">
                             <div class="vendor-orders-search-field">
                                 <i class="tio-search" aria-hidden="true"></i>
@@ -249,11 +133,8 @@
                             <th class="text-capitalize">{{translate('order_Date')}}</th>
                             <th class="text-capitalize">{{translate('customer_info')}}</th>
                             <th class="text-capitalize text-end">{{translate('total_amount')}}</th>
-                            @if($status == 'all')
-                                <th class="text-capitalize text-center">{{translate('order_Status')}} </th>
-                            @else
-                                <th class="text-capitalize">{{translate('payment_method')}} </th>
-                            @endif
+<th class="text-center">{{ translate('payment_status') }}</th>
+                            <th class="text-center">{{ translate('order_status') }}</th>
                             <th class="text-center">{{translate('action')}}</th>
                         </tr>
                         </thead>
@@ -266,10 +147,10 @@
                                 <td>{{ $orders->firstItem() + $key }}</td>
                                 <td><a class="title-color hover-c1" href="{{ route('vendor.orders.details', $restrictedAccessReference) }}">***{{ str_pad(substr((string) $order->id, -3), 3, '0', STR_PAD_LEFT) }}</a></td>
                                 <td>—</td>
-                                <td>{{ translate('Insurance_Amount') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->sellerOrderInsurance?->amount ?? 0)) }}</td>
-                                <td class="text-end fw-bold">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount), currencyCode: getCurrencyCode()) }}</td>
+                                <td>{{ translate('vendor_order_waiting_for_administrative_release') }}</td>
+                                <td class="text-end fw-bold">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount), currencyCode: getCurrencyCode()) }}</td><td>—</td>
                                 <td>—</td>
-                                <td><a class="btn btn--primary" href="{{ route('vendor.orders.details', $restrictedAccessReference) }}">{{ translate('continue_to_pay_insurance') }}</a></td>
+                                <td><a class="btn btn--primary" href="{{ route('vendor.orders.details', $restrictedAccessReference) }}">{{ translate('view_order') }}</a></td>
                                 @else
                                 <td>
                                     {{ $orders->firstItem() + $key}}
@@ -311,7 +192,7 @@
                                 </td>
                                 <td>
                                     @if($restrictedOrder)
-                                        <span class="badge badge-soft-warning">{{ translate('details_locked_until_seller_insurance_payment') }}</span>
+                                        <span class="badge badge-soft-warning">{{ translate('vendor_order_waiting_for_administrative_release') }}</span>
                                     @elseif($order->is_guest)
                                         <strong class="title-name">{{translate('guest_customer')}}</strong>
                                     @elseif($order->customer_id == 0)
@@ -341,43 +222,18 @@
                                 <td class="text-end">
                                     <div>
                                         @if($restrictedOrder)
-                                            <span class="text-warning fw-bold">{{ translate('Insurance_Amount') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->sellerOrderInsurance?->amount ?? 0), currencyCode: getCurrencyCode()) }}</span>
+                                            <span class="text-muted">{{ translate('vendor_order_waiting_for_administrative_release') }}</span>
                                         @else
                                             @php($orderTotalPriceSummary = \App\Utils\OrderManager::getOrderTotalPriceSummary(order: $order))
                                             {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount:  $orderTotalPriceSummary['totalAmount']), currencyCode: getCurrencyCode()) }}
                                         @endif
                                     </div>
-
-                                    @include('partials.order-payment-summary', ['order' => $order])
+                                    </td>
+                                    <td class="text-center">
+                                        @include('partials.order-payment-summary', ['order' => $order])
+                                        <small class="d-block text-muted mt-1">{{ translate(str_replace('_', ' ', $order->payment_method)) }}</small>
                                 </td>
-                                @if($status == 'all')
-                                    <td class="text-capitalize d-flex justify-content-center align-items-center">
-                                        @if($order->order_status=='pending')
-                                            <label
-                                                class="badge badge-soft-primary">{{ translate($order['order_status']) }}</label>
-                                        @elseif($order->order_status=='processing' || $order->order_status=='out_for_delivery')
-                                            <label
-                                                class="badge badge-soft-warning">{{ translate($order['order_status'] == 'processing' ? 'packaging' : $order['order_status']) }}</label>
-                                        @elseif($order->order_status=='delivered' || $order->order_status=='confirmed')
-                                            <label
-                                                class="badge badge-soft-success">{{ translate($order['order_status']) }}</label>
-                                        @elseif($order->order_status=='returned')
-                                            <label
-                                                class="badge badge-soft-danger">{{ translate($order['order_status']) }}</label>
-                                        @elseif($order['order_status']=='failed')
-                                            <span class="badge badge-danger fs-12">
-                                                    {{translate('failed_to_deliver')}}
-                                            </span>
-                                        @else
-                                            <label
-                                                class="badge badge-soft-danger">{{ translate($order['order_status']) }}</label>
-                                        @endif
-                                    </td>
-                                @else
-                                    <td class="text-capitalize">
-                                        {{ translate($order['payment_method']) }}
-                                    </td>
-                                @endif
+                                <td class="text-center">@include('partials.order-status-badge', ['order' => $order])</td>
                                 <td>
                                     <div class="d-flex justify-content-center gap-2">
                                         <a class="btn btn-outline--success icon-btn"

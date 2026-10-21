@@ -27,7 +27,7 @@ class PostPurchaseInvoiceService
 
     public function isEnabled(): bool
     {
-        return $this->settingBool('customer_second_invoice_tax_enabled', false);
+        return false; // Retired: sales-invoice taxes remain part of the original purchase.
     }
 
     public function usesSecondInvoice(Order $order): bool
@@ -79,7 +79,7 @@ class PostPurchaseInvoiceService
      */
     public function createForPaidOrderGroup(array $orderIds, bool $includeSubmittedOffline = false): array
     {
-        if ($orderIds === []) {
+        if (!$this->isEnabled() || $orderIds === []) {
             return [];
         }
 

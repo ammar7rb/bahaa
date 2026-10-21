@@ -20,7 +20,6 @@ use Illuminate\Support\Facades\DB;
 class AdminOrderGateService
 {
     public function __construct(
-        private readonly SellerOrderInsuranceService $sellerInsurance,
         private readonly OrderShippingDecisionService $shipping,
         private readonly InsuranceBalanceGovernanceService $governance,
         private readonly CustomerPostPurchaseInsuranceService $customerInsuranceFlow,
@@ -33,7 +32,7 @@ class AdminOrderGateService
         if ($order->seller_is !== 'seller' || ! $order->seller) {
             return ['applicable' => false, 'amount' => 0, 'reason' => 'order_has_no_external_seller'];
         }
-        return $this->sellerInsurance->preview($order, $order->seller);
+        return ['applicable' => false, 'amount' => 0, 'reason' => 'vendor_security_deposits_retired'];
     }
 
     public function saveAssignment(Order $order, array $data, ?int $adminId): OrderAdminGateDecision
@@ -42,35 +41,16 @@ class AdminOrderGateService
             $locked = Order::query()->with(['insurance', 'seller', 'sellerOrderInsurance'])->lockForUpdate()->findOrFail($order->id);
             $this->assertGateReadyForAssignment($locked);
             $before = $locked->commerce_flow_status;
-
             $locked->forceFill([
                 'commerce_flow_status' => OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS,
                 'commerce_flow_status_updated_at' => now(),
                 'admin_order_review_status' => 'assignment_in_progress',
                 'operational_blocked_by' => 'admin_review',
-                'operational_block_reason' => 'admin_is_assigning_seller_insurance_and_shipping',
+                'operational_block_reason' => 'admin_is_assigning_shipping',
             ])->save();
 
-            // A seller can reject a shipping offer after already paying the
-            // deposit.  In that case the deposit is immutable; only the
-            // shipping terms are revised and offered again.
-            $insurance = $locked->sellerOrderInsurance;
-            if (! $insurance || ! in_array($insurance->status, [SellerOrderInsurance::STATUS_PAID, SellerOrderInsurance::STATUS_WAIVED], true)) {
-                $insurance = $this->sellerInsurance->createFromAdminDecision(
-                    $locked, $locked->seller,
-                    [
-                        'mode' => $data['seller_insurance_mode'],
-                        'calculation_type' => $data['seller_insurance_calculation_type'] ?? null,
-                        'calculation_value' => $data['seller_insurance_calculation_value'] ?? null,
-                        'reason' => match ($data['seller_insurance_mode']) {
-                            'manual' => 'تحديد قيمة التأمين يدويًا بواسطة الإدارة',
-                            'waive' => 'إعفاء الطلب من تأمين التاجر بواسطة الإدارة',
-                            default => null,
-                        },
-                    ],
-                    $adminId,
-                );
-            }
+            // Historical deposit records are retained for settlement, never
+            // created, waived, charged or modified by a shipping decision.
             $shipping = $this->shipping->assign($locked, [
                 'mode' => $data['shipping_mode'],
                 'shipping_method_id' => $data['shipping_method_id'] ?? null,
@@ -81,20 +61,15 @@ class AdminOrderGateService
                 'tracking_number' => $data['shipping_tracking_number'] ?? null,
                 'expected_delivery_date' => $data['shipping_expected_delivery_date'] ?? null,
                 'instructions' => $data['shipping_instructions'] ?? null,
-                'note' => 'قرار الشحن والتأمين بواسطة الإدارة',
+                'note' => 'قرار الشحن بواسطة الإدارة',
             ], $adminId);
 
             return OrderAdminGateDecision::query()->create([
                 'order_id' => $locked->id, 'admin_id' => $adminId, 'action' => 'assignment_saved',
                 'status_before' => $before, 'status_after' => OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS,
-                'seller_order_insurance_id' => $insurance->id, 'shipping_decision_id' => $shipping->id,
-                'seller_insurance_source' => $insurance->amount_source,
-                'seller_insurance_calculation_type' => $insurance->calculation_type,
-                'seller_insurance_calculation_value' => $insurance->calculation_value,
-                'seller_insurance_amount' => $insurance->amount,
-                'override_reason' => $insurance->admin_decision_reason,
-                'note' => 'قرار الشحن والتأمين بواسطة الإدارة',
-                'snapshot' => $this->decisionSnapshot($locked->fresh(), $insurance->fresh(), $shipping->fresh()),
+                'shipping_decision_id' => $shipping->id,
+                'note' => 'قرار الشحن بواسطة الإدارة',
+                'snapshot' => $this->decisionSnapshot($locked->fresh(), $locked->sellerOrderInsurance, $shipping),
             ]);
         });
     }
@@ -103,66 +78,50 @@ class AdminOrderGateService
     {
         return DB::transaction(function () use ($order, $note, $adminId): OrderAdminGateDecision {
             $locked = Order::query()->with(['insurance', 'sellerOrderInsurance'])->lockForUpdate()->findOrFail($order->id);
-            $this->assertCustomerInsuranceAccepted($locked);
+            $this->assertGateReadyForAssignment($locked);
+            $this->assertOrderPaymentAccepted($locked);
             if ($locked->commerce_flow_status !== OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS) {
                 throw new DomainException('admin_order_assignment_must_be_completed_first');
-            }
-            $insurance = $locked->sellerOrderInsurance;
-            if (! $insurance || ! in_array($insurance->status, [SellerOrderInsurance::STATUS_PENDING_PAYMENT, SellerOrderInsurance::STATUS_PAID, SellerOrderInsurance::STATUS_WAIVED], true)) {
-                throw new DomainException('seller_order_insurance_admin_decision_is_required');
             }
             $shipping = $locked->shippingDecisions()->latest('id')->first();
             if (($locked->shipping_assignment_status ?? 'pending') !== 'assigned' || ! $shipping) {
                 throw new DomainException('shipping_decision_is_required_before_seller_release');
             }
+            app(SellerOrderSubscriptionEligibilityService::class)->assertCanRelease($locked);
 
             $before = $locked->commerce_flow_status;
-            app(OrderCommerceContractService::class)->restrictedAccessToken($locked);
-            $after = in_array($insurance->status, [SellerOrderInsurance::STATUS_PAID, SellerOrderInsurance::STATUS_WAIVED], true)
-                ? OrderCommerceState::RELEASED_TO_SELLER
-                : OrderCommerceState::SELLER_INSURANCE_PENDING;
             $locked->forceFill([
-                'commerce_flow_status' => $after, 'commerce_flow_status_updated_at' => now(),
-                'checked' => 0,
+                'commerce_flow_status' => OrderCommerceState::RELEASED_TO_SELLER,
+                'commerce_flow_status_updated_at' => now(), 'checked' => 0,
                 'admin_order_review_status' => 'approved', 'admin_order_reviewed_by' => $adminId,
                 'admin_order_reviewed_at' => now(), 'admin_order_review_note' => $note,
-                'operational_blocked_by' => $after === OrderCommerceState::SELLER_INSURANCE_PENDING ? 'seller_insurance' : null,
-                'operational_block_reason' => $after === OrderCommerceState::SELLER_INSURANCE_PENDING ? 'seller_order_insurance_payment_required' : null,
+                'operational_blocked_by' => null, 'operational_block_reason' => null,
             ])->save();
-
-            // The v3 customer invoice is now completed by the admin gate, not
-            // by a direct customer-to-seller release.  A waived seller
-            // insurance therefore still needs the seller to accept the
-            // assigned shipping terms before fulfilment can begin.
-            if ($after === OrderCommerceState::RELEASED_TO_SELLER) {
-                if ($locked->commerce_flow_version === PostPurchaseInvoiceService::CONTRACT_VERSION) {
-                    $locked->forceFill([
-                        'post_purchase_status' => PostPurchaseInvoiceService::ORDER_STATUS_RELEASED,
-                        'order_status' => 'confirmed',
-                    ])->save();
-                }
-                app(SellerShippingResponseService::class)->startResponseWindow($locked->fresh());
+            if ($locked->commerce_flow_version === PostPurchaseInvoiceService::CONTRACT_VERSION) {
+                $locked->forceFill([
+                    'post_purchase_status' => PostPurchaseInvoiceService::ORDER_STATUS_RELEASED,
+                    'order_status' => 'confirmed',
+                ])->save();
             }
-
+            // Admin release is the receipt event. Opening the app or accepting
+            // shipping later is not required to preserve this existing order.
+            app(SellerShippingResponseService::class)->startResponseWindow($locked->fresh());
             $decision = OrderAdminGateDecision::query()->create([
                 'order_id' => $locked->id, 'admin_id' => $adminId, 'action' => 'released_to_seller',
-                'status_before' => $before, 'status_after' => $after,
-                'seller_order_insurance_id' => $insurance->id, 'shipping_decision_id' => $shipping->id,
-                'seller_insurance_source' => $insurance->amount_source,
-                'seller_insurance_calculation_type' => $insurance->calculation_type,
-                'seller_insurance_calculation_value' => $insurance->calculation_value,
-                'seller_insurance_amount' => $insurance->amount, 'override_reason' => $insurance->admin_decision_reason,
-                'note' => $note, 'snapshot' => $this->decisionSnapshot($locked->fresh(), $insurance, $shipping),
+                'status_before' => $before, 'status_after' => OrderCommerceState::RELEASED_TO_SELLER,
+                'shipping_decision_id' => $shipping->id, 'note' => $note,
+                'snapshot' => array_merge($this->decisionSnapshot($locked->fresh(), $locked->sellerOrderInsurance, $shipping), [
+                    'seller_received_id' => (int) $locked->seller_id,
+                    'seller_received_at' => now()->toIso8601String(),
+                    'subscription_eligibility' => app(SellerOrderSubscriptionEligibilityService::class)->reason($locked),
+                ]),
             ]);
             event(new OrderStatusEvent(key: 'admin_order_released_to_seller', type: 'seller', order: $locked->fresh()));
             Notification::query()->firstOrCreate([
-                'sent_to' => 'seller',
-                'seller_id' => $locked->seller_id,
+                'sent_to' => 'seller', 'seller_id' => $locked->seller_id,
                 'title' => translate('new_approved_order'),
                 'description' => translate('order_released_to_seller_notification').' #'.$locked->id,
-            ], [
-                'sent_by' => 'admin', 'notification_count' => 1, 'status' => 1,
-            ]);
+            ], ['sent_by' => 'admin', 'notification_count' => 1, 'status' => 1]);
             return $decision;
         });
     }
@@ -234,11 +193,12 @@ class AdminOrderGateService
 
     public function resolveInvestigation(OrderRiskInvestigation $investigation, string $action, string $note, ?int $adminId): OrderRiskInvestigation
     {
+        if (in_array($action, ['confiscate_seller_and_resume', 'confiscate_both_and_refund'], true)) throw new DomainException('seller_insurance_retired');
         $allowed = ['resume', 'cancel_and_refund', 'confiscate_customer_and_refund', 'confiscate_seller_and_resume', 'confiscate_both_and_refund'];
         if (! in_array($action, $allowed, true) || trim($note) === '') throw new DomainException('invalid_order_investigation_resolution');
 
         return DB::transaction(function () use ($investigation, $action, $note, $adminId): OrderRiskInvestigation {
-            $locked = OrderRiskInvestigation::query()->with(['order.insurance', 'order.sellerOrderInsurance'])->lockForUpdate()->findOrFail($investigation->id);
+            $locked = OrderRiskInvestigation::query()->with('order.insurance')->lockForUpdate()->findOrFail($investigation->id);
             if ($locked->status !== OrderRiskInvestigation::STATUS_OPEN) return $locked;
             $order = $locked->order;
 
@@ -303,24 +263,17 @@ class AdminOrderGateService
     private function assertGateReadyForAssignment(Order $order): void
     {
         if ($order->seller_is !== 'seller' || ! $order->seller) throw new DomainException('admin_order_gate_requires_seller_order');
-        if (! in_array($order->commerce_flow_status, [OrderCommerceState::PENDING_ADMIN_REVIEW, OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS], true)) throw new DomainException('order_is_not_waiting_for_admin_review');
+        $retiredPaymentGate = $order->payment_status === 'paid' && in_array($order->commerce_flow_status, [OrderCommerceState::CUSTOMER_INSURANCE_PENDING, OrderCommerceState::CUSTOMER_INSURANCE_UNDER_REVIEW], true);
+        if (!$retiredPaymentGate && ! in_array($order->commerce_flow_status, [OrderCommerceState::PENDING_ADMIN_REVIEW, OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS], true)) throw new DomainException('order_is_not_waiting_for_admin_review');
         // Administration may prepare terms while payment is reviewed.
         // releaseToSeller still requires all customer payments to be accepted.
         if ($order->riskInvestigations()->where('status', OrderRiskInvestigation::STATUS_OPEN)->exists()) throw new DomainException('order_is_frozen_for_admin_investigation');
     }
 
-    private function assertCustomerInsuranceAccepted(Order $order): void
+    private function assertOrderPaymentAccepted(Order $order): void
     {
-        if ($order->payment_status !== 'paid') throw new DomainException('purchase_payment_must_be_paid_before_admin_review');
-        if ($order->commerce_flow_version === PostPurchaseInvoiceService::CONTRACT_VERSION) {
-            $invoice = $order->postPurchaseInvoice()->first();
-            if (!$invoice && $order->post_purchase_status === PostPurchaseInvoiceService::ORDER_STATUS_AWAITING_ADMIN) return;
-            if (! $invoice || $invoice->status !== \App\Models\PostPurchaseInvoice::STATUS_PAID) {
-                throw new DomainException('customer_post_purchase_invoice_must_be_paid_before_admin_review');
-            }
-            return;
-        }
-        if ($order->insurance && $order->insurance->payment_status !== 'paid') throw new DomainException('customer_insurance_must_be_paid_before_admin_review');
+        if (app(OrderPaymentSummaryService::class)->forOrder($order)['incomplete']) throw new DomainException('purchase_payment_must_be_paid_before_admin_review');
+        // Retired second invoices and deposits do not gate fulfillment.
     }
 
     private function schedulePurchaseRefund(Order $order, string $reason, ?int $adminId): void
@@ -339,7 +292,7 @@ class AdminOrderGateService
     }
 
     /** @return array<string, mixed> */
-    private function decisionSnapshot(Order $order, SellerOrderInsurance $insurance, $shipping): array
+    private function decisionSnapshot(Order $order, ?SellerOrderInsurance $insurance, $shipping): array
     {
         return [
             'order_amount' => (float) $order->order_amount,
@@ -352,7 +305,8 @@ class AdminOrderGateService
                 'paid_amount' => (float) $order->postPurchaseInvoice->paid_amount,
                 'status' => $order->postPurchaseInvoice->status,
             ] : null,
-            'seller_insurance' => ['id' => $insurance->id, 'amount' => (float) $insurance->amount, 'source' => $insurance->amount_source, 'status' => $insurance->status],
+            'vendor_deposit_required' => false,
+            'historical_seller_insurance' => $insurance ? ['id' => $insurance->id, 'amount' => (float) $insurance->amount, 'source' => $insurance->amount_source, 'status' => $insurance->status] : null,
             'shipping' => ['id' => $shipping->id, 'mode' => $shipping->mode, 'customer_cost' => (float) ($shipping->customer_cost ?? 0), 'seller_cost' => (float) ($shipping->seller_cost ?? 0), 'tracking_number' => $shipping->tracking_number],
         ];
     }

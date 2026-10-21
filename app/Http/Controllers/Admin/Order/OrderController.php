@@ -201,7 +201,7 @@ class OrderController extends BaseController
             searchValue: $searchValue,
             filters: $filters,
             whereIn: $filterWhereIn,
-            relations: ['details', 'customer', 'seller.shop', 'orderEditHistory', 'postPurchaseInvoice', 'insurance'],
+            relations: ['details', 'customer', 'seller.shop', 'orderEditHistory', 'latestEditHistory'],
             dataLimit: getWebConfig(name: WebConfigKey::PAGINATION_LIMIT)
         );
 
@@ -963,32 +963,7 @@ class OrderController extends BaseController
         string|int $id,
         SellerOrderInsuranceService $service,
     ): RedirectResponse {
-        $validated = $request->validate([
-            'action' => ['required', 'in:extend,waive,keep_locked,transfer_to_operations,request_cancellation'],
-            'reason' => ['required', 'string', 'max:5000'],
-            'extension_days' => ['nullable', 'required_if:action,extend', 'integer', 'min:1', 'max:90'],
-        ]);
-
-        $order = Order::query()->with('sellerOrderInsurance')->find($id);
-        if (! $order?->sellerOrderInsurance) {
-            ToastMagic::error(translate('seller_order_insurance_not_found'));
-            return back();
-        }
-
-        try {
-            $service->decideExpired(
-                insurance: $order->sellerOrderInsurance,
-                action: $validated['action'],
-                reason: $validated['reason'],
-                adminId: auth('admin')->id(),
-                extensionDays: $validated['extension_days'] ?? null,
-            );
-            ToastMagic::success(translate('seller_order_insurance_decision_saved'));
-        } catch (\Throwable $exception) {
-            ToastMagic::error(translate($exception->getMessage()));
-        }
-
-        return back();
+        abort(410, translate('seller_insurance_retired'));
     }
 
     public function addDeliveryMan(string|int $order_id, string|int $delivery_man_id): JsonResponse
@@ -1085,12 +1060,7 @@ class OrderController extends BaseController
                     'message' => translate('purchase_payment_approved_customer_insurance_created'),
                 ]);
             }
-            $insurance = OrderInsurance::where('order_id', $request['id'])
-                ->where('status', 'pending_payment')
-                ->first();
-            if ($insurance) {
-                app(OrderInsuranceService::class)->markPaid($insurance, auth('admin')->id(), translate('payment_status_approved_by_admin'));
-            }
+            // Historical deposit payments are settled only by their own financial record.
         }
         return response()->json([
             'status' => 1,

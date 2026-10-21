@@ -23,11 +23,12 @@ class AdminOrderGateController extends Controller
     {
         $query = Order::query()->with(['customer', 'seller.shop', 'insurance', 'sellerOrderInsurance', 'riskInvestigations'])
             ->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), PostPurchaseInvoiceService::CONTRACT_VERSION])
-            ->whereIn('commerce_flow_status', [
-                OrderCommerceState::PENDING_ADMIN_REVIEW,
-                OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS,
-                OrderCommerceState::UNDER_INVESTIGATION,
-            ])
+            ->where(function ($gate) {
+                $gate->whereIn('commerce_flow_status', [OrderCommerceState::PENDING_ADMIN_REVIEW,
+                    OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS, OrderCommerceState::UNDER_INVESTIGATION])
+                    ->orWhere(fn ($legacy) => $legacy->where('payment_status', 'paid')->whereIn('commerce_flow_status', [
+                        OrderCommerceState::CUSTOMER_INSURANCE_PENDING, OrderCommerceState::CUSTOMER_INSURANCE_UNDER_REVIEW]));
+            })
             ->when($request->filled('q'), function ($query) use ($request): void {
                 $value = trim((string) $request->input('q'));
                 $id = preg_replace('/\D+/', '', $value);
@@ -37,19 +38,15 @@ class AdminOrderGateController extends Controller
                 });
             })
             ->when($request->filled('payment_status'), fn ($q) => $q->where('payment_status', $request->input('payment_status')))
-            ->when($request->filled('customer_insurance'), function ($q) use ($request): void {
-                $status = $request->input('customer_insurance');
-                if ($status === 'none') $q->whereDoesntHave('insurance');
-                else $q->whereHas('insurance', fn ($insurance) => $insurance->where('payment_status', $status));
-            })
             ->when($request->filled('shipping_status'), fn ($q) => $q->where('shipping_assignment_status', $request->input('shipping_status')))
             ->when($request->filled('risk_level'), fn ($q) => $q->whereHas('riskInvestigations', fn ($risk) => $risk->where('status', 'open')->where('risk_level', $request->input('risk_level'))))
-            ->when($request->input('deadline') === 'overdue', fn ($q) => $q->whereHas('insurance', fn ($insurance) => $insurance->where('payment_due_at', '<', now())))
             ->latest('id');
 
         $orders = $query->paginate(25)->withQueryString();
         $counts = [
-            'waiting' => Order::query()->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), PostPurchaseInvoiceService::CONTRACT_VERSION])->where('commerce_flow_status', OrderCommerceState::PENDING_ADMIN_REVIEW)->count(),
+            'waiting' => Order::query()->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), PostPurchaseInvoiceService::CONTRACT_VERSION])->where(fn ($gate) => $gate->where('commerce_flow_status', OrderCommerceState::PENDING_ADMIN_REVIEW)
+                ->orWhere(fn ($legacy) => $legacy->where('payment_status', 'paid')->whereIn('commerce_flow_status', [
+                    OrderCommerceState::CUSTOMER_INSURANCE_PENDING, OrderCommerceState::CUSTOMER_INSURANCE_UNDER_REVIEW])))->count(),
             'assignment' => Order::query()->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), PostPurchaseInvoiceService::CONTRACT_VERSION])->where('commerce_flow_status', OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS)->count(),
             'investigations' => OrderRiskInvestigation::query()->where('status', 'open')->count(),
         ];
@@ -70,9 +67,6 @@ class AdminOrderGateController extends Controller
     public function saveAssignment(Request $request, int $id): RedirectResponse
     {
         $data = $request->validate([
-            'seller_insurance_mode' => ['required', 'in:default,manual,waive'],
-            'seller_insurance_calculation_type' => ['nullable', 'required_if:seller_insurance_mode,manual', 'in:percentage,fixed'],
-            'seller_insurance_calculation_value' => ['nullable', 'required_if:seller_insurance_mode,manual', 'numeric', 'min:0'],
             'shipping_mode' => ['required', 'in:admin_shipping,seller_shipping'],
             'shipping_method_id' => ['nullable', 'integer'],
             'shipping_customer_cost' => ['nullable', 'numeric', 'min:0'],

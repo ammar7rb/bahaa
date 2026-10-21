@@ -62,20 +62,7 @@ class PostPurchaseInvoiceController extends Controller
             return redirect()->route('account-oder');
         }
 
-        $view = theme_base_path() === 'theme_aster'
-            ? 'theme-views.post-purchase-invoice'
-            : 'web-views.post-purchase-invoice';
-
-        return view($view, [
-            'invoice' => $invoice,
-            'summary' => $this->invoices->paymentSummary($invoice),
-            'insuranceBalance' => $this->invoices->customerInsuranceBalanceSummary((int) $invoice->customer_id),
-            'digitalPaymentAvailable' => (bool) (getWebConfig(name: 'digital_payment')['status'] ?? 0) && count(payment_gateways()) > 0,
-            'paymentGatewayList' => payment_gateways(),
-            'offlinePaymentMethods' => OfflinePaymentMethod::query()->where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])->get(),
-            'offlinePaymentAvailable' => (bool) (getWebConfig(name: 'offline_payment')['status'] ?? 0),
-            'invoiceRevision' => $this->revision($invoice),
-        ]);
+        return redirect()->route('account-order-details', ['id' => $invoice->order_id]);
     }
 
     public function state(int $invoiceId): \Illuminate\Http\JsonResponse

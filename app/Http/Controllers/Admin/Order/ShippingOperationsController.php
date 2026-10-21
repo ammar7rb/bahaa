@@ -126,7 +126,7 @@ class ShippingOperationsController extends Controller
             isset($data['available_at']) ? Carbon::parse($data['available_at']) : null
         );
 
-        ToastMagic::success(translate('refund_was_split_between_purchase_and_insurance_balances'));
+        ToastMagic::success(translate('order_purchase_refund_recorded'));
         return back();
     }
 
