@@ -477,10 +477,6 @@
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="business-setup" aria-label="Pin"></button></div>
                     </a>
 
-                    <a class="v2-nav-item {{ Request::is('admin/business-settings/inhouse-shop') || Request::is('admin/business-settings/inhouse-shop/setup*') ? 'v2-is-active' : '' }}" data-item="inhouse-shop" href="{{ route('admin.business-settings.inhouse-shop') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Inhouse_Shop') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="inhouse-shop" aria-label="Pin"></button></div>
-                    </a>
 
                     @if ($v2Tax && count($v2TaxRoutes))
                         @php
@@ -515,17 +511,9 @@
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('vendor_Registration') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-registration" aria-label="Pin"></button></div>
                     </a>
-                    <a class="v2-nav-item {{ Request::is('admin/business-settings/priority-setup') ? 'v2-is-active' : '' }}" data-item="priority-setup" href="{{ route('admin.business-settings.priority-setup.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Priority_Setup') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="priority-setup" aria-label="Pin"></button></div>
-                    </a>
                     <a class="v2-nav-item {{ (Request::is('admin/pages-and-media/list') || Request::is('admin/pages-and-media/page*') || Request::is('admin/pages-and-media/privacy-policy') || Request::is('admin/pages-and-media/about-us') || Request::is('admin/helpTopic/index') || Request::is('admin/pages-and-media/features-section') || Request::is('admin/pages-and-media/company-reliability')) ? 'v2-is-active' : '' }}" data-item="business-pages" href="{{ route('admin.pages-and-media.list') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('business_Pages') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="business-pages" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/business-settings/policy-center*') ? 'v2-is-active' : '' }}" data-item="policy-center" href="{{ route('admin.business-settings.policy-center.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">مركز الشروط والسياسات</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="policy-center" aria-label="Pin"></button></div>
                     </a>
                     <a class="v2-nav-item {{ Request::is('admin/pages-and-media/social-media') ? 'v2-is-active' : '' }}" data-item="social-media-links" href="{{ route('admin.pages-and-media.social-media') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('social_Media_Links') }}</span></span>

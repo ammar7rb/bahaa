@@ -884,16 +884,6 @@
                 @endif
 
 
-                <li>
-                    <a class="nav-link {{ Request::is('admin/business-settings/inhouse-shop') ? 'active' : '' }}"
-                       href="{{ route('admin.business-settings.inhouse-shop') }}"
-                       title="{{ translate('Inhouse_Shop') }}">
-                        <i class="fi fi-sr-shop"></i>
-                        <span class="aside-mini-hidden-element text-truncate flex-grow-1">
-                            {{ translate('Inhouse_Shop') }}
-                        </span>
-                    </a>
-                </li>
 
                 <li>
                     <a class="nav-link {{
@@ -911,16 +901,6 @@
                     </a>
                 </li>
 
-                <li>
-                    <a class="nav-link {{ Request::is('admin/business-settings/priority-setup') ? 'active' : '' }}"
-                       href="{{ route('admin.business-settings.priority-setup.index') }}"
-                       title="{{ translate('Priority_Setup') }}">
-                        <i class="fi fi-sr-list-timeline"></i>
-                        <span class="aside-mini-hidden-element text-truncate flex-grow-1">
-                            {{ translate('Priority_Setup') }}
-                        </span>
-                    </a>
-                </li>
 
                 <li class="{{ Request::is('admin/pages-and-media*') || Request::is('admin/pages-and-media/social-media') ? 'sub-menu-opened' : '' }}">
                     <a class="nav-link nav-link-toggle {{ Request::is('admin/pages-and-media*') || Request::is('admin/pages-and-media/social-media') || Request::is('admin/helpTopic/*') ? 'active' : '' }}"
@@ -950,11 +930,6 @@
                                 <span class="text-truncate">
                                     {{ translate('business_Pages') }}
                                 </span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/business-settings/policy-center*') ? 'active' : '' }}" href="{{ route('admin.business-settings.policy-center.index') }}" title="مركز الشروط والسياسات">
-                                <span class="text-truncate">مركز الشروط والسياسات</span>
                             </a>
                         </li>
                         <li>

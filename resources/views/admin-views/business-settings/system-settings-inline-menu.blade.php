@@ -8,9 +8,6 @@
             <a href="{{route('admin.system-setup.app-settings') }}">{{ translate('app_Settings') }}</a>
         </li>
 
-        <li class="{{ Request::is('admin/system-settings/software-update') ?'active':'' }}">
-            <a href="{{route('admin.system-setup.software-update') }}">{{ translate('software_Update') }}</a>
-        </li>
         <li class="{{ Request::is('admin/business-settings/language') ?'active':'' }}">
             <a href="{{route('admin.system-setup.language.index') }}">{{ translate('language') }}</a>
         </li>
