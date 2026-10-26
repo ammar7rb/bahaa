@@ -1,6 +1,8 @@
 <?php
 
-return [
+return array_replace([
+    'all_customer_vendor_accounts' => 'جميع الحسابات — العملاء والتجار',
+    'checkout_first_registration' => 'تسجيل عبر الدفع المباشر',
     'order_purchase_refund_recorded' => 'تم تسجيل استرداد قيمة المشتريات.',
     "purchase_and_shipping_payment" => "فاتورة المنتجات والشحن",
     "customer_order_insurance_payment" => "تأمين العميل",
@@ -7839,4 +7841,4 @@ return [
     'vendor_financial_history' => 'سجل مالي تاريخي',
     'vendor_historical_settlement' => 'تسوية تاريخية إلى رصيد المدفوعات',
     'vendor_packages_and_quotas' => 'الباقات والحصص',
-];
+], require __DIR__.'/../ar/settings-reviewed.php');

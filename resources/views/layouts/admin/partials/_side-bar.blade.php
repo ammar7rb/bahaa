@@ -251,6 +251,24 @@
                     </ul>
                 </li>
             @endif
+            @if(Helpers::module_permission_check('catalog') || Helpers::module_permission_check('people') || Helpers::module_permission_check('orders') || Helpers::module_permission_check('business_settings'))
+            <li class="nav-item nav-item_title"><small class="nav-subtitle">{{ __('payments.operations') }}</small></li>
+            @if(Helpers::module_permission_check('people'))
+            <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.monthly-packages.*') ? 'active' : '' }}" href="{{ route('admin.monthly-packages.index') }}"><i class="fi fi-rr-calendar" aria-hidden="true"></i><span>الباقات الشهرية</span></a></li>
+            <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.customer.password-recovery.*') ? 'active' : '' }}" href="{{ route('admin.customer.password-recovery.index') }}"><i class="fi fi-rr-key" aria-hidden="true"></i><span>استعادة كلمة مرور العملاء</span></a></li>
+            @endif
+            @if(Helpers::module_permission_check('catalog'))
+            @foreach(['medical-devices' => 'medical_devices', 'homepage-sections' => 'homepage_sections'] as $entry => $label)
+            <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.operations.'.$entry.'.*') ? 'active' : '' }}" href="{{ route('admin.operations.'.$entry.'.index') }}"><i class="tio-apps" aria-hidden="true"></i><span>{{ __('operations.'.$label) }}</span></a></li>
+            @endforeach
+            @endif
+            @if(Helpers::module_permission_check('people') || Helpers::module_permission_check('orders'))
+            <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.payment-reviews.*') || request()->is('admin/workspace/reviews/payments') ? 'active' : '' }}" href="{{ route('admin.payment-reviews.index') }}">{{ __('payments.title') }}</a></li>
+            @endif
+            @if(Helpers::module_permission_check('business_settings'))
+            <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.operations.shipping.*') ? 'active' : '' }}" href="{{ route('admin.operations.shipping.index') }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v11H3zM14 10h4l3 4v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>{{ __('shipping-governorates.setup') }}</span></a></li>
+            @endif
+            @endif
             @if(Helpers::module_permission_check('catalog'))
                 <li class="nav-item nav-item_title {{ (Request::is('admin/brand*') || Request::is('admin/category*') || Request::is('admin/sub*') || Request::is('admin/attribute*') || Request::is('admin/products*')) ? 'scroll-here' : '' }}">
                     <small class="nav-subtitle" title="">{{ translate('product_management') }}</small>
@@ -313,59 +331,6 @@
                             {{ translate('product_Attribute_Setup') }}
                         </span>
                     </a>
-                </li>
-                <li class="{{ (Request::is('admin/products/list/in-house*') || Request::is('admin/products/bulk-import') || Request::is('admin/products/request-restock-list')  || (Request::is('admin/products/add')) || (Request::is('admin/products/view/in-house/*')) || (Request::is('admin/products/barcode/*'))|| (Request::is('admin/products/stock-limit-list/in_house')) || (Request::is('admin/products/update/*') || request()->has('product-gallery'))) ? 'sub-menu-opened' : '' }}">
-                    <a class="nav-link nav-link-toggle {{ (Request::is('admin/products/list/in-house*') || Request::is('admin/products/bulk-import') || Request::is('admin/products/request-restock-list')  || (Request::is('admin/products/add')) || (Request::is('admin/products/view/in-house/*')) || (Request::is('admin/products/barcode/*'))|| Request::is('admin/products/stock-limit-list/in_house') || (Request::is('admin/products/update/*') || request()->has('product-gallery'))) ? 'active' : '' }}"
-                       href="javascript:" title="{{ translate('In_House_Products') }}">
-                        <i class="fi fi-sr-box-open"></i>
-                        <span
-                            class="aside-mini-hidden-element flex-grow-1 d-flex justify-content-between align-items-center">
-                            <span class="text-truncate max-w-180">
-                                {{ translate('In_House_Products') }}
-                            </span>
-                            <i class="fi fi-sr-angle-down"></i>
-                        </span>
-                    </a>
-                    <ul class="aside-submenu navbar-nav">
-                        <li class="nav-item px-3 py-2 fw-semibold text-dark bg-section2 aside-mini-show-element">{{ translate('In_House_Products') }}</li>
-                        <li class="nav-item ">
-                            <a class="nav-link {{ (Request::is('admin/products/list/in-house*') || (Request::is('admin/products/view/in-house/*')) || (Request::is('admin/products/stock-limit-list/in-house*')) || (Request::is('admin/products/barcode/*'))) ? 'active' : '' }}"
-                               href="{{ route('admin.products.list', ['in-house']) }}"
-                               title="{{ translate('Product_List') }}">
-                                <span class="flex-grow-1 text-truncate">
-                                    {{ translate('Product_List') }}
-                                </span>
-                                <span class="badge fw-bold badge-success badge-sm text-bg-success">
-                                    {{getAdminProductsCount('all') }}
-                                </span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/products/add') || (Request::is('admin/products/update/*') || request()->has('product-gallery')) ? 'active' : '' }}"
-                               href="{{ route('admin.products.add') }}" title="{{ translate('add_New_Product') }}">
-                                <span class="text-truncate">{{ translate('add_New_Product') }}</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/products/stock-limit-list/in_house') ? 'active' : '' }}"
-                               href="{{ route('admin.products.stock-limit-list', ['in_house']) }}" title="{{ translate('Limited_stock') }}">
-                                <span class="text-truncate">{{ translate('Limited_Stock') }}</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/products/bulk-import') ? 'active' : '' }}"
-                               href="{{ route('admin.products.bulk-import') }}" title="{{ translate('bulk_import') }}">
-                                <span class="text-truncate">{{ translate('Bulk_Import') }}</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/products/request-restock-list') ? 'active' : '' }}"
-                               href="{{ route('admin.products.request-restock-list') }}"
-                               title="{{ translate('Request_Restock_List') }}">
-                                <span class="text-truncate">{{ translate('Request_Restock_List') }}</span>
-                            </a>
-                        </li>
-                    </ul>
                 </li>
                 <li class="{{ Request::is('admin/products/list/vendor*')||(Request::is('admin/products/view/vendor/*'))||Request::is('admin/products/updated-product-list') ? 'sub-menu-opened' : '' }}">
                     <a class="nav-link nav-link-toggle {{ Request::is('admin/products/list/vendor*')||(Request::is('admin/products/view/vendor/*'))||Request::is('admin/products/updated-product-list') ? 'active' : '' }}"
@@ -444,119 +409,6 @@
                 </li>
             @endif
 
-            @if(Helpers::module_permission_check('marketing'))
-                <li class="nav-item nav-item_title {{ (Request::is('admin/banner*') || (Request::is('admin/coupon*')) || (Request::is('admin/notification*')) || (Request::is('admin/deal*'))) ? 'scroll-here' : '' }}">
-                    <small class="nav-subtitle" title="">{{ translate('promotion_management') }}</small>
-                </li>
-                <li>
-                    <a class="nav-link {{ Request::is('admin/banner*') ? 'active' : '' }}"
-                       href="{{ route('admin.banner.list') }}" title="{{ translate('banner_Setup') }}">
-                        <i class="fi fi-sr-pennant"></i>
-                        <span class="aside-mini-hidden-element text-truncate flex-grow-1">
-                            {{ translate('banner_Setup') }}
-                        </span>
-                    </a>
-                </li>
-
-                <li class="{{ (Request::is('admin/coupon*') || Request::is('admin/deal*')) ? 'sub-menu-opened' : '' }}">
-                    <a class="nav-link nav-link-toggle {{ (Request::is('admin/coupon*') || Request::is('admin/deal*')) ? 'active' : '' }}"
-                       href="javascript:" title="{{ translate('offers_&_Deals') }}">
-                        <i class="fi fi-sr-badge-percent"></i>
-                        <span
-                            class="aside-mini-hidden-element flex-grow-1 d-flex justify-content-between align-items-center">
-                            <span class="text-truncate max-w-180">
-                                {{ translate('offers_&_Deals') }}
-                            </span>
-                            <i class="fi fi-sr-angle-down"></i>
-                        </span>
-                    </a>
-                    <ul class="aside-submenu navbar-nav">
-                        <li class="nav-item px-3 py-2 fw-semibold text-dark bg-section2 aside-mini-show-element">{{ translate('offers_&_Deals') }}</li>
-                        <li>
-                            <a class="nav-link {{ Request::is('admin/coupon*') ? 'active' : '' }}"
-                               href="{{ route('admin.coupon.add') }}" title="{{ translate('coupon') }}">
-                                <span class="text-truncate">{{ translate('coupon') }}</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a class="nav-link {{ (Request::is('admin/deal/flash') || Request::is('admin/deal/flash-add') || (Request::is('admin/deal/update*'))) ? 'active' : '' }}"
-                               href="{{ route('admin.deal.flash') }}" title="{{ translate('flash_Deals') }}">
-                                <span class="text-truncate">{{ translate('flash_Deals') }}</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a class="nav-link {{ (Request::is('admin/deal/day') || (Request::is('admin/deal/day-update*'))) ? 'active' : '' }}"
-                               href="{{ route('admin.deal.day') }}" title="{{ translate('deal_of_the_day') }}">
-                                <span class="text-truncate">
-                                    {{ translate('deal_of_the_day') }}
-                                </span>
-                            </a>
-                        </li>
-                        <li>
-                            <a class="nav-link {{ (Request::is('admin/deal/feature') || Request::is('admin/deal/feature/new') || Request::is('admin/deal/feature-update*')) ? 'active' : '' }}"
-                               href="{{ route('admin.deal.feature') }}" title="{{ translate('featured_Deal') }}">
-                                <span class="text-truncate">
-                                    {{ translate('featured_Deal') }}
-                                </span>
-                            </a>
-                        </li>
-
-                        <li>
-                            <a class="nav-link {{ Request::is('admin/deal/clearance-sale') || Request::is('admin/deal/clearance-sale*') ? 'active' : '' }}"
-                               href="{{ route('admin.deal.clearance-sale.index') }}"
-                               title="{{ translate('Clearance_Sale') }}">
-                                <span class="text-truncate">
-                                    {{ translate('Clearance_Sale') }}
-                                </span>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-
-                <li class="{{ Request::is('admin/notification*') || Request::is('admin/push-notification/index*') ? 'sub-menu-opened' : '' }}">
-                    <a class="nav-link nav-link-toggle {{ Request::is('admin/notification*') || Request::is('admin/push-notification/index*') ? 'active' : '' }}"
-                       href="javascript:" title="{{ translate('notifications') }}">
-                        <i class="fi fi-sr-paper-plane"></i>
-                        <span
-                            class="aside-mini-hidden-element flex-grow-1 d-flex justify-content-between align-items-center">
-                            <span class="text-truncate max-w-180">
-                                {{ translate('notifications') }}
-                            </span>
-                            <i class="fi fi-sr-angle-down"></i>
-                        </span>
-                    </a>
-                    <ul class="aside-submenu navbar-nav">
-                        <li class="nav-item px-3 py-2 fw-semibold text-dark bg-section2 aside-mini-show-element">{{ translate('notifications') }}</li>
-                        <li>
-                            <a class="nav-link {{!Request::is('admin/notification/push') && Request::is('admin/notification/*') ? 'active' : '' }}"
-                               href="{{ route('admin.notification.index') }}"
-                               title="{{ translate('send_notification') }}">
-                                <span class="text-truncate text-capitalize">
-                                    {{ translate('send_notification') }}
-                                </span>
-                            </a>
-                        </li>
-                        <li>
-                            <a class="nav-link text-capitalize {{ Request::is('admin/push-notification/index*') ? 'active' : '' }}"
-                               href="{{ route('admin.push-notification.index') }}"
-                               title="{{ translate('push_notifications_setup') }}">
-                                <span class="text-truncate text-capitalize">
-                                    {{ translate('push_notifications_setup') }}
-                                </span>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-
-                <li class="{{ Request::is('admin/business-settings/announcement*') ? 'sub-menu-opened' : '' }}">
-                    <a class="nav-link nav-link-toggle {{ Request::is('admin/business-settings/announcement*') ? 'active' : '' }}"
-                       href="{{ route('admin.business-settings.announcement') }}"
-                       title="{{ translate('announcement') }}">
-                        <i class="fi fi-sr-megaphone-sound-waves"></i>
-                        <span class="aside-mini-hidden-element text-truncate max-w-180"> {{ translate('announcement') }} </span>
-                    </a>
-                </li>
-            @endif
 
             @php($getEnabledThemeRoutes=0)
             @if (count(config('get_theme_routes')) > 0)
@@ -636,10 +488,10 @@
                 </li>
                 <li>
                     <a class="nav-link {{ Request::is('admin/activation-center*') ? 'active' : '' }}"
-                       href="{{ route('admin.activation-center.index') }}" title="{{ translate('account_activation_center') }}">
+                       href="{{ route('admin.activation-center.index') }}" title="{{ __('activations.title') }}">
                         <i class="fi fi-sr-user-check"></i>
                         <span class="aside-mini-hidden-element text-truncate">
-                            <span class="position-relative">{{ translate('account_activation_center') }}</span>
+                            <span class="position-relative">{{ __('activations.title') }}</span>
                         </span>
                     </a>
                 </li>
@@ -684,10 +536,14 @@
                 @endif
                 ">
                     <small class="nav-subtitle" title="">
-                        {{ translate('reports_&_Analysis') }}
+                        {{ __('financials.title') }}
                     </small>
                 </li>
 
+                
+                @foreach (['company', 'customers'] as $financialPage)
+                    <li><a class="nav-link {{ Request::routeIs('admin.report.financials.'.$financialPage) ? 'active' : '' }}" href="{{ route('admin.report.financials.'.$financialPage) }}"><i class="tio-wallet" aria-hidden="true"></i><span>{{ __('financials.'.$financialPage) }}</span></a></li>
+                @endforeach
                 @if(false)
                 <li class="{{ (Request::is('admin/report/admin-earning') || Request::is('admin/report/vendor-earning') || Request::is('admin/report/inhouse-product-sale') || Request::is('admin/report/vendor-report') || Request::is('admin/report/earning') || Request::is('admin/transaction/order-transaction-list') || Request::is('admin/transaction/expense-transaction-list') || Request::is('admin/report/transaction/refund-transaction-list') || Request::is('admin/transaction/wallet-bonus')) ? 'sub-menu-opened' : '' }}">
                     <a class="nav-link nav-link-toggle {{ (Request::is('admin/report/admin-earning') || Request::is('admin/report/vendor-earning') || Request::is('admin/report/inhouse-product-sale') || Request::is('admin/report/vendor-report') || Request::is('admin/report/earning') || Request::is('admin/transaction/order-transaction-list') || Request::is('admin/transaction/expense-transaction-list') || Request::is('admin/report/transaction/refund-transaction-list') || Request::is('admin/transaction/wallet-bonus')) ? 'active' : '' }}"
@@ -831,6 +687,7 @@
                 <li class="nav-item nav-item_title {{ (Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/customer/subscriber-list')||Request::is('admin/vendors/add') || Request::is('admin/vendors/list')) ? 'scroll-here' : '' }}">
                     <small class="nav-subtitle" title="">{{ translate('user_management') }}</small>
                 </li>
+<li class="nav-item"><a class="nav-link" href="{{ route('admin.account-directory.index') }}"><span>{{ translate('all_customer_vendor_accounts') }}</span></a></li>
 
                 <li class="{{ (Request::is('admin/customer/wallet*') || Request::is('admin/customer/purchase-package*') || Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/reviews*') || Request::is('admin/customer/loyalty/report') || (Request::is('admin/insurance-center*') && request('tab', 'customers') === 'customers' && !request()->routeIs('admin.insurance-center.sellers.*'))) ? 'sub-menu-opened' : '' }}">
                     <a class="nav-link nav-link-toggle {{ (Request::is('admin/customer/wallet*') || Request::is('admin/customer/purchase-package*') || Request::is('admin/customer/list') || Request::is('admin/customer/view*') || Request::is('admin/reviews*') || Request::is('admin/customer/loyalty/report') || (Request::is('admin/insurance-center*') && request('tab', 'customers') === 'customers' && !request()->routeIs('admin.insurance-center.sellers.*'))) ? 'active' : '' }}"
@@ -852,23 +709,7 @@
                                 <span class="text-truncate">{{ translate('customer_List') }} </span>
                             </a>
                         </li>
-                        @if (auth('admin')->user()->admin_role_id == 1 || Helpers::module_permission_check('reports'))
-                        <li class="nav-item"><a class="nav-link {{ Request::is('admin/insurance-center*') && request('tab', 'customers') === 'customers' && !request()->routeIs('admin.insurance-center.sellers.*') ? 'active' : '' }}" href="{{ route('admin.insurance-center.index', ['tab' => 'customers']) }}" title="{{ translate('Customer_Insurances') }}"><span class="text-truncate">{{ translate('Customer_Insurances') }}</span></a></li>
-                        @endif
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/reviews*') ? 'active' : '' }}"
-                               href="{{ route('admin.reviews.list') }}" title="{{ translate('customer_Reviews') }}">
-                                <span class="text-truncate">
-                                    {{ translate('customer_Reviews') }}
-                                </span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('admin.monthly-packages.*') ? 'active' : '' }}" href="{{ route('admin.monthly-packages.index') }}">الباقات الشهرية</a>
-                            <a class="nav-link {{ request()->routeIs('admin.customer.wallet.deposits*') ? 'active' : '' }}" href="{{ route('admin.customer.wallet.deposits') }}">
-                                <span class="text-truncate">{{ translate('customer_deposit_requests') }}</span>
-                            </a>
-                        </li>
+                        
                         @if(false)
                         <li class="nav-item">
                             <a class="nav-link {{ Request::is('admin/customer/wallet/report') ? 'active' : '' }}"
@@ -935,15 +776,6 @@
                     </a>
                     <ul class="aside-submenu navbar-nav">
                         <li class="nav-item px-3 py-2 fw-semibold text-dark bg-section2 aside-mini-show-element">{{ translate('vendors') }}</li>
-                        <li class="nav-item ">
-                            <a class="nav-link {{ Request::is('admin/vendors/add') ? 'active' : '' }}"
-                               title="{{ translate('add_New_Vendor') }}"
-                               href="{{ route('admin.vendors.add') }}">
-                                <span class="text-truncate">
-                                    {{ translate('add_New_Vendor') }}
-                                </span>
-                            </a>
-                        </li>
                         <li class="nav-item">
                             <a class="nav-link {{ Request::is('admin/vendors/list') ||Request::is('admin/vendors/view*') ? 'active' : '' }}"
                                title="{{ translate('vendor_List') }}" href="{{ route('admin.vendors.vendor-list') }}">
@@ -952,58 +784,9 @@
                                 </span>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/vendors/quota-control*') ? 'active' : '' }}" title="{{ translate('Vendor_Package_Control') }}" href="{{ route('admin.vendors.quota-control.index') }}">
-                                <span class="text-truncate">{{ translate('Vendor_Package_Control') }}</span>
-                            </a>
-                        </li>
-                        @if (Helpers::module_permission_check('business_settings'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ Request::is('admin/business-settings/vendor-settings') ? 'active' : '' }}"
-                                   title="{{ translate('Vendor_Insurance_Settings') }}"
-                                   href="{{ route('admin.business-settings.vendor-settings.index') }}#vendor-insurance-settings">
-                                    <span class="text-truncate">{{ translate('Vendor_Insurance_Settings') }}</span>
-                                </a>
-                            </li>
-                        @endif
-                        @if (auth('admin')->user()->admin_role_id == 1 || Helpers::module_permission_check('reports'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ Request::is('admin/insurance-center*') && (request('tab') === 'sellers' || request()->routeIs('admin.insurance-center.sellers.*')) ? 'active' : '' }}"
-                                   title="{{ translate('Seller_Insurances') }}"
-                                   href="{{ route('admin.insurance-center.index', ['tab' => 'sellers']) }}">
-                                    <span class="text-truncate">{{ translate('Seller_Insurances') }}</span>
-                                </a>
-                            </li>
-                        @endif
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/vendors/balance-deposits*') ? 'active' : '' }}"
-                               href="{{ route('admin.vendors.balance-deposits.index') }}"><span class="text-truncate">طلبات إيداع رصيد التجار</span></a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/vendors/balance-funding-settings*') ? 'active' : '' }}"
-                               href="{{ route('admin.vendors.balance-funding-settings.index') }}"><span class="text-truncate">إعدادات إيداع رصيد التجار</span></a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/vendors/packages*') ? 'active' : '' }}"
-                               title="{{ translate('Vendor_Packages') }}"
-                               href="{{ route('admin.vendors.packages.index') }}">
-                                <span class="text-truncate">{{ translate('Vendor_Packages') }}</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/vendors/package-payments*') ? 'active' : '' }}"
-                               title="{{ translate('Package_Offline_Reviews') }}"
-                               href="{{ route('admin.vendors.package-payments.index') }}">
-                                <span class="text-truncate">{{ translate('Package_Offline_Reviews') }}</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ Request::is('admin/vendors/insurance-payments*') ? 'active' : '' }}"
-                               title="{{ translate('Insurance_Offline_Reviews') }}"
-                               href="{{ route('admin.vendors.insurance-payments.index') }}">
-                                <span class="text-truncate">{{ translate('Insurance_Offline_Reviews') }}</span>
-                            </a>
-                        </li>
+                        
+                        
+                        
                         <li class="nav-item">
                             <a class="nav-link {{ Request::is('admin/vendors/withdraw-list')|| Request::is('admin/vendors/withdraw-view/*') ? 'active' : '' }}"
                                href="{{ route('admin.vendors.withdraw_list') }}" title="{{ translate('withdraws') }}">
@@ -1022,37 +805,7 @@
 
                 {{-- Delivery-man navigation is intentionally removed; historical records remain in the database. --}}
 
-                @if(auth('admin')->user()->admin_role_id==1)
-                    <li class=" {{ (Request::is('admin/employee*') || Request::is('admin/custom-role*')) ? 'sub-menu-opened' : '' }}">
-                        <a class="nav-link nav-link-toggle {{ (Request::is('admin/employee*') || Request::is('admin/custom-role*')) ? 'active' : '' }}"
-                           href="javascript:" title="{{ translate('employees') }}">
-                            <i class="fi fi-sr-employee-man-alt"></i>
-                            <span
-                                class="aside-mini-hidden-element flex-grow-1 d-flex justify-content-between align-items-center">
-                                <span class="text-truncate max-w-180">
-                                    {{ translate('employees') }}
-                                </span>
-                                <i class="fi fi-sr-angle-down"></i>
-                            </span>
-                        </a>
-                        <ul class="aside-submenu navbar-nav">
-                            <li class="nav-item px-3 py-2 fw-semibold text-dark bg-section2 aside-mini-show-element">{{ translate('employees') }}</li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ Request::is('admin/custom-role*') ? 'active' : '' }}"
-                                   href="{{ route('admin.custom-role.create') }}"
-                                   title="{{ translate('employee_Role_Setup') }}">
-                                    <span class="text-truncate">{{ translate('employee_Role_Setup') }}</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ (Request::is('admin/employee/list') || Request::is('admin/employee/add') || Request::is('admin/employee/update*')) ? 'active' : '' }}"
-                                   href="{{ route('admin.employee.list') }}" title="{{ translate('employees') }}">
-                                    <span class="text-truncate">{{ translate('employees') }}</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                @endif
+
 
                 @if(false)
                 <li>
@@ -1083,8 +836,6 @@
                                 Request::is('admin/business-settings/payment-method/payment-option') ||
                                 Request::is('admin/business-settings/vendor-settings') ||
                                 Request::is('admin/customer/customer-settings') ||
-                                Request::is('admin/business-settings/shipping-method/update'.'*') ||
-                                Request::is('admin/business-settings/shipping-method/index') ||
                                 Request::is('admin/business-settings/order-settings/index') ||
                                 Request::is('admin/business-settings/invoice-settings') ||
                                 Request::is('admin/business-settings/delivery-zone')) ? 'active' : '' }}"

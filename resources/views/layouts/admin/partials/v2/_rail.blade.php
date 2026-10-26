@@ -4,7 +4,6 @@
     $v2HasCatalog  = Helpers::module_permission_check('catalog');
     $v2HasOrders   = Helpers::module_permission_check('orders');
     $v2HasAuction  = function_exists('getCheckAddonPublishedStatus') && getCheckAddonPublishedStatus(moduleName: 'Auction');
-    $v2HasMarketing = Helpers::module_permission_check('marketing');
     $v2HasPeople   = Helpers::module_permission_check('people');
     $v2HasReports  = Helpers::module_permission_check('reports');
     $v2HasSettings = Helpers::module_permission_check('business_settings')
@@ -25,7 +24,7 @@
         @endif
 
         @if ($v2HasCatalog)
-            <button class="v2-rail-btn" type="button" data-section="catalog" data-label="{{ translate('catalog') }}" aria-label="{{ translate('catalog') }}">
+            <button class="v2-rail-btn" type="button" data-section="catalog" data-label="{{ translate('products') }}" aria-label="{{ translate('products') }}">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Z"/>
@@ -44,6 +43,12 @@
             </button>
         @endif
 
+        @if ($v2HasCatalog || $v2HasOrders || $v2HasPeople || Helpers::module_permission_check('business_settings'))
+        <button class="v2-rail-btn" type="button" data-section="operations" data-label="{{ __('payments.operations') }}" aria-label="{{ __('payments.operations') }}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
+        </button>
+        @endif
+
         @if ($v2HasAuction)
             <button class="v2-rail-btn" type="button" data-section="auction" data-label="{{ translate('Auction_Management') }}" aria-label="{{ translate('Auction_Management') }}">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -55,16 +60,6 @@
             </button>
         @endif
 
-        @if ($v2HasMarketing)
-            <button class="v2-rail-btn" type="button" data-section="marketing" data-label="{{ translate('marketing') }}" aria-label="{{ translate('marketing') }}">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M3 13V9l13-5v16L3 15Z"/>
-                    <path d="M16 9v6"/>
-                    <path d="M7 15v2a2 2 0 0 0 4 0v-1"/>
-                </svg>
-            </button>
-        @endif
 
         @if ($v2HasPeople)
             <button class="v2-rail-btn" type="button" data-section="people" data-label="{{ translate('people') }}" aria-label="{{ translate('people') }}">
@@ -79,13 +74,13 @@
         @endif
 
         @if ($v2HasReports)
-            <button class="v2-rail-btn" type="button" data-section="reports" data-label="{{ translate('reports') }}" aria-label="{{ translate('reports') }}">
+            <a class="v2-rail-btn" href="{{ route('admin.report.financials.index') }}" data-section="reports" data-label="{{ __('financials.title') }}" aria-label="{{ __('financials.title') }}">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M5 20V11M11 20V5M17 20v-6"/>
                     <path d="M3 20h18"/>
                 </svg>
-            </button>
+            </a>
         @endif
 
         @if ($v2HasSettings)
