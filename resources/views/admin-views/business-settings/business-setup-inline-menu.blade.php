@@ -12,49 +12,7 @@
                 {{ translate('Website_Setup') }}
             </a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link {{ Request::is('admin/business-settings/vendor-settings') ? 'active' : '' }}"
-                href="{{ route('admin.business-settings.vendor-settings.index') }}">
-                {{ translate('Vendors') }}
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {{ Request::is('admin/business-settings/product-settings') ? 'active' : '' }}"
-                href="{{ route('admin.business-settings.product-settings.index') }}">
-                {{ translate('Products') }}
-            </a>
-        </li>
         {{-- Legacy Delivery Man settings are hidden; stored values remain available for historical order records. --}}
-        <li class="nav-item">
-            <a class="nav-link {{ Request::is('admin/business-settings/customer-settings') ? 'active' : '' }}"
-                href="{{ route('admin.business-settings.customer-settings') }}">
-                {{ translate('Customer') }}
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {{ Request::is('admin/business-settings/order-settings/index') ? 'active' : '' }}"
-                href="{{ route('admin.business-settings.order-settings.index') }}">
-                {{ translate('Orders') }}
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {{ Request::is('admin/business-settings/refund-setup') ? 'active' : '' }}"
-            href="{{ route('admin.business-settings.refund-setup') }}">
-                {{ translate('Refund') }}
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {{ Request::is('admin/business-settings/shipping-method/index') ? 'active' : '' }}"
-                href="{{ route('admin.business-settings.shipping-method.index') }}">
-                {{ translate('Shipping_Method') }}
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {{ Request::is('admin/business-settings/delivery-zone') ? 'active' : '' }}"
-                href="{{ route('admin.business-settings.delivery-zone.index') }}">
-                {{ translate('Delivery_Zone') }}
-            </a>
-        </li>
         <li class="nav-item">
             <a class="nav-link {{ Request::is('admin/business-settings/invoice-settings') ? 'active' : '' }}"
                 href="{{ route('admin.business-settings.invoice-settings.index') }}">
