@@ -59,8 +59,23 @@ class CustomerController extends Controller
         return response()->json($user, 200);
     }
 
+    public function activationStatus(Request $request, CustomerActivationService $activationService): JsonResponse
+    {
+        return response()->json($activationService->payload($request->user()));
+    }
+
+    public function activationTicket(Request $request, CustomerActivationService $activationService): JsonResponse
+    {
+        app(\App\Services\CustomerPurchaseEligibilityService::class)->assertActivationAvailable($request->user());
+        $ticket = $activationService->ensureTicket($request->user());
+        return response()->json(['ticket_id' => $ticket?->id, 'activation' => $activationService->payload($request->user()->fresh())]);
+    }
+
     public function create_support_ticket(SupportTicketRequest $request)
     {
+        if ($request->input('type') === 'account_activation') {
+            app(\App\Services\CustomerPurchaseEligibilityService::class)->assertActivationAvailable($request->user());
+        }
         $images = [];
         if ($request->file('image')) {
             foreach ($request->image as $key => $value) {
@@ -558,6 +573,7 @@ class CustomerController extends Controller
 
     private function attachRefundSummary(Order $order): void
     {
+        $order->setAttribute('purchase_eligibility', app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order));
         if (! Schema::hasTable('order_refund_ledgers')) {
             $order->setAttribute('refund_summary', null);
             return;

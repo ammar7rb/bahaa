@@ -7648,7 +7648,7 @@ return array_replace([
     "deposit_to_purchase_balance" => "إيداع في رصيد المشتريات",
     "deposit_to_insurance_balance" => "إيداع في رصيد التأمين",
     "balance_credited_after_payment_confirmation" => "تتم إضافة الإيداع إلى الرصيد المحدد بعد تأكيد نجاح الدفع.",
-    "continue_to_payment" => "المتابعة للدفع",
+    "continue_to_payment" => "متابعة الدفع",
     "balance_deposits_unavailable" => "الإيداع الإلكتروني غير متاح حاليًا وفق إعدادات المنصة. تواصل مع الدعم للمساعدة.",
     "orders_purchase_and_insurance_history" => "سجل الطلبات والمشتريات والتأمين",
     "purchase_amount" => "قيمة المشتريات",

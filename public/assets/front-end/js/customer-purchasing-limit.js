@@ -1,6 +1,6 @@
 (() => {
   let dialog;
-  const format = value => Number(value).toLocaleString('ar-EG', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const format = value => Number(value).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const checkoutSelector = '#proceed-to-next-action,#proceed-to-payment-action,a[href*="checkout"],button[data-checkout],.proceed-to-checkout';
   function calculate(element, changed) {
     const items = JSON.parse(element.dataset.items || '[]');
@@ -13,7 +13,8 @@
     }, 0);
     const available = Number(element.dataset.available), granted = Number(element.dataset.granted), reserved = Number(element.dataset.reserved || 0), projected = Math.round((available - (Math.abs(amount - reserved) < .0005 ? 0 : amount))*1000)/1000;
     const ratio = granted > 0 ? projected / granted : 0;
-    element.querySelector('[data-limit-cart]').textContent = format(amount);
+    const cartAmountLabel = element.querySelector('[data-limit-cart]');
+    if (cartAmountLabel) cartAmountLabel.textContent = format(amount);
     element.querySelector('[data-limit-projected]').textContent = format(projected);
     const status = element.querySelector('[data-limit-status]');
     element.dataset.tone = ratio > .5 ? 'green' : ratio > .1 ? 'orange' : 'red';

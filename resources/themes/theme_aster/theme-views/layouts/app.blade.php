@@ -78,7 +78,7 @@
     </style>
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013.2">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261027.2">
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-communication.css') }}?v=20261014">
 </head>
 <body class="toolbar-enabled">
@@ -104,7 +104,6 @@
 @endif
 @include('customer-account.profile-header')
 @yield('content')
-@include('customer-account.contact-phones')
 @include('web-views.users-profile.partials.customer-payment-notices')
 @include('theme-views.layouts.partials._feature')
 @include('theme-views.layouts.partials._footer')
@@ -277,7 +276,7 @@
 </script>
 @stack('script')
 @include('web-views.users-profile.partials.profile-image-shortcut')
-<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013.2" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261027.2" defer></script>
 @include('customer-checkout.entry')
 <script src="{{ theme_asset('assets/js/customer-dark-mode.js') }}?v=20260930.1"></script>
 

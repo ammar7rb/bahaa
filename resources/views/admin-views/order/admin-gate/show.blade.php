@@ -12,12 +12,13 @@
     </div>
 
     @if($openInvestigation)<div class="alert alert-danger"><strong>{{ translate('order_is_under_investigation') }}</strong><br>{{ $openInvestigation->reason }}</div>@endif
+    @include('admin-views.order.partials._checkout-origin')
 
     <div class="row g-3 mb-3">
         <div class="col-md-4"><div class="card h-100"><div class="card-body"><span class="text-muted">{{ translate('purchase_amount') }}</span><h4>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount)) }}</h4><span class="badge bg-{{ $order->payment_status==='paid'?'success':'warning' }}">{{ translate($order->payment_status) }}</span></div></div></div>
         <div class="col-md-4"><div class="card h-100"><div class="card-body"><span class="text-muted">{{ translate('shipping_decision') }}</span><h4>{{ translate($order->shipping_fulfillment_mode??'pending') }}</h4><span class="badge bg-{{ ($order->shipping_assignment_status??'pending')==='assigned'?'success':'warning' }}">{{ translate($order->shipping_assignment_status??'pending') }}</span>@if($sellerResponseStatus)<div class="small mt-2">{{ translate('seller_response') }}: <strong>{{ translate($sellerResponseStatus) }}</strong></div>@endif
         @if(in_array($sellerResponseStatus, ['pending','overdue'], true))<div class="small text-{{ $sellerResponseStatus === 'overdue' ? 'danger' : 'warning' }} mt-2">{{ translate($sellerResponseStatus === 'overdue' ? 'seller_has_not_started_preparing_overdue' : 'seller_has_not_started_preparing') }}</div>@endif
-        @if($order->seller_shipping_response_due_at)<div class="small text-muted">{{ translate('due_date') }}: {{ dateFormat($order->seller_shipping_response_due_at) }}</div>@endif
+        @if($order->seller_shipping_response_due_at)<div class="small text-muted">{{ translate('due_date') }}: {{ $order->seller_shipping_response_due_at->format('Y-m-d H:i') }}</div>@endif
         @if($order->seller_shipping_support_ticket_id)<div class="small text-danger">{{ translate('support_ticket') }} #{{ $order->seller_shipping_support_ticket_id }}</div>@endif</div></div></div>
     </div>
 
@@ -32,28 +33,12 @@
 
     <div class="row g-3">
         <div class="col-xl-8">
-            <form class="card mb-3 border-0 shadow-sm" dir="rtl" method="post" action="{{ route('admin.orders.admin-gate.assignment',$order->id) }}">@csrf
-                <div class="card-header"><h4 class="mb-1">{{ translate('shipping_decision') }}</h4><p class="text-muted mb-0">{{ translate('vendor_shipping_assignment_help') }}</p></div>
-                <div class="card-body">
-                    <div class="row g-2">
-                        <div class="col-md-4"><label class="form-label">{{ translate('shipping_party') }}</label><select class="form-control" id="shipping-mode" name="shipping_mode" required><option value="admin_shipping">{{ translate('company_shipping') }}</option><option value="seller_shipping">{{ translate('seller_shipping') }}</option></select></div>
-                        <div class="col-md-4 admin-shipping"><label class="form-label">{{ translate('shipping_company') }}</label><select class="form-control" name="shipping_method_id"><option value="">{{ translate('select') }}</option>@foreach($shippingMethods as $method)<option value="{{ $method->id }}">{{ $method->title }} — {{ $method->cost }}</option>@endforeach</select></div>
-                        <div class="col-md-4"><label class="form-label">{{ translate('customer_shipping_cost') }}</label><input class="form-control" type="number" min="0" step="0.01" name="shipping_customer_cost" value="{{ $order->shipping_customer_cost }}"></div>
-                        <div class="col-md-4"><label class="form-label">{{ translate('seller_shipping_cost') }}</label><input class="form-control" type="number" min="0" step="0.01" name="shipping_seller_cost" value="{{ $order->shipping_seller_cost }}"></div>
-                        <div class="col-md-4"><label class="form-label">{{ translate('seller_entitlement') }}</label><input class="form-control" type="number" min="0" step="0.01" name="shipping_seller_entitlement" value="{{ $order->shipping_seller_entitlement }}"></div>
-                        <div class="col-md-4"><label class="form-label">{{ translate('expected_delivery_date') }}</label><input class="form-control" type="date" name="shipping_expected_delivery_date" value="{{ optional($order->expected_delivery_date)->format('Y-m-d') }}"></div>
-                        <div class="col-md-6"><label class="form-label">{{ translate('tracking_number') }}</label><input class="form-control" name="shipping_tracking_number" value="{{ $order->third_party_delivery_tracking_id }}"></div>
-                        <div class="col-md-6"><label class="form-label">{{ translate('service_name') }}</label><input class="form-control" name="shipping_service_name" value="{{ $order->delivery_service_name }}"></div>
-                        <div class="col-12"><label class="form-label">{{ translate('operational_address_snapshot') }}</label><div class="form-control bg-light" style="height:auto">{{ data_get((array)$order->shipping_address_data,'address','—') }} — {{ data_get((array)$order->shipping_address_data,'city','') }}</div></div>
-                    </div>
-                </div>
-                <div class="card-footer"><button class="btn btn-primary">{{ translate('save_assignment_decision') }}</button></div>
-            </form>
+            @include('admin-views.order.partials._approval-form')
 
-            <div class="card mb-3"><div class="card-header"><h4 class="mb-0">{{ translate('decision_history') }}</h4></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>{{ translate('date') }}</th><th>{{ translate('action') }}</th><th>{{ translate('admin') }}</th><th>{{ translate('status') }}</th><th>{{ translate('note') }}</th></tr></thead><tbody>@forelse($order->adminGateDecisions as $decision)<tr><td>{{ dateFormat($decision->created_at) }}</td><td>{{ translate($decision->action) }}</td><td>{{ $decision->admin?->name??'—' }}</td><td>{{ translate($decision->status_after) }}</td><td>{{ $decision->note }}</td></tr>@empty<tr><td colspan="5" class="text-center">{{ translate('no_data_found') }}</td></tr>@endforelse</tbody></table></div></div>
+            <div class="card mb-3"><div class="card-header"><h4 class="mb-0">{{ translate('decision_history') }}</h4></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>{{ translate('date') }}</th><th>{{ translate('action') }}</th><th>{{ translate('admin') }}</th><th>{{ translate('status') }}</th><th>{{ translate('note') }}</th></tr></thead><tbody>@forelse($order->adminGateDecisions as $decision)<tr><td>{{ $decision->created_at->format('Y-m-d H:i') }}</td><td>{{ translate($decision->action) }}</td><td>{{ $decision->admin?->name??'—' }}</td><td>{{ translate($decision->status_after) }}</td><td>{{ $decision->note }}</td></tr>@empty<tr><td colspan="5" class="text-center">{{ translate('no_data_found') }}</td></tr>@endforelse</tbody></table></div></div>
         </div>
         <div class="col-xl-4">
-            <form class="card mb-3 border-0 shadow-sm" dir="rtl" method="post" action="{{ route('admin.orders.admin-gate.release',$order->id) }}">@csrf<div class="card-header"><h4 class="mb-0">{{ translate('release_order_to_seller') }}</h4></div><div class="card-body"><p class="text-muted">{{ translate('vendor_release_requires_payment_and_shipping') }}</p><button class="btn btn-success w-100" @disabled($openInvestigation)>{{ translate('approve_and_send_order_to_vendor') }}</button></div></form>
+
 
             @if(in_array($sellerResponseStatus, ['pending','overdue'], true))
             <form class="card border-warning mb-3" method="post" action="{{ route('admin.orders.admin-gate.seller-follow-up',$order->id) }}">@csrf
@@ -75,13 +60,3 @@
     </div>
 </div>
 @endsection
-
-@push('script')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const shippingMode = document.getElementById('shipping-mode');
-    function syncShipping(){document.querySelectorAll('.admin-shipping').forEach(el=>el.style.display=shippingMode.value==='admin_shipping'?'block':'none');}
-    shippingMode.addEventListener('change',syncShipping);syncShipping();
-});
-</script>
-@endpush

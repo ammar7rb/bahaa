@@ -375,6 +375,12 @@ class SystemController extends Controller
         $billing = [];
         parse_str($request['shipping'], $shipping);
         $shipping['zip'] = trim((string) ($shipping['zip'] ?? ''));
+        if (!empty($shipping['checkout_draft_key']) && $request->input('physical_product') === 'yes') {
+            return $this->saveCheckoutAddressAndShipping($request, $shipping);
+        }
+        if (!empty($shipping['checkout_draft_key'])) {
+            validator($shipping, ['checkout_draft_key'=>'required|uuid','preferred_shipping_option'=>'required|in:normal,sigma'])->validate();
+        }
         parse_str($request['billing'], $billing);
         // Billing is deliberately not collected: orders use their delivery
         // address for the billing reference as well.
@@ -544,7 +550,7 @@ class SystemController extends Controller
             CartShipping::whereIn('cart_group_id', CartManager::get_cart_group_ids(request: $request, type: 'checked'))->delete();
         }
         if ($physicalProduct == 'yes' && !$this->quoteAutomaticShippingForAddress($addressId, $request)) {
-            return response()->json(['errors' => translate('select_your_location_on_the_map_to_calculate_shipping')], 403);
+            return response()->json(['errors' => !empty($shipping['checkout_draft_key']) ? 'تعذر حساب الشحن. راجع المحافظة والمدينة وتفاصيل العنوان.' : translate('select_your_location_on_the_map_to_calculate_shipping')], 403);
         }
 
         session()->put('address_id', $addressId);
@@ -599,7 +605,60 @@ class SystemController extends Controller
             ], 403);
         }
 
+        if (!empty($shipping['checkout_draft_key'])) {
+            try {
+                $address = ShippingAddress::where('customer_id', auth('customer')->id() ?? session('guest_id'))->where('is_guest', $isGuestCustomer)->findOrFail($addressId);
+                app(CustomerThreeStepShippingService::class)->applyCheckoutOption(
+                    CartManager::get_cart_group_ids(request: $request, type: 'checked'), $address, $shipping['preferred_shipping_option']
+                );
+            } catch (\DomainException $exception) {
+                return response()->json(['errors'=>$exception->getMessage()], 422);
+            }
+            $response = ['status'=>1,'address_id'=>(int)$addressId,'shipping_selected'=>true];
+            if ($request->boolean('refresh_summary') && in_array(theme_root_path(), ['theme_aster', 'theme_sigma_care'], true)) {
+                $response['summary_html'] = view('theme-views.partials._order-summery', ['shippingPending'=>false])->render();
+            }
+            return response()->json($response);
+        }
         return response()->json([], 200);
+    }
+
+    private function saveCheckoutAddressAndShipping(Request $request, array $shipping): JsonResponse
+    {
+        abort_unless(auth('customer')->check(), 401);
+        validator($shipping, [
+            'checkout_draft_key' => 'required|uuid',
+            'preferred_shipping_option' => 'nullable|in:normal,sigma',
+            'legacy_shipping_methods' => 'nullable|array',
+            'legacy_shipping_methods.*' => 'integer|min:1',
+        ])->validate();
+        $drafts = session('checkout_address_drafts', []);
+        try {
+            [$addressId, $prices] = DB::transaction(function () use ($request, $shipping) {
+                User::whereKey(auth('customer')->id())->lockForUpdate()->firstOrFail();
+                $addressId = app(\App\Services\CustomerCheckoutAddressService::class)->choose((int) auth('customer')->id(), false, $shipping);
+                $address = ShippingAddress::where('customer_id', auth('customer')->id())->where('is_guest', 0)->findOrFail($addressId);
+                if (getWebConfig('delivery_country_restriction') && !self::delivery_country_exist_check($address->country)) throw new \DomainException('الشحن غير متاح للدولة المحددة.');
+                if (getWebConfig('delivery_zip_code_area_restriction') && (blank($address->zip) || !self::delivery_zipcode_exist_check($address->zip))) throw new \DomainException('أدخل رمزًا بريديًا متاحًا للشحن ضمن المناطق المحددة.');
+                $prices = app(\App\Services\CustomerCheckoutShippingService::class)->apply(
+                    CartManager::get_cart_group_ids(request: $request, type: 'checked'), $address, $shipping
+                );
+                return [$addressId, $prices];
+            }, 3);
+        } catch (\Throwable $exception) {
+            session()->put('checkout_address_drafts', $drafts);
+            session()->forget(['address_id', 'billing_address_id', 'checkout_shipping_option']);
+            if ($exception instanceof \DomainException) return response()->json(['errors' => $exception->getMessage()], 422);
+            throw $exception;
+        }
+        session()->put(['address_id' => $addressId, 'billing_address_id' => $addressId, 'checkout_shipping_option' => $shipping['preferred_shipping_option'] ?? null]);
+        $result = ['status' => 1, 'address_id' => $addressId, 'shipping_selected' => true,
+            'shipping_option_prices' => array_map(fn ($amount) => webCurrencyConverter($amount), $prices)];
+        if ($request->boolean('refresh_summary')) {
+            $view = in_array(theme_root_path(), ['theme_aster', 'theme_sigma_care'], true) ? 'theme-views.partials._order-summery' : 'web-views.partials._order-summary';
+            $result['summary_html'] = view($view, ['shippingPending' => false])->render();
+        }
+        return response()->json($result);
     }
 
     private function missingStructuredShippingAddress(array $shipping, bool $isGuest): bool

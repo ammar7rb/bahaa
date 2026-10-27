@@ -1,10 +1,11 @@
+@if(!request()->is('vendor', 'vendor/*', 'seller', 'seller/*') && !request()->routeIs('vendor.*', 'seller.*'))
 @if(auth('customer')->check())
     @php
         $subscriptionCustomer = auth('customer')->user();
         $subscriptionActivation = $activationStatus ?? app(\App\Services\CustomerActivationService::class)->payload($subscriptionCustomer);
         $monthlyState = app(\App\Services\CustomerMonthlySubscriptionService::class)->status((int)$subscriptionCustomer->id);
     @endphp
-    @if(($subscriptionActivation['is_active'] ?? false) && !$monthlyState['active'])
+    @if(($subscriptionActivation['is_active'] ?? false) && ($subscriptionActivation['activation_available'] ?? true) && !$monthlyState['active'] && !request()->routeIs('account-order-details', 'account-oder', 'customer.subscription.index', 'customer.tracking.index'))
         <style>
             #customer-subscription-alert{background:#fff0f0;color:#842029;border-color:#f2b8bd}
             #customer-subscription-alert .btn-danger{background:#a51d2d!important;border-color:#a51d2d!important;color:#fff!important;min-height:44px;display:inline-flex;align-items:center;justify-content:center;white-space:normal}
@@ -21,4 +22,6 @@
             </div>
         </div>
     @endif
+@endif
+
 @endif

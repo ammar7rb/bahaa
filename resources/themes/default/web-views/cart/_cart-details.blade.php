@@ -126,87 +126,7 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
 
                                 @php($chosenShipping=\App\Models\CartShipping::where(['cart_group_id'=>$cartItem['cart_group_id']])->first())
                                 <div class=" bg-white select-method-border rounded">
-                                    @if(!$automaticDistanceShipping && $isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
-                                        @if(isset($chosenShipping)==false)
-                                            @php($chosenShipping['shipping_method_id']=0)
-                                        @endif
-                                        @php($shippings=\App\Utils\Helpers::getShippingMethods($cartItem['seller_id'], $cartItem['seller_is']))
-                                        @if(!$automaticDistanceShipping && $isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
-
-                                            <div class="d-sm-flex">
-                                                @isset($chosenShipping['shipping_cost'])
-                                                    <div class="text-sm-nowrap mx-sm-2 mt-sm-2 mb-1">
-                                                        <span class="font-weight-bold">
-                                                            {{ translate('shipping_cost')}}
-                                                        </span>:
-                                                        <span>
-                                                            {{webCurrencyConverter($chosenShipping['shipping_cost'])}}
-                                                        </span>
-                                                    </div>
-                                                @endisset
-
-                                                @if(count($shippings) > 0)
-                                                    <div class="">
-                                                        <div class="dropdown">
-                                                            <a class="bg-white border select-method-border rounded py-2 text-dark d-flex flex-wrap align-items-center" href="javascript:" data-toggle="dropdown">
-                                                                    <?php
-                                                                    $shippingTitle = translate('choose_shipping_method');
-                                                                    foreach ($shippings as $shipping) {
-                                                                        if ($chosenShipping['shipping_method_id'] == $shipping['id']) {
-                                                                            $promise = app(\App\Services\ShippingPromiseService::class)->forMethod($shipping['id']);
-                                                                            $shippingTitle = ucfirst($shipping['title']) . ' — ' . $promise['display_date'] . ' — ' . webCurrencyConverter($shipping['cost']);
-                                                                        }
-                                                                    }
-                                                                    ?>
-                                                                <div class="flex-middle flex-nowrap fw-semibold text-dark px-2 text-capitalize">
-                                                                    <i class="fa fa-truck"></i>
-                                                                    {{ translate('shipping_method') }} :
-                                                                </div>
-                                                                <span class="px-1 max-width-200px text-nowrap text-truncate">{{ $shippingTitle }}</span>
-                                                            </a>
-                                                            <div class="dropdown-menu m-0 pb-0 w-100">
-                                                                <ul class="list-unstyled mb-0">
-                                                                    @foreach($shippings as $shipping)
-                                                                        @php($promise = app(\App\Services\ShippingPromiseService::class)->forMethod($shipping['id']))
-                                                                        <li class="cursor-pointer text-dark px-3 py-1 setShippingIdFunctionCartDetails font-semi-bold fs-14"
-                                                                            data-id="{{$shipping['id']}}"
-                                                                            data-cart-group="{{$cartItem['cart_group_id']}}"
-                                                                        >
-                                                                            <strong>{{ ucfirst($shipping['title']) }}</strong>
-                                                                            <small class="d-block text-muted">{{ $promise['display_date'] }}</small>
-                                                                            <span>{{ webCurrencyConverter($shipping['cost']) }}</span>
-                                                                        </li>
-                                                                    @endforeach
-                                                                </ul>
-                                                            </div>
-
-                                                        </div>
-                                                    </div>
-                                                @else
-                                                    <span class="text-danger d-flex align-items-center gap-1 fs-14 font-semi-bold user-select-none" data-toggle="tooltip"
-                                                          data-placement="top"
-                                                          title="{{ translate('No_shipping_options_available_at_this_shop') }}, {{ translate('please_remove_all_items_from_this_shop') }}">
-                                                        <i class="czi-security-announcement"></i> {{ translate('shipping_Not_Available') }}
-                                                    </span>
-                                                @endif
-
-                                            </div>
-                                        @endif
-                                    @else
-                                        @if ($isPhysicalProductExist && $shipping_type != 'order_wise')
-                                            <div class="">
-                                                <span class="font-weight-bold">{{ translate('total_shipping_cost')}}</span>
-                                                :
-                                                <span>{{ webCurrencyConverter(amount: $total_shipping_cost)}}</span>
-                                            </div>
-                                        @elseif($isPhysicalProductExist && $shipping_type == 'order_wise' && $chosenShipping)
-                                            <div class="">
-                                                <span class="font-weight-bold">{{ translate('total_shipping_cost')}}</span>
-                                                :
-                                                <span>{{ webCurrencyConverter(amount: $chosenShipping->shipping_cost)}}</span>
-                                            </div>
-                                        @endif
-                                    @endif
+                                    
 
                                 </div>
                             </div>
@@ -481,56 +401,7 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
                             @endif
 
                             <div class=" bg-white select-method-border rounded">
-                                @if(!$automaticDistanceShipping && $isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
-                                    @php($chosenShipping=\App\Models\CartShipping::where(['cart_group_id'=>$cartItem['cart_group_id']])->first())
-                                    @if(isset($chosenShipping)==false)
-                                        @php($chosenShipping['shipping_method_id']=0)
-                                    @endif
-                                    @php( $shippings=\App\Utils\Helpers::getShippingMethods($cartItem['seller_id'],$cartItem['seller_is']))
-                                    @if(!$automaticDistanceShipping && $isPhysicalProductExist && $shippingMethod=='sellerwise_shipping' && $shipping_type == 'order_wise')
-
-                                        @if(count($shippings) > 0)
-                                            <div class="d-sm-flex">
-                                                <select class="form-control fs-13 font-weight-bold text-capitalize border-aliceblue max-240px action-set-shipping-id"
-                                                        data-product-id="{{ $cartItem['cart_group_id'] }}">
-                                                    <option>{{ translate('choose_shipping_method')}}</option>
-                                                    @foreach($shippings as $shipping)
-                                                        <option
-                                                            value="{{$shipping['id']}}" {{$chosenShipping['shipping_method_id']==$shipping['id']?'selected':''}}>
-                                                            {{ translate('shipping_method')}}
-                                                            : {{$shipping['title'].' ( '.$shipping['duration'].' ) '.webCurrencyConverter(amount: $shipping['cost'])}}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        @else
-                                            <span class="text-danger d-flex align-items-center gap-1 fs-14 font-semi-bold user-select-none" data-toggle="tooltip"
-                                                  data-placement="top"
-                                                  title="{{ translate('No_shipping_options_available_at_this_shop') }}, {{ translate('please_remove_all_items_from_this_shop') }}">
-                                                        <i class="czi-security-announcement"></i> {{ translate('shipping_Not_Available') }}
-                                                    </span>
-                                        @endif
-
-                                        @isset($chosenShipping['shipping_cost'])
-                                            <div class="text-sm-nowrap mt-2 text-center fs-12">
-                                                <span class="font-weight-bold">{{ translate('shipping_cost')}}</span>
-                                                :<span>{{webCurrencyConverter($chosenShipping['shipping_cost'])}}</span>
-                                            </div>
-                                        @endisset
-                                    @endif
-                                @else
-                                    @if ($isPhysicalProductExist && $shipping_type != 'order_wise')
-                                        <div class="text-sm-nowrap text-center fs-12">
-                                            <span class="font-weight-bold">{{ translate('total_shipping_cost') }}</span> :
-                                            <span>{{ webCurrencyConverter(amount: $total_shipping_cost) }}</span>
-                                        </div>
-                                    @elseif($isPhysicalProductExist && $shipping_type == 'order_wise' && $chosenShipping)
-                                        <div class="text-sm-nowrap text-center fs-12">
-                                            <span class="font-weight-bold">{{ translate('total_shipping_cost')}}</span> :
-                                            <span>{{ webCurrencyConverter(amount: isset($chosenShipping['shipping_cost']) ? $chosenShipping['shipping_cost'] : 0)}}</span>
-                                        </div>
-                                    @endif
-                                @endif
+                                
                             </div>
                         </div>
                     @endif
@@ -704,31 +575,7 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
                 <?php
                 $shipping_type = isset($admin_shipping) == true ? $admin_shipping->shipping_type : 'order_wise';
                 ?>
-            @if (!$automaticDistanceShipping && $shipping_type == 'order_wise' && $isPhysicalProductExist)
-                @php($shippings=\App\Utils\Helpers::getShippingMethods(1,'admin'))
-                @php($chosenShipping=\App\Models\CartShipping::where(['cart_group_id'=>$cartItem['cart_group_id']])->first())
-
-                @if(isset($chosenShipping)==false)
-                    @php($chosenShipping['shipping_method_id']=0)
-                @endif
-                <div class="px-3 px-md-0 mb-3">
-                    <div class="row">
-                        <div class="col-12">
-                            <select class="form-control border-aliceblue action-set-shipping-id"
-                                    data-product-id="all_cart_group">
-                                <option>{{ translate('choose_shipping_method')}}</option>
-                                @foreach($shippings as $shipping)
-                                    <option
-                                        value="{{$shipping['id']}}" {{$chosenShipping['shipping_method_id']==$shipping['id']?'selected':''}}>
-                                        {{ translate('shipping_method')}}
-                                        : {{$shipping['title'].' ( '.$shipping['duration'].' ) '.webCurrencyConverter(amount: $shipping['cost'])}}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            @endif
+            
         @endif
 
         @if( $cart->count() == 0)
@@ -753,7 +600,7 @@ $admin_shipping = \App\Models\ShippingType::where('seller_id', 0)->first();
         </div>
     </section>
 
-    @include('web-views.partials._order-summary')
+    @include('web-views.partials._order-summary', ['shippingPending'=>true])
 
     <span id="route-customer-set-shipping-method" data-url="{{ url('/customer/set-shipping-method') }}"></span>
     <span id="route-action-checkout-function" data-route="shop-cart"></span>

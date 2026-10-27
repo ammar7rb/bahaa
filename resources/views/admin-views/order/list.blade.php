@@ -114,6 +114,7 @@
                                         {{ $orders->firstItem() + $key }}
                                     </td>
                                     <td>
+                                        @include('admin-views.order.partials._checkout-origin')
                                         <div class="d-flex gap-1 flex-column">
                                             <div class="d-flex align-items-center gap-1">
                                                 <a class="hover-primary text-dark"

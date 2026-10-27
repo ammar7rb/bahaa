@@ -99,6 +99,9 @@ class UserProfileController extends Controller
     {
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
         $lockedCustomer = User::lockForUpdate()->findOrFail(auth('customer')->id());
+        if ($request->has('contact_phones_present')) {
+            $request->validate(['contact_phones_present' => 'in:1', 'phones' => 'sometimes|array|max:20', 'phones.*' => 'required|string|max:20']);
+        }
         $password = app(\App\Services\CustomerPasswordChangeService::class)->password($lockedCustomer,$request);
         $imageName = $request->file('image') ? ImageManager::update('profile/', $lockedCustomer->image, 'webp', $request->file('image')) : $lockedCustomer->image;
         $user = $lockedCustomer;
@@ -116,6 +119,9 @@ class UserProfileController extends Controller
             'password' => $password,
         ]);
 
+        if ($request->has('contact_phones_present')) {
+            app(\App\Services\CustomerContactPhoneService::class)->replace((int) $lockedCustomer->id, $request->input('phones', []));
+        }
         Toastr::info(translate('updated_successfully'));
         return redirect()->back();
         });
@@ -574,6 +580,9 @@ class UserProfileController extends Controller
 
     public function submitSupportTicket(Request $request): RedirectResponse|JsonResponse
     {
+        if ($request->input('ticket_type') === 'account_activation') {
+            app(\App\Services\CustomerPurchaseEligibilityService::class)->assertActivationAvailable(auth('customer')->user());
+        }
         if ($request->boolean('care_support_drawer')) {
             abort_unless(auth('customer')->check(), 401);
             $request->validate([
@@ -662,6 +671,7 @@ class UserProfileController extends Controller
             Toastr::warning(translate('Invalid_ticket'));
             return back();
         }
+        app(\App\Services\CustomerCommunicationService::class)->markSupportRepliesRead($ticket, (int) auth('customer')->id());
         return view(VIEW_FILE_NAMES['ticket_view'], compact('ticket'));
     }
 
@@ -685,26 +695,30 @@ class UserProfileController extends Controller
     public function ticketMessages(int $id): JsonResponse
     {
         $ticket = SupportTicket::query()
-            ->with(['conversations' => fn ($query) => $query->orderBy('id')])
             ->where('id', $id)
             ->where('customer_id', auth('customer')->id())
             ->firstOrFail();
 
-        if ($ticket->purpose === \App\Services\CustomerActivationService::PURPOSE
-            && $ticket->review_status === 'approved') {
+        if (in_array(\App\Services\CustomerActivationService::PURPOSE, [$ticket->purpose, $ticket->type], true)
+            && in_array($ticket->review_status, ['approved', 'rejected'], true)) {
             return response()->json([
                 'ticket_id' => $ticket->id,
                 'status' => $ticket->status,
-                'activation_approved' => true,
-                'message' => translate('customer_account_activated'),
-                'redirect_url' => route('home'),
+                'activation_completed' => true,
+                'activation_approved' => $ticket->review_status === 'approved',
+                'message' => $ticket->review_status === 'approved' ? 'تم تفعيل الحساب بنجاح' : 'لم تتم الموافقة على تفعيل الحساب',
+                'redirect_url' => $ticket->review_status === 'approved' ? route('home') : route('account-tickets'),
                 'messages' => [],
-            ]);
+            ])->header('Cache-Control', 'no-store, private');
         }
 
         if ($ticket->hidden_from_subject_at) {
             abort(404);
         }
+
+        $ticket->load(['conversations' => fn ($query) => $query->orderBy('id')]);
+
+        app(\App\Services\CustomerCommunicationService::class)->markSupportRepliesRead($ticket, (int) auth('customer')->id());
 
         return response()->json([
             'ticket_id' => $ticket->id,
@@ -713,9 +727,10 @@ class UserProfileController extends Controller
                 'id' => $conversation->id,
                 'sender_type' => $conversation->admin_id ? 'admin' : 'customer',
                 'body' => $conversation->admin_message ?: $conversation->customer_message,
+                'attachments' => $conversation->attachment_full_url ?? [],
                 'created_at' => optional($conversation->created_at)->format('Y-m-d H:i'),
             ])->values(),
-        ]);
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     public function comment_submit(Request $request, $id): RedirectResponse|JsonResponse
@@ -731,6 +746,12 @@ class UserProfileController extends Controller
             return back();
         }
 
+        $request->validate([
+            'comment' => 'nullable|string|max:5000|required_without:image',
+            'image' => 'nullable|array',
+            'image.*' => 'required|file|mimes:jpeg,png,jpg,gif,webp,pdf,doc,docx|max:6000',
+        ]);
+
         DB::table('support_tickets')->where(['id' => $id])->update([
             'status' => 'open',
             'updated_at' => now(),
@@ -738,14 +759,11 @@ class UserProfileController extends Controller
 
         $image = [];
         if ($request->file('image')) {
-            $validator = $request->validate([
-                'image.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:6000'
-            ]);
             foreach ($request->image as $key => $value) {
                 $image_name = ImageManager::upload('support-ticket/', 'webp', $value);
                 $image[] = [
                     'file_name' => $image_name,
-                    'storage' => getWebConfig(name: 'storage_connection_type') ?? 'public',
+                    'storage' => config('filesystems.disks.default') ?? 'public',
                 ];
             }
         }
@@ -765,6 +783,7 @@ class UserProfileController extends Controller
                     'id' => $conversation->id,
                     'sender_type' => 'customer',
                     'body' => $conversation->customer_message,
+                    'attachments' => $conversation->attachment_full_url ?? [],
                     'created_at' => optional($conversation->created_at)->format('Y-m-d H:i'),
                 ],
             ]);

@@ -124,7 +124,7 @@
             })(window,document,'script','dataLayer','GTM-TTLMKMHQ');</script>
         <!-- End Google Tag Manager -->
     @endif
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013.2">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261027.2">
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-communication.css') }}?v=20261014">
 </head>
 
@@ -189,7 +189,6 @@
 @endif
 @include('customer-account.profile-header')
 @yield('content')
-@include('customer-account.contact-phones')
 @include('web-views.users-profile.partials.customer-payment-notices')
 
 <span id="message-otp-sent-again" data-text="{{ translate('OTP_has_been_sent_again.') }}"></span>
@@ -487,7 +486,7 @@
 
 @stack('script')
 @include('web-views.users-profile.partials.profile-image-shortcut')
-<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013.2" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261027.2" defer></script>
 @include('customer-checkout.entry')
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>

@@ -246,6 +246,7 @@ class CustomerAuthController extends Controller
 
             CustomerManager::updateCustomerSessionData(userId: auth('customer')->id());
             CartManager::cartListSessionToDatabase();
+            session()->forget('checkout_login_return');
             $this->customerRepo->updateWhere(params: ['id' => $user['id']], data: $this->customerAuthService->getCustomerLoginDataReset());
 
             if ($request->ajax()) {

@@ -21,6 +21,16 @@ class MonthlySubscriptionController extends Controller
     public function index(Request $request)
     {
         $id = $this->customer($request);
+        $customer = \App\Models\User::findOrFail($id);
+        $gate = app(\App\Services\CustomerPurchaseEligibilityService::class)->initialCheckoutGate($customer);
+        if ($gate['applies'] && (!$gate['payment_approved'] || $customer->activation_status !== 'active')) {
+            $next = app(\App\Services\CustomerPurchaseEligibilityService::class)->nextRequirement(
+                [$gate['payment_approved'] ? 'account_activation' : 'order_payment_review'], $customer->activation_status
+            );
+            return $request->is('api/*')
+                ? response()->json(['onboarding' => $next, 'message' => $next['message']], 409)
+                : view('customer-checkout.onboarding-hold', ['next' => $next]);
+        }
         $payload = [
             'wallet_policy_version'=>2,
             'packages' => \Illuminate\Support\Facades\Schema::hasTable('customer_purchase_packages') ? app(\App\Services\CustomerPackageCatalogService::class)->available()->get()->map(function($package){$package->setAttribute('quote_token',app(\App\Services\CustomerPackageCatalogService::class)->token($package,'package'));return $package;}) : collect(),

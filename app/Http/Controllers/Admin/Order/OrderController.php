@@ -644,13 +644,20 @@ class OrderController extends BaseController
         OrderStatusHistoryService     $orderStatusHistoryService,
     ): JsonResponse
     {
+        return DB::transaction(function () use ($request, $deliveryManTransactionService, $deliveryManWalletService, $orderStatusHistoryService): JsonResponse {
+            $locked = Order::query()->lockForUpdate()->findOrFail($request['id']);
+            if ($locked->order_status === $request['order_status']) return response()->json(['status' => 1, 'already_applied' => true]);
+            $request->validate(['workflow_reason' => ['required', 'string', 'max:5000']]);
+
         $order = $this->orderRepo->getFirstWhere(params: ['id' => $request['id']], relations: ['customer', 'seller.shop', 'deliveryMan', 'latestEditHistory']);
 
         if ($order->customer_checkout_operation_id && in_array($request['order_status'], ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) {
             $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
-            $eligibility->reevaluateCustomer((int) $order->customer_id);
-            $order->refresh();
-            if (!$order->customer_eligible_at || !$order->customer->is_active || $order->is_pause) return response()->json(['status' => 0, 'message' => (!$order->customer->is_active || $order->is_pause) ? $eligibility->message(['administrative_freeze']) : $eligibility->orderPayload($order)['message']]);
+            try {
+                $eligibility->assertCanFulfill($order);
+            } catch (\Illuminate\Validation\ValidationException $exception) {
+                return response()->json(['status' => 0, 'message' => collect($exception->errors())->flatten()->first()]);
+            }
         }
         if (!$order['is_guest'] && !isset($order['customer'])) {
             return response()->json([
@@ -781,7 +788,7 @@ class OrderController extends BaseController
             }
         }
 
-        $orderStatusHistoryData = $orderStatusHistoryService->getOrderHistoryData(orderId: $request['id'], userId: 0, userType: 'admin', status: $request['order_status']);
+        $orderStatusHistoryData = $orderStatusHistoryService->getOrderHistoryData(orderId: $request['id'], userId: (int) auth('admin')->id(), userType: 'admin', status: $request['order_status']);
         $this->orderStatusHistoryRepo->add($orderStatusHistoryData);
         OrderManager::removeOldStatusHistory(orderId: $request['id'], orderStatus: $request['order_status']);
 
@@ -806,6 +813,7 @@ class OrderController extends BaseController
             'status' => 1,
             'message' => translate('status_change_successfully'),
         ]);
+        });
     }
 
     public function updateAddress(Request $request): RedirectResponse

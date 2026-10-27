@@ -8,16 +8,19 @@
         <div class="card-body px-sm-4 d-flex flex-column gap-3">
             @php($systemTaxConfig = getTaxModuleSystemTypesConfig())
             @php($current_url = request()->segment(count(request()->segments())))
+            @php($shippingPending = ($shippingPending ?? false) || ($current_url === 'checkout-details' && !($automatic_shipping_selected ?? false)))
             @php($shippingMethod = getWebConfig(name: 'shipping_method'))
             @php($product_price_total = 0)
             @php($totalTax = \App\Utils\CartManager::getCartListTaxAmount())
             @php($total_shipping_cost = 0)
             @php($total_discount_on_product = 0)
             @php($cart = CartManager::getCartListQuery(type: 'checked'))
+            @php($shippingPending = $shippingPending && $cart->contains('product_type', 'physical'))
             @php($cartAll = CartManager::getCartListQuery())
             @php($cart_group_ids = CartManager::get_cart_group_ids())
             @php($shipping_cost = CartManager::get_shipping_cost(type: 'checked'))
             @php($get_shipping_cost_saved_for_free_delivery = CartManager::getShippingCostSavedForFreeDelivery(type: 'checked'))
+            @if($shippingPending) @php($shipping_cost = 0) @php($get_shipping_cost_saved_for_free_delivery = 0) @php($totalTax['shipping_cost_tax'] = 0) @endif
             @if ($cart->count() > 0)
                 @foreach ($cart as $key => $cartItem)
                     @php($product_price_total += $cartItem['price'] * $cartItem['quantity'])
@@ -47,8 +50,10 @@
             </div>
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 fs-16">
                 <div class="opacity-75 text-capitalize">{{ translate('shipping') }}</div>
-                <div class="fw-semibold">{{ webCurrencyConverter($total_shipping_cost) }}</div>
+                <div class="fw-semibold" data-checkout-update="shipping">@if($shippingPending)<span class="fs-12">أكمل العنوان واختر طريقة الشحن</span>@else{{ webCurrencyConverter($total_shipping_cost) }}@endif</div>
             </div>
+
+            <div data-checkout-update="tax" @if(array_sum($totalTax) <= 0) hidden @endif>@include('customer-checkout.tax-breakdown')</div>
 
             @php($coupon_discount = 0)
             @php($coupon_dis = 0)
@@ -69,47 +74,20 @@
                 </div>
             @endif
 
-            @if($systemTaxConfig['SystemTaxVat']['is_active'] && !$systemTaxConfig['is_included'])
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 fs-16">
-                    <div class="opacity-75 text-capitalize">{{ translate('tax') }}</div>
-                    <div class="fw-semibold">{{ webCurrencyConverter(amount: ($totalTax['item_tax'] + $totalTax['shipping_cost_tax'])) }}</div>
-                </div>
-            @endif
 
             <hr class="m-0" />
 
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 fs-16">
-                <h5>
+                <h5 data-checkout-update="total-label">
                     {{ translate('total') }}
-                    @if($systemTaxConfig['SystemTaxVat']['is_active'] && $systemTaxConfig['is_included'])
+                    @if($systemTaxConfig['SystemTaxVat']['is_active'] && $systemTaxConfig['is_included'] && (float)$totalTax['item_tax'] === 0.0)
                         <span class="fs-12 fw-semibold">({{ translate('Tax_:_Inc.') }})</span>
                     @endif
                 </h5>
-                <h4 class="text-primary">{{ webCurrencyConverter($totalAmount - $referralAmount) }}</h4>
+                <h4 class="text-primary" data-checkout-update="total">@if($shippingPending) — @else{{ webCurrencyConverter($totalAmount - $referralAmount) }}@endif</h4>
             </div>
 
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
-                @if (str_contains(request()->url(), 'checkout-payment'))
-                    <label class="custom-control custom-checkbox mb-3 d-flex user-select-none cursor-pointer">
-                        <input type="checkbox" class="custom-control-input payment-input-checkbox">
-                        <span class="custom-control-label">
-                    <span>{{ translate('i_agree_to_Your') }}</span>
-                    <a class="font-size-sm text--primary fw-bold d-inline" target="_blank"
-                       href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}">
-                        {{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}
-                    </a>
-                    @foreach($web_config['business_pages']->where('default_status', 1) as $businessPage)
-                                @if($businessPage['slug'] == 'refund-policy')
-                                    <a class="font-size-sm text--primary fw-bold d-inline" target="_blank"
-                                       href="{{ route('business-page.view', ['slug' => $businessPage['slug']]) }}">
-                            , {{ translate(str_replace('-', '_', $businessPage['slug'])) }}
-                            </a>
-                                @endif
-                            @endforeach
-                    </span>
-                    </label>
-                @endif
-
                 <a href="{{ route('home') }}" class="btn-link text-primary text-capitalize user-select-none fw-semibold">
                     <i class="fi fi-rr-angle-double-left fs-10"></i> {{ translate('continue_shopping') }}
                 </a>
@@ -120,7 +98,7 @@
                             data-route="{{ route('checkout-payment') }}" data-type="{{ 'checkout-payment' }}"
                             {{ isset($isProductNullStatus) && $isProductNullStatus == 1 ? 'disabled' : '' }}
                             type="button">
-                        {{ translate('proceed_to_payment') }}
+                        {{ translate('continue_to_payment') }}
                     </button>
                 @else
                     <button class="btn btn-primary text-capitalize {{ $cart->count() <= 0 ? 'custom-disabled' : '' }}"
@@ -129,7 +107,7 @@
                             data-checkout-payment="{{ route('checkout-payment') }}"
                             {{ isset($isProductNullStatus) && $isProductNullStatus == 1 ? 'disabled' : '' }}
                             type="button">
-                        {{ translate('proceed_to_next') }}
+                        {{ translate('continue_to_payment') }}
                     </button>
                 @endif
             </div>

@@ -3,6 +3,7 @@
     <div class="__cart-total __cart-total_sticky">
         <div class="cart_total p-0">
             @php($systemTaxConfig = getTaxModuleSystemTypesConfig())
+            @php($shippingPending = ($shippingPending ?? false) || (request()->routeIs('checkout-details') && !($automatic_shipping_selected ?? false)))
             @php($shippingMethod = getWebConfig(name: 'shipping_method'))
             @php($subTotal = 0)
             @php($totalTax = \App\Utils\CartManager::getCartListTaxAmount())
@@ -16,9 +17,11 @@
             @php($referralAmount = 0)
             @php($totalDiscountOnProduct = 0)
             @php($cart = \App\Utils\CartManager::getCartListQuery(type: 'checked'))
+            @php($shippingPending = $shippingPending && $cart->contains('product_type', 'physical'))
             @php($cartGroupIds = \App\Utils\CartManager::get_cart_group_ids())
             @php($getShippingCost = \App\Utils\CartManager::get_shipping_cost(type: 'checked'))
             @php($getShippingCostSavedForFreeDelivery = \App\Utils\CartManager::getShippingCostSavedForFreeDelivery(type: 'checked'))
+            @if($shippingPending) @php($getShippingCost = 0) @php($getShippingCostSavedForFreeDelivery = 0) @php($totalTax['shipping_cost_tax'] = 0) @endif
             @if ($cart->count() > 0)
                 @foreach ($cart as $key => $cartItem)
                     @php($subTotal += $cartItem['price'] * $cartItem['quantity'])
@@ -40,18 +43,11 @@
             @php($coupon_dis = 0)
             <div class="d-flex justify-content-between">
                 <span class="cart_title">{{ translate('shipping') }}</span>
-                <span class="cart_value">
-                    {{ webCurrencyConverter(amount: $totalShippingCost) }}
+                <span class="cart_value" data-checkout-update="shipping">
+                    @if($shippingPending) أكمل العنوان واختر طريقة الشحن @else{{ webCurrencyConverter(amount: $totalShippingCost) }}@endif
                 </span>
             </div>
-            @if(!$taxCollectedInSecondStage && $systemTaxConfig['SystemTaxVat']['is_active'] && !$systemTaxConfig['is_included'])
-                <div class="d-flex justify-content-between">
-                    <span class="cart_title">{{ translate('tax') }}</span>
-                    <span class="cart_value">
-                    {{ webCurrencyConverter(amount: ($totalTax['item_tax'] + $totalTax['shipping_cost_tax'])) }}
-                </span>
-                </div>
-            @endif
+            <div data-checkout-update="tax" @if(array_sum($totalTax) <= 0) hidden @endif>@include('customer-checkout.tax-breakdown')</div>
 
             <?php
             $coupon_dis = 0;
@@ -82,13 +78,13 @@
             <hr class="my-3">
             <div class="d-flex justify-content-between">
                 <span class="cart_title text-primary font-weight-bold">
-                    {{ translate('total') }}
+                    <span data-checkout-update="total-label">{{ translate('total') }}</span>
                     @if(!$taxCollectedInSecondStage && $systemTaxConfig['SystemTaxVat']['is_active'] && $systemTaxConfig['is_included'])
                         <span class="fs-12 font-weight--600">({{ translate('Tax_:_Inc.') }})</span>
                     @endif
                 </span>
                 <span class="cart_value">
-                    {{ webCurrencyConverter(amount: $totalAmount - $referralAmount) }}
+                    <span data-checkout-update="total">@if($shippingPending) — @else{{ webCurrencyConverter(amount: $totalAmount - $referralAmount) }}@endif</span>
                 </span>
             </div>
         </div>
@@ -139,8 +135,8 @@
                 </label>
             @endif
 
-            <a class="btn btn--primary btn-block proceed_to_next_button {{ $cart->count() <= 0 ? 'custom-disabled' : '' }} action-checkout-function">
-                {{ translate('proceed_to_Checkout') }}
+            <a data-checkout-continue data-goto-checkout="{{ route('customer.choose-shipping-address-other') }}" data-checkout-payment="{{ route('checkout-payment') }}" class="btn btn--primary btn-block proceed_to_next_button {{ $cart->count() <= 0 ? 'custom-disabled' : '' }} action-checkout-function">
+                {{ translate('continue_to_payment') }}
             </a>
         </div>
 
@@ -156,8 +152,8 @@
 <div class="bottom-sticky3 bg-white p-3 shadow-sm w-100 d-lg-none">
     <div class="d-flex justify-content-center align-items-center fs-14 mb-2">
         <div class="product-description-label fw-semibold text-capitalize">{{ translate('total_price') }} :</div>
-        &nbsp; <strong class="text-base">
-            {{ webCurrencyConverter(amount: $subTotal + ($totalTax['item_tax'] + $totalTax['shipping_cost_tax']) + $totalShippingCost - $coupon_dis - $totalDiscountOnProduct) }}
+        &nbsp; <strong class="text-base" data-checkout-update="total">
+            @if($shippingPending) — @else{{ webCurrencyConverter(amount: $subTotal + ($totalTax['item_tax'] + $totalTax['shipping_cost_tax']) + $totalShippingCost - $coupon_dis - $totalDiscountOnProduct) }}@endif
         </strong>
     </div>
 
@@ -183,8 +179,8 @@
     @endif
 
     <a data-route="{{ Route::currentRouteName() }}"
-       class="btn btn--primary btn-block proceed_to_next_button text-capitalize {{ $cart->count() <= 0 ? 'custom-disabled' : '' }} action-checkout-function">
-        {{ translate('proceed_to_checkout') }}
+       data-checkout-continue data-goto-checkout="{{ route('customer.choose-shipping-address-other') }}" data-checkout-payment="{{ route('checkout-payment') }}" class="btn btn--primary btn-block proceed_to_next_button text-capitalize {{ $cart->count() <= 0 ? 'custom-disabled' : '' }} action-checkout-function">
+        {{ translate('continue_to_payment') }}
     </a>
 </div>
 

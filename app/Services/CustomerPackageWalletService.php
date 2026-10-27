@@ -24,6 +24,7 @@ class CustomerPackageWalletService
                 return $prior;
             }
             if(!$customer->is_active||$customer->account_deleted_at)throw new DomainException('الحساب موقوف. تواصل مع الدعم.');
+            app(CustomerPurchaseEligibilityService::class)->assertPackagePurchaseAvailable($customer);
             if(getWebConfig('wallet_status')!=1)throw new DomainException('محفظة المنصة غير متاحة حاليًا.');
             $active=app(CustomerMonthlyAllowanceService::class)->active($customerId);
             if($active)$active=CustomerMonthlySubscription::lockForUpdate()->findOrFail($active->id);

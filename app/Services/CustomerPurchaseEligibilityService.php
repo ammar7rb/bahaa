@@ -86,6 +86,18 @@ class CustomerPurchaseEligibilityService
                 'first_exception' => $exception, 'qualified_at' => $state['pending_reasons'] ? null : now(),
                 'created_at' => now(), 'updated_at' => now(),
             ];
+            if (Schema::hasColumn('customer_checkout_operations', 'origin_snapshot')) {
+                $record['origin_snapshot'] = json_encode([
+                    'version' => 1,
+                    'onboarding_journey' => $state['onboarding_journey'],
+                    'is_first_order' => $exception,
+                    'account_activation_status' => $customer->activation_status,
+                    'account_activated' => $state['account_activated'],
+                    'has_active_package' => $state['subscription']['active'],
+                    'package_id' => $state['subscription']['package_id'] ?? null,
+                    'recorded_at' => now()->toIso8601String(),
+                ], JSON_UNESCAPED_UNICODE);
+            }
             if (!$exception && app(CustomerMonthlyAllowanceService::class)->enabled() && Schema::hasColumn('customer_checkout_operations','monthly_subscription_id')) {
                 $sub = app(CustomerMonthlyAllowanceService::class)->active($customerId);
                 if (!$sub || $cartSnapshot === null) $this->deny(['purchasing_limit']);
@@ -110,30 +122,110 @@ class CustomerPurchaseEligibilityService
         DB::transaction(function () use ($customerId) {
             $customer = User::lockForUpdate()->find($customerId);
             if (!$customer) return;
+            $coverage = [];
             foreach (Order::where('customer_id', $customerId)->where('is_guest', 0)
                 ->whereNotNull('customer_checkout_operation_id')->whereNull('customer_eligible_at')->lockForUpdate()->get() as $order) {
-                $this->evaluateLocked($order, $customer);
+                $operationId = $order->customer_checkout_operation_id;
+                $coverage[$operationId] ??= app(CustomerMonthlyAllowanceService::class)->canCoverInitialOperation($customerId, $operationId);
+                $this->evaluateLocked($order, $customer, $coverage[$operationId]);
             }
         }, 3);
     }
 
     public function orderPayload(Order $order): array
     {
-        if (!$this->enabled()) return ['eligible_at' => null, 'fulfillment_status' => null, 'pending_reasons' => [], 'message' => '', 'customer' => null];
+        if ($order->is_guest || !$order->customer_checkout_operation_id || !$this->enabled()) return ['eligible_at' => null, 'fulfillment_status' => null, 'pending_reasons' => [], 'message' => '', 'customer' => null, 'origin' => null, 'is_urgent_order' => false, 'stage' => null, 'next_action' => null];
         $customer = User::find($order->customer_id);
         $state = $customer ? $this->status($customer) : null;
         $reasons = array_values(array_diff(json_decode((string) $order->getRawOriginal('customer_pending_reasons'), true) ?: [], ['outstanding_invoice']));
         $statusLabel = ['pending'=>'قيد الانتظار','confirmed'=>'تم التأكيد','processing'=>'قيد التجهيز','out_for_delivery'=>'في الطريق للتسليم','delivered'=>'تم التسليم','returned'=>'تم الإرجاع','failed'=>'تعذر التسليم','canceled'=>'ملغي'][$order->order_status] ?? $order->order_status;
-        $initial = DB::table('customer_checkout_operations')->where('id', $order->customer_checkout_operation_id)->value('first_exception');
+        $operation = DB::table('customer_checkout_operations')->where('id', $order->customer_checkout_operation_id)->first();
+        $initial = $operation?->first_exception;
+        if ($state && ($state['administratively_frozen'] || $order->is_pause || $order->commerce_flow_status === 'under_investigation')) {
+            $reasons[] = 'administrative_freeze';
+        }
+        if ($state && !$state['account_activated']) $reasons[] = 'account_activation';
+        $paymentApproved = $this->paymentApproved($order);
+        $groupApproved = !$initial || ($customer && $this->initialCheckoutGate($customer)['payment_approved']);
+        if ($initial && !$groupApproved && !array_intersect($reasons, ['order_payment_rejected', 'initial_order_review_rejected'])) $reasons[] = 'order_payment_review';
+        $reasons = array_values(array_unique($reasons));
+        $next = $this->nextRequirement($reasons, $customer?->activation_status);
+        if (!in_array($order->order_status, ['pending', 'confirmed', 'processing'], true)) {
+            $next = ['stage' => $order->order_status, 'action' => null, 'message' => $statusLabel];
+        }
         $canRequestPackage = $initial && $order->payment_status === 'paid'
             && (!$order->customer_initial_payment_review_status || $order->customer_initial_payment_review_status === 'approved')
             && !$order->customer_eligible_at && in_array('monthly_subscription', $reasons, true)
-            && in_array($order->order_status, ['pending', 'confirmed', 'processing'], true);
+            && in_array($order->order_status, ['pending', 'confirmed', 'processing'], true)
+            && $groupApproved && ($state['account_activated'] ?? false) && !($state['administratively_frozen'] ?? true)
+            && $next['action'] === 'choose_package';
         return ['is_urgent_order' => (bool) $initial, 'can_request_package' => (bool) $canRequestPackage,
+            'origin' => json_decode($operation->origin_snapshot ?? 'null', true),
+            'stage' => $next['stage'],
+            'next_action' => (($paymentApproved && $groupApproved) || in_array($next['action'], ['resubmit_payment_proof', 'contact_support'], true)) ? $next['action'] : null,
             'package_request_sent' => Schema::hasColumn('notifications', 'customer_event_key') && DB::table('notifications')->where('customer_id', $order->customer_id)->where('customer_event_key', 'initial-order-'.$order->id.'-requirements')->exists(),
             'eligible_at' => $order->customer_eligible_at, 'fulfillment_status' => $order->customer_fulfillment_status,
             'payment_review_status' => $order->payment_status === 'paid' ? ($order->customer_initial_payment_review_status ?: 'approved') : ($order->activation_status === 'offline_payment_rejected' ? 'rejected' : (in_array($order->payment_method,['cash_on_delivery','cash'],true) ? 'awaiting_collection' : 'pending')),
-            'pending_reasons' => $reasons, 'message' => (!$order->customer_checkout_operation_id || !in_array($order->order_status,['pending','confirmed','processing'],true)) ? $statusLabel : $this->message($reasons), 'customer' => $state];
+            'pending_reasons' => $reasons, 'message' => (!$order->customer_checkout_operation_id || !in_array($order->order_status,['pending','confirmed','processing'],true)) ? $statusLabel : $next['message'], 'customer' => $state];
+    }
+
+    /** Gate checkout-first registration and reserved first-order exceptions, preserving established journeys. */
+    public function initialCheckoutGate(object $customer): array
+    {
+        if (!$this->enabled()) {
+            return ['applies' => false, 'payment_approved' => true];
+        }
+        $operation = $customer->first_checkout_operation_id
+            ? DB::table('customer_checkout_operations')->where('id', $customer->first_checkout_operation_id)->where('customer_id', $customer->id)->first()
+            : null;
+        if ($customer->onboarding_journey !== 'checkout_first' && !$operation?->first_exception) {
+            return ['applies' => false, 'payment_approved' => true];
+        }
+        if (!$operation || !$operation->consumed_at) return ['applies' => true, 'payment_approved' => false];
+        if (Order::where('customer_id', $customer->id)->where('customer_checkout_operation_id', $operation->id)->whereNotNull('customer_eligible_at')->exists()) {
+            return ['applies' => false, 'payment_approved' => true];
+        }
+        $orders = Order::where('customer_id', $customer->id)->where('customer_checkout_operation_id', $operation->id)
+            ->whereNotIn('order_status', ['canceled', 'failed', 'returned'])->get();
+        return ['applies' => true, 'payment_approved' => $orders->isNotEmpty() && $orders->every(fn (Order $order) => $this->paymentApproved($order))];
+    }
+
+    public function assertActivationAvailable(object $customer): void
+    {
+        if (!$this->initialCheckoutGate($customer)['payment_approved']) $this->deny(['order_payment_review']);
+    }
+
+    public function assertPackagePurchaseAvailable(object $customer): void
+    {
+        $gate = $this->initialCheckoutGate($customer);
+        if (!$gate['applies']) return;
+        if (!$gate['payment_approved']) $this->deny(['order_payment_review']);
+        if ($customer->activation_status !== 'active') $this->deny(['account_activation']);
+    }
+
+    private function paymentApproved(Order $order): bool
+    {
+        return $order->payment_status === 'paid'
+            && in_array($order->customer_initial_payment_review_status, [null, 'approved'], true);
+    }
+
+    public function nextRequirement(array $reasons, ?string $activationStatus = null): array
+    {
+        $steps = [
+            'administrative_freeze' => ['administrative_hold', 'contact_support', 'الحساب أو الطلب موقوف إداريًا. تواصل مع الدعم.'],
+            'order_payment_rejected' => ['payment_rejected', 'resubmit_payment_proof', 'إثبات الدفع مرفوض. أعد إرساله لنفس الطلب دون دفع جديد.'],
+            'initial_order_review_rejected' => ['payment_review_rejected', 'contact_support', 'تعذرت الموافقة على مراجعة الطلب. الدفع المسجل محفوظ؛ تواصل مع الدعم.'],
+            'order_payment_review' => ['payment_under_review', null, 'الدفع قيد مراجعة الإدارة. سنُحدّث حالة طلبك بعد التأكد من وصول المبلغ.'],
+            'account_activation' => $activationStatus === 'rejected'
+                ? ['activation_rejected', 'contact_support', 'لم تتم الموافقة على تفعيل الحساب. طلبك ودفعك محفوظان؛ تواصل مع الدعم.']
+                : ['waiting_for_activation', 'activate_account', 'تم اعتماد الدفع. الطلب معلّق لحين تفعيل حسابك.'],
+            'monthly_subscription' => ['waiting_for_package', 'choose_package', 'تم تفعيل حسابك. اختر باقة تغطي مشتريات طلبك لاستكماله؛ قيمة المنتجات مدفوعة بالفعل.'],
+            'purchasing_limit' => ['waiting_for_suitable_package', 'choose_package', 'حد الباقة لا يغطي الطلب. اختر باقة مناسبة أو زد الحد المتاح؛ لا تدفع قيمة المنتجات مرة أخرى.'],
+        ];
+        foreach ($steps as $reason => [$stage, $action, $message]) {
+            if (in_array($reason, $reasons, true)) return compact('stage', 'action', 'message');
+        }
+        return ['stage' => 'ready_for_fulfillment', 'action' => null, 'message' => 'استوفى الطلب شروط التنفيذ، وبانتظار استكمال إجراءات التجهيز.'];
     }
 
     public function approveOrderPayment(int $orderId, string $reference): void
@@ -179,7 +271,11 @@ class CustomerPurchaseEligibilityService
         $this->reevaluateCustomer((int) $order->customer_id);
         $order->refresh();
         $customer = User::find($order->customer_id);
-        if (!$order->customer_eligible_at || !$customer?->is_active || $order->is_pause || $order->commerce_flow_status === 'under_investigation') {
+        $initial = DB::table('customer_checkout_operations')->where('id', $order->customer_checkout_operation_id)->value('first_exception');
+        if ($initial && !$this->paymentApproved($order)) $this->deny(['order_payment_review']);
+        if ($initial && $customer && !$this->initialCheckoutGate($customer)['payment_approved']) $this->deny(['order_payment_review']);
+        if ($customer && !in_array($customer->activation_status, [null, '', 'active'], true)) $this->deny(['account_activation']);
+        if (!$order->customer_eligible_at || !$customer?->is_active || $customer?->account_deleted_at || $order->is_pause || $order->commerce_flow_status === 'under_investigation') {
             $this->deny($order->customer_eligible_at ? ['administrative_freeze'] : (json_decode((string) $order->getRawOriginal('customer_pending_reasons'), true) ?: ['order_payment_review']));
         }
     }
@@ -206,7 +302,7 @@ class CustomerPurchaseEligibilityService
         }, 3);
     }
 
-    private function evaluateLocked(Order $order, User $customer): void
+    private function evaluateLocked(Order $order, User $customer, bool $initialAllowanceAvailable): void
     {
         if (in_array($order->order_status, ['canceled', 'failed', 'returned', 'delivered'], true)) return;
         $state = $this->status($customer);
@@ -217,9 +313,12 @@ class CustomerPurchaseEligibilityService
         if ($order->payment_status !== 'paid' && !$cashOnDelivery) $reasons[] = $order->activation_status === 'offline_payment_rejected' ? 'order_payment_rejected' : 'order_payment_review';
         if ($order->payment_status === 'paid' && $operation?->first_exception && $order->customer_initial_payment_review_status
             && $order->customer_initial_payment_review_status !== 'approved') $reasons[] = $order->customer_initial_payment_review_status === 'rejected' ? 'initial_order_review_rejected' : 'order_payment_review';
+        if ($operation?->first_exception && !$this->initialCheckoutGate($customer)['payment_approved']
+            && !array_intersect($reasons, ['order_payment_review', 'order_payment_rejected', 'initial_order_review_rejected'])) $reasons[] = 'order_payment_review';
         if ($state['administratively_frozen'] || $order->is_pause || $order->commerce_flow_status === 'under_investigation') $reasons[] = 'administrative_freeze';
         if (!$state['account_activated']) $reasons[] = 'account_activation';
         if (!$state['subscription']['active'] && !$operation?->qualified_at) $reasons[] = 'monthly_subscription';
+        if (!$reasons && !$initialAllowanceAvailable) $reasons[] = 'purchasing_limit';
         if (!$reasons && app(CustomerMonthlyAllowanceService::class)->enabled()
             && !app(CustomerMonthlyAllowanceService::class)->reserveOrder($order)) $reasons[] = 'purchasing_limit';
         $updates = ['customer_pending_reasons' => json_encode($reasons), 'customer_fulfillment_status' => $reasons ? 'pending_requirements' : 'preparing'];

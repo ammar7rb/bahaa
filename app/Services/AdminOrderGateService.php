@@ -35,11 +35,71 @@ class AdminOrderGateService
         return ['applicable' => false, 'amount' => 0, 'reason' => 'vendor_security_deposits_retired'];
     }
 
+    /** A single locked transaction owns procurement, shipping, due dates and release. */
+    public function approveAndRelease(Order $order, array $data, int $adminId): OrderAdminGateDecision
+    {
+        return DB::transaction(function () use ($order, $data, $adminId) {
+            $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
+            // A retry (including one waiting on the row lock) must not reassign or notify twice.
+            if ($locked->admin_order_review_status === 'approved') {
+                $receipt = $locked->adminGateDecisions()->where('action', 'released_to_seller')->first();
+                if ($receipt) return $receipt;
+            }
+            $this->assertGateReadyForAssignment($locked);
+            $this->assertOrderPaymentAccepted($locked);
+            if (!hash_equals($this->reviewVersion($locked), (string) ($data['review_version'] ?? ''))) {
+                throw new DomainException('تغيرت بيانات الطلب أثناء المراجعة. حدّث الصفحة وراجع القيم قبل الاعتماد.');
+            }
+            $entitlement = (float) $data['shipping_seller_entitlement'];
+            if ($entitlement < 0 || $entitlement > (float) $locked->shipping_cost) {
+                throw new DomainException('راجع مبلغ الشحن المخصص للتاجر.');
+            }
+            // This review always assigns fulfillment to the vendor. The single entered
+            // vendor shipping amount is also its cost in the existing accounting fields.
+            $data['shipping_mode'] = 'seller_shipping';
+            $data['shipping_seller_cost'] = $entitlement;
+            unset($data['shipping_method_id'], $data['shipping_service_name'], $data['shipping_tracking_number']);
+            $before = $locked->only(['seller_shipping_allocation', 'platform_shipping_margin', 'shipping_settlement_due_at', 'sales_settlement_due_at']);
+            $assignment = $this->saveAssignment($locked, $data, $adminId);
+            $pricing = app(OrderVendorPricingService::class)->approve($locked->fresh(), $adminId);
+            app(OrderFinancialAuditService::class)->record($locked->fresh(), 'shipping_assigned', 'order_shipping_decisions', $assignment->shipping_decision_id, [], $adminId);
+            $locked->refresh()->forceFill([
+                'seller_shipping_allocation' => $entitlement,
+                'platform_shipping_margin' => max(0, (float) $locked->shipping_cost - $entitlement),
+            ])->save();
+            if (!empty($data['sales_settlement_due_at'])) {
+                $locked->forceFill(['sales_settlement_due_at' => \Carbon\Carbon::parse($data['sales_settlement_due_at'])])->save();
+            }
+            app(ShippingPromiseService::class)->updateSettlementDueDate(
+                $locked, \Carbon\Carbon::parse($data['shipping_settlement_due_at']),
+                'اعتماد بيانات المراجعة وإرسال الطلب إلى التاجر', $adminId
+            );
+            $assignment->update(['snapshot' => array_merge($assignment->snapshot ?? [], [
+                'unified_review' => ['before' => $before, 'after' => $locked->only(array_keys($before)),
+                    'pricing_approval_id' => $pricing->id],
+            ])]);
+            return $this->releaseToSeller($locked, 'اعتماد وإرسال إلى التاجر', $adminId);
+        });
+    }
+
+    public function reviewVersion(Order $order): string
+    {
+        return hash('sha256', json_encode([
+            $order->commerce_flow_status, $order->customer_initial_payment_review_status,
+            $order->payment_status, $order->order_amount, $order->shipping_cost,
+            $order->shipping_seller_cost, $order->shipping_seller_entitlement,
+            $order->shipping_settlement_due_at, $order->expected_delivery_date,
+            $order->only(['shipping_fulfillment_mode', 'shipping_method_id', 'delivery_service_name', 'third_party_delivery_tracking_id', 'seller_shipping_allocation', 'sales_settlement_due_at']),
+            app(OrderVendorPricingService::class)->summary($order),
+        ], JSON_THROW_ON_ERROR));
+    }
+
     public function saveAssignment(Order $order, array $data, ?int $adminId): OrderAdminGateDecision
     {
         return DB::transaction(function () use ($order, $data, $adminId): OrderAdminGateDecision {
             $locked = Order::query()->with(['insurance', 'seller', 'sellerOrderInsurance'])->lockForUpdate()->findOrFail($order->id);
             $this->assertGateReadyForAssignment($locked);
+            $this->assertOrderPaymentAccepted($locked);
             $before = $locked->commerce_flow_status;
             $locked->forceFill([
                 'commerce_flow_status' => OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS,
@@ -78,6 +138,20 @@ class AdminOrderGateService
     {
         return DB::transaction(function () use ($order, $note, $adminId): OrderAdminGateDecision {
             $locked = Order::query()->with(['insurance', 'sellerOrderInsurance'])->lockForUpdate()->findOrFail($order->id);
+            if ($locked->admin_order_review_status === 'approved') {
+                $receipt = $locked->adminGateDecisions()->where('action', 'released_to_seller')->first();
+                if ($receipt) return $receipt;
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('order_details', 'vendor_unit_price_snapshot')
+                && $locked->details()->whereNotNull('vendor_unit_price_snapshot')->exists()
+                && !\App\Models\OrderVendorPricing::where('order_id', $locked->id)->exists()) {
+                throw new \DomainException('اعتمد سعر التاجر قبل إرسال الطلب.');
+            }
+            $approval = \Illuminate\Support\Facades\Schema::hasTable('order_vendor_pricings')
+                ? \App\Models\OrderVendorPricing::where('order_id', $locked->id)->first() : null;
+            if ($approval && $approval->snapshot != app(OrderVendorPricingService::class)->summary($locked)) {
+                throw new \DomainException('تغيرت بيانات الطلب بعد اعتماد التوريد؛ يلزم إجراء تعديل مالي مستقل قبل الإرسال.');
+            }
             $this->assertGateReadyForAssignment($locked);
             $this->assertOrderPaymentAccepted($locked);
             if ($locked->commerce_flow_status !== OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS) {
@@ -87,12 +161,14 @@ class AdminOrderGateService
             if (($locked->shipping_assignment_status ?? 'pending') !== 'assigned' || ! $shipping) {
                 throw new DomainException('shipping_decision_is_required_before_seller_release');
             }
+            app(CustomerPurchaseEligibilityService::class)->assertCanFulfill($locked);
             app(SellerOrderSubscriptionEligibilityService::class)->assertCanRelease($locked);
 
             $before = $locked->commerce_flow_status;
             $locked->forceFill([
                 'commerce_flow_status' => OrderCommerceState::RELEASED_TO_SELLER,
                 'commerce_flow_status_updated_at' => now(), 'checked' => 0,
+                'order_status' => 'confirmed',
                 'admin_order_review_status' => 'approved', 'admin_order_reviewed_by' => $adminId,
                 'admin_order_reviewed_at' => now(), 'admin_order_review_note' => $note,
                 'operational_blocked_by' => null, 'operational_block_reason' => null,
@@ -116,7 +192,7 @@ class AdminOrderGateService
                     'subscription_eligibility' => app(SellerOrderSubscriptionEligibilityService::class)->reason($locked),
                 ]),
             ]);
-            event(new OrderStatusEvent(key: 'admin_order_released_to_seller', type: 'seller', order: $locked->fresh()));
+            DB::afterCommit(fn () => event(new OrderStatusEvent(key: 'admin_order_released_to_seller', type: 'seller', order: $locked->fresh())));
             Notification::query()->firstOrCreate([
                 'sent_to' => 'seller', 'seller_id' => $locked->seller_id,
                 'title' => translate('new_approved_order'),
@@ -265,8 +341,7 @@ class AdminOrderGateService
         if ($order->seller_is !== 'seller' || ! $order->seller) throw new DomainException('admin_order_gate_requires_seller_order');
         $retiredPaymentGate = $order->payment_status === 'paid' && in_array($order->commerce_flow_status, [OrderCommerceState::CUSTOMER_INSURANCE_PENDING, OrderCommerceState::CUSTOMER_INSURANCE_UNDER_REVIEW], true);
         if (!$retiredPaymentGate && ! in_array($order->commerce_flow_status, [OrderCommerceState::PENDING_ADMIN_REVIEW, OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS], true)) throw new DomainException('order_is_not_waiting_for_admin_review');
-        // Administration may prepare terms while payment is reviewed.
-        // releaseToSeller still requires all customer payments to be accepted.
+        // Assignment and release both require the customer payment to be confirmed.
         if ($order->riskInvestigations()->where('status', OrderRiskInvestigation::STATUS_OPEN)->exists()) throw new DomainException('order_is_frozen_for_admin_investigation');
     }
 

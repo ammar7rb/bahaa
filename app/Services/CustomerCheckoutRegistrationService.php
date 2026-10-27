@@ -13,6 +13,7 @@ class CustomerCheckoutRegistrationService
     public function register(array $input): User
     {
         $phones = app(EgyptPhoneService::class);
+        if (is_string($input['name'] ?? null)) $input['name'] = trim($input['name']);
         $input['phone'] = $phones->normalizeLocal($input['phone'] ?? '');
         $data = Validator::make($input, [
             'name' => 'required|string|max:100',
@@ -21,7 +22,15 @@ class CustomerCheckoutRegistrationService
             'terms_accepted' => 'required|accepted',
             'policy_version_ids' => 'nullable|array',
             'policy_version_ids.*' => 'integer',
-        ], ['phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015'])->validate();
+        ], [
+            'name.required' => 'اكتب اسمك للمتابعة.',
+            'phone.required' => 'أدخل رقم الموبايل.',
+            'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
+            'password.required' => 'أدخل كلمة المرور.',
+            'password.min' => 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
+            'terms_accepted.required' => 'وافق على الشروط والأحكام وسياسة الخصوصية للمتابعة.',
+            'terms_accepted.accepted' => 'وافق على الشروط والأحكام وسياسة الخصوصية للمتابعة.',
+        ])->validate();
 
         try {
         return DB::transaction(function () use ($data, $phones) {

@@ -3,7 +3,7 @@
         $activationCustomer = auth('customer')->user();
         $activationStatus = app(\App\Services\CustomerActivationService::class)->payload($activationCustomer);
     @endphp
-    @if(($activationStatus['banner']['visible'] ?? false))
+    @if(($activationStatus['banner']['visible'] ?? false) && !request()->routeIs('account-order-details', 'account-oder', 'customer.subscription.index', 'customer.tracking.index') && !(request()->routeIs('support-ticket.index') && isset($conversation) && $conversation->purpose === 'account_activation'))
         <style>#customer-activation-alert{background:#fff0f0;color:#842029;border-color:#f2b8bd}#customer-activation-alert .btn-danger,#customer-activation-alert .btn-danger:hover,#customer-activation-alert .btn-danger:focus{background:#a51d2d!important;border-color:#a51d2d!important;color:#fff!important;min-height:44px;display:inline-flex;align-items:center}</style>
         <div id="customer-activation-notice" class="container mt-3 text-align-direction">
             <div id="customer-activation-alert" class="alert alert-danger d-flex flex-wrap align-items-center justify-content-between gap-2 mb-0" role="alert">

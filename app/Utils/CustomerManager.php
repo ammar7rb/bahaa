@@ -52,6 +52,11 @@ class CustomerManager
     {
         app(\App\Services\CustomerPurchaseWalletPolicyService::class)->assertTransactionAllowed((string) $transaction_type);
         if (BusinessSetting::where('type', 'wallet_status')->first()->value != 1) return false;
+        if ($transaction_type === 'order_place' && !empty($payment_data['order_ids'])) {
+            return app(\App\Services\CustomerOrderWalletPaymentService::class)->debit(
+                (int) $user_id, (float) Convert::usd($amount), $payment_data['order_ids'], $payment_data['payment_method'] ?? 'wallet_balance'
+            );
+        }
         $user = User::find($user_id);
         $current_balance = $user->wallet_balance;
 

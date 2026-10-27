@@ -2,6 +2,7 @@
 
 @section('title', translate('shopping_Details').' | '.$web_config['company_name'].' '.translate('ecommerce'))
 
+@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/care-checkout-address.css') }}?v=20261027.2">@endpush
 @section('content')
     <main class="main-content d-flex flex-column gap-3 py-3 mb-5">
         <div class="container">
@@ -27,7 +28,7 @@
                             <input type="hidden" id="billing-input-enable" name="billing_input_enable"
                                    value="{{ $billing_input_by_customer }}">
                             @if($physical_product_view)
-                                <form method="post" id="address-form">
+                                <form method="post" id="address-form" class="care-address-form"><input type="hidden" name="checkout_draft_key" value="{{ (string) Str::uuid() }}">
                                     <h5 class="mb-3 text-capitalize">{{ translate('delivery_information_details') }}</h5>
 
                                     <div class="card">
@@ -102,7 +103,7 @@
                                                                                                     <span
                                                                                                         class="shipping-contact-city d-none">{{ $address['city'] }}</span>
                                                                                                     <span
-                                                                                                        class="shipping-contact-state d-none">{{ $address['state'] ?? $address['city'] }}</span>
+                                                                                                        class="shipping-contact-state d-none">{{ app(\App\Services\EgyptShippingRateService::class)->governorateFor($address) ?? $address['state'] ?? $address['city'] }}</span>
                                                                                                     <span class="shipping-contact-district d-none">{{ $address['district'] }}</span>
                                                                                                     <span class="shipping-contact-area d-none">{{ $address['area'] }}</span>
                                                                                                     <span class="shipping-contact-street d-none">{{ $address['street'] }}</span>
@@ -150,18 +151,18 @@
                                                         <div class="col-sm-{{ auth('customer')->check() ? 6 : 12 }}">
                                                             <div class="form-group mb-4">
                                                                 <label for="name"
-                                                                       class="text-capitalize">{{ translate('contact_person_name')}} <span class="text-danger">*</span></label>
+                                                                       class="text-capitalize">اسم المستلم <span class="text-danger">*</span></label>
                                                                 <input type="text" name="contact_person_name" id="name"
                                                                        class="form-control"
-                                                                       placeholder="{{ translate('ex') }}: {{translate('Jhon_Doe')}}" {{$shipping_addresses->count()==0?'required':''}}>
+                                                                       placeholder="اسم المستلم بالكامل" required>
                                                             </div>
                                                         </div>
                                                         <div class="col-sm-6">
                                                             <div class="form-group mb-4">
-                                                                <label for="phone">{{ translate('phone') }} <span class="text-danger">*</span></label>
+                                                                <label for="phoneNumber">{{ translate('phone') }} <span class="text-danger">*</span></label>
                                                                 <input type="tel" id="phoneNumber" name="phone"
                                                                        class="form-control"
-                                                                       placeholder="{{ translate('ex') }}: {{translate('+8801000000000')}}" {{$shipping_addresses->count()==0?'required':''}}>
+                                                                       placeholder="رقم هاتف المستلم" required>
                                                             </div>
                                                         </div>
                                                         @if(!auth('customer')->check())
@@ -187,17 +188,11 @@
                                                                 </select>
                                                             </div>
                                                         </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group mb-4">
-                                                                <label for="country">{{ translate('country') }} <span class="text-danger">*</span></label>
-                                                                <input type="hidden" name="country" value="Egypt">
-                                                                <input type="text" class="form-control" value="Egypt" readonly>
-                                                            </div>
-                                                        </div>
+                                                        <input type="hidden" name="country" id="country" value="Egypt">
                                                         <div class="col-sm-6">
                                                             <div class="form-group mb-4">
                                                                 <label for="state">{{ translate('governorate') }} <span class="text-danger">*</span></label>
-                                                                <select name="state" id="state" class="form-control" {{$shipping_addresses->count()==0?'required':''}}>
+                                                                <select name="state" id="state" class="form-control" required>
                                                                     <option value="" selected disabled>{{ translate('select') }} {{ translate('governorate') }}</option>
                                                                     @foreach(config('egypt.governorates') as $governorate)
                                                                         <option value="{{ $governorate }}">{{ $governorate }}</option>
@@ -209,78 +204,61 @@
                                                              <div class="form-group mb-4">
                                                                  <label for="city">المدينة / المركز <span class="text-danger">*</span></label>
                                                                  <input type="text" name="city" id="city"
-                                                                       placeholder="{{ translate('ex') }}: {{translate('dhaka')}}"
-                                                                       class="form-control" {{$shipping_addresses->count()==0?'required':''}}>
+                                                                       placeholder="اسم المدينة أو المركز"
+                                                                       class="form-control" required>
                                                              </div>
                                                          </div>
                                                          <div class="col-sm-6">
                                                              <div class="form-group mb-4">
                                                                  <label for="district">الحي أو القسم <span class="text-danger">*</span></label>
-                                                                 <input type="text" name="district" id="district" class="form-control" required placeholder="مثال: مدينة نصر">
+                                                                 <input type="text" name="district" id="district" class="form-control" required placeholder="اسم الحي أو القسم">
                                                              </div>
                                                          </div>
                                                          <div class="col-sm-6">
                                                              <div class="form-group mb-4">
                                                                  <label for="area">المنطقة <span class="text-danger">*</span></label>
-                                                                 <input type="text" name="area" id="area" class="form-control" required placeholder="مثال: الحي العاشر">
+                                                                 <input type="text" name="area" id="area" class="form-control" required placeholder="اسم المنطقة">
                                                              </div>
                                                          </div>
                                                          <div class="col-sm-6">
                                                              <div class="form-group mb-4">
                                                                  <label for="street">الشارع <span class="text-danger">*</span></label>
-                                                                 <input type="text" name="street" id="street" class="form-control" required placeholder="مثال: شارع أحمد الزمر">
+                                                                 <input type="text" name="street" id="street" class="form-control" required placeholder="اسم الشارع">
                                                              </div>
                                                          </div>
                                                          <div class="col-sm-6">
                                                              <div class="form-group mb-4">
                                                                  <label for="building-number">رقم العقار <span class="text-danger">*</span></label>
-                                                                 <input type="text" name="building_number" id="building-number" class="form-control" required placeholder="مثال: 12">
+                                                                 <input type="text" name="building_number" id="building-number" class="form-control" required placeholder="رقم العقار">
                                                              </div>
                                                          </div>
                                                          <div class="col-sm-6">
                                                              <div class="form-group mb-4">
-                                                                 @include('customer-account.address-extra-fields',['addressDetails'=>$shippingAddress ?? null])
-<label for="landmark">أقرب علامة مميزة</label>
-                                                                 <input type="text" name="landmark" id="landmark" class="form-control" placeholder="مثال: بجوار مسجد السلام">
+                                                                 <label for="address-floor">الدور (اختياري)</label><input class="form-control" id="address-floor" name="floor" type="text" maxlength="100" placeholder="رقم الدور" value="{{ old('floor', data_get($shippingAddress ?? null,'floor')) }}">
+</div></div><div class="col-sm-6"><div class="form-group mb-4"><label for="landmark">أقرب علامة مميزة</label>
+                                                                 <input type="text" name="landmark" id="landmark" class="form-control" placeholder="علامة تساعد في الوصول">
                                                              </div>
                                                          </div>
                                                         <div class="col-sm-6">
                                                             <div class="form-group mb-4">
-                                                                <label for="city"
-                                                                       class="text-capitalize">{{ translate('zip_code') }} <span class="text-danger">*</span></label>
+                                                                <label for="zip">الرمز البريدي <span class="care-field-optional">(اختياري)</span></label>
                                                                 @if($zip_restrict_status == 1)
-                                                                    <select name="zip" id="zip"
-                                                                            class="form-control select2 select_picker"
-                                                                            data-live-search="true" required>
-                                                                        @forelse($zip_codes as $code)
-                                                                            <option
-                                                                                value="{{ $code->zipcode }}">{{ $code->zipcode }}</option>
-                                                                        @empty
-                                                                            <option
-                                                                                value="">{{ translate('no_zip_to_deliver') }}</option>
-                                                                        @endforelse
-                                                                    </select>
+                                                                    <select name="zip" id="zip" class="form-control select2 select_picker" data-live-search="true"><option value="">بدون رمز بريدي</option>@foreach($zip_codes as $code)<option value="{{ $code->zipcode }}">{{ $code->zipcode }}</option>@endforeach</select>
                                                                 @else
-                                                                    <input type="text" class="form-control" id="zip"
-                                                                           name="zip"
-                                                                           placeholder="{{ translate('ex') }}: {{translate('1216')}}" {{$shipping_addresses->count()==0?'required':''}}>
+                                                                    <input type="text" class="form-control" id="zip" name="zip" maxlength="20" placeholder="الرمز البريدي إن وجد" autocomplete="postal-code">
                                                                 @endif
                                                             </div>
                                                         </div>
                                                          <div class="col-sm-12">
                                                              <div class="form-group mb-4">
                                                                  <label for="address" class="mb-2">تفاصيل إضافية للعنوان <span class="text-danger">*</span></label>
-                                                                 <p class="text-muted fs-12 mb-2">لن تظهر لك خريطة. يتحقق النظام من العنوان في الخلفية ويحسب مسافة الطريق من مركز الشحن.</p>
+                                                                 
                                                                  <textarea name="address" id="address" class="form-control" rows="3" placeholder="اكتب أي تفاصيل تساعد المندوب في الوصول" required></textarea>
                                                              </div>
                                                          </div>
                                                         @if($physical_product_view)
                                                             <div class="col-12 mb-3">
-                                                                <strong class="d-block mb-2">اختر طريقة الشحن لهذا العنوان</strong>
-                                                                <div class="d-flex flex-wrap gap-2">
-                                                                    <label class="border rounded p-3 flex-fill cursor-pointer"><input type="radio" name="preferred_shipping_option" value="normal"> شحن عادي</label>
-                                                                    <label class="border rounded p-3 flex-fill cursor-pointer"><input type="radio" name="preferred_shipping_option" value="sigma"> شحن سيجما <small class="d-block text-primary">موثّق وموصى به من سيجما، ويُضاف تلقائيًا إلى الفاتورة.</small></label>
-                                                                </div>
+                                                                @include('customer-checkout.shipping-options')
                                                             </div>
                                                         @endif
 
@@ -592,7 +570,7 @@
                                                                  <input type="text" name="billing_address"
                                                                     id="billing_address"
                                                                     class="form-control"
-                                                                    placeholder="{{ translate('your_address') }}" {{$shipping_addresses->count()==0?'required':''}}>
+                                                                    placeholder="{{ translate('your_address') }}" required>
                                                             </div>
                                                         </div>
 
@@ -653,44 +631,7 @@
                         </div>
                     </div>
                 </div>
-                @if($physical_product_view && !empty($shipping_quote_options))
-                    <div class="card mt-3" id="automatic-shipping-options">
-                        <div class="card-body">
-                            <h5 class="mb-1">اختر طريقة الشحن</h5>
-                            <p class="text-muted mb-3">اختر الشحن المناسب لعنوانك. تُضاف تكلفة الشحن تلقائيًا إلى الفاتورة.</p>
-                            <div class="row g-3">
-                                @foreach(['normal', 'sigma'] as $shippingOptionKey)
-                                    @php($shippingOption = $shipping_quote_options[$shippingOptionKey] ?? null)
-                                    @if($shippingOption)
-                                        <div class="col-md-6">
-                                            <button type="button" class="btn btn-outline-primary w-100 text-start p-3 select-automatic-shipping"
-                                                    data-method-id="{{ $shippingOption['method_id'] }}" data-address-id="{{ $selected_shipping_address_id }}" data-shipping-option="{{ $shippingOptionKey }}">
-                                                <div class="d-flex justify-content-between align-items-center gap-2">
-                                                    <strong>{{ $shippingOptionKey === 'sigma' ? 'شحن سيجما' : 'شحن عادي' }}</strong>
-                                                </div>
-                                                @if($shippingOptionKey === 'sigma')
-                                                    <div class="small text-primary mt-2">شحن موثّق وموصى به من سيجما، ويُضاف تلقائيًا إلى الفاتورة.</div>
-                                                @endif
-                                                <div class="small text-muted mt-2">
-                                                    مدة التوصيل:
-                                                    @if($shippingOption['minimum_business_days'] === $shippingOption['maximum_business_days'])
-                                                        {{ $shippingOption['minimum_business_days'] }} يوم عمل
-                                                    @else
-                                                        {{ $shippingOption['minimum_business_days'] }} - {{ $shippingOption['maximum_business_days'] }} يوم عمل
-                                                    @endif
-                                                </div>
-                                            </button>
-                                        </div>
-                                    @endif
-                                @endforeach
-                            </div>
-                            @if($automatic_shipping_selected)
-                                <a href="{{ route('checkout-payment') }}" class="btn btn-primary w-100 mt-3">المتابعة إلى الدفع</a>
-                            @endif
-                        </div>
-                    </div>
-                @endif
-                @include('theme-views.partials._order-summery')
+                <div id="care-checkout-summary" style="display:contents">@include('theme-views.partials._order-summery')</div>
             </div>
         </div>
     </main>
@@ -704,24 +645,9 @@
     <span id="automatic-shipping-selected" data-value="{{ $automatic_shipping_selected ? 1 : 0 }}"></span>
 @endsection
 @push('script')
-    <script src="{{ theme_asset('assets/js/shipping-page.js') }}?v=shipping-flow-20260929"></script>
-    <script>
-        document.querySelectorAll('.select-automatic-shipping').forEach((button) => {
-            button.addEventListener('click', async () => {
-                button.disabled = true;
-                const url = document.getElementById('route-set-automatic-shipping').dataset.url;
-                const params = new URLSearchParams({id: button.dataset.methodId, address_id: button.dataset.addressId, cart_group_id: 'all_cart_group'});
-                const response = await fetch(`${url}?${params.toString()}`, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
-                const data = await response.json();
-                if (data.status) window.location.reload();
-                else button.disabled = false;
-            });
-        });
-        const preferredShipping = sessionStorage.getItem('sigma_preferred_shipping');
-        if (preferredShipping) {
-            sessionStorage.removeItem('sigma_preferred_shipping');
-            document.querySelector(`.select-automatic-shipping[data-shipping-option="${preferredShipping}"]`)?.click();
-        }
-    </script>
+    <script src="{{ asset('assets/front-end/js/checkout-errors.js') }}" defer></script>
+    <script src="{{ theme_asset('assets/js/shipping-page.js') }}?v=shipping-flow-20261027.2"></script>
+    <script src="{{ asset('assets/front-end/js/care-checkout-shipping.js') }}?v=20261027.2"></script>
+
 
 @endpush

@@ -57,6 +57,23 @@ class CustomerMonthlyAllowanceService
     }
 
     /** Lock customer before calling; order reservation is a ledger entry, never wallet money. */
+    public function canCoverInitialOperation(int $customerId, string $operationId): bool
+    {
+        if (!$this->enabled()) return true;
+        $operation = DB::table('customer_checkout_operations')->where('id', $operationId)->where('customer_id', $customerId)->first();
+        if (!$operation?->first_exception) return true;
+        $subscription = $this->active($customerId);
+        if (!$subscription) return false;
+        $ids = Order::where('customer_id', $customerId)->where('customer_checkout_operation_id', $operationId)
+            ->whereNull('customer_eligible_at')->whereNotIn('order_status', ['canceled', 'failed', 'returned', 'delivered'])->pluck('id');
+        $reserved = DB::table('customer_monthly_limit_entries')->whereIn('order_id', $ids)->pluck('order_id');
+        $amount = DB::table('order_details')->whereIn('order_id', $ids->diff($reserved))->get(['price','qty','discount'])
+            ->sum(fn ($detail) => max(0, (float) $detail->price * (int) $detail->qty - (float) $detail->discount));
+        $available = (float) $subscription->granted_allowance + (float) $subscription->additional_allowance - (float) $subscription->committed_allowance;
+        return round($amount, 3) <= round($available, 3);
+    }
+
+    /** Lock customer before calling; order reservation is a ledger entry, never wallet money. */
     public function reserveOrder(Order $order): bool
     {
         return DB::transaction(function () use ($order) {

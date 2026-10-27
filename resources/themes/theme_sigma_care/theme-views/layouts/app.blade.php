@@ -77,9 +77,10 @@
 
     <meta name="color-scheme" content="light">
     <link rel="stylesheet" href="{{ theme_asset('assets/css/sigma-care.css') }}?v=25">
+    <link rel="stylesheet" href="{{ asset('assets/front-end/css/care-basket.css') }}?v=20261017.1">
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261013.2">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261027.2">
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-communication.css') }}?v=20261014">
 </head>
 <body class="toolbar-enabled sigma-care" theme="light">
@@ -115,7 +116,6 @@
 @endif
 @include('customer-account.profile-header')
 @yield('content')
-@include('customer-account.contact-phones')
 @include('web-views.users-profile.partials.customer-payment-notices')
 @include('theme-views.layouts.partials._feature')
 @include('theme-views.layouts.partials._footer')
@@ -285,7 +285,7 @@
 <script src="{{ theme_asset('assets/js/care-home.js') }}?v=5" defer></script>
 @stack('script')
 @include('web-views.users-profile.partials.profile-image-shortcut')
-<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261013.2" defer></script>
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261027.2" defer></script>
 
 <script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}?v=20261011.1" defer></script>
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>

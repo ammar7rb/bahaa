@@ -94,7 +94,10 @@ class CustomerAuthService
 
     public function storeCustomerAuthReturnURL(): void
     {
-        $historyUrls = session('recent_user_routes_history', []);
+        $historyUrls = array_values(array_filter(
+            session('recent_user_routes_history', []),
+            fn ($url) => $this->isCustomerAuthReturnURL($url)
+        ));
         if (!empty($historyUrls)) {
             $lastUrl = end($historyUrls);
             session()->put('keep_customer_login_redirect_url', $lastUrl);
@@ -105,11 +108,31 @@ class CustomerAuthService
 
     public function getCustomerAuthReturnURL(): string
     {
+        if (session('checkout_login_return')) return route('checkout-details');
         $keepReturnUrl = route('home');
-        if (session()->has('keep_customer_login_redirect_url')) {
+        if ($this->isCustomerAuthReturnURL(session('keep_customer_login_redirect_url'))) {
             $keepReturnUrl = session('keep_customer_login_redirect_url');
         }
         return $keepReturnUrl;
+    }
+
+    private function isCustomerAuthReturnURL(mixed $url): bool
+    {
+        if (!is_string($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        $parts = parse_url($url);
+        $home = parse_url(route('home'));
+        if (isset($parts['user']) || isset($parts['pass']) ||
+            ($parts['scheme'] ?? null) !== ($home['scheme'] ?? null) ||
+            ($parts['host'] ?? null) !== ($home['host'] ?? null) ||
+            ($parts['port'] ?? null) !== ($home['port'] ?? null)) {
+            return false;
+        }
+
+        return rtrim($parts['path'] ?? '', '/') !==
+            rtrim(parse_url(route('customer.communication.index'), PHP_URL_PATH), '/');
     }
 
 }

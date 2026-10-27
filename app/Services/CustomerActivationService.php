@@ -19,6 +19,7 @@ class CustomerActivationService
 
     public function openOrCreateTicket(User|LegacyUser $customer): ?SupportTicket
     {
+        if (!app(CustomerPurchaseEligibilityService::class)->initialCheckoutGate($customer)['payment_approved']) return null;
         if (! Schema::hasColumn('support_tickets', 'purpose')) {
             return null;
         }
@@ -110,6 +111,7 @@ class CustomerActivationService
 
         return DB::transaction(function () use ($ticket, $customer, $approved, $note, $adminId) {
             $customer = User::lockForUpdate()->findOrFail($customer->id);
+            if ($approved) app(CustomerPurchaseEligibilityService::class)->assertActivationAvailable($customer);
             $ticketUpdates = [
                 'review_status' => $approved ? 'approved' : 'rejected',
                 'review_note' => $note,
@@ -151,15 +153,19 @@ class CustomerActivationService
             ? ($customer->activation_status === 'active' || (!$customer->activation_status && (bool) $customer->is_active))
             : (bool) $customer->is_active;
         $rejected = $hasActivationStatus && $customer->activation_status === 'rejected';
-        $ticket = ($active || $rejected) ? null : $this->openOrCreateTicket($customer);
+        $available = app(CustomerPurchaseEligibilityService::class)->initialCheckoutGate($customer)['payment_approved'];
+        $ticket = ($active || $rejected || !$available) ? null : $this->openOrCreateTicket($customer);
 
         return [
             'status' => $hasActivationStatus
                 ? ($customer->activation_status ?: ($customer->is_active ? 'active' : 'pending'))
                 : ($customer->is_active ? 'active' : 'pending'),
             'is_active' => $active,
+            'activation_available' => $available,
             'ticket_id' => $ticket?->id,
-            'banner' => $active
+            'banner' => !$available
+                ? ['visible' => false, 'state' => 'awaiting_order_payment_review', 'message' => 'استكمل دفع طلبك وانتظر اعتماد الإدارة قبل تفعيل الحساب.', 'action' => null]
+                : ($active
                 ? ['visible' => false, 'state' => 'activated', 'message' => translate('customer_account_activated')]
                 : ($rejected ? [
                     'visible' => true,
@@ -171,7 +177,7 @@ class CustomerActivationService
                     'state' => 'activation_required',
                     'message' => translate('customer_activation_required'),
                     'action' => 'open_activation_ticket',
-                ]),
+                ])),
         ];
     }
 }

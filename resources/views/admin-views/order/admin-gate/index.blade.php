@@ -31,7 +31,7 @@
         @forelse($orders as $order)
             @php($openRisk = $order->riskInvestigations->firstWhere('status','open'))
             <tr>
-                <td><strong>ORD-{{ $order->id }}</strong><div class="text-muted fs-12">{{ dateFormat($order->created_at) }}</div></td>
+                <td><strong>ORD-{{ $order->id }}</strong><div class="text-muted fs-12">{{ dateFormat($order->created_at) }}</div>@include('admin-views.order.partials._checkout-origin')</td>
                 <td>C{{ $order->customer_id }}<div class="text-muted fs-12">{{ $order->customer?->f_name }} {{ $order->customer?->l_name }}</div></td>
                 <td>M{{ $order->seller_id }}<div class="text-muted fs-12">{{ $order->seller?->shop?->name }}</div></td>
                 <td><span class="badge bg-{{ $order->payment_status==='paid'?'success':'warning' }}">{{ translate($order->payment_status) }}</span><div>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount)) }}</div></td>
