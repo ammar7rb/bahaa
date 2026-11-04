@@ -162,6 +162,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 app(\App\Services\CustomerPackageAutoRenewalService::class)->run();
             }
         })->name('renew-expired-customer-packages')->everyFiveMinutes()->withoutOverlapping();
+        $schedule->command('customer-package-refunds:release')->hourly()->withoutOverlapping();
         $schedule->command('commerce:release-matured-refunds')->hourly()->withoutOverlapping();
     })
     ->create();

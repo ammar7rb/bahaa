@@ -37,7 +37,7 @@
 @if(session('customer_cancel_message'))<div class="alert alert-success" role="status">{{ session('customer_cancel_message') }}</div>@endif
 @if($order->customer_checkout_operation_id && $order->order_status === 'canceled')
     @php($refundState = app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order)['package_refund'] ?? null)
-    @if($refundState)<div class="alert alert-info">{{ $refundState['status'] === 'completed' ? 'تم تسجيل رد المبلغ.' : ($refundState['status'] === 'external_approved' ? 'تم اعتماد الرد عبر وسيلة الدفع، وفي انتظار تنفيذ التحويل.' : 'طلب رد المبلغ قيد مراجعة الإدارة. تبدأ المهلة بعد الاعتماد.') }}</div>@endif
+    @if($refundState)<div class="alert alert-info">{{ $refundState['status'] === 'completed' ? 'تم تسجيل رد المبلغ.' : ($refundState['status'] === 'wallet_approved' ? 'تم اعتماد الرد إلى محفظة حسابك عند الموعد المحدد.' : 'طلب رد المبلغ قيد مراجعة الإدارة. تبدأ المهلة بعد الاعتماد.') }}</div>@endif
 @endif
 
 @include('customer-checkout.cancellation-request', ['state' => $purchaseState ?? []])

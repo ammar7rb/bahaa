@@ -35,7 +35,7 @@ class CustomerPackageRefundController extends Controller
             ['value' => (string) $data['days']],
         );
 
-        return back()->with('success', 'تم حفظ مهلة رد مدفوعات العملاء.');
+        return back()->with('success', 'تم حفظ مهلة رد مدفوعات العملاء للمحفظة.');
     }
 
     public function approve(Request $request, int $refund, CustomerPackageCancellationService $service)
@@ -48,8 +48,8 @@ class CustomerPackageRefundController extends Controller
     public function complete(Request $request, int $refund, CustomerPackageCancellationService $service)
     {
         $data = $request->validate([
-            'method' => ['required', 'in:external'],
-            'reference' => ['nullable', 'string', 'max:191', 'required_if:method,external'],
+            'method' => ['required', 'in:purchase_wallet'],
+            'reference' => ['nullable', 'string', 'max:191', 'nullable'],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
         $service->complete($refund, (int) auth('admin')->id(), $data['method'], $data['reference'] ?? null, $data['note'] ?? null);

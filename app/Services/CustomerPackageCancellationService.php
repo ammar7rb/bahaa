@@ -66,15 +66,15 @@ class CustomerPackageCancellationService
                 throw ValidationException::withMessages(['refund' => 'طلب الرد غير متاح للاعتماد.']);
             }
             $refund->update([
-                'status' => 'external_approved',
+                'status' => 'wallet_approved',
                 'due_at' => now()->addDays($days),
                 'admin_id' => $adminId,
-                'refund_method' => 'external',
+                'refund_method' => 'purchase_wallet',
             ]);
             app(CustomerPaymentNotificationService::class)->notify(
                 $refund->customer_id,
                 'order-status-'.$refund->order_id.'-package-refund-approved',
-                'تم اعتماد رد مبلغ الطلب #'.$refund->order_id.' عبر وسيلة الدفع. آخر موعد للرد '.$refund->due_at->format('Y-m-d').'.',
+                'تم اعتماد رد مبلغ الطلب #'.$refund->order_id.' إلى محفظة حسابك. موعد الرد '.$refund->due_at->format('Y-m-d').'.',
             );
             return $refund;
         }, 3);
@@ -82,8 +82,7 @@ class CustomerPackageCancellationService
 
     public function complete(int $refundId, int $adminId, string $method, ?string $reference, ?string $note): OrderAdminPurchaseRefund
     {
-        if ($method !== 'external') throw ValidationException::withMessages(['method' => 'اختر طريقة الرد.']);
-        if ($method === 'external' && trim((string) $reference) === '') throw ValidationException::withMessages(['reference' => 'أدخل مرجع عملية الرد المنفذة.']);
+        if ($method !== 'purchase_wallet') throw ValidationException::withMessages(['method' => 'اختر طريقة الرد.']);
         return DB::transaction(function () use ($refundId, $adminId, $method, $reference, $note) {
             $initial = OrderAdminPurchaseRefund::whereKey($refundId)->firstOrFail();
             User::whereKey($initial->customer_id)->lockForUpdate()->firstOrFail();
@@ -91,14 +90,24 @@ class CustomerPackageCancellationService
             $row = OrderAdminPurchaseRefund::whereKey($refundId)->lockForUpdate()->firstOrFail();
             if ($row->reason !== self::REASON) throw ValidationException::withMessages(['refund' => 'هذا الطلب له مسار استرداد آخر.']);
             if ($row->status === 'completed') return $row;
-            if ($row->status !== 'external_approved') throw ValidationException::withMessages(['refund' => 'حالة طلب الاسترداد لا تسمح بالتنفيذ.']);
+            if ($row->status !== 'wallet_approved') throw ValidationException::withMessages(['refund' => 'حالة طلب الاسترداد لا تسمح بالتنفيذ.']);
             if ($order->payment_status !== 'paid' || $order->order_status !== 'canceled') throw ValidationException::withMessages(['refund' => 'تعذر التحقق من حالة الطلب المدفوع الملغي.']);
             if ((Schema::hasTable('order_refund_ledgers') && DB::table('order_refund_ledgers')->where('order_id', $order->id)->exists())
                 || (Schema::hasTable('refund_requests') && DB::table('refund_requests')->where('order_id', $order->id)->exists())) {
                 throw ValidationException::withMessages(['refund' => 'يوجد مسار استرداد آخر لهذا الطلب. راجع السجلات المالية قبل التنفيذ.']);
             }
-            if ($method === 'external' && OrderAdminPurchaseRefund::where('reference', $reference)->where('id', '!=', $row->id)->exists()) {
-                throw ValidationException::withMessages(['reference' => 'مرجع التحويل مستخدم في طلب استرداد آخر.']);
+            if ($row->due_at->isFuture()) {
+                throw ValidationException::withMessages(['refund' => 'موعد رد المبلغ لم يحِن بعد.']);
+            }
+            $reference = 'customer-cancel-order-'.$order->id;
+            $transaction = app(CustomerPurchaseWalletPolicyService::class)->creditPurchaseRefundBaseCurrency(
+                (int) $row->customer_id, (float) $row->amount, $reference,
+            );
+            if ((int) $transaction->user_id !== (int) $row->customer_id
+                || $transaction->transaction_type !== 'order_refund'
+                || abs((float) $transaction->credit - (float) $row->amount) > 0.0001
+                || (float) $transaction->debit !== 0.0) {
+                throw ValidationException::withMessages(['refund' => 'مرجع رد المبلغ مرتبط بحركة غير مطابقة.']);
             }
             $row->update(['status' => 'completed', 'completed_at' => now(), 'admin_id' => $adminId,
                 'refund_method' => $method, 'reference' => $reference, 'admin_note' => $note]);
