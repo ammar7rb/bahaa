@@ -253,6 +253,10 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['customer', 'throttle:10,1,customer-support-report:'])->name('customer.support.report');
     Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show'])->name('customer.purchasing-limit');
     Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['customer', 'throttle:10,1,customer-profile-image:'])->name('customer.profile-image');
+    Route::view('account-settings', 'customer-account.settings')->middleware('customer')->name('customer.settings');
+    Route::post('account-settings/password', [\App\Http\Controllers\Customer\AccountSettingsController::class, 'password'])
+        ->middleware(['customer', 'throttle:5,1'])->name('customer.settings.password');
+
     Route::prefix('customer/account-deletion')->name('customer.deletion.')->middleware('customer')->controller('\App\Http\Controllers\Customer\AccountDeletionController')->group(function () {
         Route::post('confirm', 'confirm')->middleware('throttle:5,1,customer-deletion-confirm:')->name('confirm');
         Route::get('/', 'show')->name('show');

@@ -30,9 +30,7 @@
                                         <i class="tio-more-vertical"></i>
                                     </button>
                                     <div class="dropdown-menu delete-account-dropdown-menu">
-                                        <a class="dropdown-item" href="{{ route('customer.deletion.show') }}">
-                                            {{translate('delete_account')}}
-                                        </a>
+                                        <a class="dropdown-item" href="{{ route('customer.settings') }}">{{ translate('settings') }}</a>
                                     </div>
                                 </div>
                             </div>

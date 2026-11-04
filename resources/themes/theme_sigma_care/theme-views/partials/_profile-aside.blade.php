@@ -13,9 +13,7 @@
                     </button>
                     <ul class="dropdown-menu">
                         <li>
-                            <a class="d-flex align-items-center gap-2" href="{{ route('customer.deletion.show') }}">
-                                {{ translate('delete_my_account') }}
-                            </a>
+                            <a class="d-flex align-items-center gap-2" href="{{ route('customer.settings') }}">{{ translate('settings') }}</a>
                         </li>
                     </ul>
                 </div>

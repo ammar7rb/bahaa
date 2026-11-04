@@ -13,9 +13,7 @@
                     </button>
                     <ul class="dropdown-menu">
                         <li>
-                            <a class="d-flex align-items-center gap-2" href="{{ route('customer.deletion.show') }}">
-                                {{ translate('delete_my_account') }}
-                            </a>
+                            <a class="d-flex align-items-center gap-2" href="{{ route('customer.settings') }}">{{ translate('settings') }}</a>
                         </li>
                     </ul>
                 </div>
@@ -121,10 +119,7 @@
                         </a>
                     </li>
                     <li class="d-lg-none">
-                        <a class="d-flex align-items-center gap-2" href="{{ route('customer.deletion.show') }}">
-                            <i class="bi bi-trash3-fill text-danger fs-16"></i>
-                            {{ translate('delete_my_account') }}
-                        </a>
+                        <a class="d-flex align-items-center gap-2" href="{{ route('customer.settings') }}">{{ translate('settings') }}</a>
                     </li>
                 </ul>
             </div><div class="aside-overlay"></div>
