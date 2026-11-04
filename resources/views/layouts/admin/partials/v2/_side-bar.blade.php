@@ -275,6 +275,11 @@
 
             @if (Helpers::module_permission_check('people') || Helpers::module_permission_check('orders'))
             <a class="v2-nav-item {{ request()->routeIs('admin.payment-reviews.*') || request()->is('admin/workspace/reviews/payments') || request()->routeIs('admin.vendors.balance-funding-settings.*') ? 'v2-is-active' : '' }}" data-item="payment-reviews" href="{{ route('admin.payment-reviews.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-credit-card"></i></span><span class="v2-nav-label">{{ __('payments.title') }}</span></span><span class="v2-nav-right"><span data-v2-tag="primary" data-nav-workspace-count="payments" class="{{ empty($sidebarWorkspaceCategories['payments']['count']) ? 'd-none' : '' }}">{{ ($sidebarWorkspaceCategories['payments']['count'] ?? 0) > 99 ? '99+' : ($sidebarWorkspaceCategories['payments']['count'] ?? 0) }}</span></span></a>
+            @if(\App\Utils\Helpers::module_permission_check('orders'))
+                <a class="v2-nav-item {{ request()->boolean('guest_orders') ? 'v2-is-active' : '' }}" data-item="guest-orders" href="{{ route('admin.payment-reviews.index', ['guest_orders' => 1]) }}">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">طلبات زوار</span></span>
+                </a>
+            @endif
             @endif
             @if (Helpers::module_permission_check('business_settings'))
             <a class="v2-nav-item {{ request()->routeIs('admin.operations.shipping.*') ? 'v2-is-active' : '' }}" data-item="shipping-setup" href="{{ route('admin.operations.shipping.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v11H3zM14 10h4l3 4v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></span><span class="v2-nav-label">{{ __('shipping-governorates.setup') }}</span></span></a>

@@ -28,7 +28,7 @@ class PaymentReviewController extends Controller
     {
         abort_unless(\App\Utils\Helpers::module_permission_check('people') || \App\Utils\Helpers::module_permission_check('orders'), 403);
         $request->validate([
-            'panel' => 'nullable|in:settings',
+            'panel' => 'nullable|in:settings', 'guest_orders' => 'nullable|in:1',
             'record_type' => 'nullable|string|max:40', 'record_id' => 'nullable|integer|min:1',
             'audience' => 'nullable|in:customer,vendor', 'kind' => 'nullable|in:order,subscription,package,balance_deposit',
             'status' => 'nullable|in:pending,approved,rejected,reconciliation,reversed',
@@ -42,8 +42,13 @@ class PaymentReviewController extends Controller
                 'settingsPanel' => app(\App\Http\Controllers\Admin\Vendor\SellerBalanceFundingSettingsController::class)->pageData(),
             ]);
         }
+        if ($request->boolean('guest_orders')) {
+            abort_unless(\App\Utils\Helpers::module_permission_check('orders'), 403);
+            $request->merge(['audience' => 'customer', 'kind' => 'order']);
+        }
+
         // Normalize first, then apply identical filters to every workflow and count.
-        $rows = $this->rows(new Request($request->only(['audience', 'kind', 'record_id', 'record_type'])))->map(function ($row) {
+        $rows = $this->rows(new Request($request->only(['audience', 'kind', 'record_id', 'record_type', 'guest_orders'])))->map(function ($row) {
             $row['method'] = $row['method'] ?? data_get($row, 'offline.method_name') ?: translate('offline_payment');
             $row['request_number'] = $row['request_number'] ?? '#'.$row['id'];
             return $row;
@@ -364,6 +369,9 @@ class PaymentReviewController extends Controller
         if (\App\Utils\Helpers::module_permission_check('orders') && (!$audience || $audience === 'customer') && (!$kind || $kind === 'order')) {
             Order::query()
                 ->with(['customer:id,f_name,l_name,email,phone', 'offlinePayments'])
+                ->when($request->boolean('guest_orders'), fn ($query) => $query->whereHas('customer', fn ($customer) => $customer
+                    ->where('onboarding_journey', 'checkout_first')
+                    ->whereColumn('users.first_checkout_operation_id', 'orders.customer_checkout_operation_id')))
                 ->where('payment_method', 'offline_payment')
                 ->when($status === 'pending', fn ($q) => $q->where('payment_status', 'unpaid'))
                 ->when($status === 'approved', fn ($q) => $q->where('payment_status', 'paid'))
@@ -397,6 +405,7 @@ class PaymentReviewController extends Controller
                 });
         }
         if (\App\Utils\Helpers::module_permission_check('orders') && (!$audience || $audience === 'customer') && (!$kind || $kind === 'order')
+            && !$request->boolean('guest_orders')
             && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'customer_initial_payment_review_status')) {
             Order::with('customer')->where('payment_status', 'paid')->where('payment_method', '!=', 'offline_payment')
                 ->whereNotNull('customer_initial_payment_review_status')
