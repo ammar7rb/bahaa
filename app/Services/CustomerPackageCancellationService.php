@@ -41,19 +41,21 @@ class CustomerPackageCancellationService
             }
             $amount = (float) ($order->init_order_amount ?: $order->order_amount);
             if ($amount <= 0) throw ValidationException::withMessages(['order' => 'تعذر تحديد المبلغ المدفوع. تواصل مع الإدارة.']);
-            app(CustomerCancellationStockService::class)->restore($order);
             $refund = OrderAdminPurchaseRefund::create([
                 'order_id' => $order->id, 'customer_id' => $customerId, 'amount' => $amount,
                 // This status is deliberately not the auto-crediting scheduled status.
                 'status' => 'customer_requested', 'due_at' => now(), 'reason' => self::REASON,
             ]);
-            $order->forceFill([
-                'order_status' => 'canceled', 'customer_fulfillment_status' => 'canceled',
-                'commerce_flow_status' => 'purchase_refund_pending', 'commerce_flow_status_updated_at' => now(),
-                'operational_blocked_by' => 'customer_cancellation', 'operational_block_reason' => self::REASON,
-            ])->save();
+            if ($order->customer_cancel_request_status !== 'pending') {
+                \App\Models\SupportTicket::create([
+                    'customer_id' => $customerId, 'subject' => 'طلب إلغاء الطلب #'.$orderId,
+                    'description' => 'طلب العميل #'.$customerId.' إلغاء الطلب المدفوع المعلق لاختيار باقة ورد قيمته إلى المحفظة. راجع طلبات رد المشتريات لاتخاذ القرار.',
+                    'type' => 'problem_report', 'priority' => 'normal', 'status' => 'open', 'attachment' => [],
+                ]);
+            }
+            $order->forceFill(['customer_cancel_request_status' => 'pending'])->save();
             app(CustomerPaymentNotificationService::class)->notify($customerId, 'order-status-'.$orderId.'-package-cancel-requested',
-                'تم إلغاء الطلب #'.$orderId.' وطلب رد المبلغ. ستراجع الإدارة طلب الرد وتحدد موعده عند الاعتماد.');
+                'تم إرسال طلب إلغاء الطلب #'.$orderId.' ورد قيمته إلى الإدارة للمراجعة. لم يُلغَ الطلب بعد.');
             return $refund;
         }, 3);
     }
@@ -61,9 +63,27 @@ class CustomerPackageCancellationService
     public function approve(int $refundId, int $adminId, int $days): OrderAdminPurchaseRefund
     {
         return DB::transaction(function () use ($refundId, $adminId, $days) {
+            if ($adminId <= 0 || $days < 15 || $days > 30) throw ValidationException::withMessages(['refund' => 'تعذر تحديد مسؤول المراجعة أو مهلة الرد.']);
+            $initial = OrderAdminPurchaseRefund::findOrFail($refundId);
+            User::whereKey($initial->customer_id)->lockForUpdate()->firstOrFail();
+            $order = Order::whereKey($initial->order_id)->lockForUpdate()->firstOrFail();
             $refund = OrderAdminPurchaseRefund::lockForUpdate()->findOrFail($refundId);
             if ($refund->reason !== self::REASON || $refund->status !== 'customer_requested') {
                 throw ValidationException::withMessages(['refund' => 'طلب الرد غير متاح للاعتماد.']);
+            }
+            if ($order->payment_status !== 'paid') throw ValidationException::withMessages(['refund' => 'لم تعد حالة الدفع تسمح بالإلغاء ورد المبلغ.']);
+            if ($order->order_status !== 'canceled') {
+                if ($order->order_status !== 'pending' || $order->customer_eligible_at
+                    || !in_array('monthly_subscription', $order->customer_pending_reasons ?? [], true)) {
+                    throw ValidationException::withMessages(['refund' => 'تغيرت حالة الطلب. راجع حالته قبل اعتماد الإلغاء.']);
+                }
+                app(CustomerCancellationStockService::class)->restore($order);
+                $order->forceFill([
+                    'order_status' => 'canceled', 'customer_fulfillment_status' => 'canceled',
+                    'customer_cancel_request_status' => 'approved',
+                    'commerce_flow_status' => 'purchase_refund_pending', 'commerce_flow_status_updated_at' => now(),
+                    'operational_blocked_by' => 'customer_cancellation', 'operational_block_reason' => self::REASON,
+                ])->save();
             }
             $refund->update([
                 'status' => 'wallet_approved',
@@ -77,6 +97,26 @@ class CustomerPackageCancellationService
                 'تم اعتماد رد مبلغ الطلب #'.$refund->order_id.' إلى محفظة حسابك. موعد الرد '.$refund->due_at->format('Y-m-d').'.',
             );
             return $refund;
+        }, 3);
+    }
+
+    public function reject(int $refundId, int $adminId, string $reason): OrderAdminPurchaseRefund
+    {
+        if ($adminId <= 0 || !trim($reason)) throw ValidationException::withMessages(['reason' => 'اكتب سبب رفض الإلغاء.']);
+        return DB::transaction(function () use ($refundId, $adminId, $reason) {
+            $initial = OrderAdminPurchaseRefund::findOrFail($refundId);
+            User::whereKey($initial->customer_id)->lockForUpdate()->firstOrFail();
+            $order = Order::whereKey($initial->order_id)->lockForUpdate()->firstOrFail();
+            $refund = OrderAdminPurchaseRefund::lockForUpdate()->findOrFail($refundId);
+            if ($refund->reason !== self::REASON || $refund->status !== 'customer_requested' || $order->order_status === 'canceled') {
+                throw ValidationException::withMessages(['refund' => 'لا يمكن رفض هذا الطلب في حالته الحالية.']);
+            }
+            $refund->update(['status' => 'rejected', 'admin_id' => $adminId, 'admin_note' => trim($reason)]);
+            $order->forceFill(['customer_cancel_request_status' => 'rejected'])->save();
+            app(CustomerPaymentNotificationService::class)->notify($refund->customer_id,
+                'order-status-'.$order->id.'-package-cancel-rejected',
+                'لم تتم الموافقة على إلغاء الطلب #'.$order->id.'. السبب: '.trim($reason).'. يمكنك متابعة طلبك من حسابك.');
+            return $refund->fresh();
         }, 3);
     }
 

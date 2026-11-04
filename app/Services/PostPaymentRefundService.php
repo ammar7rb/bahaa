@@ -37,7 +37,7 @@ class PostPaymentRefundService
         $ledger = DB::transaction(function () use ($order, $purchaseAmount, $insuranceAmount, $adminId, $note, $availableAt, $key) {
             Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
             if (Schema::hasTable('order_admin_purchase_refunds') && DB::table('order_admin_purchase_refunds')
-                ->where('order_id', $order->id)->where('reason', 'customer_canceled_waiting_for_package')->exists()) {
+                ->where('order_id', $order->id)->where('reason', 'customer_canceled_waiting_for_package')->where('status', '!=', 'rejected')->exists()) {
                 throw new RuntimeException('يوجد مسار رد مشتريات لهذا الطلب؛ لا يمكن إنشاء رد ثانٍ.');
             }
             $existing = OrderRefundLedger::where('idempotency_key', $key)->lockForUpdate()->first();

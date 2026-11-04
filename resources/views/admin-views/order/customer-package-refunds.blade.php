@@ -2,7 +2,7 @@
 @section('title', 'طلبات رد المشتريات')
 @section('content')
 <div class="content container-fluid" dir="rtl">
-    <h1 class="h2">طلبات رد المشتريات بعد إلغاء الطلب</h1>
+    <h1 class="h2">طلبات إلغاء المشتريات ورد قيمتها</h1>
     <p>تبدأ مهلة الرد من اعتماد الإدارة. يرد المبلغ إلى محفظة الحساب عند حلول الموعد.</p>
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
@@ -21,17 +21,24 @@
                 <td><a href="{{ route('admin.orders.details', $refund->order_id) }}">#{{ $refund->order_id }}</a><br>العميل #{{ $refund->customer_id }}<br><small>طريقة الدفع: {{ $refund->order?->payment_method }}</small></td>
                 <td>{{ $refund->amount }}</td>
                 <td>{{ $refund->created_at?->format('Y-m-d H:i') }}
-                    @if($refund->status !== 'customer_requested')<br>{{ $refund->due_at?->format('Y-m-d H:i') }}@endif
+                    @if(in_array($refund->status, ['wallet_approved', 'completed'], true))<br>{{ $refund->due_at?->format('Y-m-d H:i') }}@endif
                     @if($refund->status === 'wallet_approved' && $refund->due_at?->isPast())<strong class="text-danger">متأخر</strong>@endif
                 </td>
-                <td>{{ ['customer_requested' => 'بانتظار قرار الإدارة', 'wallet_approved' => 'معتمد وبانتظار الإضافة للمحفظة', 'completed' => 'تم تسجيل الرد'][$refund->status] ?? $refund->status }}</td>
+                <td>{{ ['customer_requested' => 'بانتظار قرار الإدارة', 'rejected' => 'مرفوض — يستمر الطلب', 'wallet_approved' => 'معتمد وبانتظار الإضافة للمحفظة', 'completed' => 'تم تسجيل الرد'][$refund->status] ?? $refund->status }}<br>{{ $refund->admin_note }}</td>
                 <td>
                     @if($refund->status === 'customer_requested')
                         <form method="post" action="{{ route('admin.orders.package-refunds.approve', $refund->id) }}">
                             @csrf
                             <p>مهلة الرد بعد الاعتماد: {{ $refundDays }} يومًا.</p>
-                            <button class="btn btn-primary mt-2" type="submit">اعتماد الرد إلى المحفظة</button>
+                            <button class="btn btn-primary mt-2" type="submit">اعتماد الإلغاء والرد إلى المحفظة</button>
                         </form>
+                        @if($refund->order?->order_status !== 'canceled')
+                            <form method="post" action="{{ route('admin.orders.package-refunds.reject', $refund->id) }}" class="mt-2">
+                                @csrf
+                                <label>سبب الرفض<input class="form-control" name="reason" maxlength="2000" required></label>
+                                <button class="btn btn-outline-danger mt-2" type="submit">رفض طلب الإلغاء</button>
+                            </form>
+                        @endif
                     @elseif($refund->status === 'wallet_approved')
                         <form method="post" action="{{ route('admin.orders.package-refunds.complete', $refund->id) }}">
                             @csrf

@@ -24,6 +24,11 @@ class CustomerPackageCancellationServiceTest extends TestCase
             $t->string('customer_fulfillment_status')->nullable(); $t->string('commerce_flow_status')->nullable();
             $t->timestamp('commerce_flow_status_updated_at')->nullable(); $t->string('operational_blocked_by')->nullable();
             $t->string('operational_block_reason')->nullable(); $t->string('customer_checkout_operation_id')->nullable(); $t->timestamps();
+            $t->string('customer_cancel_request_status')->nullable();
+        });
+        Schema::create('support_tickets', function (Blueprint $table) {
+            $table->id(); $table->integer('customer_id'); $table->string('subject'); $table->text('description');
+            $table->string('type'); $table->string('priority'); $table->string('status'); $table->text('attachment')->nullable(); $table->timestamps();
         });
         Schema::create('order_admin_purchase_refunds', function (Blueprint $t) {
             $t->id(); $t->integer('order_id')->unique(); $t->integer('customer_id'); $t->decimal('amount',18,2); $t->string('status');
@@ -45,6 +50,9 @@ class CustomerPackageCancellationServiceTest extends TestCase
         $this->assertSame($row->id, $retry->id);
         $this->assertSame('customer_requested', $row->status);
         $this->assertEquals(115, $row->amount);
+        $this->assertSame('pending', DB::table('orders')->where('id', 1)->value('order_status'));
+        $this->assertSame('pending', DB::table('orders')->where('id', 1)->value('customer_cancel_request_status'));
+        $this->assertSame(1, DB::table('support_tickets')->count());
         $this->travel(3)->days();
         $approved = $service->approve($row->id, 7, 15);
         $this->assertTrue($approved->due_at->equalTo(now()->addDays(15)));
@@ -79,7 +87,7 @@ class CustomerPackageCancellationServiceTest extends TestCase
     public function test_stock_out_refund_cannot_duplicate_customer_cancellation_refund(): void
     {
         $stock = Mockery::mock(CustomerCancellationStockService::class);
-        $stock->shouldReceive('restore')->once(); $this->app->instance(CustomerCancellationStockService::class, $stock);
+        $stock->shouldNotReceive('restore'); $this->app->instance(CustomerCancellationStockService::class, $stock);
         app(CustomerPackageCancellationService::class)->request(1, 1);
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('لا يمكن إنشاء رد ثان');
@@ -99,15 +107,45 @@ class CustomerPackageCancellationServiceTest extends TestCase
         $this->assertSame('wallet_approved', DB::table('order_admin_purchase_refunds')->value('status'));
     }
 
-    public function test_failed_stock_restoration_rolls_back_request_and_cancellation(): void
+    public function test_failed_stock_restoration_rolls_back_approval_without_losing_customer_request(): void
     {
         $stock = Mockery::mock(CustomerCancellationStockService::class);
         $stock->shouldReceive('restore')->once()->andThrow(new \RuntimeException('stock unavailable'));
         $this->app->instance(CustomerCancellationStockService::class, $stock);
-        try { app(CustomerPackageCancellationService::class)->request(1, 1); $this->fail('Expected failure'); }
+        $service = app(CustomerPackageCancellationService::class);
+        $row = $service->request(1, 1);
+        try { $service->approve($row->id, 7, 15); $this->fail('Expected failure'); }
         catch (\RuntimeException $e) { $this->assertSame('stock unavailable', $e->getMessage()); }
-        $this->assertSame(0, DB::table('order_admin_purchase_refunds')->count());
+        $this->assertSame('customer_requested', DB::table('order_admin_purchase_refunds')->value('status'));
         $this->assertSame('pending', DB::table('orders')->where('id', 1)->value('order_status'));
+    }
+
+    public function test_admin_rejection_keeps_order_wallet_and_stock_unchanged(): void
+    {
+        $stock = Mockery::mock(CustomerCancellationStockService::class);
+        $stock->shouldNotReceive('restore');
+        $this->app->instance(CustomerCancellationStockService::class, $stock);
+        $service = app(CustomerPackageCancellationService::class);
+        $row = $service->request(1, 1);
+        $rejected = $service->reject($row->id, 7, 'تواصل معنا لاستكمال الطلب');
+        $this->assertSame('rejected', $rejected->status);
+        $this->assertSame('pending', DB::table('orders')->where('id', 1)->value('order_status'));
+        $this->assertSame('paid', DB::table('orders')->where('id', 1)->value('payment_status'));
+        $this->assertEquals(0, DB::table('users')->where('id', 1)->value('wallet_balance'));
+        $this->expectException(ValidationException::class);
+        $service->approve($row->id, 7, 15);
+    }
+
+    public function test_approval_rechecks_an_order_that_started_preparing_after_the_request(): void
+    {
+        $stock = Mockery::mock(CustomerCancellationStockService::class);
+        $stock->shouldNotReceive('restore');
+        $this->app->instance(CustomerCancellationStockService::class, $stock);
+        $service = app(CustomerPackageCancellationService::class);
+        $row = $service->request(1, 1);
+        DB::table('orders')->where('id', 1)->update(['order_status' => 'processing', 'customer_eligible_at' => now()]);
+        $this->expectException(ValidationException::class);
+        $service->approve($row->id, 7, 15);
     }
 
     public function test_schema_upgrade_preserves_existing_refunds(): void

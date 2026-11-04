@@ -7,7 +7,7 @@
         <span>{{ $purchaseState['message'] }}</span>
         @include('customer-checkout.next-action')
         @if($purchaseState['can_cancel_for_package'] ?? false)
-            <form method="post" action="{{ route('customer.order.package-cancellation', $order->id) }}" onsubmit="return confirm('تأكيد إلغاء الطلب وطلب رد المبلغ؟')">@csrf<button class="btn btn-outline-danger" type="submit">إلغاء الطلب وطلب رد المبلغ</button></form>
+            <form method="post" action="{{ route('customer.order.package-cancellation', $order->id) }}" onsubmit="return confirm('إرسال طلب الإلغاء ورد المبلغ إلى الإدارة للمراجعة؟ لن يُلغى الطلب قبل الموافقة.')">@csrf<button class="btn btn-outline-danger" type="submit">طلب إلغاء الطلب ورد المبلغ</button></form>
         @endif
     </div>
 @endif

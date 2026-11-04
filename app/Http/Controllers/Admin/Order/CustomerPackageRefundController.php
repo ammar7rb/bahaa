@@ -55,4 +55,11 @@ class CustomerPackageRefundController extends Controller
         $service->complete($refund, (int) auth('admin')->id(), $data['method'], $data['reference'] ?? null, $data['note'] ?? null);
         return back()->with('success', 'تم تسجيل تنفيذ رد المبلغ.');
     }
+
+    public function reject(Request $request, int $refund, CustomerPackageCancellationService $service)
+    {
+        $data = $request->validate(['reason' => 'required|string|max:2000']);
+        $service->reject($refund, (int) auth('admin')->id(), $data['reason']);
+        return back()->with('success', 'تم رفض طلب الإلغاء وإبلاغ العميل.');
+    }
 }

@@ -645,6 +645,11 @@ class OrderController extends BaseController
             abort_unless($order->customer_cancel_request_status === 'pending', 409);
             $order->customer_cancel_request_status = 'rejected';
             $order->save();
+            if (\Illuminate\Support\Facades\Schema::hasTable('order_admin_purchase_refunds')) {
+                DB::table('order_admin_purchase_refunds')->where('order_id', $id)
+                    ->where('reason', 'customer_canceled_waiting_for_package')->where('status', 'customer_requested')
+                    ->update(['status' => 'rejected', 'admin_id' => auth('admin')->id(), 'admin_note' => $input['reason'], 'updated_at' => now()]);
+            }
             app(\App\Services\CustomerPaymentNotificationService::class)->notify(
                 (int) $order->customer_id, 'order-status-'.$id.'-cancel-request-rejected',
                 'تم رفض طلب إلغاء الطلب #'.$id.'. '.$input['reason'],
