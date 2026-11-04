@@ -192,6 +192,12 @@ class ProductController extends BaseController
 
     public function getAddView(): View|RedirectResponse
     {
+        if (config('vendor_advertising.creation_slots_enabled')
+            && (!request()->filled('slot_id') || !request()->filled('slot_reservation_token'))) {
+            return redirect()->route('vendor.packages.index')->withErrors([
+                'slot' => 'اختر مساحة متاحة وافتح نموذج إضافة المنتج منها.',
+            ]);
+        }
         $taxData = $this->getTaxSystemType();
         $productWiseTax = $taxData['productWiseTax'] && ! $taxData['is_included'];
         $taxVats = $taxData['taxVats'];
