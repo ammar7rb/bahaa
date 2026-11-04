@@ -1,0 +1,25 @@
+{
+  "browser": "157.0.8103.39",
+  "results": [
+    {
+      "width": 390,
+      "status": "نشط",
+      "lastMenuLinks": [
+        "/account-settings",
+        "/account-messages"
+      ],
+      "passed": true,
+      "source": "HTML rendered by isolated clone as C000036 with production styles"
+    },
+    {
+      "width": 1280,
+      "status": "نشط",
+      "lastMenuLinks": [
+        "/account-settings",
+        "/account-messages"
+      ],
+      "passed": true,
+      "source": "HTML rendered by isolated clone as C000036 with production styles"
+    }
+  ]
+}
