@@ -12,16 +12,16 @@
                 <form method="post" action="{{ route('customer.auth.checkout-register') }}" data-checkout-onboarding-form>
                     @csrf
                     <div class="form-group mb-4">
-                        <label for="customer-name">الاسم</label>
+                        <label for="customer-name">الاسم <span class="text-danger" aria-hidden="true">*</span></label>
                         <input class="form-control fs-16" id="customer-name" name="name" autocomplete="name" maxlength="100" required value="{{ old('name') }}" @error('name') aria-invalid="true" @enderror>
                     </div>
                     <div class="form-group mb-4">
-                        <label for="customer-phone">رقم الموبايل</label>
+                        <label for="customer-phone">رقم الموبايل <span class="text-danger" aria-hidden="true">*</span></label>
                         <input class="form-control fs-16" id="customer-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" dir="ltr" required value="{{ old('phone') }}" aria-describedby="checkout-phone-hint" @error('phone') aria-invalid="true" @enderror>
                         <small class="text-muted" id="checkout-phone-hint">رقم موبايل مصري يبدأ بـ 010 أو 011 أو 012 أو 015.</small>
                     </div>
                     <div class="form-group mb-4">
-                        <label for="customer-password">كلمة المرور</label>
+                        <label for="customer-password">كلمة المرور <span class="text-danger" aria-hidden="true">*</span></label>
                         <input class="form-control fs-16" id="customer-password" name="password" type="password" autocomplete="new-password" minlength="6" maxlength="128" required aria-describedby="checkout-password-hint" @error('password') aria-invalid="true" @enderror>
                         <small class="text-muted" id="checkout-password-hint">6 أحرف على الأقل. استخدمها لتسجيل الدخول لاحقًا.</small>
                     </div>
