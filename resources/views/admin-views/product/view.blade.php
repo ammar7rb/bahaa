@@ -10,7 +10,9 @@
 @if($product->category_review_required)<div class="alert alert-warning m-3" role="alert">{{ translate('other_category_review') }} · {{ translate('category_assignment_required_before_publish') }}</div>@endif
     <div class="content container-fluid text-start sigma-product">
         @if($product->added_by === 'seller')
-            @php($viewCounts = app(\App\Services\ProductViewCountService::class)->totals((int) $product->id))
+            @php
+                $viewCounts = app(\App\Services\ProductViewCountService::class)->totals((int) $product->id);
+            @endphp
             <div class="card mb-3"><div class="card-body">
                 <h3 class="fs-16">مشاهدات المنتج</h3>
                 <p>المسجلة: {{ $viewCounts['actual'] }} · المضافة: {{ $viewCounts['added'] }} · الظاهرة للتاجر: {{ $viewCounts['total'] }}</p>

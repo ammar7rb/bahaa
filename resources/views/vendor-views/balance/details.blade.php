@@ -28,7 +28,8 @@
             <tbody>@foreach($withdrawals as $row)@if($row->source_bucket === 'operating')<tr>
                 <td>{{ $row->transaction_number }}</td><td>{{ webCurrencyConverter($row->amount) }}</td>
                 <td>{{ $row->approved === 0 ? ($row->reviewed_at ? 'معتمد بانتظار الصرف' : 'قيد المراجعة') : ($row->approved === 1 ? 'تم الصرف' : 'مرفوض أو ملغي') }}</td><td>{{ $row->payout_due_at }}</td>
-            </tr>@endif@endforeach</tbody>
+            </tr>@endif
+            @endforeach</tbody>
         </table></div>{{ $withdrawals->links() }}
     </section>
 @endif
