@@ -267,6 +267,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('/', 'index')->name('index');
         Route::post('{payment}/cancel', 'cancel')->middleware('throttle:10,1,customer-package-cancel:')->name('cancel');
         Route::post('checkout', 'checkout')->middleware('throttle:10,1,customer-package-quote:')->name('checkout');
+        Route::post('auto-renew', 'enableAutoRenew')->middleware('throttle:5,1')->name('auto-renew');
         Route::post('transact','transact')->middleware('throttle:10,1,customer-package-transaction:')->name('transact');
         Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1,customer-package-wallet:')->name('wallet');
         Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1,customer-package-transfer:')->name('offline');

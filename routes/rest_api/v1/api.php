@@ -73,6 +73,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::get('/', 'index');
         Route::post('{payment}/cancel', 'cancel')->middleware('throttle:10,1,customer-package-cancel:');
         Route::post('checkout', 'checkout')->middleware('throttle:10,1,customer-package-quote:');
+        Route::post('auto-renew', 'enableAutoRenew')->middleware('throttle:5,1');
         Route::post('transact','transact')->middleware('throttle:10,1,customer-package-transaction:');
         Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1,customer-package-wallet:');
         Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1,customer-package-transfer:');

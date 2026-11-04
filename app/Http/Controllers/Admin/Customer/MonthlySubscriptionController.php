@@ -19,6 +19,18 @@ class MonthlySubscriptionController extends Controller
         ]);
     }
 
+    public function disableAutoRenew(int $customer)
+    {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($customer) {
+            $user = \App\Models\User::lockForUpdate()->findOrFail($customer);
+            $user->package_auto_renew = false;
+            $user->package_auto_renew_failed_at = null;
+            $user->save();
+        });
+
+        return back()->with('subscription_message', 'تم إيقاف التجديد التلقائي.');
+    }
+
     public function pricing(Request $request)
     {
         abort_unless(\App\Utils\Helpers::module_permission_check('business_settings'), 403);

@@ -9,3 +9,9 @@
         });
     });
 })->name('purge-expired-wallet-deposit-notifications')->daily()->withoutOverlapping();
+
+\Illuminate\Support\Facades\Schedule::call(function () {
+    if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'package_auto_renew')) {
+        app(\App\Services\CustomerPackageAutoRenewalService::class)->run();
+    }
+})->name('renew-expired-customer-packages')->everyFiveMinutes()->withoutOverlapping();

@@ -170,6 +170,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
     Route::prefix('customer/monthly-subscriptions')->name('customer.monthly-subscriptions.')->middleware('module:people')->controller('\App\Http\Controllers\Admin\Customer\MonthlySubscriptionController')->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::post('customers/{customer}/disable-auto-renew', 'disableAutoRenew')->name('disable-auto-renew');
         Route::post('pricing', 'pricing')->middleware('module:business_settings')->name('pricing');
         Route::post('{payment}/review', 'review')->name('review');
         Route::get('{payment}/proof', 'proof')->name('proof');

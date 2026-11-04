@@ -46,7 +46,11 @@ class CustomerPackageWalletService
                 'granted_allowance'=>$terms['allowance'],'terms_snapshot'=>$terms,'allowance_before'=>$before,
             ]);
             $sub=$this->apply($customerId,$payment,$active);
-            $customer->wallet_balance=($balance-$debit)/1000;$customer->save();
+            $customer->wallet_balance = ($balance-$debit)/1000;
+            if (!in_array($terms['kind'], ['increase', 'renew_limit'], true) && $customer->package_auto_renew_failed_at) {
+                $customer->package_auto_renew_failed_at = null;
+            }
+            $customer->save();
             $reference='customer-package-'.$payment->purchase_kind.'-'.$payment->id;
             WalletTransaction::create(['user_id'=>$customerId,'transaction_id'=>$reference,'reference'=>$reference,
                 'transaction_type'=>'monthly_subscription','payment_method'=>'wallet_balance','credit'=>0,'debit'=>$debit/1000,

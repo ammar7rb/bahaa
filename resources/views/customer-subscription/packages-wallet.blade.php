@@ -22,6 +22,15 @@
         <dl class="package-account-facts">@foreach(['base_limit'=>'حد الباقة الأساسي','committed_limit'=>'المستخدم أو المحجوز خلال الاشتراك','available_limit'=>'المتاح الآن'] as $key=>$label)<div><dt>{{ $label }}</dt><dd><bdi>{{ $money($subscription['allowance'][$key]) }}</bdi> <small>ج.م</small></dd></div>@endforeach</dl>
     </section>
     @endif
+    @if($subscription['active'] && !$auto_renew_enabled)
+        <form class="monthly-notice" method="post" action="{{ route('customer.subscription.auto-renew') }}">
+            @csrf
+            <label><input type="checkbox" name="auto_renew" value="1" required> تجديد تلقائي من رصيد المحفظة عند انتهاء الباقة</label>
+            <button type="submit" class="monthly-button">تفعيل التجديد التلقائي</button>
+        </form>
+    @elseif($auto_renew_enabled)
+        <p class="monthly-notice">التجديد التلقائي مفعّل. لإيقافه تواصل مع الإدارة.</p>
+    @endif
     @if($subscription['legacy_open_payment'] ?? null)<p class="monthly-notice">توجد عملية سابقة محفوظة في السجل. لا تُخصم تلقائيًا؛ تابع حالتها مع الإدارة.</p>@endif
     @if($subscription['active'])<p class="monthly-notice">يبدأ التجديد أو تغيير الباقة فترة جديدة مدتها 30 يومًا فورًا.</p>@endif
     <section id="monthly-plans" class="package-plans" aria-labelledby="plans-title"><h2 id="plans-title">{{ $subscription['active'] ? 'باقتك والترقية' : 'اختر باقتك' }}</h2><div class="package-grid">
