@@ -1,15 +1,25 @@
-@extends('layouts.front-end.app')
+@extends(in_array(theme_root_path(), ['theme_aster', 'theme_sigma_care'], true) ? 'theme-views.layouts.app' : 'layouts.front-end.app')
 @section('title', translate('delete_account'))
 @section('content')
-@php($deletionArabic = getLanguageCode(country_code: getDefaultLanguage()) === 'ar')
+@php($stage = $stage ?? 1)
 <main class="container py-5">
-    <h1>{{ $deletionArabic ? 'حذف الحساب' : 'Delete account' }}</h1>
+    <h1>{{ translate('delete_account') }}</h1>
     @if($errors->any())<div role="alert" class="alert alert-danger">{{ $errors->first() }}</div>@endif
-    <p>{{ $deletionArabic ? 'هل أنت متأكد من حذف حسابك؟ بعد التأكيد سيتم إغلاق الحساب وتسجيل خروجك.' : 'Are you sure you want to delete your account? Confirming will close your account and sign you out.' }}</p>
-    <form method="post" action="{{ route('customer.deletion.confirm') }}">
+    <form method="post" action="{{ route(match($stage) { 2 => 'customer.deletion.reason', 3 => 'customer.deletion.finish', default => 'customer.deletion.begin' }) }}">
         @csrf
-        <button class="btn btn-danger mt-3" type="submit" name="confirmation" value="1">{{ $deletionArabic ? 'نعم، حذف الحساب' : 'Yes, delete account' }}</button>
-        <a class="btn btn-link mt-3" href="{{ route('user-profile') }}">{{ $deletionArabic ? 'إلغاء' : 'Cancel' }}</a>
+        @if($stage > 1)<input type="hidden" name="flow_token" value="{{ $token }}">@endif
+        @if($stage === 2)
+            <label for="deletion-reason">سبب حذف الحساب (150 حرفًا على الأقل)</label>
+            <textarea class="form-control mb-3" id="deletion-reason" name="reason" minlength="150" maxlength="5000" required>{{ old('reason') }}</textarea>
+        @else
+            <label for="deletion-password">{{ translate('current_password') }}</label>
+            <input class="form-control mb-3" id="deletion-password" name="password" type="password" autocomplete="current-password" maxlength="128" required>
+        @endif
+        @if($stage === 3)
+            <label class="d-block mb-3"><input type="checkbox" name="confirmation" value="1" required> أؤكد إغلاق حسابي وتسجيل الخروج.</label>
+        @endif
+        <button class="btn {{ $stage === 3 ? 'btn-danger' : 'btn-primary' }}" type="submit">{{ $stage === 3 ? translate('delete_account') : translate('continue') }}</button>
+        <a class="btn btn-link" href="{{ route('customer.settings') }}">{{ translate('cancel') }}</a>
     </form>
 </main>
 @endsection

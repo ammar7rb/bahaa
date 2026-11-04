@@ -236,7 +236,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('account-messages', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->middleware('customer')->name('customer.messages.index');
         Route::get('order-cancel/{id}', 'order_cancel')->name('order-cancel');
         Route::post('ticket-submit', 'submitSupportTicket')->name('ticket-submit');
-        Route::get('account-delete/{id}', [\App\Http\Controllers\Customer\AccountDeletionController::class, 'show'])->name('account-delete');
+        Route::redirect('account-delete/{id}', '/account-settings')->middleware('customer')->name('account-delete');
         Route::get('refer-earn', 'refer_earn')->name('refer-earn')->middleware('customer');
         Route::get('user-coupons', 'user_coupons')->name('user-coupons')->middleware('customer');
         Route::get('user-restock-requests', 'restockRequestsView')->name('user-restock-requests')->middleware('customer');
@@ -258,7 +258,6 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         ->middleware(['customer', 'throttle:5,1'])->name('customer.settings.password');
 
     Route::prefix('customer/account-deletion')->name('customer.deletion.')->middleware('customer')->controller('\App\Http\Controllers\Customer\AccountDeletionController')->group(function () {
-        Route::post('confirm', 'confirm')->middleware('throttle:5,1,customer-deletion-confirm:')->name('confirm');
         Route::get('/', 'show')->name('show');
         Route::post('begin', 'begin')->middleware('throttle:5,1,customer-deletion-password:')->name('begin');
         Route::post('reason', 'reason')->middleware('throttle:10,1,customer-deletion-reason:')->name('reason');
