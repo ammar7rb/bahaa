@@ -24,6 +24,18 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class ShippingMethodController extends BaseController
 {
+    public function workspace(): View
+    {
+        $egyptZoneRates = EgyptShippingZoneRate::query()
+            ->orderByRaw('governorate IS NULL DESC')->orderBy('governorate')->get();
+        return view('admin-views.shipping-method.index', compact('egyptZoneRates'));
+    }
+
+    public function workspaceRedirect(): RedirectResponse
+    {
+        return redirect()->route('admin.operations.shipping.index');
+    }
+
     /**
      * @param ShippingMethodRepositoryInterface $shippingMethodRepo
      * @param ShippingTypeRepositoryInterface $shippingTypeRepo
