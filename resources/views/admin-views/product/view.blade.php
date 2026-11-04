@@ -1109,7 +1109,6 @@
         </div>
     </div>
 
-    @unless(app(\App\Services\SellerProductReviewService::class)->hasExtraSlot($product))
     <div class="modal fade" id="publishNoteModal" tabindex="-1" aria-labelledby="exampleModalLabel"
         aria-hidden="true">
         <div class="modal-dialog">
@@ -1144,7 +1143,6 @@
             </div>
         </div>
     </div>
-    @endunless
         @endif
     <span id="get-update-status-route" data-action="{{ route('admin.products.approve-status') }}"></span>
 
