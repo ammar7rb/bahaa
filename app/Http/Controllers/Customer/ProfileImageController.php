@@ -12,8 +12,8 @@ class ProfileImageController extends Controller
         $id = $request->is('api/*') ? $request->user('api')->id : auth('customer')->id();
         $name = (string) \Illuminate\Support\Str::uuid().'.webp';
         $image = \Intervention\Image\Facades\Image::make($request->file('image'))->orientate()->resize(1600,1600, function ($constraint) { $constraint->aspectRatio(); $constraint->upsize(); })->encode('webp',85);
-        $disk = \Illuminate\Support\Facades\Storage::disk(config('filesystems.disks.default') ?? 'public');
-        if (!$disk->put('profile/'.$name,(string)$image)) throw \Illuminate\Validation\ValidationException::withMessages(['image'=>'تعذر حفظ الصورة. أعد المحاولة.']);
+        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        if (!$disk->put('private-account-photos/profile/'.$name,(string)$image)) throw \Illuminate\Validation\ValidationException::withMessages(['image'=>'تعذر حفظ الصورة. أعد المحاولة.']);
         try {
             $old = DB::transaction(function () use ($id, $name) {
                 $user = User::lockForUpdate()->findOrFail($id); $old = $user->image;
