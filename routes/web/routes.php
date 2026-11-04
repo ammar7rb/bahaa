@@ -256,6 +256,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show'])->name('customer.purchasing-limit');
     Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['customer', 'throttle:10,1,customer-profile-image:'])->name('customer.profile-image');
     Route::get('account-photos/{kind}/{id}', [\App\Http\Controllers\Customer\AccountPhotoController::class, '__invoke'])
+        ->withoutMiddleware(\App\Http\Middleware\GuestMiddleware::class)
         ->whereIn('kind', ['customer', 'seller'])->whereNumber('id')->name('account-photos.show');
 
     Route::get('wallet/withdrawals', [\App\Http\Controllers\Customer\WalletWithdrawalController::class, 'index'])->middleware('customer')->name('customer.withdrawals.index');

@@ -83,9 +83,10 @@ class VendorAccountAndInboxTest extends TestCase
         Storage::disk('local')->assertExists($profile->commercial_document);
         Storage::disk('public')->assertMissing($profile->commercial_document);
         $this->assertNotNull($this->seller->fresh()->image);
-        Storage::disk('public')->assertExists('seller/'.$this->seller->fresh()->image);
+        Storage::disk('public')->assertMissing('seller/'.$this->seller->fresh()->image);
+        Storage::disk('local')->assertExists('private-account-photos/seller/'.$this->seller->fresh()->image);
         $payload = $controller->show($this->request())->getData(true);
-        $this->assertSame('M8', $payload['account_id']);
+        $this->assertSame('M000008', $payload['account_id']);
         $this->assertArrayNotHasKey('commercial_document', $payload);
         $this->assertTrue($payload['tax_document_uploaded']);
         $this->assertSame(200, $controller->document($this->request(), 'tax')->getStatusCode());
