@@ -73,6 +73,12 @@ class AccountPhotoPrivacyTest extends TestCase
         $this->assertTrue(app(AccountPhotoAccess::class)->canView('seller', 11));
     }
 
+    public function test_legacy_default_avatar_does_not_request_a_nonexistent_private_photo(): void
+    {
+        $this->actingAs(User::findOrFail(1), 'customer');
+        $this->assertSame(['key' => null, 'path' => null, 'status' => 404], app(AccountPhotoAccess::class)->link('customer', 1, 'def.png'));
+    }
+
     public function test_merchant_can_view_only_their_own_photo(): void
     {
         $this->actingAs((new \App\Models\Seller())->forceFill(['id' => 11]), 'seller');

@@ -26,7 +26,7 @@ class AccountPhotoAccess
 
     public function link(string $kind, int $id, ?string $filename): array
     {
-        if (!$filename || !$this->canView($kind, $id)) {
+        if (!$filename || $filename === 'def.png' || !$this->canView($kind, $id)) {
             return ['key' => null, 'path' => null, 'status' => 404];
         }
 
