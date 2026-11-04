@@ -37,6 +37,10 @@ $(document).ready(function () {
         syncEgyptianPhone();
     });
 
+    $('#seller-registration').on('input', '.first-el [required]', function () {
+        this.setCustomValidity('');
+    });
+
     $('.proceed-to-next-btn').click(function () {
         const registrationForm = document.getElementById('seller-registration');
         const firstStepRequiredInputs = registrationForm
