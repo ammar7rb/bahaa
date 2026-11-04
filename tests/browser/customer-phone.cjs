@@ -76,15 +76,17 @@ async function check(page, label) {
     }
     if (process.env.SIGMA_TEST_LIVE_PHONE === '1') {
       const page = await browser.newPage();
-      await page.route('**/intlTelInout-validation.js*', route => route.fulfill({ path: path.join(root, scripts['/legacy.js']), contentType: 'application/javascript' }));
-      await page.route('**/egypt-phone-validation.js*', route => route.fulfill({ path: path.join(root, scripts['/egypt.js']), contentType: 'application/javascript' }));
+      if (process.env.SIGMA_LIVE_ASSETS !== '1') {
+        await page.route('**/intlTelInout-validation.js*', route => route.fulfill({ path: path.join(root, scripts['/legacy.js']), contentType: 'application/javascript' }));
+        await page.route('**/egypt-phone-validation.js*', route => route.fulfill({ path: path.join(root, scripts['/egypt.js']), contentType: 'application/javascript' }));
+      }
       for (const url of ['https://sigma-eg.net/customer/auth/checkout-register', 'https://sigma-eg.net/customer/auth/sign-up']) {
         await page.goto(url, { waitUntil: 'networkidle' });
         const modal = page.locator('#registerModal');
         if (await modal.count() && !(await page.locator('input[type="tel"]:visible').count())) {
           await page.evaluate(() => window.bootstrap.Modal.getOrCreateInstance(document.getElementById('registerModal')).show());
         }
-        await check(page, 'live-html-with-local-script/' + url);
+        await check(page, (process.env.SIGMA_LIVE_ASSETS === '1' ? 'deployed-live/' : 'live-html-with-local-script/') + url);
       }
       await page.close();
     }
