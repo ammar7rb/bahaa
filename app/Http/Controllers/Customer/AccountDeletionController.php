@@ -39,7 +39,7 @@ class AccountDeletionController extends Controller
     public function finish(Request $r, CustomerAccountDeletionService $service) {
         try {
         $data = $r->validate(['flow_token' => 'required|string|size:64', 'password' => 'required|string|max:128']);
-        if (!$r->is('api/*')) $r->validate(['confirmation' => 'required|accepted']);
+        $r->validate(['confirmation' => 'required|accepted']);
         $service->finish($this->id($r), $data['flow_token'], $data['password']);
         if ($r->is('api/*')) return response()->json(['deleted' => true]);
         auth('customer')->logout(); $r->session()->invalidate(); $r->session()->regenerateToken();
