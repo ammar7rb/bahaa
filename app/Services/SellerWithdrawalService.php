@@ -84,7 +84,7 @@ class SellerWithdrawalService
             if (!in_array($source, [SellerLedgerService::AVAILABLE, SellerLedgerService::OPERATING], true)) throw new DomainException('invalid_withdraw_request');
             if ($status === 1 && Schema::hasColumn('withdraw_requests', 'payout_due_at')) {
                 if (!$withdrawal->reviewed_at) {
-                    $withdrawal->update(['reviewed_at' => now(), 'payout_due_at' => now()->addDays($this->payoutDays($source)), 'transaction_note' => $note]);
+                    $withdrawal->update(['reviewed_at' => now(), 'reviewed_by_admin_id' => auth('admin')->id(), 'payout_due_at' => now()->addDays($this->payoutDays($source)), 'transaction_note' => $note]);
                     $this->notify($withdrawal, 'تم اعتماد طلب صرف الأموال. موعد الصرف '.$withdrawal->payout_due_at->format('Y-m-d').'. ستتواصل الإدارة لتنسيق وسيلة الصرف.');
                     return $withdrawal->refresh();
                 }
@@ -102,6 +102,7 @@ class SellerWithdrawalService
             $this->syncLegacy((int) $withdrawal->seller_id, $status !== 1 && $source === SellerLedgerService::AVAILABLE ? $amount : 0, -$amount, $status === 1 ? $amount : 0);
             $withdrawal->update(['approved' => $status, 'transaction_note' => $note]);
             if (Schema::hasColumn('withdraw_requests', 'payout_due_at')) {
+                $withdrawal->update(['processed_by_admin_id' => auth('admin')->id()]);
                 $this->notify($withdrawal, $status === 1 ? 'تم تسجيل صرف الأموال. مرجع العملية '.$payoutReference : 'تم رفض أو إغلاق طلب صرف الأموال وإعادة المبلغ كاملًا إلى رصيده الأصلي. '.$note);
             }
             if (in_array($status, [1, 2], true)) {

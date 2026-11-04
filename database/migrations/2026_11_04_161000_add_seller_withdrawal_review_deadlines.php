@@ -10,6 +10,8 @@ return new class extends Migration {
         Schema::table('withdraw_requests', function (Blueprint $table) {
             $table->string('source_bucket')->default('available');
             $table->timestamp('reviewed_at')->nullable();
+            $table->unsignedBigInteger('reviewed_by_admin_id')->nullable();
+            $table->unsignedBigInteger('processed_by_admin_id')->nullable();
             $table->timestamp('payout_due_at')->nullable()->index();
             $table->string('payout_reference', 191)->nullable()->unique();
         });
@@ -20,7 +22,7 @@ return new class extends Migration {
         Schema::table('withdraw_requests', function (Blueprint $table) {
             $table->dropUnique(['payout_reference']);
             $table->dropIndex(['payout_due_at']);
-            $table->dropColumn(['source_bucket', 'reviewed_at', 'payout_due_at', 'payout_reference']);
+            $table->dropColumn(['source_bucket', 'reviewed_at', 'reviewed_by_admin_id', 'processed_by_admin_id', 'payout_due_at', 'payout_reference']);
         });
     }
 };

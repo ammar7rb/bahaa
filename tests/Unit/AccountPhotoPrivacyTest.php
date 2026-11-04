@@ -65,4 +65,19 @@ class AccountPhotoPrivacyTest extends TestCase
         $this->assertFalse(app(AccountPhotoAccess::class)->canView('customer', 1));
         $this->assertSame(404, app(AccountPhotoAccess::class)->link('customer', 1, 'owner.webp')['status']);
     }
+
+    public function test_administration_can_view_both_account_types(): void
+    {
+        $this->actingAs((new \App\Models\Admin())->forceFill(['id' => 9]), 'admin');
+        $this->assertTrue(app(AccountPhotoAccess::class)->canView('customer', 1));
+        $this->assertTrue(app(AccountPhotoAccess::class)->canView('seller', 11));
+    }
+
+    public function test_merchant_can_view_only_their_own_photo(): void
+    {
+        $this->actingAs((new \App\Models\Seller())->forceFill(['id' => 11]), 'seller');
+        $this->assertTrue(app(AccountPhotoAccess::class)->canView('seller', 11));
+        $this->assertFalse(app(AccountPhotoAccess::class)->canView('seller', 12));
+        $this->assertFalse(app(AccountPhotoAccess::class)->canView('customer', 1));
+    }
 }
