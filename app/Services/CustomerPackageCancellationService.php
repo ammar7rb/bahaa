@@ -45,7 +45,7 @@ class CustomerPackageCancellationService
             $refund = OrderAdminPurchaseRefund::create([
                 'order_id' => $order->id, 'customer_id' => $customerId, 'amount' => $amount,
                 // This status is deliberately not the auto-crediting scheduled status.
-                'status' => 'customer_requested', 'due_at' => now()->addDays(30), 'reason' => self::REASON,
+                'status' => 'customer_requested', 'due_at' => now(), 'reason' => self::REASON,
             ]);
             $order->forceFill([
                 'order_status' => 'canceled', 'customer_fulfillment_status' => 'canceled',
@@ -53,14 +53,36 @@ class CustomerPackageCancellationService
                 'operational_blocked_by' => 'customer_cancellation', 'operational_block_reason' => self::REASON,
             ])->save();
             app(CustomerPaymentNotificationService::class)->notify($customerId, 'order-status-'.$orderId.'-package-cancel-requested',
-                'تم إلغاء الطلب #'.$orderId.' وطلب رد المبلغ. ستراجع الإدارة الطلب خلال ١٥ إلى ٣٠ يومًا من تاريخ الإلغاء.');
+                'تم إلغاء الطلب #'.$orderId.' وطلب رد المبلغ. ستراجع الإدارة طلب الرد وتحدد موعده عند الاعتماد.');
+            return $refund;
+        }, 3);
+    }
+
+    public function approve(int $refundId, int $adminId, int $days): OrderAdminPurchaseRefund
+    {
+        return DB::transaction(function () use ($refundId, $adminId, $days) {
+            $refund = OrderAdminPurchaseRefund::lockForUpdate()->findOrFail($refundId);
+            if ($refund->reason !== self::REASON || $refund->status !== 'customer_requested') {
+                throw ValidationException::withMessages(['refund' => 'طلب الرد غير متاح للاعتماد.']);
+            }
+            $refund->update([
+                'status' => 'external_approved',
+                'due_at' => now()->addDays($days),
+                'admin_id' => $adminId,
+                'refund_method' => 'external',
+            ]);
+            app(CustomerPaymentNotificationService::class)->notify(
+                $refund->customer_id,
+                'order-status-'.$refund->order_id.'-package-refund-approved',
+                'تم اعتماد رد مبلغ الطلب #'.$refund->order_id.' عبر وسيلة الدفع. آخر موعد للرد '.$refund->due_at->format('Y-m-d').'.',
+            );
             return $refund;
         }, 3);
     }
 
     public function complete(int $refundId, int $adminId, string $method, ?string $reference, ?string $note): OrderAdminPurchaseRefund
     {
-        if (!in_array($method, ['purchase_wallet', 'external'], true)) throw ValidationException::withMessages(['method' => 'اختر طريقة الرد.']);
+        if ($method !== 'external') throw ValidationException::withMessages(['method' => 'اختر طريقة الرد.']);
         if ($method === 'external' && trim((string) $reference) === '') throw ValidationException::withMessages(['reference' => 'أدخل مرجع عملية الرد المنفذة.']);
         return DB::transaction(function () use ($refundId, $adminId, $method, $reference, $note) {
             $initial = OrderAdminPurchaseRefund::whereKey($refundId)->firstOrFail();
@@ -69,7 +91,7 @@ class CustomerPackageCancellationService
             $row = OrderAdminPurchaseRefund::whereKey($refundId)->lockForUpdate()->firstOrFail();
             if ($row->reason !== self::REASON) throw ValidationException::withMessages(['refund' => 'هذا الطلب له مسار استرداد آخر.']);
             if ($row->status === 'completed') return $row;
-            if ($row->status !== 'customer_requested') throw ValidationException::withMessages(['refund' => 'حالة طلب الاسترداد لا تسمح بالتنفيذ.']);
+            if ($row->status !== 'external_approved') throw ValidationException::withMessages(['refund' => 'حالة طلب الاسترداد لا تسمح بالتنفيذ.']);
             if ($order->payment_status !== 'paid' || $order->order_status !== 'canceled') throw ValidationException::withMessages(['refund' => 'تعذر التحقق من حالة الطلب المدفوع الملغي.']);
             if ((Schema::hasTable('order_refund_ledgers') && DB::table('order_refund_ledgers')->where('order_id', $order->id)->exists())
                 || (Schema::hasTable('refund_requests') && DB::table('refund_requests')->where('order_id', $order->id)->exists())) {
@@ -77,15 +99,6 @@ class CustomerPackageCancellationService
             }
             if ($method === 'external' && OrderAdminPurchaseRefund::where('reference', $reference)->where('id', '!=', $row->id)->exists()) {
                 throw ValidationException::withMessages(['reference' => 'مرجع التحويل مستخدم في طلب استرداد آخر.']);
-            }
-            if ($method === 'purchase_wallet') {
-                $reference = 'customer-cancel-order-'.$order->id;
-                $walletTransaction = app(CustomerPurchaseWalletPolicyService::class)->creditPurchaseRefundBaseCurrency((int) $row->customer_id, (float) $row->amount, $reference);
-                if ((int) $walletTransaction->user_id !== (int) $row->customer_id || $walletTransaction->transaction_type !== 'order_refund'
-                    || abs((float) $walletTransaction->credit - (float) $row->amount) > 0.0001
-                    || (float) $walletTransaction->debit !== 0.0) {
-                    throw ValidationException::withMessages(['refund' => 'مرجع المحفظة مرتبط بمعاملة غير مطابقة. راجع السجلات المالية.']);
-                }
             }
             $row->update(['status' => 'completed', 'completed_at' => now(), 'admin_id' => $adminId,
                 'refund_method' => $method, 'reference' => $reference, 'admin_note' => $note]);

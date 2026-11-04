@@ -166,7 +166,7 @@ class CustomerPurchaseEligibilityService
         return ['is_urgent_order' => (bool) $initial, 'can_request_package' => (bool) $canRequestPackage,
             'can_cancel_for_package' => $canCancelForPackage,
             'package_refund' => $refund ? ['status' => $refund->status, 'amount' => (float) $refund->amount,
-                'requested_at' => $refund->created_at?->toIso8601String(), 'due_at' => $refund->due_at?->toIso8601String(),
+                'requested_at' => $refund->created_at?->toIso8601String(), 'due_at' => $refund->status === 'customer_requested' ? null : $refund->due_at?->toIso8601String(),
                 'completed_at' => $refund->completed_at?->toIso8601String()] : null,
             'origin' => json_decode($operation->origin_snapshot ?? 'null', true),
             'stage' => $next['stage'],

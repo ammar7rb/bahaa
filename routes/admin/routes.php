@@ -365,6 +365,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
 
     Route::group(['prefix' => 'orders', 'as' => 'orders.', 'middleware' => ['module:orders']], function () {
         Route::get('package-refunds', [\App\Http\Controllers\Admin\Order\CustomerPackageRefundController::class, 'index'])->name('package-refunds.index');
+        Route::post('package-refunds/{refund}/approve', [\App\Http\Controllers\Admin\Order\CustomerPackageRefundController::class, 'approve'])->name('package-refunds.approve');
         Route::post('package-refunds/{refund}/complete', [\App\Http\Controllers\Admin\Order\CustomerPackageRefundController::class, 'complete'])->name('package-refunds.complete');
         Route::controller(OrderController::class)->group(function () {
             Route::get('list/{status}', 'index')->name('list');

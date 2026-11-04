@@ -17,10 +17,18 @@ class CustomerPackageRefundController extends Controller
         return view('admin-views.order.customer-package-refunds', compact('refunds'));
     }
 
+    public function approve(Request $request, int $refund, CustomerPackageCancellationService $service)
+    {
+        $data = $request->validate(['days' => 'required|integer|between:15,30']);
+        $service->approve($refund, (int) auth('admin')->id(), (int) $data['days']);
+
+        return back()->with('success', 'تم اعتماد رد المبلغ وتحديد موعده.');
+    }
+
     public function complete(Request $request, int $refund, CustomerPackageCancellationService $service)
     {
         $data = $request->validate([
-            'method' => ['required', 'in:purchase_wallet,external'],
+            'method' => ['required', 'in:external'],
             'reference' => ['nullable', 'string', 'max:191', 'required_if:method,external'],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);

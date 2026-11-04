@@ -3,7 +3,7 @@
 @section('content')
 <div class="content container-fluid" dir="rtl">
     <h1 class="h2">طلبات رد المشتريات بعد إلغاء الطلب</h1>
-    <p>تبدأ مهلة الرد من تاريخ طلب الإلغاء. عند اختيار رد خارجي، سجّل المرجع بعد تنفيذ التحويل فعليًا.</p>
+    <p>تبدأ مهلة الرد من اعتماد الإدارة. نفّذ الرد عبر وسيلة الدفع الأصلية ثم سجّل مرجع العملية.</p>
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
     <div class="card"><div class="table-responsive"><table class="table align-middle">
@@ -12,17 +12,30 @@
             <tr>
                 <td><a href="{{ route('admin.orders.details', $refund->order_id) }}">#{{ $refund->order_id }}</a><br>العميل #{{ $refund->customer_id }}<br><small>طريقة الدفع: {{ $refund->order?->payment_method }}</small></td>
                 <td>{{ $refund->amount }}</td>
-                <td>{{ $refund->created_at?->format('Y-m-d H:i') }}<br>{{ $refund->due_at?->format('Y-m-d H:i') }} @if($refund->status === 'customer_requested' && $refund->due_at?->isPast())<strong class="text-danger">متأخر</strong>@endif</td>
-                <td>{{ $refund->status === 'customer_requested' ? 'بانتظار قرار الإدارة' : 'تم تسجيل الرد' }} @if($refund->completed_at)<br>{{ $refund->completed_at->format('Y-m-d H:i') }}@endif</td>
-                <td>@if($refund->status === 'customer_requested')
-                    <form method="post" action="{{ route('admin.orders.package-refunds.complete', $refund->id) }}" onsubmit="return confirm('تأكيد تنفيذ الرد؟ اختيار المحفظة يضيف المبلغ للمحفظة فورًا، والرد الخارجي يجب أن يكون قد تم بالفعل.')">
-                        @csrf
-                        <label>طريقة الرد<select class="form-control" name="method" required><option value="">اختر الطريقة</option><option value="purchase_wallet">إضافة إلى محفظة المشتريات</option><option value="external">رد خارجي تم تنفيذه</option></select></label>
-                        <label>مرجع الرد الخارجي<input class="form-control" name="reference" maxlength="191"></label>
-                        <label>ملاحظة<input class="form-control" name="note" maxlength="2000"></label>
-                        <button class="btn btn-primary mt-2" type="submit">تأكيد تنفيذ الرد</button>
-                    </form>
-                @else <span>{{ $refund->refund_method === 'purchase_wallet' ? 'محفظة المشتريات' : 'رد خارجي' }}</span> @endif</td>
+                <td>{{ $refund->created_at?->format('Y-m-d H:i') }}
+                    @if($refund->status !== 'customer_requested')<br>{{ $refund->due_at?->format('Y-m-d H:i') }}@endif
+                    @if($refund->status === 'external_approved' && $refund->due_at?->isPast())<strong class="text-danger">متأخر</strong>@endif
+                </td>
+                <td>{{ ['customer_requested' => 'بانتظار قرار الإدارة', 'external_approved' => 'معتمد وبانتظار التحويل', 'completed' => 'تم تسجيل الرد'][$refund->status] ?? $refund->status }}</td>
+                <td>
+                    @if($refund->status === 'customer_requested')
+                        <form method="post" action="{{ route('admin.orders.package-refunds.approve', $refund->id) }}">
+                            @csrf
+                            <label>مهلة الرد بالأيام<input class="form-control" type="number" name="days" min="15" max="30" required></label>
+                            <button class="btn btn-primary mt-2" type="submit">اعتماد الرد عبر وسيلة الدفع</button>
+                        </form>
+                    @elseif($refund->status === 'external_approved')
+                        <form method="post" action="{{ route('admin.orders.package-refunds.complete', $refund->id) }}">
+                            @csrf
+                            <input type="hidden" name="method" value="external">
+                            <label>مرجع التحويل المنفذ<input class="form-control" name="reference" maxlength="191" required></label>
+                            <label>ملاحظة<input class="form-control" name="note" maxlength="2000"></label>
+                            <button class="btn btn-primary mt-2" type="submit">تسجيل تنفيذ الرد</button>
+                        </form>
+                    @elseif($refund->completed_at)
+                        {{ $refund->completed_at->format('Y-m-d H:i') }}
+                    @endif
+                </td>
             </tr>
         @empty<tr><td colspan="5">لا توجد طلبات رد.</td></tr>@endforelse</tbody>
     </table></div><div class="card-body">{{ $refunds->links() }}</div></div>
