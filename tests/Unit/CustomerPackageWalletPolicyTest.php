@@ -149,6 +149,53 @@ class CustomerPackageWalletPolicyTest extends TestCase
         $this->assertSame(1, DB::table('wallet_transactions')->count());
     }
 
+    public function test_expired_package_upgrade_charges_only_the_new_package_and_prevents_another_auto_renewal(): void
+    {
+        (require database_path('migrations/2026_11_04_151000_add_customer_package_auto_renewal.php'))->up();
+        Schema::table('users', fn (Blueprint $table) => $table->timestamp('account_deleted_at')->nullable());
+        $service = app(\App\Services\CustomerPackageWalletService::class);
+        $service->transact(1, $this->purchase());
+        DB::table('users')->where('id', 1)->update(['package_auto_renew' => true]);
+        $this->travel(31)->days();
+        $gold = CustomerPurchasePackage::findOrFail(2);
+        $payment = $service->transact(1, $this->purchase([
+            'package_id' => 2, 'expected_amount' => 200,
+            'quote_token' => app(CustomerPackageCatalogService::class)->token($gold, 'package'),
+        ]));
+        app(\App\Services\CustomerPackageAutoRenewalService::class)->run();
+        $this->assertSame('upgrade', $payment->purchase_kind);
+        $this->assertEquals(700, User::find(1)->wallet_balance);
+        $this->assertSame(2, DB::table('wallet_transactions')->count());
+        $this->assertSame(2, CustomerMonthlySubscription::count());
+        $subscription = CustomerMonthlySubscription::latest('id')->first();
+        $this->assertSame(2, $subscription->package_id);
+        $this->assertEquals(5000, $subscription->granted_allowance);
+        $this->assertSame(now()->addDays(30)->toIso8601String(), $subscription->expires_at->toIso8601String());
+    }
+
+    public function test_stale_upgrade_cannot_charge_after_an_auto_renewal_won_the_wallet_lock(): void
+    {
+        (require database_path('migrations/2026_11_04_151000_add_customer_package_auto_renewal.php'))->up();
+        Schema::table('users', fn (Blueprint $table) => $table->timestamp('account_deleted_at')->nullable());
+        $service = app(\App\Services\CustomerPackageWalletService::class);
+        $service->transact(1, $this->purchase());
+        DB::table('users')->where('id', 1)->update(['package_auto_renew' => true]);
+        $this->travel(31)->days();
+        $gold = CustomerPurchasePackage::findOrFail(2);
+        $stale = $this->purchase(['package_id' => 2, 'expected_amount' => 200,
+            'quote_token' => app(CustomerPackageCatalogService::class)->token($gold, 'package')]);
+        app(\App\Services\CustomerPackageAutoRenewalService::class)->run();
+        try {
+            $service->transact(1, $stale);
+            $this->fail('A stale upgrade charged after renewal');
+        } catch (\DomainException $error) {
+            $this->assertStringContainsString('تغيرت حالة الباقة', $error->getMessage());
+        }
+        $this->assertEquals(800, User::find(1)->wallet_balance);
+        $this->assertSame(2, DB::table('wallet_transactions')->count());
+        $this->assertSame(2, CustomerMonthlySubscription::count());
+    }
+
     public function test_insufficient_balance_stale_quote_and_disabled_or_excluded_package_never_debit(): void
     {
         $service=app(\App\Services\CustomerPackageWalletService::class);$input=$this->purchase();
