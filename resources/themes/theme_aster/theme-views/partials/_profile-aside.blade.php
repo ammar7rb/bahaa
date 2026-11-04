@@ -40,8 +40,7 @@
                     <i class="bi bi-x-lg text-primary"></i>
                 </div>
                 <ul class="list-unstyled profile-menu gap-1 mt-3">
-<li><a href="{{ route('customer.settings') }}"><i class="bi bi-gear" aria-hidden="true"></i><span>{{ translate('settings') }}</span></a></li>
-<li><a href="{{ route('customer.messages.index') }}"><i class="bi bi-headset" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الدعم الفني' : 'Technical support' }}</span></a></li>
+
 
                     <li class="{{Request::is('user-profile') || Request::is('user-account') ||Request::is('account-address-*') ? 'active' :''}}">
                         <a href="{{ route('user-profile') }}">
@@ -126,7 +125,10 @@
                     <li class="d-lg-none">
                         <a class="d-flex align-items-center gap-2" href="{{ route('customer.settings') }}">{{ translate('settings') }}</a>
                     </li>
-                </ul>
+                
+<li><a href="{{ route('customer.settings') }}"><i class="bi bi-gear" aria-hidden="true"></i><span>{{ translate('settings') }}</span></a></li>
+<li><a href="{{ route('customer.messages.index') }}"><i class="bi bi-headset" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الدعم الفني' : 'Technical support' }}</span></a></li>
+</ul>
             </div><div class="aside-overlay"></div>
         </div>
     </div>
