@@ -186,6 +186,10 @@ class Seller extends Authenticatable
         if ($this->id == 0) {
             return getWebConfig(name: 'company_fav_icon');
         }
+        if (!app(\App\Services\AccountPhotoAccess::class)->canView('seller', (int) $this->id)) {
+            return ['key' => null, 'path' => null, 'status' => 404];
+        }
+
         $value = $this->image;
         if (count($this->storage) > 0) {
             $storage = $this->storage->where('key', 'image')->first();

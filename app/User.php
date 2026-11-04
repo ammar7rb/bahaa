@@ -116,6 +116,10 @@ class User extends Authenticatable
 
     public function getImageFullUrlAttribute(): array
     {
+        if (!app(\App\Services\AccountPhotoAccess::class)->canView('customer', (int) $this->id)) {
+            return ['key' => null, 'path' => null, 'status' => 404];
+        }
+
         $value = $this->image;
         if (count($this->storage) > 0 && $this->storageConnectionCheck() == 's3') {
             foreach ($this->storage as $storage) {

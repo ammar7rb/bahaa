@@ -1922,7 +1922,7 @@
     <span id="location-icon"
           data-path="{{dynamicAsset(path: 'public/assets/front-end/img/customer_location.png')}}"></span>
     <span id="customer-image"
-          data-path="{{dynamicStorage(path: 'storage/app/public/profile/')}}{{$order->customer->image??""}}"></span>
+          data-path=""></span>
     <span id="deliveryman-charge-alert-message"
           data-message="{{translate('when_order_status_delivered_you_can`t_update_the_delivery_man_incentive').'.'}}"></span>
     <span id="payment-status-alert-message"
