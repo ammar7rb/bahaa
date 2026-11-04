@@ -115,7 +115,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::controller(WebController::class)->group(function () {
         Route::get('checkout-details', 'checkout_details')->name('checkout-details');
         Route::get('checkout-payment', 'checkout_payment')->name('checkout-payment');
-        Route::get('checkout-review', 'checkout_review')->name('checkout-review');
+        Route::get('checkout-review', 'checkout_payment')->name('checkout-review');
         Route::get('checkout-complete', 'getCashOnDeliveryCheckoutComplete')->name('checkout-complete');
         Route::post('offline-payment-checkout-complete', 'getOfflinePaymentCheckoutComplete')->name('offline-payment-checkout-complete');
         Route::get('order-placed', 'order_placed')->name('order-placed');
@@ -212,7 +212,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('user-profile', 'user_profile')->name('user-profile')->middleware('customer'); //theme_aster
         Route::get('user-account', 'user_account')->name('user-account')->middleware('customer');
         Route::post('user-account-update', 'getUserProfileUpdate')->name('user-update')->middleware('customer');
-        Route::post('user-account-picture', 'user_picture')->name('user-picture');
+        Route::post('user-account-picture', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware('customer')->name('user-picture');
         Route::get('account-address-add', 'account_address_add')->name('account-address-add');
         Route::get('account-address', 'account_address')->name('account-address');
         Route::post('account-address-store', 'address_store')->name('address-store');
@@ -322,9 +322,9 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
 
     Route::controller(WebController::class)->group(function () {
         Route::post('vendor-shop/{id}', 'seller_shop_product')->middleware('hide_public_seller_information');
-        Route::get('top-rated', 'top_rated')->name('topRated');
-        Route::get('best-sell', 'best_sell')->name('bestSell');
-        Route::get('new-product', 'new_product')->name('newProduct');
+        Route::get('top-rated', [\App\Http\Controllers\Web\ProductListController::class, 'getTopRatedProductsView'])->name('topRated');
+        Route::get('best-sell', [\App\Http\Controllers\Web\ProductListController::class, 'getBestSellingProductsView'])->name('bestSell');
+        Route::get('new-product', [\App\Http\Controllers\Web\ProductListController::class, 'getLatestProductsView'])->name('newProduct');
     });
 
     Route::group(['prefix' => 'contact', 'as' => 'contact.'], function () {
@@ -425,7 +425,7 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
         Route::get('set-shipping-method', 'setShippingMethod')->name('set-shipping-method');
         Route::post('choose-shipping-address', 'getChooseShippingAddress')->name('choose-shipping-address');
         Route::post('choose-shipping-address-other', 'getChooseShippingAddressOther')->name('choose-shipping-address-other');
-        Route::post('choose-billing-address', 'choose_billing_address')->name('choose-billing-address');
+        Route::post('choose-billing-address', 'getChooseShippingAddress')->name('choose-billing-address');
     });
 
     // Customer purchase packages are suspended. Historical data stays in the database.

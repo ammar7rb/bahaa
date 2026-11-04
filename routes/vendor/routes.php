@@ -195,7 +195,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::get('details/{id}', 'getDetailsView')->name('details');
                     Route::post('update-status', 'updateStatus')->name('update-status');
                     Route::get('export/{status}', 'exportList')->name('export');
-                    Route::post('refund-status-update', 'updateRefundStatus')->name('refund-status-update');
+                    Route::post('refund-status-update', 'updateStatus')->name('refund-status-update');
                 });
             });
 

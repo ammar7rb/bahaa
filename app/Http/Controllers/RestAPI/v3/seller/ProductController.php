@@ -82,6 +82,15 @@ class ProductController extends Controller
     {
     }
 
+    public function stockViolations(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        $seller = $request->input('seller');
+        abort_unless($seller instanceof \App\Models\Seller, 401);
+        $violations = \App\Models\SellerStockViolation::where('seller_id', $seller->id)->latest('id')->paginate(20);
+
+        return response()->json($violations);
+    }
+
     public function getProductList(Request $request): JsonResponse
     {
         $seller = $request->seller;

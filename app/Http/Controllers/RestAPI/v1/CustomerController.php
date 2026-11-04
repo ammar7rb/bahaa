@@ -256,6 +256,15 @@ class CustomerController extends Controller
         return response()->json($wishlist, 200);
     }
 
+    public function get_address(Request $request, int $id): JsonResponse
+    {
+        $user = Helpers::getCustomerInformation($request);
+        abort_if($user === 'offline', 401);
+        $address = ShippingAddress::where('customer_id', $user->id)->where('is_guest', 0)->findOrFail($id);
+
+        return response()->json($address);
+    }
+
     public function address_list(Request $request): JsonResponse
     {
         $user = Helpers::getCustomerInformation($request);

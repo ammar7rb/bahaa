@@ -753,7 +753,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         Route::get('operational-print', OperationalPrintReportController::class)->name('operational-print');
 
         Route::controller(ReportController::class)->group(function () {
-            Route::get('earning', 'earning_index')->name('earning');
+            Route::get('earning', 'admin_earning')->name('earning');
             Route::get('admin-earning', 'admin_earning')->name('admin-earning');
             Route::get('general-financial-export', 'exportGeneralFinancialSummary')->name('general-financial-export');
             Route::get('admin-earning-excel-export', 'exportAdminEarning')->name('admin-earning-excel-export');
@@ -802,7 +802,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             //product stock report
             Route::get('product-stock', 'index')->name('product-stock');
             Route::get('product-stock-export', 'export')->name('product-stock-export');
-            Route::post('ps-filter', 'filter')->name('ps-filter');
+            Route::post('ps-filter', 'index')->name('ps-filter');
         });
 
         //product in wishlist report
@@ -1441,7 +1441,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
 
             Route::controller(SocialMediaSettingsController::class)->group(function () {
                 Route::get('social-media', 'index')->name('social-media');
-                Route::get('fetch', 'getList')->name('fetch');
+                Route::get('fetch', 'getUpdate')->name('fetch');
                 Route::post('social-media-store', 'add')->name('social-media-store');
                 Route::post('social-media-edit', 'getUpdate')->name('social-media-edit');
                 Route::post('social-media-update', 'update')->name('social-media-update');
