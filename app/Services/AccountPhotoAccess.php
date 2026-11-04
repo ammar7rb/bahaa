@@ -23,4 +23,13 @@ class AccountPhotoAccess
         return (int) auth('seller')->id() === $accountId
             || ($authenticatedSeller instanceof Seller && (int) $authenticatedSeller->id === $accountId);
     }
+
+    public function link(string $kind, int $id, ?string $filename): array
+    {
+        if (!$filename || !$this->canView($kind, $id)) {
+            return ['key' => null, 'path' => null, 'status' => 404];
+        }
+
+        return ['key' => $filename, 'path' => route('account-photos.show', [$kind, $id]), 'status' => 200];
+    }
 }
