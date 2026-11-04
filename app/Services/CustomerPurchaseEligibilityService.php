@@ -351,7 +351,7 @@ class CustomerPurchaseEligibilityService
             $order = Order::lockForUpdate()->findOrFail($orderId);
             if (!$this->orderPayload($order)['can_request_package']) $this->deny(['package_request_unavailable']);
             app(CustomerPaymentNotificationService::class)->notify($customerId, 'initial-order-'.$orderId.'-requirements',
-                'تمت مراجعة عملية الدفع لطلبك #'.$orderId.' واعتمادها. يلزم الاشتراك في باقة لاستكمال الطلب. اختر باقة تغطي قيمة مشترياتك من صفحة الباقات؛ لا تحتاج لدفع قيمة الطلب مرة أخرى.');
+                'تمت مراجعة عملية الدفع لطلبك #'.$orderId.' واعتمادها. برجاء اختيار إحدى الباقات للاشتراك واستكمال طلبك. لو احتجت مساعدة، تواصل مع الدعم الفني من حسابك.');
         }, 3);
     }
 

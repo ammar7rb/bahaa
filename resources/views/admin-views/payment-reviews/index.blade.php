@@ -12,6 +12,9 @@
         </div>
         <div class="card"><div class="card-body">
             <form method="get" class="row g-2 mb-4">
+                @if(request()->boolean('guest_orders'))
+                    <input type="hidden" name="guest_orders" value="1">
+                @endif
                 <div class="col-md-2"><select name="audience" class="form-select"><option value="">{{ translate('all_users') }}</option><option value="vendor" @selected(request('audience') === 'vendor')>{{ translate('vendor') }}</option><option value="customer" @selected(request('audience') === 'customer')>{{ translate('customer') }}</option></select></div>
                 <div class="col-md-2"><select name="kind" class="form-select"><option value="">{{ translate('all_payment_types') }}</option><option value="subscription" @selected(request('kind') === 'subscription')>الاشتراك الشهري</option><option value="order" @selected(request('kind') === 'order')>{{ translate('order') }}</option><option value="package" @selected(request('kind') === 'package')>{{ translate('package') }}</option><option value="insurance" @selected(request('kind') === 'insurance')>{{ translate('insurance') }}</option><option value="balance_deposit" @selected(request('kind') === 'balance_deposit')>إيداع رصيد التاجر</option></select></div>
                 <div class="col-md-2"><select name="status" class="form-select"><option value="">{{ translate('all_Status') }}</option><option value="reconciliation" @selected(request('status') === 'reconciliation')>تحتاج مطابقة مالية</option><option value="pending" @selected(request('status') === 'pending')>{{ translate('pending') }}</option><option value="approved" @selected(request('status') === 'approved')>{{ translate('approved') }}</option><option value="rejected" @selected(request('status') === 'rejected')>{{ translate('rejected') }}</option></select></div>
