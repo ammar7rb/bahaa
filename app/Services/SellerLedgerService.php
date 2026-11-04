@@ -121,14 +121,18 @@ class SellerLedgerService
         });
     }
 
-    public function summary(int|Seller $seller): array
+    public function summary(int|Seller $seller, bool $initializeLegacy = true): array
     {
         $sellerId = $seller instanceof Seller ? (int) $seller->id : (int) $seller;
         if ($sellerId <= 0 || !Schema::hasTable('seller_ledger_entries')) {
             return $this->legacySummary($sellerId);
         }
 
-        $this->ensureLegacyOpeningBalance($sellerId);
+        if ($initializeLegacy) {
+            $this->ensureLegacyOpeningBalance($sellerId);
+        } elseif (!SellerLedgerEntry::where('seller_id', $sellerId)->exists()) {
+            return $this->legacySummary($sellerId);
+        }
         $summary = array_fill_keys($this->buckets(), 0.0);
         $rows = SellerLedgerEntry::query()
             ->select('bucket')
@@ -280,6 +284,7 @@ class SellerLedgerService
             self::PENDING => 0.0,
             self::AVAILABLE => (float) ($wallet?->total_earning ?? 0),
             self::OPERATING => 0.0,
+            self::ORDER_INSURANCE_CREDIT => 0.0,
             self::PENDING_WITHDRAW => (float) ($wallet?->pending_withdraw ?? 0),
             self::WITHDRAWN => (float) ($wallet?->withdrawn ?? 0),
         ];

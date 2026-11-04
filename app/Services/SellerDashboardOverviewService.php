@@ -36,6 +36,7 @@ class SellerDashboardOverviewService
         return [
             'contract_version' => 'seller_dashboard_v1',
             'generated_at' => now()->toISOString(),
+            'account_overview' => app(VendorAccountOverviewService::class)->build($seller, $ledgerSummary),
             'sales' => [
                 'total_amount' => $salesTotal,
                 'orders_count' => (clone $transactions)->distinct('order_id')->count('order_id'),

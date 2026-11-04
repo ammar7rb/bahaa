@@ -57,6 +57,7 @@ class SellerBalanceController extends Controller
                 'pending' => (float) ($summary[SellerLedgerService::PENDING] ?? 0),
                 'available' => (float) ($summary[SellerLedgerService::AVAILABLE] ?? 0),
                 'operating' => (float) ($summary[SellerLedgerService::OPERATING] ?? 0),
+                'order_insurance_credit' => (float) ($summary[SellerLedgerService::ORDER_INSURANCE_CREDIT] ?? 0),
                 'pending_withdraw' => (float) ($summary[SellerLedgerService::PENDING_WITHDRAW] ?? 0),
                 'withdrawn' => (float) ($summary[SellerLedgerService::WITHDRAWN] ?? 0),
             ],
