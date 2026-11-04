@@ -89,6 +89,8 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
             Route::post('withdrawal-methods', 'saveMethod');
             Route::post('withdrawal-methods/{method}/disable', 'disableMethod');
             Route::post('balance/withdraw', 'withdraw');
+            Route::get('balance/operating-refunds', 'operatingRefunds');
+            Route::post('balance/operating-refunds', 'operatingRefund')->middleware('throttle:6,1');
         });
         Route::prefix('packages')->controller(SellerPackageController::class)->group(function () {
             Route::get('extra-ads', [\App\Http\Controllers\RestAPI\v3\seller\VendorExtraAdController::class, 'index']);

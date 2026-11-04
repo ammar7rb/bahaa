@@ -41,6 +41,7 @@ class WithdrawRequest extends Model
      */
     protected $fillable = [
         'seller_id',
+        'source_bucket', 'reviewed_at', 'payout_due_at', 'payout_reference',
         'request_key',
         'delivery_man_id',
         'admin_id',
@@ -62,6 +63,7 @@ class WithdrawRequest extends Model
     protected $casts = [
         'withdrawal_method_fields' => 'array',
         'approved' => 'integer',
+        'reviewed_at' => 'datetime', 'payout_due_at' => 'datetime',
         'request_method_type' => 'string',
     ];
 

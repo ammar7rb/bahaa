@@ -267,7 +267,7 @@
             @endif
             @if(Helpers::module_permission_check('people'))
                 <a class="v2-nav-item" data-item="customer-withdrawal-rates" href="{{ route('admin.customer-withdrawals.index') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">نسب ورسوم السحب</span></span>
+                    <span class="v2-nav-btn"><span class="v2-nav-label">نسب ومدد صرف الأموال</span></span>
                 </a>
             @endif
             @if (Helpers::module_permission_check('people'))

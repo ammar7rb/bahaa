@@ -1,8 +1,9 @@
 @extends('layouts.admin.app')
-@section('title', 'نسب ورسوم السحب')
+@section('title', 'نسب ومدد صرف الأموال')
 @section('content')
 <main class="content container-fluid" dir="rtl">
-    <h1 class="h2">نسب ورسوم السحب</h1>
+    <h1 class="h2">نسب ومدد صرف الأموال</h1>
+    <p><a href="{{ route('admin.seller-payouts.index') }}">طلبات صرف واسترداد أموال التجار</a> · <a href="{{ route('admin.business-settings.vendor-settings.index') }}#seller-settlement-hold-days">مدة تسوية حصيلة مبيعات التجار وأيام العمل</a></p>
     @if(session('success'))<p role="status" class="alert alert-success">{{ session('success') }}</p>@endif
     @if($errors->any())<p role="alert" class="alert alert-danger">{{ $errors->first() }}</p>@endif
     @if(\App\Utils\Helpers::module_permission_check('business_settings'))
@@ -12,6 +13,10 @@
             <input class="form-control mb-3" id="withdrawal-percent" name="fee_percent" type="number" min="0" max="100" step="0.01" value="{{ $feePercent }}" required>
             <label for="withdrawal-days">مدة الصرف بالأيام من اعتماد الإدارة</label>
             <input class="form-control mb-3" id="withdrawal-days" name="days" type="number" min="15" max="30" value="{{ $withdrawalDays }}" required>
+            <label for="seller-operating-days">مدة استرداد رصيد تشغيل التاجر من اعتماد الإدارة</label>
+            <input class="form-control mb-3" id="seller-operating-days" name="seller_operating_days" type="number" min="15" max="30" value="{{ $sellerOperatingDays }}" required>
+            <label for="seller-sales-days">مدة صرف حصيلة مبيعات التاجر من اعتماد طلب السحب</label>
+            <input class="form-control mb-3" id="seller-sales-days" name="seller_sales_days" type="number" min="15" max="30" value="{{ $sellerSalesDays }}" required>
             <p>تُحفظ النسبة مع كل طلب جديد، والمدة عند الاعتماد.</p>
             <button class="btn btn-primary" type="submit">حفظ النسب والمدة</button>
         </form>

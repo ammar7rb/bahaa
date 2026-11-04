@@ -14,6 +14,8 @@ class WalletWithdrawalController extends Controller
         return view('admin-views.customer.withdrawals', [
             'withdrawals' => DB::table('customer_wallet_withdrawals')->latest('id')->paginate(30),
             'feePercent' => $service->feePercent(), 'withdrawalDays' => $service->days(),
+            'sellerOperatingDays' => app(\App\Services\SellerWithdrawalService::class)->payoutDays('operating'),
+            'sellerSalesDays' => app(\App\Services\SellerWithdrawalService::class)->payoutDays('available'),
         ]);
     }
 
@@ -23,10 +25,15 @@ class WalletWithdrawalController extends Controller
         $data = $request->validate([
             'fee_percent' => 'required|numeric|between:0,100|decimal:0,2',
             'days' => 'required|integer|between:15,30',
+            'seller_operating_days' => 'sometimes|required|integer|between:15,30',
+            'seller_sales_days' => 'sometimes|required|integer|between:15,30',
         ]);
         DB::transaction(function () use ($data) {
             \App\Models\BusinessSetting::updateOrCreate(['type' => 'customer_withdrawal_fee_percent'], ['value' => (string) $data['fee_percent']]);
             \App\Models\BusinessSetting::updateOrCreate(['type' => 'customer_withdrawal_days'], ['value' => (string) $data['days']]);
+            foreach (['seller_operating_days' => 'seller_operating_refund_days', 'seller_sales_days' => 'seller_sales_withdrawal_days'] as $input => $key) {
+                if (isset($data[$input])) \App\Models\BusinessSetting::updateOrCreate(['type' => $key], ['value' => (string) $data[$input]]);
+            }
         });
         return back()->with('success', 'تم حفظ نسبة الرسوم ومدة السحب.');
     }

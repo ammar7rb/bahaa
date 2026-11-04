@@ -95,4 +95,21 @@ class VendorFinanceWorkspaceController extends Controller
         }
         return $request->is('api/*') ? response()->json(['request' => $result]) : back()->with('success', translate('withdraw_request_has_been_sent'));
     }
+
+    public function operatingRefunds(Request $request)
+    {
+        $seller = $this->seller($request);
+        return response()->json(['requests' => WithdrawRequest::where('seller_id', $seller->id)->where('source_bucket', 'operating')->latest('id')->paginate(20)]);
+    }
+
+    public function operatingRefund(Request $request)
+    {
+        $input = $request->validate(['amount' => 'required|numeric|min:0.01|max:999999999', 'request_key' => 'required|uuid']);
+        try {
+            $result = app(SellerWithdrawalService::class)->operatingRefund($this->seller($request)->id, (float) \App\Utils\Convert::usd($input['amount']), $input['request_key']);
+        } catch (\DomainException | \InvalidArgumentException $error) {
+            throw ValidationException::withMessages(['amount' => translate($error->getMessage())]);
+        }
+        return $request->is('api/*') ? response()->json(['request' => $result], 201) : back()->with('success', 'تم حجز المبلغ وإرسال طلب استرداد رصيد التشغيل للإدارة.');
+    }
 }

@@ -174,6 +174,11 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::post('settings', 'settings')->middleware('module:business_settings')->name('settings');
             Route::post('{id}/review', 'review')->name('review');
         });
+    Route::prefix('operations/seller-payouts')->name('seller-payouts.')->middleware('module:people')
+        ->controller(\App\Http\Controllers\Admin\Vendor\SellerPayoutController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('{id}/review', 'review')->name('review');
+        });
 
     Route::prefix('customer/monthly-subscriptions')->name('customer.monthly-subscriptions.')->middleware('module:people')->controller('\App\Http\Controllers\Admin\Customer\MonthlySubscriptionController')->group(function () {
         Route::get('/', 'index')->name('index');

@@ -51,7 +51,7 @@ class SellerBalanceController extends Controller
             'walletSection' => $section,
             'transactions' => app(\App\Services\VendorFinancialWorkspaceService::class)->transactions((int) $seller->id, $request->integer('transactions_page', 1), $bucket),
             'withdrawalMethods' => \App\Models\VendorWithdrawMethodInfo::where('user_id', $seller->id)->where('is_active', true)->get(),
-            'withdrawals' => \App\Models\WithdrawRequest::where('seller_id', $seller->id)->latest('id')->paginate(10, ['*'], 'withdrawals_page'),
+            'withdrawals' => \App\Models\WithdrawRequest::where('seller_id', $seller->id)->when($section === 'operating', fn ($query) => $query->where('source_bucket', 'operating'))->latest('id')->paginate(10, ['*'], 'withdrawals_page'),
             'summary' => [
                 'sales_total' => (float) ($summary[SellerLedgerService::SALES_TOTAL] ?? 0),
                 'pending' => (float) ($summary[SellerLedgerService::PENDING] ?? 0),

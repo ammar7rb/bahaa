@@ -94,6 +94,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                 Route::post('account/withdrawal-methods', 'saveMethod')->name('account.withdrawal-methods.save');
                 Route::post('account/withdrawal-methods/{method}/disable', 'disableMethod')->name('account.withdrawal-methods.disable');
                 Route::post('balance/withdraw', 'withdraw')->name('balance.withdraw');
+                Route::post('balance/operating-refund', 'operatingRefund')->middleware('throttle:6,1')->name('balance.operating-refund');
             });
             Route::group(['prefix' => 'balance', 'as' => 'balance.'], function () {
                 Route::controller(SellerBalanceController::class)->group(function () {
