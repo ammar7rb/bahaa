@@ -29,7 +29,8 @@ class CustomerPackageWalletService
             $active=app(CustomerMonthlyAllowanceService::class)->active($customerId);
             if($active)$active=CustomerMonthlySubscription::lockForUpdate()->findOrFail($active->id);
             if((int)($active?->id??0)!==(int)($input['expected_subscription_id']??0)||(int)($active?->limit_revision??0)!==(int)$input['expected_revision'])throw new DomainException('تغيرت حالة الباقة منذ عرضها. حدّث الصفحة قبل الدفع.');
-            $terms=$this->terms($input,$active);
+            $latest = $active ?? CustomerMonthlySubscription::where('customer_id', $customerId)->latest('id')->first();
+            $terms=$this->terms($input,$active,$latest);
             if($active&&$active->expires_at->lte(now()))throw new DomainException('انتهت الباقة أثناء تجهيز العملية. حدّث الصفحة.');
             if($this->units($terms['amount'])!==$this->units($input['expected_amount']))throw new DomainException('تغير السعر المعروض. حدّث الصفحة قبل الدفع.');
             $debit=$this->units(\App\Utils\Convert::usdPaymentModule($terms['amount'],'EGP'));
@@ -61,7 +62,7 @@ class CustomerPackageWalletService
         },3);
     }
 
-    private function terms(array $input,?CustomerMonthlySubscription $active): array
+    private function terms(array $input, ?CustomerMonthlySubscription $active, ?CustomerMonthlySubscription $latest): array
     {
         $catalog=app(CustomerPackageCatalogService::class);
         $quantity=(int)($input['quantity']??1);
@@ -84,7 +85,7 @@ class CustomerPackageWalletService
         }
         if($input['operation']!=='purchase')throw new DomainException('معاملة باقة غير صالحة.');
         if($active&&($active->package_id===$package->id||(float)$package->purchase_limit<=(float)$active->granted_allowance))throw new DomainException('اختر باقة أعلى للترقية، أو إجراء تجديد الحد لباقة الحالية.');
-        return ['kind'=>$active?'upgrade':'activation','amount'=>$package->package_price,'allowance'=>$package->purchase_limit,'name'=>$package->name,'package_id'=>$package->id,'offer_id'=>null];
+        return ['kind'=>$renewing ? 'renew_package' : ($active ? 'upgrade' : 'activation'),'amount'=>$package->package_price,'allowance'=>$package->purchase_limit,'name'=>$package->name,'package_id'=>$package->id,'offer_id'=>null];
     }
 
     private function apply(int $customerId,CustomerSubscriptionPayment $payment,?CustomerMonthlySubscription $active): CustomerMonthlySubscription
@@ -94,7 +95,7 @@ class CustomerPackageWalletService
             $active->limit_revision++;$active->save();return $active;
         }
         $start=now()->startOfSecond();
-        $end=$active ? $active->expires_at->copy() : $start->copy()->utc()->addSeconds(30*86400)->setTimezone($start->timezone);
+        $end=$active && $payment->purchase_kind !== 'renew_package' ? $active->expires_at->copy() : $start->copy()->addDays(30);
         // Upgrade replaces the entitlement; its end remains the original monthly expiry.
         if($active)$active->update(['expires_at'=>$start]);
         return CustomerMonthlySubscription::create(['customer_id'=>$customerId,'payment_id'=>$payment->id,
