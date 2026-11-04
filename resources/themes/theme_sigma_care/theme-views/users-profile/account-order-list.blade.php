@@ -7,11 +7,27 @@
     <section class="col-lg-9 customer-order-history">
         @if(session('customer_cancel_message'))<div class="alert alert-success">{{ session('customer_cancel_message') }}</div>@endif
         @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
-        <header class="customer-orders-heading"><div><h1>طلباتي</h1><p>تابع مشترياتك وحالة كل طلب.</p></div><a href="{{ route('account-oder', ['order_by'=>request('order_by') === 'asc' ? 'desc' : 'asc']) }}">{{ request('order_by') === 'asc' ? 'الأحدث أولًا' : 'الأقدم أولًا' }} ↕</a></header>
+        <header class="customer-orders-heading"><div><h1>طلباتي</h1><p>تابع مشترياتك وحالة كل طلب.</p></div><a href="{{ route('account-oder', ['show_order'=>$show_order, 'order_by'=>request('order_by') === 'asc' ? 'desc' : 'asc']) }}">{{ request('order_by') === 'asc' ? 'الأحدث أولًا' : 'الأقدم أولًا' }} ↕</a></header>
+        <nav class="nav nav-pills gap-2 mb-3" aria-label="فئات الطلبات">
+            @foreach(['ongoing' => 'طلبات نشطة', 'previous' => 'طلبات سابقة'] as $category => $label)
+                <a @class(['nav-link', 'active' => $show_order === $category])
+                    @if($show_order === $category) aria-current="page" @endif
+                    href="{{ route('account-oder', ['show_order' => $category, 'order_by' => request('order_by')]) }}">{{ $label }}</a>
+            @endforeach
+        </nav>
         @forelse($orders as $order)
             @php($state = $order->customer_checkout_operation_id ? app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order) : null)
             <article class="customer-order-card">
                 <header><div><a href="{{ route('account-order-details',['id'=>$order->id]) }}"><strong>طلب #{{ $order->id }}</strong></a><time>{{ $order->created_at?->format('Y/m/d') }}</time></div><span class="customer-order-status">{{ $state && in_array($order->order_status,['pending','confirmed','processing']) ? $state['message'] : translate($order->order_status === 'processing' ? 'packaging' : $order->order_status) }}</span></header>
+                @php($stage = ['pending' => 1, 'confirmed' => 2, 'processing' => 2, 'out_for_delivery' => 3, 'delivered' => 4][$order->order_status] ?? null)
+                @if($stage)
+                    <ol class="list-unstyled d-flex flex-wrap gap-2 p-3 mb-0" aria-label="مراحل الطلب">
+                        @foreach(['تم الطلب', 'جاري التجهيز', 'جاري الشحن', 'تم التسليم'] as $label)
+                            <li @class(['badge', 'bg-primary' => $loop->iteration <= $stage, 'bg-light text-dark' => $loop->iteration > $stage])
+                                @if($loop->iteration === $stage) aria-current="step" @endif>{{ $label }}</li>
+                        @endforeach
+                    </ol>
+                @endif
                 <div class="customer-order-products">
                     @foreach($order->details->take(3) as $detail)
                         @php($snapshot = json_decode($detail->product_details ?? '{}',true) ?: [])
@@ -27,7 +43,7 @@
                         @if($state['next_action'] === 'resubmit_payment_proof')<a href="{{ route('account-order-details',['id'=>$order->id]) }}">إعادة إرسال إثبات الدفع</a>@endif
                     </div>
                 @endif
-                @if($state['package_refund'] ?? null)<p class="customer-order-help">{{ $state['package_refund']['status'] === 'completed' ? 'تم تسجيل رد المبلغ.' : 'طلب رد المبلغ قيد مراجعة الإدارة خلال ١٥ إلى ٣٠ يومًا من تاريخ طلب الإلغاء.' }}</p>@endif
+                @if($state['package_refund'] ?? null)<p class="customer-order-help">{{ $state['package_refund']['status'] === 'completed' ? 'تم تسجيل رد المبلغ.' : 'راجع تفاصيل الطلب لمعرفة حالة رد المبلغ.' }}</p>@endif
             </article>
         @empty<div class="customer-order-empty"><h2>ليس لديك طلبات بعد</h2><p>ستظهر مشترياتك هنا لتتابعها بسهولة.</p><a href="{{ route('products') }}">تصفح المنتجات ←</a></div>@endforelse
         {{ $orders->links() }}

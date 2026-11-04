@@ -366,32 +366,20 @@ class UserProfileController extends Controller
         $offlinePaymentMethods = OfflinePaymentMethod::where('status', 1)->get();
         $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
         $cashOnDeliveryStatus = getWebConfig(name: 'cash_on_delivery');
-        if (theme_root_path() == 'theme_fashion') {
-            $show_order = $request->show_order ?? 'ongoing';
-
-            $array = ['pending', 'confirmed', 'out_for_delivery', 'processing'];
-            $orders = $this->order->withSum('orderDetails', 'qty')
-                ->with('orderEditHistory', 'details.productAllStatus', 'seller.shop', 'postPurchaseInvoice')
-                ->where(['customer_id' => auth('customer')->id(), 'is_guest' => '0'])
-                ->when($show_order == 'ongoing', function ($query) use ($array) {
-                    $query->whereIn('order_status', $array);
-                })
-                ->when($show_order == 'previous', function ($query) use ($array) {
-                    $query->whereNotIn('order_status', $array);
-                })
-                ->when($request['search'], function ($query) use ($request) {
-                    $query->where('id', 'like', "%{$request['search']}%");
-                })
-                ->orderBy('id', $order_by)->paginate(10)->appends(['show_order' => $show_order, 'search' => $request->search]);
-        } else {
-            $orders = $this->order->with('orderEditHistory', 'details.productAllStatus', 'seller.shop', 'postPurchaseInvoice')
-                ->withSum('orderDetails', 'qty')
-                ->where(['customer_id' => auth('customer')->id(), 'is_guest' => '0'])
-                ->orderBy('id', $order_by)
-                ->paginate(10)->appends($request->all());
-        }
+        $show_order = $request->input('show_order') === 'previous' ? 'previous' : 'ongoing';
+        $activeStatuses = ['pending', 'confirmed', 'out_for_delivery', 'processing'];
+        $orders = $this->order->withSum('orderDetails', 'qty')
+            ->with('orderEditHistory', 'details.productAllStatus', 'seller.shop', 'postPurchaseInvoice')
+            ->where(['customer_id' => auth('customer')->id(), 'is_guest' => 0])
+            ->when($show_order === 'ongoing',
+                fn ($query) => $query->whereIn('order_status', $activeStatuses),
+                fn ($query) => $query->whereNotIn('order_status', $activeStatuses))
+            ->when($request->filled('search'), fn ($query) => $query->where('id', 'like', '%'.$request->input('search').'%'))
+            ->orderBy('id', $order_by === 'asc' ? 'asc' : 'desc')
+            ->paginate(10)->withQueryString();
         return view(VIEW_FILE_NAMES['account_orders'], compact(
             'orders',
+            'show_order',
             'order_by',
             'paymentGatewayList',
             'offlinePaymentMethods',
