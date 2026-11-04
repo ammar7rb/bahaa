@@ -6,6 +6,14 @@
     <p>تبدأ مهلة الرد من اعتماد الإدارة. نفّذ الرد عبر وسيلة الدفع الأصلية ثم سجّل مرجع العملية.</p>
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
+    @if(\App\Utils\Helpers::module_permission_check('business_settings'))
+        <form class="card card-body mb-3" method="post" action="{{ route('admin.orders.package-refunds.settings') }}">
+            @csrf
+            <label for="refund-days">مهلة رد مدفوعات العملاء من تاريخ الاعتماد</label>
+            <input class="form-control" id="refund-days" type="number" name="days" min="15" max="30" value="{{ $refundDays }}" required>
+            <button class="btn btn-outline-primary mt-2" type="submit">حفظ مهلة الرد</button>
+        </form>
+    @endif
     <div class="card"><div class="table-responsive"><table class="table align-middle">
         <thead><tr><th>الطلب والعميل</th><th>المبلغ المدفوع</th><th>تاريخ الطلب وآخر موعد</th><th>حالة الرد</th><th>قرار الإدارة</th></tr></thead>
         <tbody>@forelse($refunds as $refund)
@@ -21,7 +29,7 @@
                     @if($refund->status === 'customer_requested')
                         <form method="post" action="{{ route('admin.orders.package-refunds.approve', $refund->id) }}">
                             @csrf
-                            <label>مهلة الرد بالأيام<input class="form-control" type="number" name="days" min="15" max="30" required></label>
+                            <p>مهلة الرد بعد الاعتماد: {{ $refundDays }} يومًا.</p>
                             <button class="btn btn-primary mt-2" type="submit">اعتماد الرد عبر وسيلة الدفع</button>
                         </form>
                     @elseif($refund->status === 'external_approved')
