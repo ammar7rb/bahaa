@@ -30,6 +30,8 @@
 
                 <div class="text-lg-center">
                     <h5 class="mb-1">{{$customer_info->f_name}} {{$customer_info->l_name}}</h5>
+                    <bdi class="d-block mb-1" dir="ltr">{{ $customer_info->administrative_reference }}</bdi>
+                    <p class="mb-1" data-account-status="{{ $customer_info->is_active ? 'active' : 'suspended' }}">{{ app()->getLocale() === 'ar' ? ($customer_info->is_active ? 'نشط' : 'معلق') : ($customer_info->is_active ? 'Active' : 'Suspended') }}</p>
                     <p class="fw-medium">{{translate('joined')}} {{date('d M, Y',strtotime($customer_info->created_at))}}</p>
                 </div>
             </div>
