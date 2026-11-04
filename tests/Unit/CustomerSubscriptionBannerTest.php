@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 class CustomerSubscriptionBannerTest extends TestCase
 {
-    private function banner(string $status): string
+    private function banner(string $status, ?float $available = null): string
     {
         $customer = new \App\User;
         $customer->id = 17;
@@ -20,6 +20,7 @@ class CustomerSubscriptionBannerTest extends TestCase
         $subscription = Mockery::mock(CustomerMonthlySubscriptionService::class);
         $subscription->shouldReceive('status')->with(17)->once()->andReturn([
             'status' => $status, 'active' => $status === 'active',
+            'allowance' => $available === null ? null : ['available_limit' => $available],
         ]);
         $this->app->instance(CustomerMonthlySubscriptionService::class, $subscription);
         return view('customer-subscription.expiry-banner')->render();
@@ -45,5 +46,12 @@ class CustomerSubscriptionBannerTest extends TestCase
     public function test_guest_does_not_see_banner(): void
     {
         $this->assertStringNotContainsString('customer-subscription-notice', view('customer-subscription.expiry-banner')->render());
+    }
+
+    public function test_active_package_with_exhausted_credit_shows_renewal_notice(): void
+    {
+        $html = $this->banner('active', 0);
+        $this->assertStringContainsString('نفد الحد الائتماني المتاح', $html);
+        $this->assertStringContainsString('إدارة الباقة والحد الائتماني', $html);
     }
 }

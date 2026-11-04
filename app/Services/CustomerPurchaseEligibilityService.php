@@ -21,6 +21,8 @@ class CustomerPurchaseEligibilityService
     {
         $subscription = app(CustomerMonthlySubscriptionService::class)->status((int) $customer->id);
         $renewalRequired = $subscription['status'] === 'expired';
+        $awaitingPackage = !$subscription['active'] && Order::where('customer_id', $customer->id)
+            ->where('is_guest', 0)->whereIn('order_status', ['pending', 'confirmed', 'processing'])->exists();
         $activated = true;
         $newAccount = in_array($customer->onboarding_journey, ['checkout_first', 'standard'], true)
             && !\App\Models\CustomerMonthlySubscription::where('customer_id', $customer->id)->exists();
@@ -39,7 +41,7 @@ class CustomerPurchaseEligibilityService
             'subscription' => $subscription,
             'is_urgent_account' => $newAccount,
             'show_credit_indicator' => !$newAccount && $subscription['active'],
-            'can_pay_before_subscription' => !$subscription['active'] && !$renewalRequired,
+            'can_pay_before_subscription' => !$subscription['active'] && !$renewalRequired && !$awaitingPackage,
             'initial_order_exception_available' => $first,
             'can_resume_initial_checkout' => (bool) $resume,
             'can_checkout' => !$renewalRequired && !in_array('administrative_freeze', $reasons, true),

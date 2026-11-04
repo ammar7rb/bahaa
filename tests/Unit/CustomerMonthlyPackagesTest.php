@@ -163,6 +163,25 @@ class CustomerMonthlyPackagesTest extends \Tests\TestCase
         app(CustomerMonthlyAllowanceService::class)->assertCart(1,3001);
     }
 
+    public function test_exhausted_credit_blocks_another_cart_without_debiting_the_wallet(): void
+    {
+        CustomerMonthlySubscription::create([
+            'customer_id' => 1, 'payment_id' => 1, 'package_id' => 1,
+            'package_name' => 'Silver', 'package_price' => 100,
+            'starts_at' => now(), 'expires_at' => now()->addDays(30),
+            'granted_allowance' => 3000, 'committed_allowance' => 3000,
+        ]);
+        try {
+            app(CustomerMonthlyAllowanceService::class)->assertCart(1, 1);
+            $this->fail('Exhausted credit accepted another cart');
+        } catch (\Illuminate\Validation\ValidationException $error) {
+            $this->assertArrayHasKey('purchasing_limit', $error->errors());
+        }
+        $this->assertEquals(300, DB::table('users')->where('id', 1)->value('wallet_balance'));
+        $this->assertSame(0, DB::table('wallet_transactions')->count());
+        $this->assertEquals(3000, CustomerMonthlySubscription::first()->committed_allowance);
+    }
+
     public function test_order_reservation_and_refund_retry_never_count_twice(): void
     {
         Schema::create('orders', function (Blueprint $t) { $t->id(); $t->unsignedBigInteger('customer_id'); });
@@ -277,8 +296,10 @@ class CustomerMonthlyPackagesTest extends \Tests\TestCase
         $eligibility->reevaluateCustomer(1);
         $this->assertNull(DB::table('orders')->value('customer_eligible_at'));
         $this->assertContains('monthly_subscription',json_decode(DB::table('orders')->value('customer_pending_reasons'),true));
-        $this->assertFalse($eligibility->status(\App\Models\User::find(1))['can_checkout']);
+        $this->assertFalse($eligibility->status(\App\Models\User::find(1))['can_pay_before_subscription']);
         $this->assertFalse($eligibility->status(\App\Models\User::find(1))['show_credit_indicator']);
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $eligibility->reserve(1, 'another-cart-before-package', null, 'offline_payment', [['cart_list' => [['price' => 1, 'quantity' => 1]]]]);
     }
 
     public function test_admin_can_edit_deactivate_and_configure_offers_without_changing_a_quote(): void
