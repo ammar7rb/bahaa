@@ -94,9 +94,9 @@ class CustomerPackageCancellationServiceTest extends TestCase
         $service->approve($row->id, 7, 15);
         Schema::create('order_refund_ledgers', fn (Blueprint $t) => [$t->id(), $t->integer('order_id')]);
         DB::table('order_refund_ledgers')->insert(['order_id'=>1]);
-        try { $service->complete($row->id, 7, 'external', 'ref-1', null); $this->fail('Competing refund accepted'); }
+        try { $service->complete($row->id, 7, 'purchase_wallet', null, null); $this->fail('Competing refund accepted'); }
         catch (ValidationException $e) { $this->assertArrayHasKey('refund', $e->errors()); }
-        $this->assertSame('external_approved', DB::table('order_admin_purchase_refunds')->value('status'));
+        $this->assertSame('wallet_approved', DB::table('order_admin_purchase_refunds')->value('status'));
     }
 
     public function test_failed_stock_restoration_rolls_back_request_and_cancellation(): void
@@ -133,33 +133,37 @@ class CustomerPackageCancellationServiceTest extends TestCase
         $this->assertContains('admin', $admin->gatherMiddleware());
     }
 
-    public function test_external_refund_records_admin_reference_without_crediting_wallet(): void
+    public function test_external_refund_is_rejected(): void
     {
-        $stock = Mockery::mock(CustomerCancellationStockService::class);
-        $stock->shouldReceive('restore')->once(); $this->app->instance(CustomerCancellationStockService::class, $stock);
-        $wallet = Mockery::mock(CustomerPurchaseWalletPolicyService::class);
-        $wallet->shouldNotReceive('creditPurchaseRefundBaseCurrency');
-        $this->app->instance(CustomerPurchaseWalletPolicyService::class, $wallet);
-        $service = app(CustomerPackageCancellationService::class); $row = $service->request(1,1);
-        $service->approve($row->id, 7, 15);
-        $service->complete($row->id, 7, 'external', 'bank-123', 'تم التحويل');
-        $this->assertDatabaseHas('order_admin_purchase_refunds', ['id'=>$row->id,'status'=>'completed','reference'=>'bank-123','admin_id'=>7]);
-        $this->assertEquals(0, DB::table('users')->where('id',1)->value('wallet_balance'));
+        $this->expectException(ValidationException::class);
+        app(CustomerPackageCancellationService::class)->complete(1, 7, 'external', 'bank-123', null);
     }
 
-    public function test_admin_completion_requires_reference_and_never_credits_twice(): void
+    public function test_wallet_refund_waits_until_due_and_credits_once(): void
     {
         $stock = Mockery::mock(CustomerCancellationStockService::class);
-        $stock->shouldReceive('restore')->once(); $this->app->instance(CustomerCancellationStockService::class, $stock);
+        $stock->shouldReceive('restore')->once();
+        $this->app->instance(CustomerCancellationStockService::class, $stock);
         $wallet = Mockery::mock(CustomerPurchaseWalletPolicyService::class);
-        $wallet->shouldNotReceive('creditPurchaseRefundBaseCurrency');
+        $wallet->shouldReceive('creditPurchaseRefundBaseCurrency')->once()->with(1, 115.0, 'customer-cancel-order-1')
+            ->andReturn(new \App\Models\WalletTransaction([
+                'user_id' => 1, 'transaction_type' => 'order_refund', 'credit' => 115, 'debit' => 0,
+            ]));
         $this->app->instance(CustomerPurchaseWalletPolicyService::class, $wallet);
-        $service = app(CustomerPackageCancellationService::class); $row = $service->request(1,1);
-        try { $service->complete($row->id, 7, 'external', '', null); $this->fail('Reference required'); }
-        catch (ValidationException $e) { $this->assertArrayHasKey('reference', $e->errors()); }
-        $service->approve($row->id, 7, 30);
-        $service->complete($row->id, 7, 'external', 'ref-1', null);
-        $service->complete($row->id, 7, 'external', 'ref-1', null);
-        $this->assertDatabaseHas('order_admin_purchase_refunds', ['id'=>$row->id,'status'=>'completed','refund_method'=>'external']);
+        $service = app(CustomerPackageCancellationService::class);
+        $row = $service->request(1, 1);
+        $service->approve($row->id, 7, 15);
+        try {
+            $service->complete($row->id, 7, 'purchase_wallet', null, null);
+            $this->fail('Early refund accepted');
+        } catch (ValidationException $error) {
+            $this->assertArrayHasKey('refund', $error->errors());
+        }
+        $this->travel(16)->days();
+        $service->complete($row->id, 7, 'purchase_wallet', null, null);
+        $service->complete($row->id, 7, 'purchase_wallet', null, null);
+        $this->assertDatabaseHas('order_admin_purchase_refunds', [
+            'id' => $row->id, 'status' => 'completed', 'refund_method' => 'purchase_wallet',
+        ]);
     }
 }
