@@ -28,7 +28,7 @@ class AccountDirectoryController extends Controller
     private function filters(Request $request): array
     {
         return $request->validate([
-            'q'=>'nullable|string|max:100','type'=>'nullable|in:customer,vendor','status'=>'nullable|in:active,frozen,pending,rejected',
+            'guest_customers'=>'nullable|in:1','q'=>'nullable|string|max:100','type'=>'nullable|in:customer,vendor','status'=>'nullable|in:active,frozen,pending,rejected',
             'sort'=>'nullable|in:identifier,name,status,created_at,orders_count,order_amount','direction'=>'nullable|in:asc,desc','per_page'=>'nullable|integer|in:20,50,100',
             'joined_from'=>'nullable|date_format:Y-m-d','joined_to'=>['nullable','date_format:Y-m-d',...($request->filled('joined_from')?['after_or_equal:joined_from']:[])],
             'ordered_from'=>'nullable|date_format:Y-m-d','ordered_to'=>['nullable','date_format:Y-m-d',...($request->filled('ordered_from')?['after_or_equal:ordered_from']:[])],

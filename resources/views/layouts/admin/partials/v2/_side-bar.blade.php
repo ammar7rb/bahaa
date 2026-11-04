@@ -347,6 +347,9 @@
                 <a class="v2-nav-item {{ request()->routeIs('admin.account-directory.*') ? 'v2-is-active' : '' }}" data-item="all-accounts" href="{{ route('admin.account-directory.index') }}">
                     <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('all_customer_vendor_accounts') }}</span></span>
                 </a>
+                <a class="v2-nav-item {{ request()->boolean('guest_customers') ? 'v2-is-active' : '' }}" data-item="guest-customers" href="{{ route('admin.account-directory.index', ['guest_customers' => 1]) }}">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">عملاء زوار</span></span>
+                </a>
             </div>
             <div class="v2-ctx-group v2-is-pinned" style="display:none;">
                 <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
