@@ -6,7 +6,14 @@
 <header class="container customer-profile-header" data-customer-communication data-feed-url="{{ route('customer.communication.index') }}">
     <div class="customer-profile-identity">
         <img src="{{ getStorageImages(path: $headerCustomer->image_full_url, type: 'avatar') }}" alt="" width="48" height="48">
-        <div><strong>{{ $headerCustomer->f_name }} {{ $headerCustomer->l_name }}</strong><bdi dir="ltr">{{ $headerCustomer->administrative_reference }}</bdi></div>
+        <div>
+            <strong>{{ $headerCustomer->f_name }} {{ $headerCustomer->l_name }}</strong>
+            <bdi dir="ltr">{{ $headerCustomer->administrative_reference }}</bdi>
+            @php($isArabic = getLanguageCode(country_code: getDefaultLanguage()) === 'ar')
+            <small class="d-block">
+                {{ $headerCustomer->is_active ? ($isArabic ? 'نشط' : 'Active') : ($isArabic ? 'معلق' : 'Suspended') }}
+            </small>
+        </div>
     </div>
     <nav class="customer-profile-actions" aria-label="{{ translate('messages') }} / {{ translate('notifications') }}">
         @foreach([['messages','message','الرسائل','Messages','customer.messages.index'],['notifications','bell','الإشعارات','Notifications','customer.notifications.index']] as [$type,$icon,$ar,$en,$route])
