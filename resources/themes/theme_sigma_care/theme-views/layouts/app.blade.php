@@ -289,7 +289,7 @@
 @include('web-views.users-profile.partials.profile-image-shortcut')
 <script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261027.2" defer></script>
 
-<script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}?v=20261011.1" defer></script>
+<script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}?v=20261104.2" defer></script>
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>
 </html>

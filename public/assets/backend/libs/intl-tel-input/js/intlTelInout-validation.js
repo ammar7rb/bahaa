@@ -241,7 +241,7 @@ const mobileExamples = {
 
 function initializeIntlTelInput() {
     const inputs = document.querySelectorAll(
-        'input[type="tel"]:not([data-intl-initialized]):not([data-egypt-phone])'
+        'input[type="tel"][data-international-phone]:not([data-intl-initialized]):not([data-egypt-phone])'
     );
 
     const defaultCountry = "eg";

@@ -17,7 +17,7 @@
                     </div>
                     <div class="form-group mb-4">
                         <label for="customer-phone">رقم الموبايل <span class="text-danger" aria-hidden="true">*</span></label>
-                        <input class="form-control fs-16" id="customer-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" dir="ltr" required value="{{ old('phone') }}" aria-describedby="checkout-phone-hint" @error('phone') aria-invalid="true" @enderror>
+                        <input data-egypt-phone class="form-control fs-16" id="customer-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" dir="ltr" required value="{{ old('phone') }}" aria-describedby="checkout-phone-hint" @error('phone') aria-invalid="true" @enderror>
                         <small class="text-muted" id="checkout-phone-hint">رقم موبايل مصري يبدأ بـ 010 أو 011 أو 012 أو 015.</small>
                     </div>
                     <div class="form-group mb-4">

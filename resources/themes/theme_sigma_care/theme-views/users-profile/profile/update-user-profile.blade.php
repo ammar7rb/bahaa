@@ -41,7 +41,7 @@
                                             <div class="form-group">
                                                 <label for="phone2">{{translate('phone')}}</label>
                                                 <div class="position-relative d-flex align-items-center">
-                                                    <input type="tel" id="phone" class="form-control" value="{{$customerDetail['phone']}}" placeholder="{{translate('ex').':'.'01xxxxxxxxx'}}"  name="phone" required>
+                                                    <input data-egypt-phone type="tel" id="phone" class="form-control" value="{{$customerDetail['phone']}}" placeholder="{{translate('ex').':'.'01xxxxxxxxx'}}"  name="phone" required>
 
                                                     @if($customerDetail['phone'] && getLoginConfig(key: 'phone_verification'))
                                                         @if($customerDetail['is_phone_verified'])

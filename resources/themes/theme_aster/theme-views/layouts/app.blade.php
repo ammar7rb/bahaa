@@ -282,7 +282,7 @@
 @include('customer-checkout.entry')
 <script src="{{ theme_asset('assets/js/customer-dark-mode.js') }}?v=20260930.1"></script>
 
-<script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}" defer></script>
+<script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}?v=20261104.2" defer></script>
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>
 </html>

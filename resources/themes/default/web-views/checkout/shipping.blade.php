@@ -73,7 +73,7 @@
                                                                 <label>{{ translate('phone')}}
                                                                     <span class="text-danger">*</span>
                                                                 </label>
-                                                                <input type="tel" class="form-control" id="phone" {{ $shippingAddresses->count()==0?'required':'' }} name="phone" value="{{ old('phone', auth('customer')->user()?->phone ?? '') }}">
+                                                                <input data-egypt-phone type="tel" class="form-control" id="phone" {{ $shippingAddresses->count()==0?'required':'' }} name="phone" value="{{ old('phone', auth('customer')->user()?->phone ?? '') }}">
                                                             </div>
                                                         </div>
                                                         @if(!auth('customer')->check())
@@ -332,7 +332,7 @@
                                                                     <label>{{ translate('phone')}}
                                                                         <span class="text-danger">*</span>
                                                                     </label>
-                                                                    <input type="tel" class="form-control" inputmode="tel" dir="ltr" name="billing_phone"
+                                                                    <input data-egypt-phone type="tel" class="form-control" inputmode="tel" dir="ltr" name="billing_phone"
                                                                            id="billing_phone" {{ $billingAddresses->count()==0 ? 'required' : '' }}>
                                                                 </div>
                                                             </div>

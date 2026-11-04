@@ -160,7 +160,7 @@
                                                         <div class="col-sm-6">
                                                             <div class="form-group mb-4">
                                                                 <label for="phoneNumber">{{ translate('phone') }} <span class="text-danger">*</span></label>
-                                                                <input type="tel" id="phoneNumber" name="phone"
+                                                                <input data-egypt-phone type="tel" id="phoneNumber" name="phone"
                                                                        class="form-control"
                                                                        placeholder="رقم هاتف المستلم" value="{{ old('phone', auth('customer')->user()?->phone ?? '') }}" required>
                                                             </div>
@@ -475,7 +475,7 @@
                                                                 <label for="billing-phone">
                                                                     {{ translate('phone') }} <span class="text-danger">*</span>
                                                                 </label>
-                                                                <input type="tel" name="billing_phone"
+                                                                <input data-egypt-phone type="tel" name="billing_phone"
                                                                        id="billing-phone" class="form-control"
                                                                        placeholder="{{ translate('ex') }}: {{translate('+88 01000000000')}}" {{$billing_addresses->count()==0?'required':''}}>
                                                             </div>
