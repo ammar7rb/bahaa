@@ -1,0 +1,436 @@
+
+  Migration name .............................................. Batch / Status  
+  2016_06_01_000001_create_oauth_auth_codes_table ................... [17] Ran  
+  2016_06_01_000002_create_oauth_access_tokens_table ................ [17] Ran  
+  2016_06_01_000003_create_oauth_refresh_tokens_table ............... [17] Ran  
+  2016_06_01_000004_create_oauth_clients_table ...................... [17] Ran  
+  2016_06_01_000005_create_oauth_personal_access_clients_table ...... [17] Ran  
+  2021_02_24_154706_add_deal_type_to_flash_deals .................... [43] Ran  
+  2021_03_03_204349_add_cm_firebase_token_to_users .................. [44] Ran  
+  2021_04_17_134848_add_column_to_order_details_stock ............... [45] Ran  
+  2021_05_12_155401_add_auth_token_seller ........................... [46] Ran  
+  2021_05_27_103505_create_product_translations_table ............... [51] Ran  
+  2021_06_03_104531_ex_rate_update .................................. [47] Ran  
+  2021_06_03_222413_amount_withdraw_req ............................. [48] Ran  
+  2021_06_04_154501_seller_wallet_withdraw_bal ...................... [49] Ran  
+  2021_06_04_195853_product_dis_tax ................................. [50] Ran  
+  2021_06_29_212549_add_active_col_user_table ....................... [52] Ran  
+  2021_06_30_212619_add_col_to_contact .............................. [53] Ran  
+  2021_07_04_182331_add_col_seller_sales_commission ................. [55] Ran  
+  2021_08_07_190655_add_seo_columns_to_products ..................... [56] Ran  
+  2021_08_07_205913_add_col_to_category_table ....................... [56] Ran  
+  2021_08_07_210808_add_col_to_shops_table .......................... [56] Ran  
+  2021_08_14_205216_change_product_price_col_type ................... [56] Ran  
+  2021_08_16_201505_change_order_price_col .......................... [56] Ran  
+  2021_08_16_201552_change_order_details_price_col .................. [56] Ran  
+  2021_08_17_213934_change_col_type_seller_earning_history .......... [57] Ran  
+  2021_08_17_214109_change_col_type_admin_earning_history ........... [57] Ran  
+  2021_08_17_214232_change_col_type_admin_wallet .................... [57] Ran  
+  2021_08_17_214405_change_col_type_seller_wallet ................... [57] Ran  
+  2021_08_22_184834_add_publish_to_products_table ................... [57] Ran  
+  2021_09_08_211832_add_social_column_to_users_table ................ [57] Ran  
+  2021_09_13_165535_add_col_to_user ................................. [57] Ran  
+  2021_09_19_061647_add_limit_to_coupons_table ...................... [57] Ran  
+  2021_09_20_020716_add_coupon_code_to_orders_table ................. [57] Ran  
+  2021_09_23_003059_add_gst_to_sellers_table ........................ [57] Ran  
+  2021_09_28_025411_create_order_transactions_table ................. [57] Ran  
+  2021_10_02_185124_create_carts_table .............................. [57] Ran  
+  2021_10_02_190207_create_cart_shippings_table ..................... [57] Ran  
+  2021_10_03_194334_add_col_order_table ............................. [57] Ran  
+  2021_10_03_200536_add_shipping_cost ............................... [57] Ran  
+  2021_10_04_153201_add_col_to_order_table .......................... [57] Ran  
+  2021_10_07_172701_add_col_cart_shop_info .......................... [57] Ran  
+  2021_10_07_184442_create_phone_or_email_verifications_table ....... [57] Ran  
+  2021_10_07_185416_add_user_table_email_verified ................... [57] Ran  
+  2021_10_11_192739_add_transaction_amount_table .................... [57] Ran  
+  2021_10_11_200850_add_order_verification_code ..................... [57] Ran  
+  2021_10_12_083241_add_col_to_order_transaction .................... [57] Ran  
+  2021_10_12_084440_add_seller_id_to_order .......................... [57] Ran  
+  2021_10_12_102853_change_col_type ................................. [57] Ran  
+  2021_10_12_110434_add_col_to_admin_wallet ......................... [57] Ran  
+  2021_10_12_110829_add_col_to_seller_wallet ........................ [57] Ran  
+  2021_10_13_091801_add_col_to_admin_wallets ........................ [57] Ran  
+  2021_10_13_092000_add_col_to_seller_wallets_tax ................... [57] Ran  
+  2021_10_13_165947_rename_and_remove_col_seller_wallet ............. [57] Ran  
+  2021_10_13_170258_rename_and_remove_col_admin_wallet .............. [57] Ran  
+  2021_10_14_061603_column_update_order_transaction ................. [57] Ran  
+  2021_10_15_103339_remove_col_from_seller_wallet ................... [57] Ran  
+  2021_10_15_104419_add_id_col_order_tran ........................... [57] Ran  
+  2021_10_15_213454_update_string_limit ............................. [57] Ran  
+  2021_10_16_234037_change_col_type_translation ..................... [57] Ran  
+  2021_10_16_234329_change_col_type_translation_1 ................... [57] Ran  
+  2021_10_27_091250_add_shipping_address_in_order ................... [58] Ran  
+  2021_11_20_043814_change_pass_reset_email_col ..................... [59] Ran  
+  2021_11_25_043109_create_delivery_men_table ....................... [60] Ran  
+  2021_11_25_062242_add_auth_token_delivery_man ..................... [60] Ran  
+  2021_11_27_043405_add_deliveryman_in_order_table .................. [60] Ran  
+  2021_11_27_051432_create_delivery_histories_table ................. [60] Ran  
+  2021_11_27_051512_add_fcm_col_for_delivery_man .................... [60] Ran  
+  2021_12_15_123216_add_columns_to_banner ........................... [60] Ran  
+  2022_01_04_100543_add_order_note_to_orders_table .................. [60] Ran  
+  2022_01_10_034952_add_lat_long_to_shipping_addresses_table ........ [60] Ran  
+  2022_01_10_045517_create_billing_addresses_table .................. [60] Ran  
+  2022_01_11_040755_add_is_billing_to_shipping_addresses_table ...... [60] Ran  
+  2022_01_11_053404_add_billing_to_orders_table ..................... [60] Ran  
+  2022_01_11_234310_add_firebase_toke_to_sellers_table .............. [60] Ran  
+  2022_01_16_121801_change_colu_type ................................ [60] Ran  
+  2022_01_22_101601_change_cart_col_type ............................ [61] Ran  
+  2022_01_23_031359_add_column_to_orders_table ...................... [61] Ran  
+  2022_01_28_235054_add_status_to_admins_table ...................... [61] Ran  
+  2022_02_01_214654_add_pos_status_to_sellers_table ................. [61] Ran  
+  2022_02_11_225355_add_checked_to_orders_table ..................... [62] Ran  
+  2022_02_14_114359_create_refund_requests_table .................... [62] Ran  
+  2022_02_14_115757_add_refund_request_to_order_details_table ....... [62] Ran  
+  2022_02_15_092604_add_order_details_id_to_transactions_table ...... [62] Ran  
+  2022_02_15_121410_create_refund_transactions_table ................ [62] Ran  
+  2022_02_24_091236_add_multiple_column_to_refund_requests_table .... [62] Ran  
+  2022_02_24_103827_create_refund_statuses_table .................... [62] Ran  
+  2022_03_01_121420_add_refund_id_to_refund_transactions_table ...... [62] Ran  
+  2022_03_10_091943_add_priority_to_categories_table ................ [63] Ran  
+  2022_03_13_111914_create_shipping_types_table ..................... [63] Ran  
+  2022_03_13_121514_create_category_shipping_costs_table ............ [63] Ran  
+  2022_03_14_074413_add_four_column_to_products_table ............... [63] Ran  
+  2022_03_15_105838_add_shipping_to_carts_table ..................... [63] Ran  
+  2022_03_16_070327_add_shipping_type_to_orders_table ............... [63] Ran  
+  2022_03_17_070200_add_delivery_info_to_orders_table ............... [63] Ran  
+  2022_03_18_143339_add_shipping_type_to_carts_table ................ [63] Ran  
+  2022_04_06_020313_create_subscriptions_table ...................... [64] Ran  
+  2022_04_12_233704_change_column_to_products_table ................. [64] Ran  
+  2022_04_15_235820_add_provider .................................... [66] Ran  
+  2022_04_19_095926_create_jobs_table ............................... [64] Ran  
+  2022_05_12_104247_create_wallet_transactions_table ................ [65] Ran  
+  2022_05_12_104511_add_two_column_to_users_table ................... [65] Ran  
+  2022_05_14_063309_create_loyalty_point_transactions_table ......... [65] Ran  
+  2022_05_26_044016_add_user_type_to_password_resets_table .......... [65] Ran  
+  2022_07_21_101659_add_code_to_products_table ...................... [66] Ran  
+  2022_07_26_103744_add_notification_count_to_notifications_table ... [66] Ran  
+  2022_07_31_031541_add_minimum_order_qty_to_products_table ......... [66] Ran  
+  2022_08_11_172839_add_product_type_and_digital_product_type_and_digital_file_ready_to_products  [67] Ran  
+  2022_08_11_173941_add_product_type_and_digital_product_type_and_digital_file_to_order_details  [67] Ran  
+  2022_08_20_094225_add_product_type_and_digital_product_type_and_digital_file_ready_to_carts_table  [67] Ran  
+  2022_10_04_160234_add_banking_columns_to_delivery_men_table ....... [68] Ran  
+  2022_10_04_161339_create_deliveryman_wallets_table ................ [68] Ran  
+  2022_10_04_184506_add_deliverymanid_column_to_withdraw_requests_table  [68] Ran  
+  2022_10_11_103011_add_deliverymans_columns_to_chattings_table ..... [68] Ran  
+  2022_10_11_144902_add_deliverman_id_cloumn_to_reviews_table ....... [68] Ran  
+  2022_10_17_114744_create_order_status_histories_table ............. [68] Ran  
+  2022_10_17_120840_create_order_expected_delivery_histories_table .. [68] Ran  
+  2022_10_18_084245_add_deliveryman_charge_and_expected_delivery_date  [68] Ran  
+  2022_10_18_130938_create_delivery_zip_codes_table ................. [68] Ran  
+  2022_10_18_130956_create_delivery_country_codes_table ............. [68] Ran  
+  2022_10_20_164712_create_delivery_man_transactions_table .......... [68] Ran  
+  2022_10_27_145604_create_emergency_contacts_table ................. [68] Ran  
+  2022_10_29_182930_add_is_pause_cause_to_orders_table .............. [68] Ran  
+  2022_10_31_150604_add_address_phone_country_code_column_to_delivery_men_table  [68] Ran  
+  2022_11_05_185726_add_order_id_to_reviews_table ................... [68] Ran  
+  2022_11_07_190749_create_deliveryman_notifications_table .......... [68] Ran  
+  2022_11_08_132745_change_transaction_note_type_to_withdraw_requests_table  [68] Ran  
+  2022_11_10_193747_chenge_order_amount_seller_amount_admin_commission_delivery_charge_tax_toorder_transactions_table  [68] Ran  
+  2022_12_17_035723_few_field_add_to_coupons_table .................. [69] Ran  
+  2022_12_26_231606_add_coupon_discount_bearer_and_admin_commission_to_orders  [69] Ran  
+  2023_01_04_003034_alter_billing_addresses_change_zip .............. [69] Ran  
+  2023_01_05_121600_change_id_to_transactions_table ................. [69] Ran  
+  2023_02_02_113330_create_product_tag_table ........................ [70] Ran  
+  2023_02_02_114518_create_tags_table ............................... [70] Ran  
+  2023_02_02_152248_add_tax_model_to_products_table ................. [70] Ran  
+  2023_02_02_152718_add_tax_model_to_order_details_table ............ [70] Ran  
+  2023_02_02_171034_add_tax_type_to_carts ........................... [70] Ran  
+  2023_02_06_124447_add_color_image_column_to_products_table ........ [70] Ran  
+  2023_02_07_120136_create_withdrawal_methods_table ................. [70] Ran  
+  2023_02_07_175939_add_withdrawal_method_id_and_withdrawal_method_fields_to_withdraw_requests_table  [70] Ran  
+  2023_02_08_143314_add_vacation_start_and_vacation_end_and_vacation_not_column_to_shops_table  [70] Ran  
+  2023_02_09_104656_add_payment_by_and_payment_not_to_orders_table .. [70] Ran  
+  2023_03_27_150723_add_expires_at_to_phone_or_email_verifications .. [71] Ran  
+  2023_04_17_095721_create_shop_followers_table ..................... [71] Ran  
+  2023_04_17_111249_add_bottom_banner_to_shops_table ................ [71] Ran  
+  2023_04_20_125423_create_product_compares_table ................... [71] Ran  
+  2023_04_30_165642_add_category_sub_category_and_sub_sub_category_add_in_product_table  [71] Ran  
+  2023_05_16_131006_add_expires_at_to_password_resets ............... [71] Ran  
+  2023_05_17_044243_add_visit_count_to_tags_table ................... [71] Ran  
+  2023_05_18_000403_add_title_and_subtitle_and_background_color_and_button_text_to_banners_table  [71] Ran  
+  2023_05_21_111300_add_login_hit_count_and_is_temp_blocked_and_temp_block_time_to_users_table  [71] Ran  
+  2023_05_21_111600_add_login_hit_count_and_is_temp_blocked_and_temp_block_time_to_phone_or_email_verifications_table  [71] Ran  
+  2023_05_21_112215_add_login_hit_count_and_is_temp_blocked_and_temp_block_time_to_password_resets_table  [71] Ran  
+  2023_06_04_210726_attachment_lenght_change_to_reviews_table ....... [71] Ran  
+  2023_06_05_115153_add_referral_code_and_referred_by_to_users_table  [72] Ran  
+  2023_06_21_002658_add_offer_banner_to_shops_table ................. [72] Ran  
+  2023_07_08_210747_create_most_demandeds_table ..................... [72] Ran  
+  2023_07_31_111419_add_minimum_order_amount_to_sellers_table ....... [72] Ran  
+  2023_08_03_105256_create_offline_payment_methods_table ............ [72] Ran  
+  2023_08_07_131013_add_is_guest_column_to_carts_table .............. [72] Ran  
+  2023_08_07_170601_create_offline_payments_table ................... [72] Ran  
+  2023_08_12_102355_create_add_fund_bonus_categories_table .......... [72] Ran  
+  2023_08_12_215346_create_guest_users_table ........................ [72] Ran  
+  2023_08_12_215659_add_is_guest_column_to_orders_table ............. [72] Ran  
+  2023_08_12_215933_add_is_guest_column_to_shipping_addresses_table . [72] Ran  
+  2023_08_15_000957_add_email_column_toshipping_address_table ....... [72] Ran  
+  2023_08_17_222330_add_identify_related_columns_to_admins_table .... [72] Ran  
+  2023_08_20_230624_add_sent_by_and_send_to_in_notifications_table .. [72] Ran  
+  2023_08_20_230911_create_notification_seens_table ................. [72] Ran  
+  2023_08_21_042331_add_theme_to_banners_table ...................... [72] Ran  
+  2023_08_24_150009_add_free_delivery_over_amount_and_status_to_seller_table  [72] Ran  
+  2023_08_26_161214_add_is_shipping_free_to_orders_table ............ [72] Ran  
+  2023_08_26_173523_add_payment_method_column_to_wallet_transactions_table  [72] Ran  
+  2023_08_26_204653_add_verification_status_column_to_orders_table .. [72] Ran  
+  2023_08_26_225113_create_order_delivery_verifications_table ....... [72] Ran  
+  2023_09_03_212200_add_free_delivery_responsibility_column_to_orders_table  [72] Ran  
+  2023_09_23_153314_add_shipping_responsibility_column_to_orders_table  [72] Ran  
+  2023_09_25_152733_create_digital_product_otp_verifications_table .. [72] Ran  
+  2023_09_27_191638_add_attachment_column_to_support_ticket_convs_table  [73] Ran  
+  2023_10_01_205117_add_attachment_column_to_chattings_table ........ [73] Ran  
+  2023_10_07_182714_create_notification_messages_table .............. [73] Ran  
+  2023_10_21_113354_add_app_language_column_to_users_table .......... [73] Ran  
+  2023_10_21_123433_add_app_language_column_to_sellers_table ........ [73] Ran  
+  2023_10_21_124657_add_app_language_column_to_delivery_men_table ... [73] Ran  
+  2023_10_22_130225_add_attachment_to_support_tickets_table ......... [73] Ran  
+  2023_10_25_113233_make_message_nullable_in_chattings_table ........ [73] Ran  
+  2023_10_30_152005_make_attachment_column_type_change_to_reviews_table  [73] Ran  
+  2024_01_14_192546_add_slug_to_shops_table ......................... [74] Ran  
+  2024_01_25_175421_add_country_code_to_emergency_contacts_table .... [75] Ran  
+  2024_02_01_200417_add_denied_count_and_approved_count_to_refund_requests_table  [75] Ran  
+  2024_03_11_130425_add_seen_notification_and_notification_receiver_to_chattings_table  [76] Ran  
+  2024_03_12_123322_update_images_column_in_refund_requests_table ... [76] Ran  
+  2024_03_21_134659_change_denied_note_column_type_to_text .......... [76] Ran  
+  2024_04_03_093637_create_email_templates_table .................... [77] Ran  
+  2024_04_17_102137_add_is_checked_column_to_carts_table ............ [77] Ran  
+  2024_04_23_130436_create_vendor_registration_reasons_table ........ [77] Ran  
+  2024_04_24_093932_add_type_to_help_topics_table ................... [77] Ran  
+  2024_05_20_133216_create_review_replies_table ..................... [78] Ran  
+  2024_05_20_163043_add_image_alt_text_to_brands_table .............. [78] Ran  
+  2024_05_26_152030_create_digital_product_variations_table ......... [78] Ran  
+  2024_05_26_152339_create_product_seos_table ....................... [78] Ran  
+  2024_05_27_184401_add_digital_product_file_types_and_digital_product_extensions_to_products_table  [78] Ran  
+  2024_05_30_101603_create_storages_table ........................... [78] Ran  
+  2024_06_10_174952_create_robots_meta_contents_table ............... [78] Ran  
+  2024_06_12_105137_create_error_logs_table ......................... [78] Ran  
+  2024_07_03_130217_add_storage_type_columns_to_product_table ....... [78] Ran  
+  2024_07_03_153301_add_icon_storage_type_to_catogory_table ......... [78] Ran  
+  2024_07_03_171214_add_image_storage_type_to_brands_table .......... [78] Ran  
+  2024_07_03_185048_add_storage_type_columns_to_shop_table .......... [78] Ran  
+  2024_07_31_133306_create_login_setups_table ....................... [79] Ran  
+  2024_08_04_123750_add_preview_file_to_products_table .............. [79] Ran  
+  2024_08_04_123805_create_authors_table ............................ [79] Ran  
+  2024_08_04_123845_create_publishing_houses_table .................. [79] Ran  
+  2024_08_04_124023_create_digital_product_authors_table ............ [79] Ran  
+  2024_08_04_124046_create_digital_product_publishing_houses_table .. [79] Ran  
+  2024_08_25_130313_modify_email_column_as_nullable_in_users_table .. [79] Ran  
+  2024_08_26_130313_modify_token_column_as_text_in_phone_or_email_verifications_table  [79] Ran  
+  2024_10_01_130036_add_paid_amount_column_in_orders_table .......... [80] Ran  
+  2024_10_01_131352_create_restock_products_table ................... [80] Ran  
+  2024_10_01_132315_create_restock_product_customers_table .......... [80] Ran  
+  2024_11_02_075917_create_stock_clearance_setups_table ............. [81] Ran  
+  2024_11_02_075931_create_stock_clearance_products_table ........... [81] Ran  
+  2024_11_04_162929_create_analytic_scripts_table ................... [81] Ran  
+  2024_12_26_210457_create_blogs_table .............................. [82] Ran  
+  2024_12_26_210615_create_blog_categories_table .................... [82] Ran  
+  2024_12_31_170955_bring_change_amount_column_in_orders_table ...... [82] Ran  
+  2025_01_02_180849_create_blog_translations_table .................. [82] Ran  
+  2025_01_12_104824_create_blog_seos_table .......................... [82] Ran  
+  2025_02_10_165648_change_paid_amount_column_typein_orders_table ... [82] Ran  
+  2025_03_08_201607_create_business_pages_table ..................... [83] Ran  
+  2025_03_08_204555_create_attachments_table ........................ [83] Ran  
+  2025_04_16_154104_modify_loyalty_point_column_in_users_table ...... [83] Ran  
+  2025_05_19_125200_add_setup_guide_column_in_shops_table ........... [84] Ran  
+  2025_05_25_143452_modify_vacation_column_in_shops_table ........... [84] Ran  
+  2025_05_26_115043_create_system_tax_setups_table .................. [86] Ran  
+  2025_05_26_115643_create_taxes_table .............................. [86] Ran  
+  2025_05_26_120030_create_tax_additional_setups_table .............. [86] Ran  
+  2025_05_26_120912_create_taxables_table ........................... [86] Ran  
+  2025_05_26_121656_create_order_taxes_table ........................ [86] Ran  
+  2025_05_26_205629_create_recent_searches_table .................... [84] Ran  
+  2025_05_27_202411_create_vendor_withdraw_method_infos_table ....... [84] Ran  
+  2025_06_03_171327_create_referral_customers_table ................. [84] Ran  
+  2025_06_11_171704_add_refer_and_earn_discount_to_orders_table ..... [84] Ran  
+  2025_06_12_202801_add_tin_fields_to_shops_table ................... [84] Ran  
+  2025_06_26_233404_add_stock_limit_to_sellers_table ................ [84] Ran  
+  2025_07_02_181417_modify_coupon_amount_column_in_coupons_table .... [84] Ran  
+  2025_07_13_021823_modify_wallet_balance_column_in_users_table ..... [84] Ran  
+  2025_07_20_162709_modify_details_column_in_products_table ......... [85] Ran  
+  2025_07_20_162748_modify_value_column_in_translations_table ....... [85] Ran  
+  2025_07_24_104352_create_order_details_rewards_table .............. [85] Ran  
+  2025_07_24_223430_add_deliveryman_assigned_at_column_in_orders_table  [85] Ran  
+  2025_07_24_225116_add_refund_started_at_column_in_order_details_table  [85] Ran  
+  2025_08_04_103017_add_author_type_to_shops_table .................. [85] Ran  
+  2025_08_06_230845_modify_some_string_column_in_products_table ..... [85] Ran  
+  2025_08_11_213029_modify_product_details_column_in_order_details_table  [85] Ran  
+  2025_08_23_235027_modify_tax_related_column_in_products_table ..... [86] Ran  
+  2025_08_26_183607_modify_tax_related_column_in_carts_table ........ [86] Ran  
+  2025_08_27_213749_add_total_tax_amount_column_to_orders_table ..... [86] Ran  
+  2025_08_31_222732_modify_amount_related_column_in_carts_table ..... [86] Ran  
+  2025_09_03_105451_modify_cost_column_in_shipping_methods_table .... [86] Ran  
+  2025_09_03_105619_modify_shipping_cost_column_in_cart_shippings_table  [86] Ran  
+  2025_09_03_172258_create_ai_settings_table ........................ [86] Ran  
+  2025_09_03_202802_create_ai_setting_logs_table .................... [86] Ran  
+  2025_09_04_174517_add_shop_id_to_order_transactions_table ......... [86] Ran  
+  2025_09_08_174517_add_shop_id_to_products_table ................... [86] Ran  
+  2025_09_15_180617_modify_colors_column_in_products_table .......... [86] Ran  
+  2025_11_04_201638_change_double_to_decimal_in_orders_table ........ [87] Ran  
+  2025_11_06_170735_add_slug_to_brands_table ........................ [87] Ran  
+  2025_11_06_185319_create_seo_meta_table ........................... [87] Ran  
+  2026_01_11_211839_create_order_edit_histories_table ............... [88] Ran  
+  2026_01_13_165849_add_edited_status_to_orders_table ............... [88] Ran  
+  2026_01_20_152719_add_edit_amounts_to_orders_table ................ [88] Ran  
+  2026_01_22_151155_update_add_fund_bonus_categories_table .......... [88] Ran  
+  2026_01_22_153232_update_admin_wallets_amount_columns ............. [88] Ran  
+  2026_01_22_153441_update_category_shipping_costs_table ............ [88] Ran  
+  2026_01_22_153551_update_customer_wallets_amount_columns .......... [88] Ran  
+  2026_01_22_153805_update_customer_wallet_histories_amount_column .. [88] Ran  
+  2026_01_22_154413_update_deal_of_the_days_discount_column ......... [88] Ran  
+  2026_01_22_154515_update_deliveryman_wallets_amount_columns ....... [88] Ran  
+  2026_01_22_155945_update_delivery_man_transactions_amount_columns . [88] Ran  
+  2026_01_22_160344_update_flash_deal_products_discount_column ...... [88] Ran  
+  2026_01_22_163451_update_loyalty_point_transactions_amount_columns  [88] Ran  
+  2026_01_22_163620_update_order_details_amount_columns ............. [88] Ran  
+  2026_01_22_163845_update_order_transactions_amount_columns ........ [88] Ran  
+  2026_01_22_164020_update_payment_requests_amount_column ........... [88] Ran  
+  2026_01_22_164104_update_paytabs_invoices_amount_column ........... [88] Ran  
+  2026_01_22_164214_update_products_price_columns ................... [88] Ran  
+  2026_01_22_164309_update_product_stocks_price_column .............. [88] Ran  
+  2026_01_22_164433_update_referral_customers_amount_columns ........ [88] Ran  
+  2026_01_22_164519_update_refund_requests_amount_column ............ [88] Ran  
+  2026_01_22_164609_update_refund_transactions_amount_column ........ [88] Ran  
+  2026_01_22_164738_update_sellers_money_columns .................... [88] Ran  
+  2026_01_22_164826_update_seller_wallets_money_columns ............. [88] Ran  
+  2026_01_22_164958_update_seller_wallet_histories_amount_column .... [88] Ran  
+  2026_01_22_165234_update_transactions_amount_column ............... [88] Ran  
+  2026_01_22_165803_update_wallet_transactions_decimal_precision .... [88] Ran  
+  2026_02_25_163505_add_indexes_to_orders_table ..................... [89] Ran  
+  2026_02_25_163601_add_indexes_to_products_table ................... [89] Ran  
+  2026_02_25_163645_add_indexes_to_order_details_table .............. [89] Ran  
+  2026_02_25_163731_add_indexes_to_shops_table ...................... [89] Ran  
+  2026_02_26_172145_add_full_phone_to_delivery_men_table ............ [89] Ran  
+  2026_03_10_112011_add_method_type_with_comment_to_withdraw_requests_table  [89] Ran  
+  2026_04_13_180435_update_deliveryman_wallets_precision ............ [90] Ran  
+  2026_04_22_140000_create_v2_sidebar_pins_table .................... [90] Ran  
+  2026_04_23_120000_rename_admin_role_module_access_keys ............ [90] Ran  
+  2026_05_07_000001_update_all_decimal_columns_to_40_20 ............. [91] Ran  
+  2026_06_21_000001_create_customer_purchase_packages_table ......... [92] Ran  
+  2026_06_21_000002_create_customer_purchase_package_subscriptions_table  [92] Ran  
+  2026_06_21_000003_create_customer_purchase_limit_transactions_table  [92] Ran  
+  2026_06_21_000004_add_customer_extra_credit_business_settings ..... [93] Ran  
+  2026_06_24_000001_add_customer_terms_and_monthly_insurance_to_users_table  [94] Ran  
+  2026_06_24_000002_add_activation_status_to_orders_table ........... [94] Ran  
+  2026_06_24_000003_create_customer_activation_invoices_table ....... [95] Ran  
+  2026_06_24_000004_add_activation_insurance_shipping_settings ...... [96] Ran  
+  2026_06_29_000001_add_phone_verified_at_to_sellers_table .......... [97] Ran  
+  2026_06_29_000002_create_seller_insurances_table .................. [97] Ran  
+  2026_06_29_000003_create_seller_packages_table .................... [97] Ran  
+  2026_06_29_000004_create_seller_package_subscriptions_table ....... [97] Ran  
+  2026_06_29_000005_create_seller_product_entitlements_table ........ [97] Ran  
+  2026_06_29_000006_create_seller_product_promotions_table .......... [97] Ran  
+  2026_06_29_000007_create_seller_package_transactions_table ........ [97] Ran  
+  2026_06_29_000008_add_registration_reference_to_sellers_table ..... [98] Ran  
+  2026_06_29_000009_add_seller_insurance_settings ................... [99] Ran  
+  2026_07_17_000001_add_three_step_shipping_rates_to_products_table  [107] Ran  
+  2026_07_17_000002_add_shipping_review_snapshot_to_orders_table ... [107] Ran  
+  2026_07_17_000003_add_coupon_quota_to_seller_packages ............ [107] Ran  
+  2026_08_07_000001_add_activation_workflow_to_sellers_table ....... [100] Ran  
+  2026_08_07_000002_create_seller_activation_tickets_table ......... [101] Ran  
+  2026_08_07_000003_create_seller_activation_ticket_messages_table . [102] Ran  
+  2026_08_08_000001_create_seller_ledger_entries_table ............. [109] Ran  
+  2026_08_08_000001_create_seller_product_content_violations_table . [104] Ran  
+  2026_08_08_000002_add_seller_review_workflow_to_products ......... [105] Ran  
+  2026_08_08_000002_add_seller_withdrawal_approval_fields .......... [110] Ran  
+  2026_08_08_000002_create_policy_versions_and_acceptances_tables .. [103] Ran  
+  2026_08_08_000003_add_product_specifications_to_products ......... [106] Ran  
+  2026_08_08_000003_add_vendor_method_reference_to_withdraw_requests  [111] Ran  
+  2026_08_08_000004_create_seller_stock_violations_table ........... [107] Ran  
+  2026_08_08_000005_add_is_active_to_categories_table .............. [108] Ran  
+  2026_08_08_000006_create_seller_balance_deposits_table ........... [112] Ran  
+  2026_08_08_000010_add_subscription_duration_contract ............. [113] Ran  
+  2026_08_09_000001_create_seller_settlements_table ................ [114] Ran  
+  2026_08_09_000002_add_settlement_alert_fields .................... [114] Ran  
+  2026_08_09_000003_add_shipping_decision_to_orders ................ [115] Ran  
+  2026_08_09_000004_merge_sigma_shipping_option .................... [116] Ran  
+  2026_08_09_000005_create_egypt_shipping_zone_rates_table ......... [117] Ran  
+  2026_08_09_000006_add_retention_fields_to_support_tickets_table .. [118] Ran  
+  2026_08_09_000007_create_order_insurances_table .................. [119] Ran  
+  2026_08_09_000008_add_maturity_fields_to_order_insurances ........ [120] Ran  
+  2026_08_09_000009_create_customer_insurance_ledger_entries_table . [121] Ran  
+  2026_08_09_000010_create_order_logistics_events_and_extend_orders  [122] Ran  
+  2026_08_10_000011_create_seller_order_insurances_table ........... [123] Ran  
+  2026_08_10_000012_add_reuse_fields_to_seller_order_insurances .... [124] Ran  
+  2026_08_11_000001_create_seller_order_insurance_decisions_table .. [125] Ran  
+  2026_08_11_000002_add_customer_activation_workflow ............... [126] Ran  
+  2026_08_11_000003_add_product_package_governance ................. [127] Ran  
+  2026_08_11_000004_create_insurance_rule_engine_tables ............ [128] Ran  
+  2026_08_11_000005_create_order_operations_governance ............. [129] Ran  
+  2026_08_11_000006_create_admin_reporting_governance .............. [130] Ran  
+  2026_08_12_000001_create_release_data_migration_audit_tables ..... [131] Ran  
+  2026_08_14_000001_add_order_commerce_phase_zero_contract ......... [132] Ran  
+  2026_08_14_000002_create_insurance_balance_governance ............ [133] Ran  
+  2026_08_14_000003_create_admin_order_gate_and_investigations ..... [134] Ran  
+  2026_08_14_000004_add_seller_restricted_access_token_to_orders ... [135] Ran  
+  2026_08_15_000001_create_homepage_layout_versions_and_sections ... [136] Ran  
+  2026_08_16_000001_create_unified_account_activation_center ....... [137] Ran  
+  2026_08_16_000002_prepare_commerce_contract_v3 ................... [137] Ran  
+  2026_08_16_000003_add_lifecycle_and_review_fields_to_products .... [138] Ran  
+  2026_08_16_000003_add_post_purchase_payment_state_and_customer_insurance_balances  [138] Ran  
+  2026_08_16_000004_complete_shipping_refund_and_proof_contract .... [138] Ran  
+  2026_08_21_000001_add_custom_name_to_account_activation_documents_table  [139] Ran  
+  2026_08_22_000001_register_arabic_as_a_first_party_language ...... [140] Ran  
+  2026_08_23_000001_add_homepage_visibility_to_products ............ [141] Ran  
+  2026_08_24_000001_add_seller_shipping_response_workflow_to_orders  [142] Ran  
+  2026_08_24_000002_publish_completed_seller_products .............. [143] Ran  
+  2026_08_24_000003_restore_seller_product_review_queue ............ [144] Ran  
+  2026_08_26_120000_set_egyptian_pound_as_system_default_currency .. [145] Ran  
+  2026_08_27_000001_create_insurance_subject_overrides_table ....... [146] Ran  
+  2026_08_27_010000_add_changed_fields_to_seller_product_reviews ... [147] Ran  
+  2026_08_27_020000_enable_automatic_distance_shipping ............. [148] Ran  
+  2026_08_27_020100_clear_stale_cart_shipping_quotes ............... [149] Ran  
+  2026_08_27_030000_enable_prepaid_payments_and_disable_cod ........ [150] Ran  
+  2026_08_27_030100_require_offline_payment_screenshot ............. [151] Ran  
+  2026_08_27_040000_require_shipping_choice_and_disable_billing_address  [152] Ran  
+  2026_08_27_040100_clear_existing_cart_shipping_choices ........... [153] Ran  
+  2026_08_31_090000_create_egypt_shipping_dispatch_points_table .... [154] Ran  
+  2026_08_31_090100_add_structured_location_to_shipping_addresses_table  [154] Ran  
+  2026_08_31_100000_merge_dispatch_points_into_egypt_zone_rates .... [155] Ran  
+  2026_08_31_110000_add_automatic_origin_address_to_egypt_zone_rates  [156] Ran  
+  2026_09_03_000000_seed_governorate_shipping_rates_and_promises ... [157] Ran  
+  2026_09_03_010000_add_building_number_to_shipping_addresses_table  [158] Ran  
+  2026_09_06_000001_create_customer_balance_deposits_table ......... [159] Ran  
+  2026_09_06_000002_create_contact_conversation_messages ........... [160] Ran  
+  2026_09_08_000001_add_mobile_support_token_to_contacts ........... [161] Ran  
+  2026_09_11_000001_add_medical_icon_to_categories_table ........... [162] Ran  
+  2026_09_12_000001_add_attachments_to_contact_conversation_messages  [163] Ran  
+  2026_09_17_000001_add_payment_channel_to_offline_payment_methods . [163] Ran  
+  2026_09_19_000001_split_wallet_and_instapay_offline_methods ...... [164] Ran  
+  2026_09_28_000001_replace_legacy_developer_company_email ......... [165] Ran  
+  2026_10_02_000001_add_translations_to_business_pages ............. [166] Ran  
+  2026_10_06_120000_create_vendor_account_profiles_and_inbox_reads . [167] Ran  
+  2026_10_07_120000_create_vendor_support_threads .................. [168] Ran  
+  2026_10_07_140000_vendor_finance_product_options ................. [169] Ran  
+  2026_10_10_100000_add_customer_onboarding_journey ................ [171] Ran  
+  2026_10_10_120000_add_admin_read_at_to_support_tickets ........... [170] Ran  
+  2026_10_10_200000_create_customer_monthly_subscriptions .......... [171] Ran  
+  2026_10_10_300000_add_customer_purchase_eligibility .............. [171] Ran  
+  2026_10_10_310000_preserve_customer_checkout_snapshot ............ [171] Ran  
+  2026_10_12_100000_customer_monthly_package_terms ................. [172] Ran  
+  2026_10_12_110000_customer_account_deletion_flow ................. [173] Ran  
+  2026_10_12_120000_customer_payment_notifications ................. [174] Ran  
+  2026_10_12_130000_customer_allowance_restorations ................ [175] Ran  
+  2026_10_12_140000_reserve_monthly_allowance_at_checkout .......... [176] Ran  
+  2026_10_12_150000_review_initial_confirmed_order_payments ........ [177] Ran  
+  2026_10_12_160000_snapshot_customer_increase_quantity ............ [178] Ran  
+  2026_10_13_100000_customer_profile_contacts_and_history .......... [179] Ran  
+  2026_10_14_000001_create_vendor_advertising_slots ................ [184] Ran  
+  2026_10_14_000002_create_vendor_advertising_rollouts ............. [185] Ran  
+  2026_10_14_100000_customer_package_wallet_policy ................. [180] Ran  
+  2026_10_14_180000_customer_wallet_statement ...................... [181] Ran  
+  2026_10_14_190000_customer_admin_password_recovery ............... [182] Ran  
+  2026_10_14_200000_add_veterinary_services_business_page .......... [183] Ran  
+  2026_10_15_000001_create_vendor_extra_ad_purchases ............... [186] Ran  
+  2026_10_15_000002_create_vendor_funding_intents .................. [187] Ran  
+  2026_10_16_000001_create_activation_conversation_reads ........... [188] Ran  
+  2026_10_17_220000_remove_vendor_withdrawal_destination_approval .. [189] Ran  
+  2026_10_17_230000_create_vendor_product_workspaces ............... [190] Ran  
+  2026_10_18_030000_add_vendor_slot_reservations ................... [191] Ran  
+  2026_10_22_210000_create_vendor_product_submission_revisions ..... [192] Ran  
+  2026_10_23_010000_create_order_vendor_pricings ................... [193] Ran  
+  2026_10_23_030000_create_order_financial_events .................. [194] Ran  
+  2026_10_25_000001_create_company_medical_devices ................. [195] Ran  
+  2026_10_27_100000_preserve_initial_checkout_origin ............... [196] Ran  
+  2026_11_03_090000_create_product_view_adjustments ................ [197] Ran  
+  2026_11_03_110000_add_customer_cancellation_refund_decisions ..... [198] Ran  
+  2026_11_04_120000_add_medical_device_reports ..................... [199] Ran  
+
