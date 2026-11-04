@@ -84,7 +84,7 @@
                                         </label>
                                         <div class="position-relative d-flex align-items-center">
 
-                                        <input class="form-control phone-input-with-country-picker" id="phone" type="tel" name="phone"
+                                        <input class="form-control" inputmode="tel" dir="ltr" id="phone" type="tel" name="phone"
                                                value="{{ $customerDetail['phone'] }}" placeholder="{{ translate('enter_phone_number') }}" required
                                             >
 

@@ -332,7 +332,7 @@
                                                                     <label>{{ translate('phone')}}
                                                                         <span class="text-danger">*</span>
                                                                     </label>
-                                                                    <input type="tel" class="form-control phone-input-with-country-picker-2" name="billing_phone"
+                                                                    <input type="tel" class="form-control" inputmode="tel" dir="ltr" name="billing_phone"
                                                                            id="billing_phone" {{ $billingAddresses->count()==0 ? 'required' : '' }}>
                                                                 </div>
                                                             </div>

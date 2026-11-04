@@ -53,7 +53,7 @@
                                 <div class="form-group mb-4">
                                     <label for="phone">{{ translate('phone') }}</label>
                                     <input type="tel" id="phone" value="{{ old('phone') }}"
-                                           class="form-control phone-input-with-country-picker" name="phone"
+                                           class="form-control" inputmode="tel" dir="ltr" name="phone"
                                            placeholder="{{ translate('enter_phone_number') }}" required/>
                                 </div>
                             </div>

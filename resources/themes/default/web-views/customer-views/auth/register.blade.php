@@ -92,7 +92,7 @@
                                     {{ translate('phone_number') }}
                                     <span class="input-required-icon">*</span>
                                 </label>
-                                <input class="form-control text-align-direction phone-input-with-country-picker"
+                                <input class="form-control text-align-direction" inputmode="tel" dir="ltr"
                                     type="tel" value="{{ old('phone') }}" name="phone"
                                     placeholder="{{ translate('enter_phone_number') }}" required>
                             </div>
