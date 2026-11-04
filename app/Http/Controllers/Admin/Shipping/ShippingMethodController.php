@@ -24,11 +24,20 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class ShippingMethodController extends BaseController
 {
-    public function workspace(): View
+    public function workspace(Request $request): View
     {
+        $shippingMethods = $this->shippingMethodRepo->getListWhere(
+            orderBy: ['id' => 'desc'], searchValue: $request->order_search,
+            filters: ['creator_type' => 'admin'], dataLimit: getWebConfig(name: 'pagination_limit')
+        );
+        $adminShipping = $this->shippingTypeRepo->getFirstWhere(params: ['seller_id' => 0]);
+        $allCategoryShippingCost = $this->categoryShippingCostRepo->getListWhere(
+            orderBy: ['id' => 'desc'], searchValue: $request->category_search,
+            filters: ['seller_id' => 0], relations: ['category']
+        )->filter(fn ($item) => $item?->category !== null);
         $egyptZoneRates = EgyptShippingZoneRate::query()
             ->orderByRaw('governorate IS NULL DESC')->orderBy('governorate')->get();
-        return view('admin-views.shipping-method.index', compact('egyptZoneRates'));
+        return view('admin-views.shipping-method.index', compact('egyptZoneRates', 'shippingMethods', 'adminShipping', 'allCategoryShippingCost'));
     }
 
     public function workspaceRedirect(): RedirectResponse

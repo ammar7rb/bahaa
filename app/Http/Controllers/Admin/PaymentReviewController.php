@@ -38,9 +38,7 @@ class PaymentReviewController extends Controller
         ]);
         if ($request->input('panel') === 'settings') {
             abort_unless(\App\Utils\Helpers::module_permission_check('people'), 403);
-            return view('admin-views.payment-reviews.index', [
-                'settingsPanel' => app(\App\Http\Controllers\Admin\Vendor\SellerBalanceFundingSettingsController::class)->pageData(),
-            ]);
+            return app(\App\Http\Controllers\Admin\Vendor\SellerBalanceFundingSettingsController::class)->index();
         }
         if ($request->boolean('guest_orders')) {
             abort_unless(\App\Utils\Helpers::module_permission_check('orders'), 403);
