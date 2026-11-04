@@ -59,7 +59,7 @@ class CustomerBalanceDepositService
             if ($deposit->wallet_type === 'purchase') {
                 $message = $decision === 'approve'
                     ? 'تم قبول طلب شحن المحفظة وإضافة المبلغ. رصيدك الجديد: '
-                        .number_format((float) usdToAnotherCurrencyConverter($deposit->currency_code, $customer->wallet_balance), 2)
+                        .number_format($customer->wallet_balance * ($deposit->submitted_amount > 0 ? $deposit->submitted_amount / $deposit->amount : 1), 2)
                         .' '.$deposit->currency_code
                     : 'تم رفض طلب شحن المحفظة. سبب الرفض: '.trim((string) $note);
                 app(CustomerPaymentNotificationService::class)->notify((int) $deposit->customer_id, 'wallet-deposit-'.$deposit->id.'-'.$decision, $message);
