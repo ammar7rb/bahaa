@@ -20,6 +20,7 @@ class CustomerPurchaseEligibilityService
     public function status(object $customer): array
     {
         $subscription = app(CustomerMonthlySubscriptionService::class)->status((int) $customer->id);
+        $renewalRequired = $subscription['status'] === 'expired';
         $activated = true;
         $newAccount = in_array($customer->onboarding_journey, ['checkout_first', 'standard'], true)
             && !\App\Models\CustomerMonthlySubscription::where('customer_id', $customer->id)->exists();
@@ -38,10 +39,10 @@ class CustomerPurchaseEligibilityService
             'subscription' => $subscription,
             'is_urgent_account' => $newAccount,
             'show_credit_indicator' => !$newAccount && $subscription['active'],
-            'can_pay_before_subscription' => !$subscription['active'],
+            'can_pay_before_subscription' => !$subscription['active'] && !$renewalRequired,
             'initial_order_exception_available' => $first,
             'can_resume_initial_checkout' => (bool) $resume,
-            'can_checkout' => !in_array('administrative_freeze', $reasons, true),
+            'can_checkout' => !$renewalRequired && !in_array('administrative_freeze', $reasons, true),
             'pending_reasons' => $reasons,
             'message' => $this->message($reasons),
         ];
@@ -59,7 +60,7 @@ class CustomerPurchaseEligibilityService
                 // A confirmed gateway callback may arrive after expiry; its server reservation is authoritative.
                 return $operation;
             }
-            if ($state['administratively_frozen']) $this->deny(['administrative_freeze']);
+            if (!$state['can_checkout']) $this->deny($state['pending_reasons']);
             $open = DB::table('customer_checkout_operations')->where('customer_id', $customerId)->whereNull('consumed_at')->lockForUpdate()->first();
             if ($open) {
                 if (!hash_equals($open->cart_fingerprint, $fingerprint)) $this->deny(['pending_checkout_changed']);
