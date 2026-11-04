@@ -107,7 +107,7 @@ class ProductController extends Controller
                 return $query->where('status', $request['status']);
             })
             ->when(isset($request['request_status']), function ($query) use ($request) {
-                return $query->where('request_status', $request['request_status']);
+                return $query->reviewRequestStatus($request['request_status']);
             })
             ->when(isset($request['filter_sort_by']) && $request['filter_sort_by'] == 'latest', function ($query) use ($request) {
                 return $query->orderBy('id', 'desc');
@@ -149,6 +149,7 @@ class ProductController extends Controller
 
     public function getVendorAllProducts($seller_id, Request $request): JsonResponse
     {
+        abort_unless($request->seller && (int) $request->seller->id === (int) $seller_id, 404);
         $brandIds = json_decode($request['brand_ids'] ?? '', true);
         $categoryIds = json_decode($request['category_ids'] ?? '', true);
         $publishingHouseIds = json_decode($request['publishing_house_ids'] ?? '', true);
@@ -261,7 +262,7 @@ class ProductController extends Controller
                 return $query->whereIn('status', $filterProductStatus);
             })
             ->when(isset($request['request_status']), function ($query) use ($request) {
-                return $query->where('request_status', $request['request_status']);
+                return $query->reviewRequestStatus($request['request_status']);
             })
             ->when(isset($request['filter_sort_by']) && $request['filter_sort_by'] == 'latest', function ($query) use ($request) {
                 return $query->orderBy('id', 'desc');
@@ -394,6 +395,7 @@ class ProductController extends Controller
 
     public function editOrderVendorAllProducts($seller_id, Request $request): JsonResponse
     {
+        abort_unless($request->seller && (int) $request->seller->id === (int) $seller_id, 404);
         $brandIds = json_decode($request['brand_ids'] ?? '', true);
         $categoryIds = json_decode($request['category_ids'] ?? '', true);
         $publishingHouseIds = json_decode($request['publishing_house_ids'] ?? '', true);
@@ -506,7 +508,7 @@ class ProductController extends Controller
                 return $query->whereIn('status', $filterProductStatus);
             })
             ->when(isset($request['request_status']), function ($query) use ($request) {
-                return $query->where('request_status', $request['request_status']);
+                return $query->reviewRequestStatus($request['request_status']);
             })
             ->when(isset($request['filter_sort_by']) && $request['filter_sort_by'] == 'latest', function ($query) use ($request) {
                 return $query->orderBy('id', 'desc');
@@ -659,7 +661,9 @@ class ProductController extends Controller
         ->find($id);
 
         if (isset($product)) {
+            $viewCount = app(\App\Services\ProductViewCountService::class)->totals((int) $product->id)['total'];
             $product = Helpers::product_data_formatting($product, false);
+            $product['product_view_count'] = $viewCount;
         }
         return response()->json($product, 200);
     }
@@ -772,6 +776,8 @@ class ProductController extends Controller
 
     public function add_new(Request $request): JsonResponse
     {
+        $request->merge(['discount' => 0, 'discount_type' => 'flat']);
+        app(\App\Services\VendorAdvertisingAccessService::class)->assertCanCreate((int) $request->seller->id);
         $seller = $request->seller;
         if ($policyResponse = $this->guardProductPolicy($request, $seller)) {
             return $policyResponse;
@@ -788,8 +794,9 @@ class ProductController extends Controller
             'product_type' => 'required',
             'unit' => 'nullable|string|max:50',
             'brand_name' => 'nullable|string|max:100',
-            'images' => 'required',
-            'thumbnail' => 'required',
+            'images' => 'nullable|json',
+            'thumbnail' => 'nullable|string',
+            'color_image' => 'nullable|json',
             'discount_type' => 'required|in:percent,flat',
             'lang' => 'required',
             'unit_price' => 'required|min:1',
@@ -819,12 +826,6 @@ class ProductController extends Controller
             'minimum_order_qty.required' => translate('The minimum order quantity is required!'),
             'minimum_order_qty.min' => translate('The minimum order quantity must be positive!'),
         ]);
-
-        $submittedImageCount = count((array) json_decode($request->input('images', '[]'), true))
-            + count((array) json_decode($request->input('color_image', '[]'), true));
-        if ($submittedImageCount < 5) {
-            $validator->after(fn ($validator) => $validator->errors()->add('images', translate('seller_product_minimum_images_required')));
-        }
 
         $taxData = $this->getTaxSystemType();
         $productWiseTax = $taxData['productWiseTax'] && !$taxData['is_included'];
@@ -903,9 +904,9 @@ class ProductController extends Controller
         $requestLanguage = json_decode($request['lang'], true);
         $requestName = json_decode($request['name'], true);
         $requestDescription = json_decode($request['description'], true);
-        $requestColors = json_decode($request['colors'], true);
-        $requestImages = json_decode($request['images'], true);
-        $requestColorImages = json_decode($request['color_image'], true);
+        $requestColors = json_decode($request['colors'] ?? '[]', true) ?: [];
+        $requestImages = json_decode($request['images'] ?? '[]', true) ?: [];
+        $requestColorImages = json_decode($request['color_image'] ?? '[]', true) ?: [];
         $requestTags = json_decode($request['tags'], true);
         $requestChoiceArray = json_decode($request['choice'], true);
         $requestChoiceNo = json_decode($request['choice_no'], true);
@@ -1261,7 +1262,7 @@ class ProductController extends Controller
 
     public function edit(Request $request, $id)
     {
-        $product = Product::withoutGlobalScopes()->with('translations', 'tags', 'digitalVariation', 'seoInfo')->withCount('reviews')->find($id);
+        $product = Product::withoutGlobalScopes()->where('added_by', 'seller')->where('user_id', $request->seller->id)->with('translations', 'tags', 'digitalVariation', 'seoInfo')->withCount('reviews')->findOrFail($id);
         $product = Helpers::product_data_formatting($product);
 
         return response()->json($product, 200);
@@ -1269,6 +1270,7 @@ class ProductController extends Controller
 
     public function updateProduct(Request $request, $id): JsonResponse
     {
+        $request->merge(['discount' => 0, 'discount_type' => 'flat']);
         $storage = config('filesystems.disks.default') ?? 'public';
         $seller = $request->seller;
         // This protects updates even if a client bypasses the hidden Flutter fields.
@@ -1294,6 +1296,9 @@ class ProductController extends Controller
             'product_type' => 'required',
             'unit' => 'nullable|string|max:50',
             'brand_name' => 'nullable|string|max:100',
+            'images' => 'nullable|json',
+            'color_image' => 'nullable|json',
+            'thumbnail' => 'nullable|string',
             'discount_type' => 'required|in:percent,flat',
             'lang' => 'required',
             'unit_price' => 'required|min:1',
@@ -1322,12 +1327,6 @@ class ProductController extends Controller
             'minimum_order_qty.required' => 'The minimum order quantity is required!',
             'minimum_order_qty.min' => 'The minimum order quantity must be positive!',
         ]);
-
-        $submittedImageCount = count((array) json_decode($request->input('images', '[]'), true))
-            + count((array) json_decode($request->input('color_image', '[]'), true));
-        if ($submittedImageCount < 5) {
-            $validator->after(fn ($validator) => $validator->errors()->add('images', translate('seller_product_minimum_images_required')));
-        }
 
         $taxData = $this->getTaxSystemType();
         $productWiseTax = $taxData['productWiseTax'] && !$taxData['is_included'];
@@ -1406,9 +1405,13 @@ class ProductController extends Controller
         $requestLanguage = json_decode($request['lang'], true);
         $requestName = json_decode($request['name'], true);
         $requestDescription = json_decode($request['description'], true);
-        $requestColors = json_decode($request['colors'], true);
-        $requestImages = json_decode($request['images'], true);
-        $requestColorImages = json_decode($request['color_image'], true);
+        $requestColors = json_decode($request['colors'] ?? '[]', true) ?: [];
+        $requestImages = $request->has('images')
+            ? (json_decode($request['images'] ?? '[]', true) ?: [])
+            : (json_decode($product->images ?? '[]', true) ?: []);
+        $requestColorImages = $request->has('color_image')
+            ? (json_decode($request['color_image'] ?? '[]', true) ?: [])
+            : (json_decode($product->color_image ?? '[]', true) ?: []);
         $requestTags = json_decode($request['tags'], true);
         $requestChoiceArray = json_decode($request['choice'], true);
         $requestChoiceNo = json_decode($request['choice_no'], true);
@@ -1500,8 +1503,8 @@ class ProductController extends Controller
             'details' => $requestDescription[array_search(Helpers::default_lang(), $requestLanguage)],
             'images' => json_encode($allImagesData),
             'color_image' => json_encode($modifiedColorImages),
-            'thumbnail' => $request->thumbnail,
-            'thumbnail_storage_type' => $product->thumbnail == $request->thumbnail ? $product->thumbnail_storage_type : $storage,
+            'thumbnail' => $request->input('thumbnail') ?: $product->thumbnail,
+            'thumbnail_storage_type' => !$request->filled('thumbnail') || $product->thumbnail == $request->thumbnail ? $product->thumbnail_storage_type : $storage,
         ];
 
         if ($request->product_type == 'digital') {
@@ -1684,6 +1687,10 @@ class ProductController extends Controller
             ];
         }
 
+        if (config('vendor_product_workspace.enabled')) {
+            $draft = app(\App\Services\VendorProductWorkspaceService::class)->saveSellerDraft($product, $productArray);
+            return response()->json(['message' => translate('product_updated_successfully'), 'review_status' => $draft->review_state]);
+        }
         Product::where('id', $id)->update($productArray);
         if ($wasRejected) {
             app(\App\Services\SellerProductReviewService::class)->submit($product->fresh());
@@ -2120,10 +2127,15 @@ class ProductController extends Controller
                 $this->deleteFile('/product/' . $request['name']);
             }
         }
-        Product::withCount('reviews')->where('id', $request['id'])->update([
+        $updateData = [
             'images' => json_encode($array),
             'color_image' => json_encode($color_image_arr),
-        ]);
+        ];
+        if (config('vendor_product_workspace.enabled')) {
+            app(\App\Services\VendorProductWorkspaceService::class)->saveSellerDraft($product, $updateData);
+        } else {
+            Product::withCount('reviews')->where('id', $request['id'])->update($updateData);
+        }
         return response()->json(translate('product_image_removed_successfully'), 200);
     }
 
@@ -2228,13 +2240,6 @@ class ProductController extends Controller
             return response()->json(['errors' => [[
                 'code' => 'seller_product_content_policy_violation',
                 'message' => translate('seller_product_content_policy_violation'),
-            ]]], 422);
-        }
-
-        if ($policy->countImages($request->input('images'), $request->input('color_image')) < 5) {
-            return response()->json(['errors' => [[
-                'code' => 'seller_product_minimum_images_required',
-                'message' => translate('seller_product_minimum_images_required'),
             ]]], 422);
         }
 

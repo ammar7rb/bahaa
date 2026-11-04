@@ -66,9 +66,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
             Route::post('verify-otp', 'verifyOtp');
             Route::get('status', 'status');
             Route::get('activation-status', 'activationStatus');
-            Route::post('activation-ticket', 'activationTicket');
             Route::get('activation-ticket/messages', 'activationTicketMessages');
-            Route::post('activation-ticket/messages', 'sendActivationTicketMessage');
         });
     });
     Route::prefix('policies')->controller(PolicyController::class)->group(function () {
@@ -93,6 +91,12 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
             Route::post('balance/withdraw', 'withdraw');
         });
         Route::prefix('packages')->controller(SellerPackageController::class)->group(function () {
+            Route::get('extra-ads', [\App\Http\Controllers\RestAPI\v3\seller\VendorExtraAdController::class, 'index']);
+            Route::post('extra-ads', [\App\Http\Controllers\RestAPI\v3\seller\VendorExtraAdController::class, 'store']);
+            Route::get('slots', [\App\Http\Controllers\RestAPI\v3\seller\VendorAdvertisingSlotController::class, 'index']);
+            Route::post('slots/{slot}/reserve', [\App\Http\Controllers\RestAPI\v3\seller\VendorAdvertisingSlotController::class, 'reserve']);
+            Route::post('slots/{slot}/cancel-reservation', [\App\Http\Controllers\RestAPI\v3\seller\VendorAdvertisingSlotController::class, 'cancelReservation']);
+            Route::post('slots/{slot}', [\App\Http\Controllers\RestAPI\v3\seller\VendorAdvertisingSlotController::class, 'update']);
             Route::get('/', 'index');
             Route::post('pay', 'pay');
             Route::post('offline-payment', 'submitOfflinePayment');
@@ -107,6 +111,8 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
         });
 
         Route::prefix('balance')->controller(SellerBalanceController::class)->group(function () {
+            Route::get('funding-intents', [\App\Http\Controllers\RestAPI\v3\seller\VendorFundingIntentController::class,'index']);
+            Route::post('funding-intents/{intent}/retry', [\App\Http\Controllers\RestAPI\v3\seller\VendorFundingIntentController::class,'retry']);
             Route::get('/', 'index');
             Route::post('pay', 'pay');
             Route::post('offline-payment', 'submitOfflinePayment');
@@ -253,7 +259,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
             });
         });
 
-        Route::group(['prefix' => 'coupon'], function () {
+        Route::group(['prefix' => 'coupon', 'middleware' => \App\Http\Middleware\HideVendorLegacyFeaturesMiddleware::class], function () {
             Route::controller(CouponController::class)->group(function () {
                 Route::get('list', 'list');
                 Route::post('store', 'store');
@@ -363,7 +369,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
 
     });
 
-    Route::controller(ProductController::class)->group(function () {
+    Route::controller(ProductController::class)->middleware('seller_api_auth')->group(function () {
         Route::group(['prefix' => 'products'], function () {
             Route::get('{seller_id}/all-products', 'getVendorAllProducts');
             Route::get('{seller_id}/edit-order-all-products', 'editOrderVendorAllProducts');

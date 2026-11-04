@@ -91,18 +91,40 @@
 
 (function () {
     const select = document.getElementById('withdrawal_definition');
-    function syncMethod() { document.querySelectorAll('[data-withdrawal-definition]').forEach(el => { el.hidden = el.dataset.withdrawalDefinition !== select.value; el.disabled = el.hidden; }); }
+    const methodIcon = document.getElementById('withdrawal-method-icon');
+    function syncMethod() {
+        document.querySelectorAll('[data-withdrawal-definition]').forEach(el => {
+            el.hidden = el.dataset.withdrawalDefinition !== select.value;
+            el.disabled = el.hidden;
+        });
+        if (methodIcon) {
+            const type = select.selectedOptions[0]?.dataset.methodType;
+            const provider = document.querySelector('[data-withdrawal-definition]:not([disabled]) input[name="method_info[wallet_provider]"]:checked')?.value;
+            const icon = type === 'instapay' ? 'instapay' : (type === 'vodafone_cash' ? 'vodafone_cash' : provider);
+            methodIcon.hidden = !icon;
+            if (icon) methodIcon.src = methodIcon.dataset.iconBase.replace(/\/+$/, '') + '/' + icon + '.png?v=20261017-2';
+        }
+    }
     if (select) {
-        select.addEventListener('change', syncMethod); syncMethod();
+        select.addEventListener('change', () => {
+            syncMethod();
+        });
+        document.querySelectorAll('input[name="method_info[wallet_provider]"]').forEach(el => el.addEventListener('change', syncMethod));
+        syncMethod();
         document.querySelectorAll('[data-edit-withdrawal]').forEach(button => button.addEventListener('click', () => {
             const method = JSON.parse(button.dataset.editWithdrawal);
             document.getElementById('withdrawal-method-form').reset();
             document.getElementById('withdrawal_method_id').value = method.id;
-            document.getElementById('withdrawal_method_name').value = method.method_name;
-            select.value = method.withdraw_method_id; syncMethod();
+            select.value = method.withdraw_method_id;
+            syncMethod();
             const group = Array.from(document.querySelectorAll('[data-withdrawal-definition]')).find(el => !el.disabled);
-            if (group) group.querySelectorAll('input').forEach(input => { const key = input.name.slice(12, -1); input.value = method.method_info[key] || ''; });
-            document.getElementById('withdrawal_method_name').focus();
+            if (group) group.querySelectorAll('input').forEach(input => {
+                const key = input.name.slice(12, -1);
+                if (input.type === 'radio') input.checked = input.value === method.method_info[key];
+                else input.value = method.method_info[key] || '';
+            });
+            syncMethod();
+            select.focus();
         }));
     }
     const noDates = document.getElementById('no_production_expiry_dates');
@@ -113,12 +135,12 @@
     const stock = document.querySelector('[name="current_stock"]'), unit = document.getElementById('sale_unit_type');
     if (stock && unit) {
         const sync = () => {
-            const wrapper = document.getElementById('sale_unit_selector'); if(wrapper) wrapper.hidden = !(Number(stock.value) > 0);
             const isPackage = unit.value === 'package';
             const price = document.querySelector('[name="unit_price"]');
             const priceLabel = price && (document.querySelector('label[for="'+price.id+'"]') || price.parentElement.querySelector('label'));
             const stockLabel = document.querySelector('label[for="'+stock.id+'"]') || stock.parentElement.querySelector('label');
-            if(priceLabel) priceLabel.textContent = isPackage ? unit.dataset.packagePrice : unit.dataset.piecePrice;
+            const priceText = priceLabel && (priceLabel.querySelector('[data-unit-price-text]') || priceLabel);
+            if(priceText) priceText.textContent = isPackage ? unit.dataset.packagePrice : unit.dataset.piecePrice;
             if(stockLabel) stockLabel.textContent = isPackage ? unit.dataset.packageQuantity : unit.dataset.pieceQuantity;
         };
         stock.addEventListener('input',sync); unit.addEventListener('change',sync); sync();

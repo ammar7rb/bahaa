@@ -9,10 +9,8 @@ class WorkflowFeatureService
 {
     public function activationCenterEnabled(): bool
     {
-        return $this->booleanSetting(
-            'feature_activation_center',
-            (bool) config('account_workflows.activation_center.enabled', true)
-        );
+        // Administrative account activation has been permanently retired.
+        return false;
     }
 
     public function postPurchaseTaxInvoiceEnabled(): bool

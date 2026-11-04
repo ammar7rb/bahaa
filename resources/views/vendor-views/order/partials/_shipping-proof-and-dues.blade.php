@@ -7,8 +7,7 @@
             </div>
             <div class="row g-3 mt-1">
                 <div class="col-md-3"><div class="bg-section p-3 rounded"><small>{{ translate('sales_due_date') }}</small><div class="fw-bold">{{ optional($order->sales_settlement_due_at)->format('Y-m-d') ?: '-' }}</div></div></div>
-                <div class="col-md-3"><div class="bg-section p-3 rounded"><small>{{ translate('shipping_due_date') }}</small><div class="fw-bold">{{ optional($order->shipping_settlement_due_at)->format('Y-m-d') ?: '-' }}</div></div></div>
-                <div class="col-md-3"><div class="bg-section p-3 rounded"><small>{{ translate('insurance_due_date') }}</small><div class="fw-bold">{{ optional($order->sellerOrderInsurance?->reusable_at)->format('Y-m-d') ?: '-' }}</div></div></div>
+                
                 <div class="col-md-3"><div class="bg-section p-3 rounded"><small>{{ translate('seller_shipping_amount') }}</small><div class="fw-bold">{{ webCurrencyConverter(amount: $order->seller_shipping_allocation ?? $order->shipping_seller_cost) }}</div></div></div>
             </div>
             @if(!in_array($order->order_status, ['delivered', 'canceled', 'returned', 'failed']))

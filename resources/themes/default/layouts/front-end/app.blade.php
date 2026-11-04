@@ -315,7 +315,7 @@
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/slick.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/sweet_alert.js') }}"></script>
 <script src="{{ theme_asset(path: "public/assets/back-end/js/toastr.js") }}"></script>
-<script src="{{ theme_asset(path: 'public/assets/front-end/js/custom.js') }}?v=20261011.1"></script>
+<script src="{{ theme_asset(path: 'public/assets/front-end/js/custom.js') }}?v={{ filemtime(public_path('assets/front-end/js/custom.js')) }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/seller-filter.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/account-order-details.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/customer-dark-mode.js') }}?v=20260930.1"></script>

@@ -194,6 +194,12 @@
                         <span class="v2-nav-child-label">{{ translate('canceled') }}</span>
                         <span class="v2-nav-child-count" data-tone="danger">{{ $sidebarOrderCounts['canceled'] ?? 0 }}</span>
                     </a>
+                    <a class="v2-nav-child {{ Request::is('admin/orders/package-refunds*') ? 'v2-is-on' : '' }}" href="{{ route('admin.orders.package-refunds.index') }}">
+                        <span class="v2-nav-child-dot" data-tone="danger"></span><span class="v2-nav-child-label">طلبات رد المشتريات</span>
+                        @if(\Illuminate\Support\Facades\Schema::hasTable('order_admin_purchase_refunds'))
+                            <span class="v2-nav-child-count" data-tone="danger">{{ \App\Models\OrderAdminPurchaseRefund::where('reason','customer_canceled_waiting_for_package')->where('status','customer_requested')->count() }}</span>
+                        @endif
+                    </a>
                     <a class="v2-nav-child {{ Request::is('admin/orders/post-purchase-invoices*') ? 'v2-is-on' : '' }}" href="{{ route('admin.orders.post-purchase-invoices.index') }}">
                         <span class="v2-nav-child-dot" data-tone="primary"></span>
                         <span class="v2-nav-child-label">{{ translate('post_purchase_invoices') }}</span>
@@ -400,10 +406,6 @@
                     </a>
                     <a class="v2-nav-item {{ Request::is('admin/vendor-support*') ? 'v2-is-active' : '' }}" data-item="vendor-support" href="{{ route('admin.vendor-support.index') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('vendor_support_conversations') }}</span></span>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/activation-center*') ? 'v2-is-active' : '' }}" data-item="activation-center" href="{{ route('admin.activation-center.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ __('activations.title') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="activation-center" aria-label="Pin"></button></div>
                     </a>
                     <a class="v2-nav-item {{ Request::is('admin/contact*') ? 'v2-is-active' : '' }}" data-item="contact-form" href="{{ route('admin.contact.list') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('contact_form') }}</span></span>

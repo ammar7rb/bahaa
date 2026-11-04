@@ -20,7 +20,6 @@
                     data-field-name="images[]"
                     data-max-count="5"
                     data-batch-selection="true"
-                    data-required="true"
                     data-required-msg="{{ translate('additional_image_is_required') }}"
                      data-max-filesize="{{getFileUploadMaxSize()}}"
                      data-allowed-formats="{{ getFileUploadFormats(skip: '.svg,.gif') }}"

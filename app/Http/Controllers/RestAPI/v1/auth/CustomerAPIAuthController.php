@@ -91,7 +91,7 @@ class CustomerAPIAuthController extends Controller
             'phone' => $request['phone'],
             'password' => bcrypt($request['password']),
             'temporary_token' => $temporaryToken,
-            'activation_status' => 'pending_support',
+            'activation_status' => 'active',
             'onboarding_journey' => 'standard',
             'canonical_phone' => app(EgyptPhoneService::class)->normalizeLocal($request['phone']),
             'referral_code' => Helpers::generate_referer_code(),

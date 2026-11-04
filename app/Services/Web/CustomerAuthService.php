@@ -81,7 +81,7 @@ class CustomerAuthService
             'email' => $request['email'],
             'phone' => $request['phone'],
             'is_active' => 1,
-            'activation_status' => 'pending_support',
+            'activation_status' => 'active',
             'onboarding_journey' => 'standard',
             'canonical_phone' => app(\App\Services\EgyptPhoneService::class)->normalizeLocal($request['phone']),
             'password' => bcrypt($request['password']),

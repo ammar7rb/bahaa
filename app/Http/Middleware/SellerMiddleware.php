@@ -23,9 +23,10 @@ class SellerMiddleware
     public function handle(Request $request, Closure $next): mixed
     {
         if (auth('seller')->check()
-            && auth('seller')->user()->status === 'approved'
+            && in_array(auth('seller')->user()->status, ['approved', 'pending'], true)
             && !$this->verificationService->requiresPhoneVerification(auth('seller')->user())) {
-            return $next($request);
+            return app(\App\Http\Middleware\VendorOrderBoundary::class)->handle($request,
+                    fn ($request) => app(\App\Http\Middleware\VendorProductWorkspaceBoundary::class)->handle($request, $next, (int) auth('seller')->id()), (int) auth('seller')->id());
         }
         auth()->guard('seller')->logout();
 

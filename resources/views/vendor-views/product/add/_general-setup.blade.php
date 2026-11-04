@@ -27,7 +27,7 @@
                                     @foreach ($categories as $category)
                                         <option value="{{ $category['id'] }}" {{ old('category_id') == $category['id'] ? 'selected' : '' }}>{{ $category['defaultName'] }}</option>
                                     @endforeach
-                                <option value="other" @selected(old('category_id', isset($product) && $product->category_review_required ? 'other' : '') === 'other')>{{ translate('other_category_review') }}</option></select>
+                                <option value="other" @selected(old('category_id', isset($product) && $product->category_review_required ? 'other' : '') === 'other')>{{ translate('other') }}</option></select>
                             </div>
                         </div>
                         <div class="col-md-6 col-lg-4">
@@ -43,7 +43,7 @@
                                 <div class="form-group mb-0">
                                     <label class="title-color">{{ translate('brand') }} <span class="text-muted">({{ translate('optional') }})</span></label>
                                     <select class="js-select2-custom form-control" name="brand_id" id="brand_id">
-                                        <option value="">{{ translate('No_Brand') }}</option>
+                                        <option value="">{{ translate('brand') }}</option>
                                         @foreach ($brands as $brand)
                                             <option value="{{ $brand['id'] }}">{{ $brand['defaultName'] }}</option>
                                         @endforeach

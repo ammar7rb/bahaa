@@ -1,10 +1,6 @@
 @php
     $nextStepRoutes = [
         'verify_phone' => route('vendor.auth.registration.verify-phone'),
-        'await_activation_ticket' => route('vendor.auth.registration.activation'),
-        'await_admin_approval' => route('vendor.auth.registration.activation'),
-        'activate_insurance' => route('vendor.insurance.index'),
-        'insurance_pending_review' => route('vendor.insurance.index'),
         'choose_package' => route('vendor.packages.index'),
         'package_pending_review' => route('vendor.packages.index'),
         'add_first_product' => route('vendor.products.add'),
@@ -12,31 +8,16 @@
         'manage_products' => route('vendor.products.list', ['type' => 'all']),
     ];
     $nextStepLabels = [
-        'activate_insurance' => 'Activate_Vendor_Insurance',
-        'insurance_pending_review' => 'Insurance_Payment_Under_Review',
         'choose_package' => 'Choose_Vendor_Package',
         'package_pending_review' => 'Package_Payment_Under_Review',
         'add_first_product' => 'Add_First_Product',
         'product_limit_reached' => 'Upgrade_Or_Renew_Package',
         'manage_products' => 'Manage_Products',
         'verify_phone' => 'Verify_Phone_Number',
-        'await_activation_ticket' => 'Activate_Account',
-        'await_admin_approval' => 'Account_Under_Admin_Review',
     ];
 @endphp
 
 <div class="card mb-3 remove-card-shadow">
-    @if(($setup['registration']['activation_status'] ?? '') !== 'active')
-        <div id="activation-support-banner" class="activation-support-banner alert alert-danger d-flex flex-wrap align-items-center justify-content-between gap-2 mx-3 mt-3 mb-0" role="alert">
-            <div>
-                <strong class="d-block">{{ translate('seller_activation_required') }}</strong>
-                <span class="small">{{ translate('please-wait_for_admin_approval') }}</span>
-            </div>
-            <a class="btn btn-danger" href="{{ route('vendor.auth.registration.activation') }}">
-                {{ translate('Activate_Account') }}
-            </a>
-        </div>
-    @endif
     <div class="card-header border-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
             <h4 class="mb-1 text-capitalize">{{ translate('Vendor_Setup_And_Package_Usage') }}</h4>

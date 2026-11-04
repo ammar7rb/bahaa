@@ -25,10 +25,7 @@ class AdminWorkspaceController extends Controller
             $records = $workspace->pendingOrders()->latest('id')->paginate(25);
             $records->through(fn ($o) => ['title' => translate('Order_id').' #'.$o->id, 'detail' => translate($o->order_status), 'url' => route('admin.orders.details', $o->id)]);
         } else {
-            abort_unless(Helpers::module_permission_check('orders') || Helpers::module_permission_check('people') || Helpers::module_permission_check('reports'), 403);
-            $query = $workspace->pendingPaymentRows();
-            abort_unless($query, 404);
-            $records = $query->orderByDesc('updated_at')->paginate(25)->through(fn ($r) => $workspace->paymentItem($r));
+            return app(PaymentReviewController::class)->index(request());
         }
         $title = translate($kind === 'orders' ? 'pending_Orders' : 'payments_waiting_for_review');
         return view('admin-views.system.workspace-reviews', compact('records', 'title'));
@@ -109,7 +106,6 @@ class AdminWorkspaceController extends Controller
         $entries = collect((new AdvanceSearch('admin', $keyword))->adminMenuWithRoutes());
         foreach ([
             ['workspace_communication_center', 'admin.workspace.communication', 'people', 'communication support messages مركز الاتصالات رسائل دعم', []],
-            ['account_activation_center', 'admin.activation-center.index', 'people', 'activation accounts تفعيل حسابات', []],
             ['payments_waiting_for_review', 'admin.workspace.reviews', '', 'payment review مدفوعات مراجعة الدفع', ['kind'=>'payments']],
             ['pending_Orders', 'admin.workspace.reviews', 'orders', 'order review مراجعة الطلبات', ['kind'=>'orders']],
             ['insurance_center', 'admin.insurance-center.index', 'reports', 'insurance تأمين ضمان', []],

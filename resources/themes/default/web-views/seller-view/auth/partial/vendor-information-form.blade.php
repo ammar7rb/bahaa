@@ -132,25 +132,11 @@
                                 </div>
                             </div>
                         </div>
-
-
-                        <div class="d-flex justify-content-start mt-2">
-                            <label class="custom-checkbox align-items-center">
-                                <input type="checkbox" class="" id="terms-checkbox">
-                                <span class="form-check-label">
-                                    {{ translate('i_agree_with_the') }}
-                                    <a href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}"
-                                        target="_blank" class="text-underline color-bs-primary-force">
-                                        {{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}
-                                    </a>
-                                </span>
-                            </label>
-                        </div>
                         <div class="d-flex justify-content-end mb-2 gap-2">
                             <button type="button" class="btn btn-secondary back-to-main-page">
                                 {{ translate('back') }} </button>
                             <button type="submit" class="btn btn--primary" id="vendor-apply-submit"
-                                disabled="disabled"> {{ translate('submit') }} </button>
+                                > {{ translate('submit') }} </button>
                         </div>
                     </div>
                 </div>

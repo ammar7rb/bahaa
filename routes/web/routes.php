@@ -56,6 +56,9 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+Route::get('medical-devices', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'index'])->name('medical-devices.index');
+Route::get('medical-devices/{device}', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'show'])->whereNumber('device')->name('medical-devices.show');
+Route::post('medical-devices/{device}/inquire', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'inquire'])->whereNumber('device')->middleware('throttle:20,1')->name('medical-devices.inquire');
 Route::get('/image-proxy', function () {
     $url = request('url');
     if (!$url) {
@@ -189,6 +192,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
             Route::get('activation-status', 'activationStatus')->name('activation-status');
             Route::get('{id}', [\App\Http\Controllers\Customer\SupportConversationController::class, 'show'])->name('index');
             Route::get('{id}/messages', 'ticketMessages')->name('messages');
+            Route::get('{id}/attachments/{message}/{index}/download', [\App\Http\Controllers\ChatAttachmentController::class, 'customer'])->whereNumber('index')->name('attachments.download');
             Route::post('{id}', 'comment_submit')->name('comment');
         });
     });
@@ -196,9 +200,9 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::controller(UserProfileController::class)->group(function () {
         Route::group(['prefix' => 'track-order', 'as' => 'track-order.'], function () {
             Route::get('', 'track_order')->name('index');
-            Route::get('result-view', 'track_order_result')->name('result-view');
+            Route::get('result-view', 'track_order_result')->middleware(\App\Http\Middleware\CustomerOrderTrackingBoundary::class)->name('result-view');
             Route::get('last', 'track_last_order')->name('last');
-            Route::any('result', 'track_order_result')->name('result');
+            Route::any('result', 'track_order_result')->middleware(\App\Http\Middleware\CustomerOrderTrackingBoundary::class)->name('result');
             Route::get('order-wise-result-view', 'track_order_wise_result')->name('order-wise-result-view');
         });
     });
@@ -242,6 +246,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     // Customer-to-seller/delivery chat is intentionally unavailable. Customers
     // use the support-ticket center for administration communication.
 
+    Route::post('customer/order/{order}/package-cancellation', [\App\Http\Controllers\Customer\PackageOrderCancellationController::class, 'request'])->middleware(['customer', 'throttle:10,1'])->name('customer.order.package-cancellation');
     Route::get('customer/communication', [\App\Http\Controllers\Customer\CommunicationController::class, 'index'])->middleware(['customer', 'throttle:60,1'])->name('customer.communication.index');
     Route::post('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'update'])->middleware(['customer','throttle:10,1'])->name('customer.contact-phones.update');
     Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['customer', 'throttle:10,1,customer-support-report:'])->name('customer.support.report');

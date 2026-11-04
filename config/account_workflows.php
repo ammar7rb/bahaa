@@ -2,7 +2,7 @@
 
 return [
     'activation_center' => [
-        'enabled' => (bool) env('ACTIVATION_CENTER_ENABLED', true),
+        'enabled' => false,
         'private_disk' => env('ACTIVATION_DOCUMENT_DISK', 'local'),
         'encrypt_documents' => (bool) env('ACTIVATION_DOCUMENT_ENCRYPTION_ENABLED', true),
         'max_document_size_kb' => (int) env('ACTIVATION_DOCUMENT_MAX_SIZE_KB', 10240),

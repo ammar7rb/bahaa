@@ -18,8 +18,5 @@
             @endif
         @endforeach
     </div>
-    @if(\App\Utils\Helpers::module_permission_check('people'))
-        @include('admin-views.system.partials.seller-activation-inbox')
-    @endif
 </div>
 @endsection

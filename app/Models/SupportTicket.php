@@ -32,6 +32,17 @@ class SupportTicket extends Model
 {
     use StorageTrait;
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope('retired_account_activation', function (Builder $query) {
+            foreach (['purpose', 'type'] as $column) {
+                if (Schema::hasColumn('support_tickets', $column)) {
+                    $query->where(fn ($q) => $q->whereNull('support_tickets.'.$column)->orWhere('support_tickets.'.$column, '!=', 'account_activation'));
+                }
+            }
+        });
+    }
+
     public const ARCHIVE_AFTER_DAYS = 180;
 
     protected $fillable = [

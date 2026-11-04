@@ -2400,7 +2400,7 @@ $(".password-check").on("keyup keypress change click", function () {
                 .html(passwordErrorMessage.data("number"))
                 .removeClass("d-none");
             break;
-        case !/[@.#$!%*?&]/.test(password):
+        case !this.hasAttribute("data-special-character-optional") && !/[@.#$!%*?&]/.test(password):
             passwordError
                 .html(passwordErrorMessage.data("symbol"))
                 .removeClass("d-none");

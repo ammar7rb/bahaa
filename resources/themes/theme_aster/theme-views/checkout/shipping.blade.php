@@ -154,7 +154,7 @@
                                                                        class="text-capitalize">اسم المستلم <span class="text-danger">*</span></label>
                                                                 <input type="text" name="contact_person_name" id="name"
                                                                        class="form-control"
-                                                                       placeholder="اسم المستلم بالكامل" required>
+                                                                       placeholder="اسم المستلم بالكامل" value="{{ old('contact_person_name', trim((auth('customer')->user()?->f_name ?? '').' '.(auth('customer')->user()?->l_name ?? ''))) }}" required>
                                                             </div>
                                                         </div>
                                                         <div class="col-sm-6">
@@ -162,7 +162,7 @@
                                                                 <label for="phoneNumber">{{ translate('phone') }} <span class="text-danger">*</span></label>
                                                                 <input type="tel" id="phoneNumber" name="phone"
                                                                        class="form-control"
-                                                                       placeholder="رقم هاتف المستلم" required>
+                                                                       placeholder="رقم هاتف المستلم" value="{{ old('phone', auth('customer')->user()?->phone ?? '') }}" required>
                                                             </div>
                                                         </div>
                                                         @if(!auth('customer')->check())

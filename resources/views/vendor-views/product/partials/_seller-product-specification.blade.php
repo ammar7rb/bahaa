@@ -47,7 +47,6 @@
                 <div class="border-top mt-3 pt-3">
                     <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
                         <label class="title-color mb-0">{{ translate('seller_product_optional_dimensions') }}</label>
-                        <span class="fs-12 text-muted">{{ translate('seller_product_optional_measurements_note') }}</span>
                     </div>
                     <div class="row g-2">
                         @foreach(['length' => 'seller_product_length', 'width' => 'seller_product_width', 'height' => 'seller_product_height'] as $field => $label)

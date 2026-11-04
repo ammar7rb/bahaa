@@ -36,18 +36,18 @@ class OperationalFeedController extends BaseController
 
         if (Schema::hasTable('users')) {
             User::query()->where('created_at', '>', $after)->latest('created_at')->limit(25)->get()->each(function (User $user) use ($events) {
-                $events->push($this->event('customer_registration', $user->created_at, translate('new_customer_registration'), 'C'.$user->id.' · '.trim($user->f_name.' '.$user->l_name), route('admin.activation-center.index', ['tab' => 'customers'])));
+                $events->push($this->event('customer_registration', $user->created_at, translate('new_customer_registration'), 'C'.$user->id.' · '.trim($user->f_name.' '.$user->l_name), route('admin.customer.list')));
             });
         }
         if (Schema::hasTable('sellers')) {
             Seller::query()->where('created_at', '>', $after)->latest('created_at')->limit(25)->get()->each(function (Seller $seller) use ($events) {
-                $events->push($this->event('seller_registration', $seller->created_at, translate('new_seller_registration'), 'M'.$seller->id.' · '.trim($seller->f_name.' '.$seller->l_name), route('admin.activation-center.index', ['tab' => 'sellers'])));
+                $events->push($this->event('seller_registration', $seller->created_at, translate('new_seller_registration'), 'M'.$seller->id.' · '.trim($seller->f_name.' '.$seller->l_name), route('admin.vendors.vendor-list')));
             });
         }
         if (Schema::hasTable('orders')) {
             Order::query()->with('customer:id,f_name,l_name')->where('created_at', '>', $after)->latest('created_at')->limit(50)->get()->each(function (Order $order) use ($events) {
                 if ($order->payment_method === 'offline_payment' && $order->payment_status !== 'paid') {
-                    $events->push($this->paymentReviewEvent('customer_purchase', $order->created_at, $order->id, $order->customer?->f_name, $order->order_amount, route('admin.orders.details', $order->id)));
+
                     return;
                 }
                 $events->push($this->event('new_order', $order->created_at, translate('new_order_received'), '#'.$order->id.' · '.setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount), currencyCode: getCurrencyCode()), route('admin.orders.details', $order->id)));
@@ -69,11 +69,6 @@ class OperationalFeedController extends BaseController
                 ));
             });
         }
-        if (Schema::hasTable('account_activation_cases')) {
-            AccountActivationCase::query()->where('created_at', '>', $after)->latest('created_at')->limit(50)->get()->each(function (AccountActivationCase $case) use ($events) {
-                $events->push($this->event('activation_request', $case->created_at, translate('new_activation_request'), strtoupper(substr($case->subject_type, 0, 1)).$case->subject_id, route('admin.activation-center.show', $case)));
-            });
-        }
 
         if (Schema::hasTable('refund_requests')) {
             RefundRequest::query()->where('created_at', '>', $after)->latest('created_at')->limit(50)->get()->each(function (RefundRequest $refund) use ($events) {
@@ -89,29 +84,12 @@ class OperationalFeedController extends BaseController
 
         // Payment proofs are updates to an existing order, so they must be
         // emitted explicitly instead of relying on the new-order timestamp.
-        if (Schema::hasTable('post_purchase_invoices')) {
-            PostPurchaseInvoice::query()->with('customer:id,f_name,l_name')->where('status', PostPurchaseInvoice::STATUS_AWAITING_REVIEW)
-                ->where('updated_at', '>', $after)->latest('updated_at')->limit(50)->get()->each(function (PostPurchaseInvoice $invoice) use ($events) {
-                    $events->push($this->paymentReviewEvent('customer_post_purchase', $invoice->updated_at, $invoice->order_id, $invoice->customer?->f_name, $invoice->total_amount, route('admin.orders.details', $invoice->order_id)));
-                });
-        }
-        if (Schema::hasTable('order_insurances')) {
-            OrderInsurance::query()->with('customer:id,f_name,l_name')->where('status', 'pending_review')
-                ->where('updated_at', '>', $after)->latest('updated_at')->limit(50)->get()->each(function (OrderInsurance $insurance) use ($events) {
-                    $events->push($this->paymentReviewEvent('customer_insurance', $insurance->updated_at, $insurance->order_id, $insurance->customer?->f_name, $insurance->amount, route('admin.insurance-center.customers.show', $insurance->id)));
-                });
-        }
-        if (Schema::hasTable('seller_order_insurances')) {
-            SellerOrderInsurance::query()->with('seller:id,f_name,l_name')->where('status', SellerOrderInsurance::STATUS_PENDING_REVIEW)
-                ->where('updated_at', '>', $after)->latest('updated_at')->limit(50)->get()->each(function (SellerOrderInsurance $insurance) use ($events) {
-                    $events->push($this->paymentReviewEvent('seller_insurance', $insurance->updated_at, $insurance->order_id, $insurance->seller?->f_name, $insurance->amount, route('admin.payment-reviews.index', ['audience' => 'vendor', 'kind' => 'insurance', 'status' => 'pending'])));
-                });
-        }
-        if (Schema::hasTable('customer_balance_deposits')) {
-            CustomerBalanceDeposit::query()->with('customer:id,f_name,l_name')->where('status', 'pending')
-                ->where('updated_at', '>', $after)->latest('updated_at')->limit(50)->get()->each(function (CustomerBalanceDeposit $deposit) use ($events) {
-                    $events->push($this->paymentReviewEvent('customer_purchase_deposit', $deposit->updated_at, null, $deposit->customer?->f_name, $deposit->amount, route('admin.customer.wallet.deposits')));
-                });
+        if (\App\Utils\Helpers::module_permission_check('people') || \App\Utils\Helpers::module_permission_check('orders')) {
+            $query = app(\App\Services\AdminWorkspaceService::class)->pendingPaymentRows();
+            if ($query) $query->where('updated_at', '>', $after)->orderByDesc('updated_at')->limit(50)->get()->each(function ($row) use ($events) {
+                $item = app(\App\Services\AdminWorkspaceService::class)->paymentItem($row);
+                $events->push($this->event('payment_review_'.$row->source.'_'.$row->id, $row->updated_at, $item['title'], $item['detail'].' · '.$item['meta'], $item['url']));
+            });
         }
 
         if (Schema::hasTable('password_resets') && Schema::hasColumn('password_resets', 'created_at')) {
@@ -169,7 +147,6 @@ class OperationalFeedController extends BaseController
             'new_orders' => Schema::hasTable('orders') ? Order::query()->where('checked', 0)->count() : 0,
             'pending_orders' => Schema::hasTable('orders') ? Order::query()->where('order_status', 'pending')->count() : 0,
             'pending_products' => Schema::hasTable('products') ? Product::query()->where('added_by', 'seller')->where('request_status', 0)->count() : 0,
-            'pending_activations' => Schema::hasTable('account_activation_cases') ? AccountActivationCase::query()->whereNotIn('status', [AccountActivationCase::STATUS_APPROVED, AccountActivationCase::STATUS_REJECTED])->count() : 0,
             'pending_refunds' => Schema::hasTable('refund_requests') ? RefundRequest::query()->where('status', 'pending')->count() : 0,
             'customer_registrations_today' => Schema::hasTable('users') ? User::query()->whereDate('created_at', today())->count() : 0,
             'seller_registrations_today' => Schema::hasTable('sellers') ? Seller::query()->whereDate('created_at', today())->count() : 0,
@@ -228,7 +205,6 @@ class OperationalFeedController extends BaseController
     {
         $definitions = [
             ['key' => 'pending_payment_reviews', 'title' => translate('payments_waiting_for_review'), 'url' => route('admin.payment-reviews.index', ['status' => 'pending']), 'icon' => 'fi fi-sr-document-signed', 'group' => 'action'],
-            ['key' => 'pending_activations', 'title' => translate('pending_activation_requests'), 'url' => route('admin.activation-center.index'), 'icon' => 'fi fi-sr-user-check', 'group' => 'action'],
             ['key' => 'pending_refunds', 'title' => translate('pending_refund_Requests'), 'url' => route('admin.refund-section.refund.list', ['status' => 'pending']), 'icon' => 'fi fi-sr-refund-alt', 'group' => 'action'],
             ['key' => 'customer_registrations_today', 'title' => translate('new_customers_today'), 'url' => route('admin.customer.list'), 'icon' => 'fi fi-sr-user-add', 'group' => 'today'],
             ['key' => 'seller_registrations_today', 'title' => translate('new_sellers_today'), 'url' => route('admin.vendors.vendor-list'), 'icon' => 'fi fi-sr-shop', 'group' => 'today'],
@@ -291,13 +267,7 @@ class OperationalFeedController extends BaseController
 
     private function pendingPaymentReviews(): int
     {
-        $count = 0;
-        if (Schema::hasTable('orders')) $count += Order::query()->where('payment_method', 'offline_payment')->where('payment_status', '!=', 'paid')->count();
-        if (Schema::hasTable('post_purchase_invoices')) $count += PostPurchaseInvoice::query()->where('status', PostPurchaseInvoice::STATUS_AWAITING_REVIEW)->count();
-        if (Schema::hasTable('order_insurances')) $count += OrderInsurance::query()->where('status', 'pending_review')->count();
-        if (Schema::hasTable('seller_order_insurances')) $count += SellerOrderInsurance::query()->where('status', SellerOrderInsurance::STATUS_PENDING_REVIEW)->count();
-        if (Schema::hasTable('customer_balance_deposits')) $count += CustomerBalanceDeposit::query()->where('status', 'pending')->count();
-        return $count;
+        return app(\App\Services\AdminWorkspaceService::class)->pendingPaymentRows()?->count() ?? 0;
     }
 
     private function dashboardPeriod(): array

@@ -221,7 +221,6 @@
                     <div class="dropdown-menu dropdown-menu-end p-0" style="width:min(390px, calc(100vw - 24px)); max-height: 480px; overflow-y:auto;">
                         <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
                             <strong>{{ translate('operational_notifications') }}</strong>
-                            <a class="small" href="{{ route('admin.activation-center.index') }}">{{ translate('activation_center') }}</a>
                         </div>
                         <div id="operational-feed-items" class="py-1">
                             <div class="text-center text-muted small p-3">{{ translate('no_new_notifications') }}</div>

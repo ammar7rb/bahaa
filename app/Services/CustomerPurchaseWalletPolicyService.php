@@ -41,6 +41,12 @@ class CustomerPurchaseWalletPolicyService
 
     public function creditPurchaseRefund(int $customerId, float $orderAmount, string $reference): WalletTransaction
     {
+        return $this->creditPurchaseRefundBaseCurrency($customerId, (float) currencyConverter($orderAmount), $reference);
+    }
+
+    /** Order snapshots are already denominated in the wallet's base currency. */
+    public function creditPurchaseRefundBaseCurrency(int $customerId, float $orderAmount, string $reference): WalletTransaction
+    {
         if ($orderAmount <= 0) {
             throw new DomainException('purchase_refund_amount_must_be_positive');
         }
@@ -52,7 +58,7 @@ class CustomerPurchaseWalletPolicyService
                 return $existing;
             }
             $customer = User::query()->lockForUpdate()->findOrFail($customerId);
-            $credit = (float) currencyConverter($orderAmount);
+            $credit = $orderAmount;
             $customer->wallet_balance = (float) $customer->wallet_balance + $credit;
             $customer->save();
 

@@ -787,6 +787,14 @@ class WebController extends Controller
             $values = $request->all();
             $modern = $request->input('transfer_schema') === 'sender_v2';
             if ($modern) {
+                $checkoutGroups = OrderManager::processOrderGenerateData(data: [
+                    'coupon_code' => session('coupon_code') ?? '', 'address_id' => session('address_id'),
+                    'billing_address_id' => session('billing_address_id'), 'requestObj' => $request,
+                ]);
+                $expectedTransfer = app(\App\Services\CheckoutTransferAmountService::class)->total($checkoutGroups);
+                app(\App\Services\CheckoutTransferAmountService::class)->assertSubmitted(
+                    $request->input('transferred_amount'), (float) webCurrencyConverterOnlyDigit($expectedTransfer)
+                );
                 $request->validate(['payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
                 $offlinePaymentInfo = app(\App\Services\CustomerTransferInformationService::class)->sender($values);
                 $offlinePaymentInfo['payment_proof'] = ['image_name' => $this->upload(dir: 'offline-payment/order-proof/', format: 'webp', image: $request->file('payment_proof')), 'storage' => config('filesystems.disks.default') ?? 'public'];
@@ -878,6 +886,7 @@ class WebController extends Controller
             'billing_address_id' => session('billing_address_id'),
             'payment_note' => $request['payment_note'],
             'offline_payment_info' => $offlinePaymentInfo,
+            'offline_payment_submitted_amount' => $request->input('transfer_schema') === 'sender_v2' ? $request->input('transferred_amount') : null,
         ]);
 
         if (! app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {
@@ -1007,6 +1016,12 @@ class WebController extends Controller
 
     public function shop_cart(Request $request): View|RedirectResponse
     {
+        if (app(\App\Services\CustomerThreeStepShippingService::class)->isEnabled()) {
+            // Returning to shopping starts a fresh address/quote step. Keep saved
+            // address records and completed orders intact.
+            CartShipping::whereIn('cart_group_id', CartManager::get_cart_group_ids(request: $request))->delete();
+            session()->forget(['address_id', 'billing_address_id']);
+        }
         // Viewing the cart is public; checkout enforces its own authentication rules.
         ProductManager::updateProductPriceInCartList(request: $request);
         $topRatedShops = [];
@@ -1014,7 +1029,9 @@ class WebController extends Controller
         $currentDate = date('Y-m-d H:i:s');
         if (theme_base_path() === "theme_fashion") {
 
-            $sellerList = $this->seller->approved()->with(['shop', 'product.reviews'])
+            $sellerList = $this->seller->approved()->with(['shop', 'product' => function ($query) {
+                $query->when(config('vendor_advertising.enabled'), fn ($query) => $query->active())->with('reviews');
+            }])
                 ->withCount(['product' => function ($query) {
                     $query->active();
                 }])->get();
@@ -1183,7 +1200,7 @@ class WebController extends Controller
         }
 
         if ($request['data_from'] == 'discounted_products') {
-            $query = Product::with(['reviews'])->active()->where('discount', '!=', 0);
+            $query = Product::with(['reviews'])->active()->whereHas('clearanceSale', fn ($query) => $query->active());
         }
 
         if ($request['sort_by'] == 'latest') {
@@ -1785,6 +1802,8 @@ class WebController extends Controller
             ->whereIn('payment_channel', ['wallet', 'instapay'])
             ->first();
 
+        if (!$method) return response()->json(['message' => translate('offline_payment_method_not_found')], 404);
+
         $vendorWiseCartList = \App\Utils\OrderManager::processOrderGenerateData(data: [
             'coupon_code' => session('coupon_code') ?? '',
             'address_id' => session('address_id'),
@@ -1792,22 +1811,16 @@ class WebController extends Controller
         ]);
 
         $vendorWiseCartListCollection = collect($vendorWiseCartList);
-        $referralDiscount = $vendorWiseCartListCollection?->sum('refer_and_earn_discount') ?? 0;
-        $grandTotal = $vendorWiseCartListCollection?->sum('grand_total') ?? 0;
-        $freeDeliveryDiscount = $vendorWiseCartListCollection?->sum('free_delivery_discount') ?? 0;
-        $couponDiscount = session()->has('coupon_discount') ? session('coupon_discount') : 0;
-        $totalTax = $vendorWiseCartListCollection?->sum('total_tax_amount') ?? 0;
-        $totalOfflineAmount = $grandTotal - $referralDiscount - $freeDeliveryDiscount - $couponDiscount + $totalTax;
-        if (app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {
-            $totalOfflineAmount = $vendorWiseCartListCollection->sum('first_payment_amount');
-        }
+        $totalOfflineAmount = app(\App\Services\CheckoutTransferAmountService::class)->total($vendorWiseCartListCollection);
         if ($request->filled('edit_due_amount')) {
             $dueOrder = Order::with('latestEditHistory')->where('customer_id',auth('customer')->id())->where('is_guest',0)->findOrFail($request->input('order_id'));
             $totalOfflineAmount = (float) ($dueOrder->latestEditHistory?->order_due_amount ?? 0);
         }
         return response()->json([
+            'method_id' => (int) $method->id,
+            'payment_channel' => $method->payment_channel,
             'methodHtml' => view(VIEW_FILE_NAMES['pay_offline_method_list_partials'], compact('method', 'totalOfflineAmount'))->render(),
-        ]);
+        ])->header('Cache-Control', 'private, no-store, max-age=0');
     }
 
 }

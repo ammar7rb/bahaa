@@ -126,7 +126,7 @@ class AppServiceProvider extends ServiceProvider
                         'meta_description' => substr(strip_tags(str_replace('&nbsp;', ' ', (BusinessPage::where('slug', 'about-us')->first()?->description ?? ''))), 0, 160),
                     ];
 
-                    if ((!Request::is('admin') && !Request::is('admin/*') && !Request::is('seller/*') && !Request::is('vendor/*')) || Request::is('vendor/auth/registration/*')) {
+                    if ((!Request::is('admin') && !Request::is('admin/*') && !Request::is('seller/*') && !Request::is('vendor/*')) || Request::is('vendor/auth/registration/*') || (Request::is('vendor/auth/login') && in_array(theme_root_path(), ['theme_aster', 'theme_sigma_care'], true))) {
                         $userId = Auth::guard('customer')->user() ? Auth::guard('customer')->id() : 0;
                         $flashDeal = ProductManager::getPriorityWiseFlashDealsProductsQuery(userId: $userId);
 
@@ -161,14 +161,7 @@ class AppServiceProvider extends ServiceProvider
                         }
                         $totalDiscountProducts = Product::active()
                             ->withCount('reviews')
-                            ->where(function ($subQuery) {
-                                return $subQuery->where(function ($query) {
-                                    return $query->where('discount', '!=', 0);
-                                })->orWhere(function ($query) {
-                                    $stockClearanceProductIds = StockClearanceProduct::active()->pluck('product_id')->toArray();
-                                    return $query->whereIn('id', $stockClearanceProductIds);
-                                });
-                            })
+                            ->whereHas('clearanceSale', fn ($query) => $query->active())
                             ->count();
 
                         $web_config += [

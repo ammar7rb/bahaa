@@ -74,9 +74,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::get('verify-phone', 'getPhoneVerificationView')->name('verify-phone');
                     Route::post('verify-phone', 'verifyPhone')->name('verify-phone.submit');
                     Route::post('resend-otp', 'resendOtp')->name('resend-otp');
-                    Route::get('activation', 'activation')->name('activation');
-                    Route::get('activation/messages', 'activationMessages')->name('activation.messages');
-                    Route::post('activation/message', 'activationMessage')->name('activation.message');
                 });
             });
         });
@@ -104,6 +101,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::get('insurance', 'insurance')->name('insurance');
                     Route::get('payments', 'payments')->name('payments');
                     Route::post('pay', 'pay')->name('pay');
+                    Route::post('funding-intents/{intent}/retry','retryFundingIntent')->name('funding-intents.retry');
                     Route::post('offline-payment', 'submitOfflinePayment')->name('offline-payment');
                 });
             });
@@ -111,7 +109,13 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             Route::group(['prefix' => 'packages', 'as' => 'packages.'], function () {
                 Route::controller(SellerPackageController::class)->group(function () {
                     Route::get('/', 'index')->name('index');
+                    Route::get('slots', 'slots')->name('slots');
+                    Route::post('slots/{slot}/create', 'openSlot')->block(10, 10)->name('slots.open');
+                    Route::post('slots/{slot}/reserve', 'reserveSlot')->block(10, 10)->name('slots.reserve');
+                    Route::post('slots/{slot}/cancel-reservation', 'cancelSlotReservation')->block(10, 10)->name('slots.cancel-reservation');
                     Route::get('performance/{subscription}', 'performance')->name('performance');
+                    Route::post('extra-ads', [\App\Http\Controllers\Vendor\VendorExtraAdController::class, 'store'])->name('extra-ads.store');
+                    Route::post('slots/{slot}', 'assignSlot')->name('slots.update');
                     Route::post('cancel/{subscription}', 'cancel')->name('cancel');
                     Route::post('pay', 'pay')->name('pay');
                     Route::post('offline-payment', 'submitOfflinePayment')->name('offline-payment');
@@ -198,7 +202,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             Route::group(['prefix' => 'products', 'as' => 'products.'], function () {
                 Route::controller(ProductController::class)->group(function () {
                     Route::get('list/{type}', 'index')->name('list');
-                    Route::get('add', 'getAddView')->name('add');
+                    Route::get('add', 'getAddView')->block(10, 10)->name('add');
                     Route::post('add', 'add');
                     Route::get('get-categories', 'getCategories')->name('get-categories');
                     Route::post('sku-combination', 'getSkuCombinationView')->name('sku-combination');
@@ -282,7 +286,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                 });
             });
 
-            Route::group(['prefix' => 'coupon', 'as' => 'coupon.'], function () {
+            Route::group(['prefix' => 'coupon', 'as' => 'coupon.', 'middleware' => \App\Http\Middleware\HideVendorLegacyFeaturesMiddleware::class], function () {
                 Route::controller(CouponController::class)->group(function () {
                     Route::get(Coupon::INDEX[URI], 'index')->name('index');
                     Route::post(Coupon::ADD[URI], 'add')->name('add');

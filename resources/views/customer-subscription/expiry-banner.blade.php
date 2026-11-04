@@ -2,10 +2,9 @@
 @if(auth('customer')->check())
     @php
         $subscriptionCustomer = auth('customer')->user();
-        $subscriptionActivation = $activationStatus ?? app(\App\Services\CustomerActivationService::class)->payload($subscriptionCustomer);
         $monthlyState = app(\App\Services\CustomerMonthlySubscriptionService::class)->status((int)$subscriptionCustomer->id);
     @endphp
-    @if(($subscriptionActivation['is_active'] ?? false) && ($subscriptionActivation['activation_available'] ?? true) && !$monthlyState['active'] && !request()->routeIs('account-order-details', 'account-oder', 'customer.subscription.index', 'customer.tracking.index'))
+    @if(app(\App\Services\CustomerPurchaseEligibilityService::class)->initialCheckoutGate($subscriptionCustomer)['payment_approved'] && !$monthlyState['active'] && !request()->routeIs('account-order-details', 'account-oder', 'customer.subscription.index', 'customer.tracking.index'))
         <style>
             #customer-subscription-alert{background:#fff0f0;color:#842029;border-color:#f2b8bd}
             #customer-subscription-alert .btn-danger{background:#a51d2d!important;border-color:#a51d2d!important;color:#fff!important;min-height:44px;display:inline-flex;align-items:center;justify-content:center;white-space:normal}
@@ -16,7 +15,7 @@
             <div id="customer-subscription-alert" class="alert alert-danger d-flex flex-wrap align-items-center justify-content-between gap-2 mb-0" role="status">
                 <div>
                     <strong class="d-block">{{ $monthlyState['status'] === 'expired' ? 'انتهى اشتراكك الشهري' : 'يلزم تفعيل الاشتراك الشهري' }}</strong>
-                    <span class="small">{{ $monthlyState['status'] === 'expired' ? 'جدّد الاشتراك الشهري للمتابعة إلى الشراء.' : 'تم تفعيل حسابك. فعّل الاشتراك الشهري لاستكمال متطلبات الشراء.' }}</span>
+                    <span class="small">{{ $monthlyState['status'] === 'expired' ? 'جدّد الاشتراك الشهري للمتابعة إلى الشراء.' : 'اختر باقة شهرية لاستكمال متطلبات الشراء.' }}</span>
                 </div>
                 <a class="btn btn-danger" href="{{ route('customer.subscription.index') }}">{{ $monthlyState['status'] === 'expired' ? 'اختيار باقة شهرية جديدة' : 'تفعيل الاشتراك الشهري' }}</a>
             </div>

@@ -21,7 +21,6 @@
         <h3>أهلية شراء العميل</h3>
         <dl class="customer-profile-statuses">
             <div><dt>مسار التسجيل</dt><dd><span data-customer-live-journey>{{ $profileState['onboarding_journey'] === 'checkout_first' ? 'دفع مباشر' : 'عادي' }}</span></dd></div>
-            <div><dt>تفعيل الحساب</dt><dd><span class="profile-badge {{ $profileState['account_activated'] ? 'is-success' : 'is-warning' }}">{{ $profileState['account_activated'] ? 'مفعّل' : 'بانتظار التفعيل' }}</span></dd></div>
             <div><dt>التجميد الإداري</dt><dd><span class="profile-badge {{ $profileState['administratively_frozen'] ? 'is-danger' : 'is-neutral' }}">{{ $profileState['administratively_frozen'] ? 'موقوف' : 'لا يوجد' }}</span></dd></div>
             <div><dt>الاشتراك الشهري</dt><dd><span class="profile-badge" data-customer-live-state data-active="{{ $profileSubscription['active'] ? 'true' : 'false' }}">{{ $profileSubscription['active'] ? 'نشط' : 'غير نشط' }}</span></dd></div>
         </dl>

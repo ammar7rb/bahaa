@@ -350,14 +350,7 @@ class Helpers
 
     public static function getProductDiscount($product, $price): float
     {
-        $discount = 0;
-        if ($product['discount_type'] == 'percent') {
-            $discount = ($price * $product['discount']) / 100;
-        } elseif ($product['discount_type'] == 'flat') {
-            $discount = $product['discount'];
-        }
-
-        return floatval($discount);
+        return getProductDiscount($product, $price);
     }
 
     public static function module_permission_check($mod_name): bool

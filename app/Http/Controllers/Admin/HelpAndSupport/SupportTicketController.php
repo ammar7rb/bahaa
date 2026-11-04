@@ -49,6 +49,7 @@ class SupportTicketController extends BaseController
     public function updateStatus(Request $request): JsonResponse
     {
         $ticket = $this->supportTicketRepo->getFirstWhere(params:['id' => $request['id']]);
+        abort_unless($ticket, 404);
         $status = $ticket['status'] == 'open' ? 'close' : 'open';
         $this->supportTicketRepo->update(id: $ticket['id'], data: [
             'status' => $status,
@@ -62,6 +63,9 @@ class SupportTicketController extends BaseController
     public function getView($id): View
     {
         $supportTicket = $this->supportTicketRepo->getListWhere(filters: ['id'=>$id], relations: ['conversations'], dataLimit: 'all');
+        abort_if($supportTicket->isEmpty(), 404);
+        $ticket = $supportTicket->first();
+        app(\App\Services\AdminWorkspaceService::class)->markTicketRead((int) $ticket->id, (int) ($ticket->conversations->max('id') ?? 0));
         return view('admin-views.support-ticket.singleView', compact('supportTicket'));
     }
 
@@ -69,6 +73,7 @@ class SupportTicketController extends BaseController
     public function messages(int $id): JsonResponse
     {
         $ticket = SupportTicket::query()->with(['conversations' => fn ($query) => $query->orderBy('id')])->findOrFail($id);
+        app(\App\Services\AdminWorkspaceService::class)->markTicketRead((int) $ticket->id, (int) ($ticket->conversations->max('id') ?? 0));
 
         return response()->json([
             'ticket_id' => $ticket->id,

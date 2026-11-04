@@ -544,11 +544,11 @@ class ProductManager
 
         $productListData = Product::with(['tags', 'clearanceSale' => function ($query) {
             return $query->active();
-        }])->whereIn('id', $productIds);
+        }])->active()->whereIn('id', $productIds);
         if ($category != 'all') {
-            $categoryWiseProduct = $productListData->where(['category_id' => $category])
-                ->orWhere(['sub_category_id' => $category])
-                ->orWhere(['sub_sub_category_id' => $category]);
+            $categoryWiseProduct = $productListData->where(function ($query) use ($category) {
+                $query->where(['category_id' => $category])->orWhere(['sub_category_id' => $category])->orWhere(['sub_sub_category_id' => $category]);
+            });
             $productListData = ProductManager::getPriorityWiseCategoryWiseProductsQuery(query: $categoryWiseProduct, dataLimit: $limit, offset: $offset);
         } else {
             $productListData = ProductManager::getPriorityWiseSearchedProductQuery(query: $productListData, keyword: $name, dataLimit: $limit, offset: $offset, type: 'translated');
@@ -570,7 +570,7 @@ class ProductManager
             ->pluck('translationable_id');
 
         $productListData = Product::with(['tags', 'translations'])
-            ->whereIn('id', $translationIds);
+            ->active()->whereIn('id', $translationIds);
 
         if ($category !== 'all') {
             $productListData->whereJsonContains('category_ids', [['id' => $category]]);
@@ -911,11 +911,7 @@ class ProductManager
                 $query->where('customer_id', $user != 'offline' ? $user->id : '0');
             }])
             ->where(function ($subQuery) use ($stockClearanceProductIds) {
-                return $subQuery->where(function ($query) {
-                    return $query->where('discount', '!=', 0);
-                })->orWhere(function ($query) use ($stockClearanceProductIds) {
-                    return $query->whereIn('id', $stockClearanceProductIds);
-                });
+                return $subQuery->whereIn('id', $stockClearanceProductIds);
             })
             ->orderBy('id', 'desc')
             ->paginate($limit, ['*'], 'page', $offset);
@@ -2306,11 +2302,7 @@ class ProductManager
             ->when($request['offer_type'] == 'discounted', function ($query) {
                 $stockClearanceProductIds = StockClearanceProduct::active()->pluck('product_id')->toArray();
                 return $query->where(function ($subQuery) use ($stockClearanceProductIds) {
-                    return $subQuery->where(function ($query) {
-                        return $query->where('discount', '!=', 0);
-                    })->orWhere(function ($query) use ($stockClearanceProductIds) {
-                        return $query->whereIn('id', $stockClearanceProductIds);
-                    });
+                    return $subQuery->whereIn('id', $stockClearanceProductIds);
                 });
             })
             ->when($request['data_from'] == 'most-favorite', function ($query) {

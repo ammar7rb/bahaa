@@ -8,7 +8,6 @@
     $customerOrderState = isset($order) ? app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order) : null;
     $accountClear = !$customerPurchaseState['administratively_frozen'];
     $eligibilitySteps = [
-        ['label'=>'تفعيل الحساب','icon'=>'user-check','done'=>$customerPurchaseState['account_activated'],'blocked'=>false,'status'=>$customerPurchaseState['account_activated'] ? 'مفعّل' : 'بانتظار التفعيل'],
         ['label'=>'حالة الحساب','icon'=>'shield-check','done'=>$accountClear,'blocked'=>!$accountClear,'status'=>$accountClear ? 'الحساب سليم' : 'موقوف إداريًا'],
         ['label'=>'الاشتراك الشهري','icon'=>'calendar','done'=>$customerPurchaseState['subscription']['active'],'blocked'=>false,'status'=>$customerPurchaseState['subscription']['active'] ? 'نشط' : 'بانتظار الاشتراك'],
     ];

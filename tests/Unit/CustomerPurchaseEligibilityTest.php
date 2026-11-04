@@ -29,6 +29,7 @@ class CustomerPurchaseEligibilityTest extends TestCase
         (require base_path('database/migrations/2026_10_10_300000_add_customer_purchase_eligibility.php'))->up();
         (require base_path('database/migrations/2026_10_10_310000_preserve_customer_checkout_snapshot.php'))->up();
         (require base_path('database/migrations/2026_10_12_150000_review_initial_confirmed_order_payments.php'))->up();
+        (require base_path('database/migrations/2026_10_27_100000_preserve_initial_checkout_origin.php'))->up();
         Schema::create('offline_payments', function (Blueprint $t) { $t->id(); $t->unsignedBigInteger('order_id'); $t->json('payment_info'); $t->timestamps(); });
         DB::table('users')->insert(['id' => 1, 'onboarding_journey' => 'checkout_first', 'activation_status' => 'pending']);
         app()->instance(\App\Services\MonthlySubscriptionPricingService::class, new class extends \App\Services\MonthlySubscriptionPricingService {
@@ -36,7 +37,124 @@ class CustomerPurchaseEligibilityTest extends TestCase
         });
     }
 
+    public function test_retired_outstanding_invoice_does_not_block_paid_eligible_order(): void
+    {
+        $this->initialOrders(); $this->subscribe();
+        DB::table('users')->where('id',1)->update(['activation_status'=>'active']);
+        Schema::create('post_purchase_invoices', function (Blueprint $t) {
+            $t->id(); $t->unsignedBigInteger('order_id'); $t->string('status');
+            $t->decimal('total_amount',18,3); $t->decimal('paid_amount',18,3);
+        });
+        DB::table('post_purchase_invoices')->insert(['order_id'=>1,'status'=>'expired','total_amount'=>313600,'paid_amount'=>0]);
+        DB::table('orders')->where('id',1)->update(['customer_pending_reasons'=>'["outstanding_invoice"]']);
+        $payload = $this->service()->orderPayload(\App\Models\Order::findOrFail(1));
+        $this->assertSame([], $payload['pending_reasons']);
+        $this->service()->reevaluateCustomer(1);
+        $this->assertNotNull(DB::table('orders')->where('id',1)->value('customer_eligible_at'));
+        $this->assertEquals(313600, DB::table('post_purchase_invoices')->value('total_amount'));
+        $this->assertSame('expired', DB::table('post_purchase_invoices')->value('status'));
+    }
+
     private function service(): CustomerPurchaseEligibilityService {return app(CustomerPurchaseEligibilityService::class);}
+
+    public function test_customer_receives_only_the_next_requirement_in_the_approved_sequence(): void
+    {
+        $this->initialOrders();
+        DB::table('orders')->update(['customer_initial_payment_review_status' => 'pending']);
+        $this->service()->reevaluateCustomer(1);
+        $payload = fn () => $this->service()->orderPayload(\App\Models\Order::find(1));
+        $this->assertSame('payment_under_review', $payload()['stage']);
+        $this->assertNull($payload()['next_action']);
+        $activation = app(\App\Services\CustomerActivationService::class)->payload(User::find(1));
+        $this->assertFalse($activation['activation_available']);
+        $this->assertFalse($activation['banner']['visible']);
+        $this->assertNull($activation['ticket_id']);
+        $this->service()->reviewInitialConfirmedPayment(1, true, 7);
+        $this->assertNull($payload()['next_action'], 'All seller orders from the first payment must be reviewed.');
+        $this->service()->reviewInitialConfirmedPayment(2, true, 7);
+        $this->assertSame('choose_package', $payload()['next_action']);
+        $this->assertStringContainsString('باقة', $payload()['message']);
+        DB::table('users')->where('id', 1)->update(['activation_status' => 'active']);
+        $this->service()->reevaluateCustomer(1);
+        $this->assertSame('choose_package', $payload()['next_action']);
+        $this->assertTrue($payload()['can_request_package']);
+        $this->subscribe();
+        $this->service()->reevaluateCustomer(1);
+        $this->assertSame('ready_for_fulfillment', $payload()['stage']);
+        $this->assertNull($payload()['next_action']);
+        $this->service()->assertCanFulfill(\App\Models\Order::find(1));
+        $this->assertSame(2, DB::table('orders')->count());
+        $this->assertSame(['paid', 'paid'], DB::table('orders')->pluck('payment_status')->all());
+    }
+
+    public function test_origin_is_immutable_after_activation_subscription_and_payment_retry(): void
+    {
+        $id = $this->service()->reserve(1, 'cart-a', null, 'offline_payment')->id;
+        $before = DB::table('customer_checkout_operations')->where('id', $id)->value('origin_snapshot');
+        $origin = json_decode($before, true);
+        $this->assertTrue($origin['is_first_order']);
+        $this->assertTrue($origin['account_activated']);
+        $this->assertFalse($origin['has_active_package']);
+        DB::table('users')->where('id', 1)->update(['activation_status' => 'active']);
+        $this->subscribe();
+        $this->service()->reserve(1, 'cart-a', null, 'offline_payment');
+        $this->assertSame($before, DB::table('customer_checkout_operations')->where('id', $id)->value('origin_snapshot'));
+        $migration = require database_path('migrations/2026_10_27_100000_preserve_initial_checkout_origin.php');
+        $migration->up();
+        $this->assertSame($before, DB::table('customer_checkout_operations')->where('id', $id)->value('origin_snapshot'));
+    }
+
+    public function test_activation_and_package_commands_cannot_skip_unapproved_payment(): void
+    {
+        $this->initialOrders(false);
+        foreach (['assertActivationAvailable', 'assertPackagePurchaseAvailable'] as $method) {
+            try { $this->service()->$method(User::find(1)); $this->fail('Unapproved payment bypassed.'); }
+            catch (ValidationException $error) { $this->assertArrayHasKey('customer_eligibility', $error->errors()); }
+        }
+        DB::table('orders')->update(['payment_status' => 'paid']);
+        $this->service()->assertActivationAvailable(User::find(1));
+        $this->service()->assertPackagePurchaseAvailable(User::find(1));
+        $this->assertNotContains('account_activation', $this->service()->status(User::find(1))['pending_reasons']);
+    }
+
+    public function test_mobile_activation_endpoints_respect_the_same_payment_gate(): void
+    {
+        Schema::create('business_settings', function (Blueprint $t) { $t->id(); $t->string('type'); $t->text('value'); });
+        session()->put(['local' => 'ar', 'direction' => 'rtl']);
+        $this->initialOrders(false);
+        $request = \Illuminate\Http\Request::create('/api/v1/customer/support-ticket/activation/status');
+        $request->setUserResolver(fn () => User::find(1));
+        $controller = app(\App\Http\Controllers\RestAPI\v1\CustomerController::class);
+        $activation = app(\App\Services\CustomerActivationService::class);
+        $this->assertFalse($controller->activationStatus($request, $activation)->getData(true)['activation_available']);
+        try { $controller->activationTicket($request, $activation); $this->fail('Mobile activation skipped payment approval.'); }
+        catch (\Symfony\Component\HttpKernel\Exception\HttpException $error) { $this->assertSame(410, $error->getStatusCode()); }
+        DB::table('orders')->update(['payment_status' => 'paid']);
+        $this->assertFalse($controller->activationStatus($request, $activation)->getData(true)['activation_available']);
+    }
+
+    public function test_rejected_activation_and_freeze_have_one_relevant_support_action(): void
+    {
+        $this->initialOrders();
+        DB::table('users')->where('id', 1)->update(['activation_status' => 'rejected']);
+        $this->service()->reevaluateCustomer(1);
+        $payload = $this->service()->orderPayload(\App\Models\Order::find(1));
+        $this->assertSame('waiting_for_package', $payload['stage']);
+        $this->assertSame('choose_package', $payload['next_action']);
+        $this->assertTrue($payload['can_request_package']);
+        DB::table('users')->where('id', 1)->update(['is_active' => 0]);
+        $this->service()->reevaluateCustomer(1);
+        $this->assertSame('administrative_hold', $this->service()->orderPayload(\App\Models\Order::find(1))['stage']);
+    }
+
+    public function test_historical_first_order_does_not_invent_its_original_account_state(): void
+    {
+        $op = $this->initialOrders();
+        DB::table('customer_checkout_operations')->where('id', $op)->update(['origin_snapshot' => null]);
+        $payload = $this->service()->orderPayload(\App\Models\Order::find(1));
+        $this->assertTrue($payload['is_urgent_order']);
+        $this->assertNull($payload['origin']);
+    }
     public function test_settled_initial_wallet_payment_waits_for_review_without_another_debit(): void
     {
         $this->initialOrders(); $this->subscribe();
@@ -47,10 +165,12 @@ class CustomerPurchaseEligibilityTest extends TestCase
         $this->assertNull(DB::table('orders')->where('id', 1)->value('customer_eligible_at'));
         $this->service()->reviewInitialConfirmedPayment(1, true, 7);
         $this->service()->reviewInitialConfirmedPayment(1, true, 7);
+        $this->assertNull(DB::table('orders')->where('id', 1)->value('customer_eligible_at'));
+        $this->service()->reviewInitialConfirmedPayment(2, true, 7);
         $this->assertSame('paid', DB::table('orders')->where('id', 1)->value('payment_status'));
         $this->assertSame('preparing', DB::table('orders')->where('id', 1)->value('customer_fulfillment_status'));
         $this->assertSame(7, DB::table('orders')->where('id', 1)->value('customer_initial_payment_reviewed_by'));
-        $this->assertNull(DB::table('orders')->where('id', 2)->value('customer_eligible_at'));
+        $this->assertNotNull(DB::table('orders')->where('id', 2)->value('customer_eligible_at'));
     }
 
     public function test_rejected_settled_initial_payment_retains_financial_payment_and_holds_order(): void
@@ -106,6 +226,10 @@ class CustomerPurchaseEligibilityTest extends TestCase
             $this->assertArrayHasKey('customer_eligibility',$exception->errors());
         }
         $this->service()->reviewInitialConfirmedPayment(1, true, 7);
+        $this->service()->reviewInitialConfirmedPayment(2, true, 7);
+        $this->assertTrue($this->service()->orderPayload(\App\Models\Order::find(1))['can_request_package']);
+        DB::table('users')->where('id', 1)->update(['activation_status' => 'active']);
+        $this->service()->reevaluateCustomer(1);
         $this->service()->requestPackageForOrder(1);
         $this->service()->requestPackageForOrder(1);
         $this->assertSame(1, DB::table('notifications')->count());
@@ -126,16 +250,16 @@ class CustomerPurchaseEligibilityTest extends TestCase
         $this->assertSame($first->id,$this->service()->reserve(1,'cart-a',null,'offline_payment')->id);
         $this->expectException(ValidationException::class); $this->service()->reserve(1,'different-cart');
     }
-    public function test_paid_order_waits_until_activation_then_subscription(): void {
+    public function test_paid_order_waits_for_subscription_without_activation(): void {
         $this->initialOrders();$this->service()->reevaluateCustomer(1);
         $this->assertSame('pending_requirements',DB::table('orders')->value('customer_fulfillment_status'));
         DB::table('users')->where('id',1)->update(['activation_status'=>'active']);$this->service()->reevaluateCustomer(1);
         $this->assertNull(DB::table('orders')->value('customer_eligible_at'));
         $this->subscribe();$this->preparing();
     }
-    public function test_subscription_then_activation_has_same_result(): void {
+    public function test_paid_subscribed_order_prepares_without_activation(): void {
         $this->initialOrders();$this->subscribe();$this->service()->reevaluateCustomer(1);
-        $this->assertNull(DB::table('orders')->value('customer_eligible_at'));
+        $this->assertNotNull(DB::table('orders')->value('customer_eligible_at'));
         DB::table('users')->where('id',1)->update(['activation_status'=>'active']);$this->preparing();
     }
     public function test_unpaid_order_never_starts_preparing(): void {
@@ -148,16 +272,38 @@ class CustomerPurchaseEligibilityTest extends TestCase
         $this->service()->reevaluateCustomer(1);$this->assertNull(DB::table('orders')->value('customer_eligible_at'));
         DB::table('users')->where('id',1)->update(['is_active'=>1]);$this->preparing();
     }
-    public function test_expiry_without_scheduler_prevents_new_purchases_without_relocking_preparing_orders(): void {
+    public function test_expiry_allows_new_prepaid_purchases_without_relocking_preparing_orders(): void {
         $this->initialOrders();$this->subscribe();DB::table('users')->where('id',1)->update(['activation_status'=>'active']);$this->preparing();
         $eligibleAt=DB::table('orders')->value('customer_eligible_at');$this->travel(31)->days();
-        $this->assertFalse($this->service()->status(User::find(1))['can_checkout']);$this->preparing();
+        $this->assertTrue($this->service()->status(User::find(1))['can_checkout']);$this->preparing();
         $this->assertSame($eligibleAt,DB::table('orders')->value('customer_eligible_at'));
     }
-    public function test_canceling_initial_operation_does_not_restore_exception(): void {
+    public function test_canceled_first_order_does_not_block_another_prepaid_order(): void {
         $this->initialOrders();DB::table('orders')->update(['order_status'=>'canceled']);
-        $this->expectException(ValidationException::class);$this->service()->reserve(1,'cart-b');
+        $new=$this->service()->reserve(1,'cart-b',null,'offline_payment');
+        $this->assertTrue((bool) $new->first_exception);
     }
+    public function test_later_order_waits_for_its_own_payment_and_package(): void {
+        $first = $this->initialOrders();
+        DB::table('orders')->update(['order_status' => 'canceled']);
+        $second = $this->service()->reserve(1, 'cart-next', null, 'offline_payment');
+        $this->assertNotSame($first, $second->id);
+        DB::table('orders')->insert(['id'=>3,'customer_id'=>1,'payment_status'=>'unpaid','customer_checkout_operation_id'=>$second->id]);
+        DB::table('customer_checkout_operations')->where('id',$second->id)->update(['consumed_at'=>now(),'order_ids'=>'[3]']);
+        $this->service()->reevaluateCustomer(1);
+        $payload = $this->service()->orderPayload(\App\Models\Order::findOrFail(3));
+        $this->assertSame('payment_under_review', $payload['stage']);
+        DB::table('orders')->where('id',3)->update(['payment_status'=>'paid']);
+        $this->service()->reevaluateCustomer(1);
+        $payload = $this->service()->orderPayload(\App\Models\Order::findOrFail(3));
+        $this->assertSame('waiting_for_package', $payload['stage']);
+        $this->assertTrue($payload['can_request_package']);
+        $this->service()->assertPackagePurchaseAvailable(User::findOrFail(1));
+        $this->subscribe();
+        $this->service()->reevaluateCustomer(1);
+        $this->assertNotNull(DB::table('orders')->where('id',3)->value('customer_eligible_at'));
+    }
+
     public function test_legacy_accounts_do_not_receive_initial_exception(): void {
         DB::table('users')->where('id',1)->update(['onboarding_journey'=>'legacy']);
         $this->assertFalse($this->service()->status(User::find(1))['initial_order_exception_available']);
@@ -193,7 +339,7 @@ class CustomerPurchaseEligibilityTest extends TestCase
         $this->assertSame(2,DB::table('orders')->count());
         $this->assertSame('unpaid',DB::table('orders')->where('id',1)->value('payment_status'));
         $this->assertNull(DB::table('orders')->where('id',1)->value('customer_eligible_at'));
-        $this->assertFalse($this->service()->status(User::find(1))['can_checkout']);
+        $this->assertTrue($this->service()->status(User::find(1))['can_checkout']);
     }
     public function test_other_customer_cannot_retry_existing_order(): void {
         $this->initialOrders(false);

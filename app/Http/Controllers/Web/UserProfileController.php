@@ -581,7 +581,7 @@ class UserProfileController extends Controller
     public function submitSupportTicket(Request $request): RedirectResponse|JsonResponse
     {
         if ($request->input('ticket_type') === 'account_activation') {
-            app(\App\Services\CustomerPurchaseEligibilityService::class)->assertActivationAvailable(auth('customer')->user());
+            abort(410);
         }
         if ($request->boolean('care_support_drawer')) {
             abort_unless(auth('customer')->check(), 401);
@@ -1058,6 +1058,7 @@ class UserProfileController extends Controller
 
     public function store_refund(Request $request): RedirectResponse
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request): RedirectResponse {
         $request->validate([
             'order_details_id' => 'required',
             'amount' => 'required',
@@ -1076,6 +1077,15 @@ class UserProfileController extends Controller
         $orderDetailsReward = $this->orderDetailsRewardsRepo->getFirstWhere(params: ['order_details_id' => $request['order_details_id'], 'reward_type' => 'loyalty_point']);
         $orderDetails = OrderDetail::find($request->order_details_id);
         $user = auth('customer')->user();
+        if (!$orderDetails) {
+            abort(404);
+        }
+        $refundOrder = Order::whereKey($orderDetails->order_id)->lockForUpdate()->firstOrFail();
+        if ((int) $refundOrder->customer_id !== (int) $user->id || $refundOrder->order_status !== 'delivered'
+            || (\Illuminate\Support\Facades\Schema::hasTable('order_admin_purchase_refunds') && \Illuminate\Support\Facades\DB::table('order_admin_purchase_refunds')->where('order_id', $refundOrder->id)->where('reason', 'customer_canceled_waiting_for_package')->exists())) {
+            Toastr::warning('لا يمكن إنشاء طلب استرداد لهذا الطلب.');
+            return back();
+        }
 
         if ($orderDetailsReward && $user->loyalty_point < $orderDetailsReward['reward_amount']) {
             Toastr::warning(translate('you_have_not_sufficient_loyalty_point_to_refund_this_order') . '!!');
@@ -1110,6 +1120,7 @@ class UserProfileController extends Controller
 
         Toastr::success(translate('refund_requested_successful!!'));
         return redirect()->route('account-order-details', ['id' => $orderDetails->order_id]);
+        });
     }
 
     public function generate_invoice($id)

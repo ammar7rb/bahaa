@@ -5,6 +5,8 @@
 <main class="container py-4" dir="rtl"><div class="row g-3">
     @include('theme-views.partials._profile-aside')
     <section class="col-lg-9 customer-order-history">
+        @if(session('customer_cancel_message'))<div class="alert alert-success">{{ session('customer_cancel_message') }}</div>@endif
+        @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
         <header class="customer-orders-heading"><div><h1>طلباتي</h1><p>تابع مشترياتك وحالة كل طلب.</p></div><a href="{{ route('account-oder', ['order_by'=>request('order_by') === 'asc' ? 'desc' : 'asc']) }}">{{ request('order_by') === 'asc' ? 'الأحدث أولًا' : 'الأقدم أولًا' }} ↕</a></header>
         @forelse($orders as $order)
             @php($state = $order->customer_checkout_operation_id ? app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order) : null)
@@ -21,9 +23,11 @@
                 @if($state && !$order->customer_eligible_at && !in_array($order->order_status,['canceled','failed','delivered','returned']))
                     <div class="customer-order-help"><span>{{ $state['message'] }}</span>
                         @include('customer-checkout.next-action', ['purchaseState' => $state, 'actionClass' => ''])
+                        @if($state['can_cancel_for_package'] ?? false)<form method="post" action="{{ route('customer.order.package-cancellation', $order->id) }}" onsubmit="return confirm('تأكيد إلغاء الطلب وطلب رد المبلغ؟')">@csrf<button class="btn btn-outline-danger" type="submit">إلغاء الطلب وطلب رد المبلغ</button></form>@endif
                         @if($state['next_action'] === 'resubmit_payment_proof')<a href="{{ route('account-order-details',['id'=>$order->id]) }}">إعادة إرسال إثبات الدفع</a>@endif
                     </div>
                 @endif
+                @if($state['package_refund'] ?? null)<p class="customer-order-help">{{ $state['package_refund']['status'] === 'completed' ? 'تم تسجيل رد المبلغ.' : 'طلب رد المبلغ قيد مراجعة الإدارة خلال ١٥ إلى ٣٠ يومًا من تاريخ طلب الإلغاء.' }}</p>@endif
             </article>
         @empty<div class="customer-order-empty"><h2>ليس لديك طلبات بعد</h2><p>ستظهر مشترياتك هنا لتتابعها بسهولة.</p><a href="{{ route('products') }}">تصفح المنتجات ←</a></div>@endforelse
         {{ $orders->links() }}

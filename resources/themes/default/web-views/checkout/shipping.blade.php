@@ -65,7 +65,7 @@
                                                                 <label>{{ translate('contact_person_name')}}
                                                                     <span class="text-danger">*</span>
                                                                 </label>
-                                                                <input type="text" class="form-control" name="contact_person_name" required id="name">
+                                                                <input type="text" class="form-control" name="contact_person_name" required id="name" value="{{ old('contact_person_name', trim((auth('customer')->user()?->f_name ?? '').' '.(auth('customer')->user()?->l_name ?? ''))) }}">
                                                             </div>
                                                         </div>
                                                         <div class="col-sm-6">
@@ -73,7 +73,7 @@
                                                                 <label>{{ translate('phone')}}
                                                                     <span class="text-danger">*</span>
                                                                 </label>
-                                                                <input type="tel" class="form-control" id="phone" {{ $shippingAddresses->count()==0?'required':'' }} name="phone">
+                                                                <input type="tel" class="form-control" id="phone" {{ $shippingAddresses->count()==0?'required':'' }} name="phone" value="{{ old('phone', auth('customer')->user()?->phone ?? '') }}">
                                                             </div>
                                                         </div>
                                                         @if(!auth('customer')->check())

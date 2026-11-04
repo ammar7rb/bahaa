@@ -47,7 +47,7 @@ class CustomerCheckoutRegistrationService
                 'phone' => $data['phone'], 'canonical_phone' => $data['phone'], 'email' => null,
                 'password' => Hash::make($data['password']), 'is_active' => 1,
                 'is_phone_verified' => 0, 'is_email_verified' => 0,
-                'activation_status' => 'pending_support', 'onboarding_journey' => 'checkout_first',
+                'activation_status' => 'active', 'onboarding_journey' => 'checkout_first',
                 'terms_accepted_at' => now(), 'privacy_accepted_at' => now(),
             ]);
             $policies->accept('customer', (int) $user->id, $ids);

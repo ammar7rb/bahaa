@@ -2297,7 +2297,7 @@ class OrderManager
         $message = [];
         if (app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
             $limitCustomerId = $customer === 'offline' ? 0 : (int) $customer->id;
-            $provisional = !$limitCustomerId || ($state['initial_order_exception_available'] ?? false) || ($state['can_resume_initial_checkout'] ?? false);
+            $provisional = !$limitCustomerId || ($state['initial_order_exception_available'] ?? false) || ($state['can_resume_initial_checkout'] ?? false) || ($state['can_pay_before_subscription'] ?? false);
             $limitSummary = app(\App\Services\CustomerMonthlyAllowanceService::class)->summary($limitCustomerId,
                 app(\App\Services\CustomerPurchaseLimitService::class)->getCheckedCartProductTotal(), $provisional);
             if (!$limitSummary['can_checkout']) return ['status' => 0, 'physical_product_view' => false, 'message' => ['الحد الائتماني المتاح '.number_format($limitSummary['available_limit'],2).' ج.م لا يغطي سلة المشتريات.'], 'redirect' => route('shop-cart')];

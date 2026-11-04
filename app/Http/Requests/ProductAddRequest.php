@@ -17,6 +17,7 @@ class ProductAddRequest extends Request
 
     protected function prepareForValidation(): void
     {
+        $this->merge(['discount' => 0, 'discount_type' => 'flat']);
         // The marketplace sells physical products only.  Keep the submitted
         // payload deterministic for both the admin and seller entry points.
         $this->merge(['no_production_expiry_dates' => $this->boolean('no_production_expiry_dates') ? 1 : 0]);
@@ -67,6 +68,8 @@ class ProductAddRequest extends Request
                 foreach (app(\App\Services\SellerProductCategoryService::class)->validate($this->all()) as $message) $fail(translate($message));
             }],
             'product_type' => 'required|in:physical',
+            'images' => 'nullable|array',
+            'images.*' => 'nullable|image',
             'digital_product_type' => 'nullable',
             // 'digital_file_ready' => 'required_if' . ':' . 'digital_product_type' . ',==,' . 'ready_product' . '|' . 'mimes' . ':jpg,jpeg,png,gif,zip,pdf',
             'unit' => 'required_if'.':'.'product_type'.',==,'.'physical',
@@ -89,9 +92,7 @@ class ProductAddRequest extends Request
             'expiry_date' => 'exclude_if:no_production_expiry_dates,1|required|date|after_or_equal:production_date|after:today',
         ];
 
-        if (! isset($this['existing_thumbnail'])) {
-            $rules['image'] = 'required';
-        }
+        $rules['image'] = 'nullable|image';
 
         return $rules;
     }
@@ -134,7 +135,7 @@ class ProductAddRequest extends Request
                     );
                 }
 
-                if (! isset($this['existing_thumbnail']) && $this->file('image')) {
+                if ($this->file('image')) {
                     $file = $this->file('image');
                     $extension = strtolower($file->getClientOriginalExtension());
 
@@ -155,12 +156,6 @@ class ProductAddRequest extends Request
                     );
                 }
 
-                if (! ($this->has('colors_active') && $this->has('colors') && count($this['colors']) > 0) && ! $this->file('images') && ! $this->has('existing_images')) {
-                    $validator->errors()->add(
-                        'images', translate('product_images_is_required').'!'
-                    );
-                }
-
                 if ($this['product_type'] == 'physical' && $this['unit_price'] <= $this->getDiscountAmount(price: $this['unit_price'] ?? 0, discount: $this['discount'], discountType: $this['discount_type'])) {
                     $validator->errors()->add(
                         'unit_price', translate('discount_can_not_be_more_or_equal_to_the_price').'!'
@@ -173,35 +168,6 @@ class ProductAddRequest extends Request
                     $validator->errors()->add(
                         'name', translate('name_field_is_required').'!'
                     );
-                }
-
-                $productImagesCount = 0;
-                if ($this->has('colors_active') && $this->has('colors') && count($this['colors']) > 0) {
-                    foreach ($this['colors'] as $color) {
-                        $color_ = str_replace('#', '', $color);
-                        $image = 'color_image_'.$color_;
-                        if ($this->file($image)) {
-                            $productImagesCount++;
-                        } elseif ($this->has($image)) {
-                            $productImagesCount++;
-                        }
-
-                    }
-                    if ($productImagesCount != count($this['colors'])) {
-                        $validator->errors()->add(
-                            'images', translate('color_images_is_required').'!'
-                        );
-                    }
-                }
-
-                $regularImages = $this->file('images', []);
-                $regularImages = is_array($regularImages) ? count(array_filter($regularImages)) : ($regularImages ? 1 : 0);
-                $existingImages = $this->input('existing_images', []);
-                if (is_string($existingImages)) {
-                    $existingImages = json_decode($existingImages, true) ?: [];
-                }
-                if ($regularImages + count((array) $existingImages) + $productImagesCount < 5) {
-                    $validator->errors()->add('images', translate('seller_product_minimum_images_required'));
                 }
 
                 if ($this['product_type'] == 'physical' && ($this->has('colors') || ($this->has('choice_attributes') && count($this['choice_attributes']) > 0))) {

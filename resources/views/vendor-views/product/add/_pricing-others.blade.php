@@ -33,7 +33,7 @@
                             <div class="form-group">
                                 <div class="d-flex gap-2 mb-2">
                                     <label class="title-color mb-0">
-                                        {{ translate('unit_price') }}
+                                        <span data-unit-price-text>{{ translate('unit_price') }}</span>
                                         ({{ getCurrencySymbol(currencyCode: getCurrencyCode()) }})
                                         <span class="input-required-icon">*</span>
                                     </label>
@@ -89,29 +89,8 @@
                                         >
                             </div>
                         </div>
-                        <div class="col-md-6 col-lg-4">
-                            <div class="form-group">
-                                <div class="d-flex gap-2">
-                                    <label class="title-color" for="discount">{{ translate('discount_amount') }} <span
-                                            class="discount_amount_symbol">
-                                            <span class="input-required-icon">*</span>({{ getCurrencySymbol(currencyCode: getCurrencyCode()) }})</span>
-                                    </label>
-                                    <span class="input-label-secondary cursor-pointer" data-toggle="tooltip"
-                                            title="{{ translate('add_the_discount_amount_in_percentage_or_a_fixed_value_here') }}.">
-                                    <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/info-circle.svg') }}" alt="">
-                                </span>
-                                </div>
-                                <div class="input-group input-group-merge input-group--merge">
-                                    <input type="number" min="0" value="0" step="0.01"
-                                            placeholder="{{ translate('ex: 5') }}"
-                                            name="discount" id="discount" class="form-control" required>
-                                    <select class="form-control input-group--merge-action" name="discount_type" id="discount_type">
-                                        <option value="flat">{{ translate('vendor_discount_fixed') }}</option>
-                                        <option value="percent">{{ translate('vendor_discount_percent') }}</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                        <input type="hidden" name="discount" id="discount" value="0">
+                        <input type="hidden" name="discount_type" id="discount_type" value="flat">
 
                         @if ($productWiseTax)
                             <div class="col-md-6 col-lg-4">

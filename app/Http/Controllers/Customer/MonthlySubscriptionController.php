@@ -23,9 +23,9 @@ class MonthlySubscriptionController extends Controller
         $id = $this->customer($request);
         $customer = \App\Models\User::findOrFail($id);
         $gate = app(\App\Services\CustomerPurchaseEligibilityService::class)->initialCheckoutGate($customer);
-        if ($gate['applies'] && (!$gate['payment_approved'] || $customer->activation_status !== 'active')) {
+        if ($gate['applies'] && !$gate['payment_approved']) {
             $next = app(\App\Services\CustomerPurchaseEligibilityService::class)->nextRequirement(
-                [$gate['payment_approved'] ? 'account_activation' : 'order_payment_review'], $customer->activation_status
+                ['order_payment_review']
             );
             return $request->is('api/*')
                 ? response()->json(['onboarding' => $next, 'message' => $next['message']], 409)

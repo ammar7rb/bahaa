@@ -61,7 +61,7 @@ class AdminOrderGateService
             unset($data['shipping_method_id'], $data['shipping_service_name'], $data['shipping_tracking_number']);
             $before = $locked->only(['seller_shipping_allocation', 'platform_shipping_margin', 'shipping_settlement_due_at', 'sales_settlement_due_at']);
             $assignment = $this->saveAssignment($locked, $data, $adminId);
-            $pricing = app(OrderVendorPricingService::class)->approve($locked->fresh(), $adminId);
+            $pricing = app(OrderVendorPricingService::class)->approve($locked->fresh(), $adminId, isset($data['vendor_order_amount']) ? (float) $data['vendor_order_amount'] : null);
             app(OrderFinancialAuditService::class)->record($locked->fresh(), 'shipping_assigned', 'order_shipping_decisions', $assignment->shipping_decision_id, [], $adminId);
             $locked->refresh()->forceFill([
                 'seller_shipping_allocation' => $entitlement,
@@ -149,7 +149,7 @@ class AdminOrderGateService
             }
             $approval = \Illuminate\Support\Facades\Schema::hasTable('order_vendor_pricings')
                 ? \App\Models\OrderVendorPricing::where('order_id', $locked->id)->first() : null;
-            if ($approval && $approval->snapshot != app(OrderVendorPricingService::class)->summary($locked)) {
+            if ($approval && $approval->snapshot != app(OrderVendorPricingService::class)->summary($locked, (float) $approval->procurement_amount)) {
                 throw new \DomainException('تغيرت بيانات الطلب بعد اعتماد التوريد؛ يلزم إجراء تعديل مالي مستقل قبل الإرسال.');
             }
             $this->assertGateReadyForAssignment($locked);

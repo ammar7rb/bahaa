@@ -24,7 +24,7 @@ class VendorInboxController extends Controller
         $data = $service->snapshot($seller);
         if ($request->is('api/*')) return response()->json($data)->header('Cache-Control', 'private, no-store');
         $kind = $request->routeIs('vendor.messages') ? 'messages' : 'notifications';
-        return view('vendor-views.account.inbox', compact('data', 'kind'));
+        return response()->view('vendor-views.account.inbox', compact('data', 'kind'))->header('Cache-Control', 'private, no-store');
     }
 
     public function read(Request $request, VendorInboxService $service)
@@ -42,6 +42,6 @@ class VendorInboxController extends Controller
         abort_unless($seller, 401);
         $data = $service->thread($seller, $thread);
         return $request->is('api/*') ? response()->json($data)->header('Cache-Control', 'private, no-store')
-            : view('vendor-views.account.thread', compact('data'));
+            : response()->view('vendor-views.account.thread', compact('data'))->header('Cache-Control', 'private, no-store');
     }
 }

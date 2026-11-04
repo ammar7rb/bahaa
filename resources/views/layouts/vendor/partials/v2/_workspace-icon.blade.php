@@ -12,6 +12,7 @@
 @case('reports')<path d="M4 20h17M6 16v-5M12 16V4M18 16V8"/>@break
 @case('settings')<path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="3" fill="white"/><circle cx="16" cy="17" r="3" fill="white"/>@break
 @case('add')<path d="M12 5v14M5 12h14"/>@break
+@case('arrow-left')<path d="M20 12H4m7-7-7 7 7 7"/>@break
 @case('arrow')<path d="m9 5 7 7-7 7"/>@break
 @case('search')<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>@break
 @case('view')<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>@break

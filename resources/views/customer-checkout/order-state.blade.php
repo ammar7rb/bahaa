@@ -3,6 +3,9 @@
     <div class="alert {{ $purchaseState['stage'] === 'ready_for_fulfillment' ? 'alert-success' : 'alert-warning' }} d-flex flex-wrap justify-content-between align-items-center gap-2" dir="rtl" role="status">
         <span>{{ $purchaseState['message'] }}</span>
         @include('customer-checkout.next-action')
+        @if($purchaseState['can_cancel_for_package'] ?? false)
+            <form method="post" action="{{ route('customer.order.package-cancellation', $order->id) }}" onsubmit="return confirm('تأكيد إلغاء الطلب وطلب رد المبلغ؟')">@csrf<button class="btn btn-outline-danger" type="submit">إلغاء الطلب وطلب رد المبلغ</button></form>
+        @endif
     </div>
 @endif
 
@@ -27,3 +30,9 @@
 @once
 @push('script')<script src="{{ asset('assets/front-end/js/checkout-onboarding.js') }}" defer></script>@endpush
 @endonce
+
+@if(session('customer_cancel_message'))<div class="alert alert-success" role="status">{{ session('customer_cancel_message') }}</div>@endif
+@if($order->customer_checkout_operation_id && $order->order_status === 'canceled')
+    @php($refundState = app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order)['package_refund'] ?? null)
+    @if($refundState)<div class="alert alert-info">{{ $refundState['status'] === 'completed' ? 'تم تسجيل رد المبلغ.' : 'طلب رد المبلغ قيد مراجعة الإدارة؛ المدة من ١٥ إلى ٣٠ يومًا من تاريخ طلب الإلغاء.' }}</div>@endif
+@endif

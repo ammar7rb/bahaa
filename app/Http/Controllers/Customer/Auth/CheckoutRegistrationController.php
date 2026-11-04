@@ -38,7 +38,7 @@ class CheckoutRegistrationController extends Controller
         return response()->json([
             'token' => $user->createToken('LaravelAuthApp')->accessToken,
             'onboarding_journey' => $user->onboarding_journey,
-            'activation' => ['status' => $user->activation_status, 'is_active' => false],
+            'activation' => ['enabled' => false, 'status' => 'active', 'is_active' => true],
         ], 201);
     }
 

@@ -60,13 +60,16 @@ class CustomerBalanceDepositController extends Controller
         $path = 'customer-balance-deposits/' . \Illuminate\Support\Str::uuid() . '.enc';
         Storage::disk('local')->put($path, \Illuminate\Support\Facades\Crypt::encryptString(file_get_contents($request->file('payment_proof')->getRealPath())));
         try {
-            CustomerBalanceDeposit::create([
+            \Illuminate\Support\Facades\DB::transaction(function () use ($customerId, $data, $amount, $currency, $method, $information, $path, $requestKey): void {
+            $deposit = CustomerBalanceDeposit::create([
                 'customer_id' => $customerId, 'wallet_type' => $data['wallet_type'],
                 'amount' => round($amount, 3), 'submitted_amount' => $data['amount'], 'currency_code' => $currency,
                 'offline_payment_method_id' => $method->id, 'method_name' => $method->method_name,
                 'method_information' => $information, 'payment_reference' => $data['payment_reference'],
                 'payment_proof' => $path, 'payment_note' => $data['payment_note'] ?? null, 'request_key' => $requestKey,
             ]);
+            app(\App\Services\CustomerPaymentNotificationService::class)->notify($customerId, 'wallet-deposit-'.$deposit->id.'-pending', 'تم استلام طلب شحن المحفظة وهو قيد مراجعة الإدارة. لم يُضف الرصيد بعد.');
+            });
         } catch (\Throwable $exception) {
             Storage::disk('local')->delete($path);
             if (CustomerBalanceDeposit::where('request_key', $requestKey)->exists()) return $success();

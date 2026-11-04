@@ -8,7 +8,6 @@
         ['group'=>'operations','permission'=>'orders','label'=>'shipping','icon'=>'fi fi-sr-truck-moving','route'=>'admin.orders.logistics.index','params'=>[]],
         ['group'=>'operations','permission'=>'orders','label'=>'refunds','icon'=>'fi fi-sr-refund-alt','route'=>'admin.refund-section.refund.list','params'=>['pending']],
         ['group'=>'operations','permission'=>'people','label'=>'communication_center','icon'=>'fi fi-sr-comment-alt','route'=>'admin.support-ticket.view','params'=>[]],
-        ['group'=>'operations','permission'=>'people','label'=>'account_activation_center','icon'=>'fi fi-sr-user-check','route'=>'admin.activation-center.index','params'=>[],'count'=>$data['pending_activation_count']??0],
         ['group'=>'operations','permission'=>'people','label'=>'payment_review_center','icon'=>'fi fi-sr-document-signed','route'=>'admin.payment-reviews.index','params'=>[]],
         ['group'=>'growth','permission'=>'people','label'=>'vendor_packages','icon'=>'fi fi-sr-box-open','route'=>'admin.vendors.packages.index','params'=>[]],
         ['group'=>'growth','permission'=>'catalog','label'=>'advertisements','icon'=>'fi fi-sr-megaphone','route'=>'admin.products.list','params'=>['type' => 'vendor', 'request_status' => 0]],

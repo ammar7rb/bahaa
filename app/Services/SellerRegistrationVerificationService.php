@@ -106,10 +106,7 @@ class SellerRegistrationVerificationService
 
     public function requiresSupportTicket(): bool
     {
-        return in_array($this->verificationMode(), [
-            self::MODE_SUPPORT_TICKET_ONLY,
-            self::MODE_OTP_AND_SUPPORT_TICKET,
-        ], true);
+        return false;
     }
 
     public function registrationRequirements(Seller $seller): array
@@ -119,7 +116,7 @@ class SellerRegistrationVerificationService
             'otp_required' => $this->requiresOtp(),
             // Activation is always completed through the admin case. The
             // verification mode only controls phone OTP, not account access.
-            'support_ticket_required' => true,
+            'support_ticket_required' => false,
             'phone_verification_required' => $this->requiresPhoneVerification($seller),
         ];
     }
@@ -132,9 +129,7 @@ class SellerRegistrationVerificationService
 
         $nextStep = match (true) {
             $phoneVerificationRequired => 'verify_phone',
-            $seller->activation_status !== 'active' => 'await_activation_ticket',
-            $accountStatus === 'pending' => 'await_admin_approval',
-            $accountStatus === 'approved' => 'ready_for_insurance',
+            in_array($accountStatus, ['approved', 'pending'], true) => 'ready_for_products',
             default => 'account_' . $accountStatus,
         };
 
@@ -142,8 +137,8 @@ class SellerRegistrationVerificationService
             'phone_verified' => $phoneVerified,
             'phone_verified_at' => $seller->phone_verified_at?->toISOString(),
             'account_status' => $accountStatus,
-            'activation_status' => $seller->activation_status,
-            'can_login' => $phoneVerified && $accountStatus === 'approved',
+            'activation_status' => 'active',
+            'can_login' => $phoneVerified && in_array($accountStatus, ['approved', 'pending'], true),
             'next_step' => $nextStep,
             'verification' => $this->registrationRequirements($seller),
         ];

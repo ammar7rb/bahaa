@@ -4,15 +4,16 @@
 
 @push('css_or_js')
     <link href="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-product-sigma.css') }}?v=20261023-1">
 @endpush
 
 @section('content')
+@error('review')<div class="alert alert-danger m-3" role="alert">{{ $message }}</div>@enderror
 @if($product->category_review_required)<div class="alert alert-warning m-3" role="alert">{{ translate('other_category_review') }} · {{ translate('category_assignment_required_before_publish') }}</div>@endif
-    <div class="content container-fluid">
+    <div class="content container-fluid sigma-product sigma-product-editor {{ $product->product_type === 'physical' ? 'sigma-physical' : '' }}">
         <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
             <h2 class="h1 mb-0 d-flex align-items-center gap-2">
-                <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/inhouse-product-list.png') }}"
-                     alt="{{ translate('product_Edit') }}">
+                <i class="fi fi-rr-box-open" aria-hidden="true"></i>
                 {{ translate(request('product-gallery') == 1 ?'product_Add' : 'product_Edit') }}
             </h2>
         </div>
@@ -20,21 +21,41 @@
         <form class="product-form text-start form-advance-validation form-advance-file-validation" enctype="multipart/form-data" id="product_form" method="POST"
               action="{{ request('product-gallery') == 1 ? route('admin.products.add') : route('admin.products.update', $product->id) }}" novalidate="novalidate">
             @csrf
+            @if(config('vendor_product_workspace.enabled') && $product->added_by === 'seller')
+                @php($vendorWorkspace = app(\App\Services\VendorProductWorkspaceService::class)->state($product))
+                @if($vendorWorkspace)
+                    <input type="hidden" name="publish_after_edit" value="1">
+                    <input type="hidden" name="vendor_content_revision" value="{{ $vendorWorkspace->revision }}">
+                    <input type="hidden" name="vendor_inventory_stock" value="{{ (int) $product->current_stock }}">
+                    <div class="sigma-submission" role="status">
+                        <strong>{{ translate('vendor_private_submission') }}</strong>
+                        <p class="mb-1 mt-2">{{ $vendorWorkspace->seller_content['name'] ?? '' }} — {{ translate('vendor_product_price') }}: {{ webCurrencyConverter($vendorWorkspace->seller_content['unit_price'] ?? 0) }}</p>
+                        <p class="mb-1">{{ strip_tags($vendorWorkspace->seller_content['details'] ?? '') }}</p>
+                        <p class="mb-0">{{ translate('save_editorial_copy_for_current_vendor_revision_first') }}</p>
+                    </div>
+                @endif
+            @endif
             @include('admin-views.product.update._basic-setup')
             @include("admin-views.product.update._general-setup")
             @include("admin-views.product.update._pricing-others")
             @include("admin-views.product.update._product-variation-setup")
             <div class="row product-image-wrapper g-3 mt-0">
                 @include("admin-views.product.update._additional-images")
+                @if($product->product_type !== 'physical')
                 @include("admin-views.product.update._digital-product-file")
+                @endif
             </div>
+            <details class="sigma-advanced mt-3"><summary><i class="fi fi-rr-settings-sliders" aria-hidden="true"></i> خيارات إضافية: الفيديو وظهور محركات البحث</summary>
             @include("admin-views.product.update._product-video")
             @include("admin-views.product.update._seo-section")
+            </details>
             @include("admin-views.product.partials.ai-sidebar")
 
-            <div class="d-flex justify-content-end flex-wrap gap-3 mt-3 mx-1">
-                <button type="button" class="btn btn-primary px-5 product-add-requirements-check">
-                    @if($product->request_status == 2)
+            <div class="d-flex justify-content-end flex-wrap gap-3 mt-3 mx-1 sigma-save-bar">
+                <button type="button" class="btn btn-primary btn-lg px-5 product-add-requirements-check">
+                    @if(config('vendor_product_workspace.enabled') && $product->added_by === 'seller')
+                        نشر بعد التعديل
+                    @elseif($product->request_status == 2)
                         {{ translate('Edit_&_Approved') }}
                         @elseif($product->request_status == 0)
                         {{ translate('Edit_&_Approved') }}
@@ -89,7 +110,7 @@
     <script src="{{ dynamicAsset(path: 'public/assets/backend/admin/js/products/product-add-update-utils.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/backend/admin/js/products/product-add-update.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/backend/admin/js/products/product-add-update-ajax.js') }}"></script>
-    <script src="{{ dynamicAsset(path: 'public/assets/backend/admin/js/products/product-add-colors-img.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/backend/admin/js/products/product-add-colors-img.js') }}?v={{ filemtime(public_path('assets/backend/admin/js/products/product-add-colors-img.js')) }}"></script>
 
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/file-upload/pdf.min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/file-upload/pdf-worker.min.js') }}"></script>

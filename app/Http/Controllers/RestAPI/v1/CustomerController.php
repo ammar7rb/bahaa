@@ -66,15 +66,13 @@ class CustomerController extends Controller
 
     public function activationTicket(Request $request, CustomerActivationService $activationService): JsonResponse
     {
-        app(\App\Services\CustomerPurchaseEligibilityService::class)->assertActivationAvailable($request->user());
-        $ticket = $activationService->ensureTicket($request->user());
-        return response()->json(['ticket_id' => $ticket?->id, 'activation' => $activationService->payload($request->user()->fresh())]);
+        abort(410);
     }
 
     public function create_support_ticket(SupportTicketRequest $request)
     {
         if ($request->input('type') === 'account_activation') {
-            app(\App\Services\CustomerPurchaseEligibilityService::class)->assertActivationAvailable($request->user());
+            abort(410);
         }
         $images = [];
         if ($request->file('image')) {
@@ -115,6 +113,14 @@ class CustomerController extends Controller
             ->where('id', $ticket_id)->where('customer_id', $request->user()->id)->first();
         if (! $ticket) {
             return response()->json(['message' => 'Ticket not found'], 404);
+        }
+        $request->validate([
+            'message' => ['nullable', 'string', 'max:5000', 'required_without:image'],
+            'image' => ['nullable', 'array', 'max:10'],
+            'image.*' => ['required', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:6000'],
+        ]);
+        if (trim((string) $request->input('message')) === '' && !$request->hasFile('image')) {
+            return response()->json(['message' => translate('type_something')], 422);
         }
         DB::table('support_tickets')->where(['id' => $ticket_id])->update([
             'status' => 'open',

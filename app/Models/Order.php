@@ -69,6 +69,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 class Order extends Model
 {
+    /** Retired account approval must never reappear in legacy app responses. */
+    public function getCustomerPendingReasonsAttribute(mixed $value): array
+    {
+        $reasons = is_array($value) ? $value : (json_decode((string) $value, true) ?: []);
+        return array_values(array_diff($reasons, ['account_activation']));
+    }
+
     use DemoMaskingTrait;
 
     public function scopeSellerAccessible(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder

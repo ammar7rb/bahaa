@@ -143,6 +143,23 @@ Route::group(['prefix' => 'login'], function () {
 });
 
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', 'actch:admin_panel']], function () {
+    Route::prefix('operations/medical-devices')->name('operations.medical-devices.')->middleware('module:catalog')->controller(\App\Http\Controllers\Admin\Operations\MedicalDeviceController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('create', 'edit')->name('create');
+        Route::post('save/{device?}', 'save')->name('save');
+        Route::get('{device}/edit', 'edit')->whereNumber('device')->name('edit');
+        Route::delete('{device}', 'delete')->whereNumber('device')->name('delete');
+        Route::middleware('module:people')->group(function () {
+            Route::get('inquiries', 'inquiries')->name('inquiries');
+            Route::get('inquiries/{inquiry}', 'inquiry')->name('inquiry');
+            Route::post('inquiries/{inquiry}/status', 'status')->name('status');
+        });
+    });
+    Route::prefix('operations/homepage-sections')->name('operations.homepage-sections.')->middleware('module:catalog')->controller(\App\Http\Controllers\Admin\Operations\HomepageSectionsController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('save', 'save')->name('save');
+        Route::post('publish', 'publish')->name('publish');
+    });
     Route::prefix('operations/monthly-packages')->name('monthly-packages.')->middleware('module:people')->controller('\App\Http\Controllers\Admin\Customer\MonthlyPackageController')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('packages/{package?}', 'save')->name('save');
@@ -202,23 +219,6 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::post('seller-insurance/{insurance}/confiscate', 'confiscateSellerInsurance')->name('seller-insurance.confiscate');
         });
     });
-    Route::group(['prefix' => 'activation-center', 'as' => 'activation-center.', 'middleware' => ['module:people']], function () {
-        Route::controller(AccountActivationCenterController::class)->group(function () {
-            Route::get('/', 'index')->name('index');
-            Route::get('{activationCase}', 'show')->name('show');
-            Route::get('{activationCase}/messages', 'messages')->name('messages');
-            Route::get('{activationCase}/print', 'print')->name('print');
-            Route::post('{activationCase}/assign', 'assign')->name('assign');
-            Route::post('{activationCase}/fields', 'storeField')->name('fields.store');
-            Route::post('{activationCase}/customer-profile', 'updateCustomerProfile')->middleware('throttle:20,1')->name('customer-profile');
-            Route::post('{activationCase}/documents', 'storeDocument')->name('documents.store');
-            Route::post('{activationCase}/documents/{document}/verify', 'verifyDocument')->name('documents.verify');
-            Route::get('{activationCase}/documents/{document}/download', 'downloadDocument')->name('documents.download');
-            Route::post('{activationCase}/reply', 'reply')->name('reply');
-            Route::post('{activationCase}/decision', 'decision')->name('decision');
-        });
-    });
-
     Route::group(['prefix' => 'vendor-support', 'as' => 'vendor-support.', 'middleware' => ['module:people']], function () {
         Route::controller(\App\Http\Controllers\Admin\Vendor\VendorSupportController::class)->group(function () {
             Route::get('/', 'index')->name('index');
@@ -227,12 +227,6 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::post('{thread}/reply', 'reply')->middleware('throttle:30,1')->name('reply');
             Route::post('{thread}/status', 'status')->name('status');
         });
-    });
-
-    // Backward-compatible names for existing activation inbox shortcuts.
-    Route::controller(AccountActivationCenterController::class)->group(function () {
-        Route::post('vendors/activation-tickets/{activationCase}/reply', 'reply')->name('vendors.activation-tickets.reply');
-        Route::get('vendors/activation-tickets/{activationCase}/print', 'print')->name('vendors.activation-tickets.print');
     });
 
     // V2 sidebar pin shortcuts (server-side persistence, per-user)
@@ -254,12 +248,12 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         Route::post('advanced-search-recent', 'recentSearch')->name('advanced-search-recent');
     });
 
-    // One review queue for the offline package and insurance payments that
-    // are linked from vendor settings and the operational shortcuts.
+    // Shared review queue; each request retains its original financial processor.
     Route::controller(PaymentReviewController::class)->prefix('payment-reviews')->name('payment-reviews.')->group(function () {
         Route::post('customer-order/{id}/request-package', 'requestPackage')->name('request-package');
         Route::get('customer-order/{order}/retry-proof', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'proof'])->name('customer-order.retry-proof');
         Route::get('/', 'index')->name('index');
+        Route::get('{type}/{id}/proof', 'proof')->whereNumber('id')->name('proof');
         Route::post('{type}/{id}/approve', 'approve')->name('approve');
         Route::post('{type}/{id}/reject', 'reject')->name('reject');
     });
@@ -320,6 +314,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     Route::group(['prefix' => 'products', 'as' => 'products.', 'middleware' => ['module:catalog']], function () {
+        Route::get('review-queue', [\App\Http\Controllers\Admin\Product\VendorProductReviewQueueController::class, 'index'])->name('review-queue');
         Route::controller(ProductController::class)->group(function () {
             Route::get('list/{type}', 'index')->name('list');
             Route::get('add', 'getAddView')->name('add');
@@ -330,6 +325,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::post('digital-variation-file-delete', 'deleteDigitalVariationFile')->name('digital-variation-file-delete');
             Route::post('featured-status', 'updateFeaturedStatus')->name('featured-status');
             Route::post('{product}/homepage-placement', 'updateHomepagePlacement')->name('homepage-placement');
+            Route::post('{product}/view-adjustments', 'addProductViews')->name('view-adjustments');
             Route::get('get-categories', 'getCategories')->name('get-categories');
             Route::post('status-update', 'updateStatus')->name('status-update');
             Route::get('barcode/{id}', 'getBarcodeView')->name('barcode');
@@ -367,6 +363,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     Route::group(['prefix' => 'orders', 'as' => 'orders.', 'middleware' => ['module:orders']], function () {
+        Route::get('package-refunds', [\App\Http\Controllers\Admin\Order\CustomerPackageRefundController::class, 'index'])->name('package-refunds.index');
+        Route::post('package-refunds/{refund}/complete', [\App\Http\Controllers\Admin\Order\CustomerPackageRefundController::class, 'complete'])->name('package-refunds.complete');
         Route::controller(OrderController::class)->group(function () {
             Route::get('list/{status}', 'index')->name('list');
             Route::get('export-excel/{status}', 'exportList')->name('export-excel');
@@ -396,7 +394,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::get('/', 'index')->name('index');
             Route::get('{id}', 'show')->name('show');
             Route::post('{id}/assignment', 'saveAssignment')->name('assignment');
+            Route::post('{id}/vendor-price', 'approveVendorPrice')->name('vendor-price');
             Route::post('{id}/release', 'release')->name('release');
+            Route::post('{id}/approve-and-release', 'approveAndRelease')->name('approve-and-release');
             Route::post('{id}/seller-follow-up', 'contactSeller')->name('seller-follow-up');
             Route::post('{id}/investigation', 'openInvestigation')->name('investigation.open');
             Route::post('investigations/{investigationId}/message', 'messageInvestigation')->name('investigation.message');
@@ -605,10 +605,11 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::post('{id}/reverse', 'reverse')->name('reverse');
         });
         Route::controller(SellerFinancialCenterController::class)->prefix('financial-center')->name('financial-center.')->group(function () {
-            Route::get('/', 'index')->name('index');
+            Route::get('/', 'legacyIndex')->name('index');
             Route::post('settlements/{id}/due-date', 'updateSettlementDueDate')->name('settlements.due-date');
             Route::post('settlements/{id}/release', 'releaseSettlement')->name('settlements.release');
             Route::post('settlements/{id}/dispute', 'disputeSettlement')->name('settlements.dispute');
+            Route::post('settlements/{id}/resume-review', 'resumeSettlementReview')->name('settlements.resume-review');
             Route::post('settlements/{id}/reverse', 'reverseSettlement')->name('settlements.reverse');
         });
         Route::group(['prefix' => 'quota-control', 'as' => 'quota-control.'], function () {
@@ -618,6 +619,13 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
                 Route::post('{seller}/adjust', 'adjust')->name('adjust');
                 Route::post('promotions/{promotion}/update', 'updatePromotion')->name('promotions.update');
             });
+        });
+
+        Route::prefix('extra-ads')->name('extra-ads.')->controller(\App\Http\Controllers\Admin\Vendor\VendorExtraAdController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('settings', 'settings')->name('settings');
+            Route::post('{id}/approve', 'approve')->name('approve');
+            Route::post('{id}/reject-payment', 'reject')->name('reject');
         });
 
         Route::group(['prefix' => 'package-payments', 'as' => 'package-payments.'], function () {
@@ -722,6 +730,14 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     Route::group(['prefix' => 'report', 'as' => 'report.', 'middleware' => ['module:reports']], function () {
+        Route::prefix('financials')->name('financials.')->controller(\App\Http\Controllers\Admin\FinancialsController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('financial-center', [SellerFinancialCenterController::class, 'index'])->middleware('module:people')->name('center');
+            Route::get('company', 'company')->name('company');
+            Route::get('customers', 'customers')->name('customers');
+            Route::get('accounts/{type}/{id}/statement', 'statement')->whereIn('type',['customer','vendor'])->whereNumber('id')->name('statement');
+            Route::get('entries/{source}/{id}', 'entry')->whereNumber('id')->name('entry');
+        });
         Route::get('operational-print', OperationalPrintReportController::class)->name('operational-print');
 
         Route::controller(ReportController::class)->group(function () {
@@ -902,7 +918,6 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::get('single-ticket/{id}/messages', 'messages')->name('messages');
             Route::get('single-ticket/{id}/print', 'print')->name('print');
             Route::post('single-ticket/{id}', 'reply')->name('replay');
-            Route::post('activation-decision/{id}', 'activationDecision')->name('activation-decision');
         });
     });
 
@@ -1207,6 +1222,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         });
     });
 
+    Route::get('operations/shipping', [ShippingMethodController::class, 'workspace'])
+        ->middleware('module:business_settings')->name('operations.shipping.index');
+
     Route::group(['prefix' => 'business-settings', 'as' => 'business-settings.'], function () {
 
         Route::group(['middleware' => ['module:business_settings']], function () {
@@ -1278,7 +1296,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
 
             Route::group(['prefix' => 'shipping-method', 'as' => 'shipping-method.'], function () {
                  Route::controller(ShippingMethodController::class)->group(function () {
-                    Route::get('index', 'index')->name('index');
+                    Route::get('index', 'workspaceRedirect')->name('index');
                     Route::post('index', 'add');
                     Route::get('update' . '/{id}', 'getUpdateView')->name('update');
                     Route::post('update' . '/{id}', 'update');

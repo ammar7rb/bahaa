@@ -557,6 +557,14 @@ class CartManager
             }
 
             if ($product['product_type'] == 'physical' && $shippingType == 'order_wise') {
+                if (app(CustomerThreeStepShippingService::class)->isEnabled() && !$request['shipping_method_exist']) {
+                    return [
+                        'status' => 1,
+                        'redirect_to' => 'checkout',
+                        'cart' => $cart,
+                        'message' => translate('successfully_added') . '!',
+                    ];
+                }
                 if ($request['shipping_method_exist'] && $request['shipping_method_id'] && count($sellerShippingList) > 0) {
                     $cart->update(['is_checked' => 1]);
                     $cartGroupIds = Cart::where(['customer_id' => ($user == 'offline' ? $guestId : $user['id']), 'is_guest' => ($user == 'offline' ? 1 : 0)])

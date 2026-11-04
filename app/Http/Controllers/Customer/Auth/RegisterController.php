@@ -98,7 +98,6 @@ class RegisterController extends Controller
         $referralEarningRate = $this->businessSettingRepo->getFirstWhere(params: ['type' => 'ref_earning_exchange_rate']);
         $user = $this->customerRepo->add(data: $this->customerAuthService->getCustomerRegisterData($request, $referUser));
         $policyService->accept('customer', (int) $user->id, $requiredPolicyIds);
-        $activationTicket = app(CustomerActivationService::class)->ensureTicket($user);
         if (!empty($referUser) && isset($referralConfig['ref_earning_discount_status']) && $referralConfig['ref_earning_discount_status'] == 1) {
             $referralCustomer = $this->referByEarnCustomerService->addReferralCustomerData(referralData: $referralConfig, referralEarningRate: $referralEarningRate, referUser: $referUser, userId: $user->id);
             event(new CustomerRegisteredViaReferralEvent($referralCustomer, $referUser));
@@ -129,7 +128,7 @@ class RegisterController extends Controller
                 'status' => 1,
                 'message' => translate('registration_successful'),
                 'activation' => app(CustomerActivationService::class)->status($user->fresh()),
-                'redirect_url' => route('support-ticket.index', ['id' => $activationTicket->id]),
+                'redirect_url' => route('home'),
             ]);
         } else {
             if ($phoneVerification && !$user->is_phone_verified) {
@@ -146,7 +145,7 @@ class RegisterController extends Controller
             CustomerManager::updateCustomerSessionData(userId: auth('customer')->id());
             CartManager::cartListSessionToDatabase();
             Toastr::success(translate('registration_successful'));
-            return redirect()->route('support-ticket.index', ['id' => $activationTicket->id]);
+            return redirect()->route('home');
         }
     }
 

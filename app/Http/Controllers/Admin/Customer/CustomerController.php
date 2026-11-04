@@ -540,7 +540,6 @@ class CustomerController extends BaseController
             value: $insuranceDiscountType === 'fixed' ? currencyConverter(amount: $insuranceDiscountValue) : $insuranceDiscountValue
         );
         $this->businessSettingRepo->updateOrInsert(type: 'customer_monthly_insurance_period_days', value: $request->get('customer_monthly_insurance_period_days', 30));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_activation_hold_message', value: $request->get('customer_activation_hold_message'));
         $this->businessSettingRepo->updateOrInsert(type: 'customer_three_step_shipping_status', value: $request->get('customer_three_step_shipping_status', 0));
         $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_sigma_status', value: $request->get('customer_shipping_sigma_status', 0));
         $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_sigma_title', value: $request->get('customer_shipping_sigma_title', 'Sigma Shipping'));

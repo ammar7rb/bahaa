@@ -19,20 +19,26 @@ class SellerPackagePurchaseService
     ) {}
 
     /** Persisted request key prevents charging again after a lost response. */
-    public function purchaseWithPaymentsBalance(Seller $seller, SellerPackage $package, string $requestKey): array
+    public function purchaseWithPaymentsBalance(Seller $seller, SellerPackage $package, string $requestKey, ?float $expectedPrice = null): array
     {
-        return DB::transaction(function () use ($seller, $package, $requestKey) {
+        return DB::transaction(function () use ($seller, $package, $requestKey, $expectedPrice) {
             $this->ledger->lockSellerFinancialState((int) $seller->id);
             $subscription = SellerPackageSubscription::where('seller_id', $seller->id)
-                ->where('metadata->purchase_request_key', $requestKey)->first();
+                ->where(fn ($query) => $query->where('metadata->purchase_request_key', $requestKey)
+                    ->orWhereJsonContains('metadata->purchase_request_keys', $requestKey))->first();
             if ($subscription && (int) $subscription->seller_package_id !== (int) $package->id) {
                 throw new DomainException('package_retry_details_mismatch');
             }
-            $subscription ??= $this->getOrCreatePendingSubscription($seller, $package);
-            $metadata = $subscription->metadata ?: [];
-            if (isset($metadata['purchase_request_key']) && $metadata['purchase_request_key'] !== $requestKey) {
-                throw new DomainException('another_seller_package_payment_is_already_pending');
+            $package = SellerPackage::whereKey($package->id)->lockForUpdate()->firstOrFail();
+            if (!$subscription && $expectedPrice !== null && (int) round($expectedPrice * 100) !== (int) round((float) $package->package_price * 100)) {
+                throw new DomainException('تغير سعر الباقة. حدّث الصفحة وراجع السعر قبل تأكيد الشراء.');
             }
+            $subscription ??= $this->getOrCreatePendingSubscription($seller, $package);
+            if ($subscription->payment_status !== 'paid' && $expectedPrice !== null && (int) round($expectedPrice * 100) !== (int) round((float) $subscription->paid_package_price * 100)) {
+                throw new DomainException('راجع السعر المحفوظ لطلب الدفع قبل التأكيد.');
+            }
+            $metadata = $subscription->metadata ?: [];
+            $metadata['purchase_request_keys'] = array_values(array_unique(array_merge($metadata['purchase_request_keys'] ?? [], array_filter([$metadata['purchase_request_key'] ?? null, $requestKey]))));
             $metadata['purchase_request_key'] = $requestKey;
             $subscription->update(['metadata' => $metadata]);
             return $this->payFromOperatingBalance($subscription);
@@ -44,8 +50,7 @@ class SellerPackagePurchaseService
         return DB::transaction(function () use ($subscription) {
             $this->ledger->lockSellerFinancialState((int) $subscription->seller_id);
             $subscription = SellerPackageSubscription::query()->lockForUpdate()->findOrFail($subscription->id);
-            if ($subscription->payment_status === 'paid'
-                && $subscription->status === SellerPackageSubscription::STATUS_ACTIVE) {
+            if ($subscription->payment_status === 'paid') {
                 return ['status' => 1, 'message' => 'already_paid', 'subscription' => $subscription];
             }
 
@@ -87,6 +92,9 @@ class SellerPackagePurchaseService
 
     public function getSummary(Seller $seller): array
     {
+        if (config('vendor_advertising.enabled')) {
+            app(VendorAdvertisingSlotService::class)->synchronize($seller);
+        }
         $this->expireCurrentSubscription($seller);
         $activeSubscription = $seller->packageSubscriptions()
             ->where('status', SellerPackageSubscription::STATUS_ACTIVE)
@@ -105,14 +113,13 @@ class SellerPackagePurchaseService
             ->latest('id')
             ->first();
         return [
-            // A package is now purchasable without prepaying seller insurance.
-            // Any seller insurance is assessed individually when an order arrives.
-            'insurance_satisfied' => true,
-            'insurance_required_for_package' => false,
             'active_subscription' => $activeSubscription,
             'pending_subscription' => $pendingSubscription,
             'pending_review' => $pendingSubscription?->status === SellerPackageSubscription::STATUS_PENDING_REVIEW,
             'can_purchase' => ! $pendingSubscription,
+            'scheduled_subscriptions' => config('vendor_advertising.enabled')
+                ? $seller->packageSubscriptions()->where('status', 'scheduled')->where('payment_status', 'paid')->orderBy('starts_at')->get()
+                : collect(),
         ];
     }
 
@@ -122,6 +129,9 @@ class SellerPackagePurchaseService
         string $requestedByType,
         int $requestedById
     ): SellerPackageSubscription {
+        if (config('vendor_advertising.enabled')) {
+            throw new DomainException('vendor_paid_subscription_cancellation_unavailable');
+        }
         $reason = trim($reason);
         if ($reason === '') {
             throw new DomainException('seller_package_cancellation_reason_is_required');
@@ -176,16 +186,9 @@ class SellerPackagePurchaseService
     {
         return DB::transaction(function () use ($seller, $package) {
             $seller = Seller::query()->lockForUpdate()->findOrFail($seller->id);
-            $package = SellerPackage::query()->whereKey($package->id)->where('status', true)->first();
+            $package = SellerPackage::query()->whereKey($package->id)->first();
             if (! $package) {
                 throw new DomainException('seller_package_not_found_or_inactive');
-            }
-
-            if ((float) $package->package_price <= 0
-                || ((int) $package->search_promotion_limit <= 0
-                    && (int) $package->homepage_promotion_limit <= 0
-                    && (int) $package->coupon_limit <= 0)) {
-                throw new DomainException('seller_package_configuration_is_invalid');
             }
 
             $pendingSubscription = $seller->packageSubscriptions()
@@ -207,6 +210,16 @@ class SellerPackagePurchaseService
                 }
 
                 return $pendingSubscription;
+            }
+
+            if (! $package->status) {
+                throw new DomainException('seller_package_not_found_or_inactive');
+            }
+            if ((float) $package->package_price <= 0
+                || (config('vendor_advertising.enabled') ? (int) $package->product_limit <= 0 : ((int) $package->search_promotion_limit <= 0
+                    && (int) $package->homepage_promotion_limit <= 0
+                    && (int) $package->coupon_limit <= 0))) {
+                throw new DomainException('seller_package_configuration_is_invalid');
             }
 
             $snapshot = $this->packageSnapshot($package);
@@ -272,8 +285,7 @@ class SellerPackagePurchaseService
                 return ['status' => 0, 'message' => 'seller_package_subscription_not_found'];
             }
 
-            if ($subscription->payment_status === 'paid'
-                && $subscription->status === SellerPackageSubscription::STATUS_ACTIVE) {
+            if ($subscription->payment_status === 'paid') {
                 return ['status' => 1, 'message' => 'already_paid', 'subscription' => $subscription];
             }
 
@@ -286,12 +298,27 @@ class SellerPackagePurchaseService
             }
 
             if ((float) $subscription->paid_package_price <= 0
-                || ((int) $subscription->search_promotion_limit <= 0
+                || (config('vendor_advertising.enabled') ? (int) $subscription->product_limit <= 0 : ((int) $subscription->search_promotion_limit <= 0
                     && (int) $subscription->homepage_promotion_limit <= 0
-                    && (int) $subscription->coupon_limit <= 0)) {
+                    && (int) $subscription->coupon_limit <= 0))) {
                 return ['status' => 0, 'message' => 'seller_package_subscription_snapshot_is_invalid'];
             }
 
+            $offline = $subscription->metadata['offline_payment'] ?? [];
+            $transferReference = $offline['transfer_reference'] ?? null;
+            $provided = $paymentData['transaction_id'] ?? null;
+            if ($provided && !preg_match('/^(seller-package-offline-|unified-review-|offline-review:)/',$provided) && ($paymentData['payment_method'] ?? $subscription->payment_method) === 'offline_payment') $transferReference = $provided;
+            if ($transferReference && ($offline['method_id'] ?? null)) {
+                app(VendorTransferReferenceService::class)->reserve((int)$offline['method_id'],$transferReference,'package_subscription',$subscription->id,true);
+                $paymentData['transaction_id'] = $transferReference;
+            }
+
+            $paidThrough = null;
+            if (config('vendor_advertising.enabled')) {
+                $paidThrough = SellerPackageSubscription::where('seller_id', $subscription->seller_id)
+                    ->where('payment_status', 'paid')->whereIn('status', ['active', 'scheduled'])
+                    ->where('expires_at', '>', now())->orderByDesc('expires_at')->lockForUpdate()->first()?->expires_at;
+            } else {
             SellerPackageSubscription::query()
                 ->where('seller_id', $subscription->seller_id)
                 ->where('id', '!=', $subscription->id)
@@ -300,6 +327,7 @@ class SellerPackagePurchaseService
                     'status' => SellerPackageSubscription::STATUS_REPLACED,
                     'cancelled_at' => now(),
                 ]);
+            }
 
             $paymentRequestId = $paymentData['id'] ?? $subscription->payment_request_id;
             $startsAt = now();
@@ -309,6 +337,12 @@ class SellerPackagePurchaseService
                 $subscription->package_validity_days,
             );
             $expiresAt = $this->durationService->expiresAt($startsAt, $duration['unit'], $duration['value']);
+            if (config('vendor_advertising.enabled')) {
+                $cycle = app(VendorAdvertisingCyclePolicy::class)->cycle($startsAt, $paidThrough);
+                $startsAt = $cycle['starts_at'];
+                $expiresAt = $cycle['expires_at'];
+                $duration = ['unit' => 'days', 'value' => 30];
+            }
             $metadata = $subscription->metadata ?: [];
             $metadata['payment'] = [
                 'payment_request_id' => $paymentRequestId,
@@ -316,10 +350,11 @@ class SellerPackagePurchaseService
                 'transaction_id' => $paymentData['transaction_id'] ?? null,
                 'payment_amount' => $paymentData['payment_amount'] ?? $subscription->paid_package_price,
                 'currency_code' => $paymentData['currency_code'] ?? null,
-                'paid_at' => $startsAt->toDateTimeString(),
+                'paid_at' => now()->toDateTimeString(),
             ];
             if ($reviewedByAdminId) {
-                $metadata['offline_payment_review'] = [
+                app(VendorTransferReferenceService::class)->release('package_subscription',$subscription->id);
+            $metadata['offline_payment_review'] = [
                     'action' => 'approved',
                     'reviewed_by_admin_id' => $reviewedByAdminId,
                     'reviewed_at' => $startsAt->toDateTimeString(),
@@ -328,7 +363,7 @@ class SellerPackagePurchaseService
             }
 
             $subscription->update([
-                'status' => SellerPackageSubscription::STATUS_ACTIVE,
+                'status' => $startsAt->gt(now()) ? SellerPackageSubscription::STATUS_SCHEDULED : SellerPackageSubscription::STATUS_ACTIVE,
                 'payment_status' => 'paid',
                 'payment_method' => $paymentData['payment_method'] ?? $subscription->payment_method,
                 'payment_reference' => $paymentData['transaction_id'] ?? $subscription->payment_reference,
@@ -338,11 +373,19 @@ class SellerPackagePurchaseService
                 'expires_at' => $expiresAt,
                 'duration_unit' => $duration['unit'],
                 'duration_value' => $duration['value'],
-                'activated_at' => $startsAt,
+                'activated_at' => now(),
                 'metadata' => $metadata,
             ]);
 
             $this->createActivationTransactions($subscription->fresh(), $paymentData, $reviewedByAdminId);
+            if (config('vendor_advertising.enabled')) {
+                app(VendorAdvertisingSlotService::class)->provision($subscription->fresh());
+                app(VendorAdvertisingSlotService::class)->restorePrevious($subscription->fresh());
+            }
+
+            // The locked paid transition is executed only once, even when a
+            // payment callback or an approval request is retried.
+            app(SellerPackagePaymentNotificationService::class)->notifyPaid($subscription);
 
             return [
                 'status' => 1,
@@ -399,6 +442,25 @@ class SellerPackagePurchaseService
         });
     }
 
+    public function snapshotForFunding(SellerPackage $package): array
+    {
+        if (!$package->status || $package->package_price <= 0 || $package->product_limit < 1) throw new DomainException('seller_package_not_found_or_inactive');
+        return $this->packageSnapshot($package);
+    }
+
+    public function purchaseFundingSnapshot(Seller $seller, int $packageId, array $snapshot, string $key): SellerPackageSubscription
+    {
+        return DB::transaction(function () use ($seller, $packageId, $snapshot, $key) {
+            $this->ledger->lockSellerFinancialState($seller->id);
+            $existing = SellerPackageSubscription::where('seller_id',$seller->id)->where('metadata->funding_intent_key',$key)->lockForUpdate()->first();
+            if ($existing) return $this->payFromOperatingBalance($existing)['subscription'];
+            if (SellerPackageSubscription::where('seller_id',$seller->id)->where('payment_status','unpaid')->whereIn('status',['pending','pending_review'])->exists()) throw new DomainException('يوجد طلب باقة آخر معلق؛ راجعه أولًا ثم أعد المحاولة.');
+            $subscription = SellerPackageSubscription::create(array_merge($snapshot, ['seller_id'=>$seller->id, 'seller_package_id'=>$packageId,
+                'status'=>'pending', 'payment_status'=>'unpaid', 'metadata'=>['funding_intent_key'=>$key, 'package_snapshot'=>$snapshot]]));
+            return $this->payFromOperatingBalance($subscription)['subscription'];
+        });
+    }
+
     private function packageSnapshot(SellerPackage $package): array
     {
         $snapshot = [
@@ -431,6 +493,14 @@ class SellerPackagePurchaseService
         if (! Schema::hasColumn('seller_package_subscriptions', 'cancellation_effect')) {
             unset($snapshot['cancellation_effect']);
         }
+        if (config('vendor_advertising.enabled')) {
+            $snapshot = array_replace($snapshot, [
+                'product_limit' => (int) $package->product_limit, 'product_duration_days' => 30,
+                'search_promotion_limit' => 0, 'search_promotion_duration_days' => 0,
+                'homepage_promotion_limit' => 0, 'homepage_promotion_duration_days' => 0,
+                'coupon_limit' => 0, 'package_validity_days' => 30, 'duration_unit' => 'days', 'duration_value' => 30,
+            ]);
+        }
 
         return $snapshot;
     }
@@ -458,6 +528,7 @@ class SellerPackagePurchaseService
         ]));
 
         $quotas = [
+            SellerPackageTransaction::QUOTA_PRODUCT => $subscription->product_limit,
             SellerPackageTransaction::QUOTA_SEARCH_PROMOTION => $subscription->search_promotion_limit,
             SellerPackageTransaction::QUOTA_HOMEPAGE_PROMOTION => $subscription->homepage_promotion_limit,
             SellerPackageTransaction::QUOTA_COUPON => $subscription->coupon_limit,

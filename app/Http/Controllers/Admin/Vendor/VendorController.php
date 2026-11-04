@@ -478,6 +478,11 @@ class VendorController extends BaseController
 
     public function getView(Request $request, $id, $tab = null): View|RedirectResponse
     {
+        // These profile sections were removed from the administration interface.
+        // Preserve their underlying commerce records and shared implementations.
+        if (in_array($tab, ['review', 'clearance_sale'], true)) {
+            return redirect()->route('admin.vendors.view', $id);
+        }
         $taxData = $this->getTaxSystemType();
         $productWiseTax = $taxData['productWiseTax'] && !$taxData['is_included'];
         $seller = $this->vendorRepo->getFirstWhere(
@@ -500,23 +505,6 @@ class VendorController extends BaseController
         // Keep the activation workspace and seller profile on one source of truth.
         $sellerOverview = $this->sellerDashboardOverviewService->build($seller);
         $activationCase = null;
-        if (Schema::hasTable('account_activation_cases')) {
-            try {
-                $activationCase = AccountActivationCase::query()
-                    ->where('subject_type', AccountActivationCase::SUBJECT_SELLER)
-                    ->where('subject_id', $seller->id)
-                    ->with([
-                        'assignedAdmin', 'reviewedBy',
-                        'fields.createdBy', 'fields.verifiedBy',
-                        'documents.uploadedBy', 'documents.verifiedBy',
-                    ])
-                    ->latest('id')
-                    ->first();
-            } catch (Throwable) {
-                // Keep the normal vendor profile available during a migration rollout.
-                $activationCase = null;
-            }
-        }
         $seller?->product?->map(function ($product) {
             $product['rating'] = $product?->reviews->pluck('rating')->sum();
             $product['rating_count'] = $product->reviews->count();
@@ -553,14 +541,19 @@ class VendorController extends BaseController
             return back();
         }
 
+        $profileContext = [
+            'vendorProfile' => app(\App\Services\AdminVendorProfileService::class)->build($seller),
+            'sellerOverview' => $sellerOverview,
+            'activationCase' => $activationCase,
+        ];
         if ($tab == 'order') {
-            return $this->getOrderListTabView(request: $request, seller: $seller);
+            return $this->getOrderListTabView(request: $request, seller: $seller)->with($profileContext);
         } else if ($tab == 'product') {
-            return $this->getProductListTabView(request: $request, seller: $seller);
+            return $this->getProductListTabView(request: $request, seller: $seller)->with($profileContext);
         } else if ($tab == 'setting') {
-            return $this->getSettingListTabView(request: $request, seller: $seller, id: $id);
+            return $this->getSettingListTabView(request: $request, seller: $seller, id: $id)->with($profileContext);
         } else if ($tab == 'transaction') {
-            return $this->getTransactionListTabView(request: $request, seller: $seller);
+            return $this->getTransactionListTabView(request: $request, seller: $seller)->with($profileContext);
         } else if ($tab == 'review') {
             return $this->getReviewListTabView(request: $request, seller: $seller);
         } else if ($tab == 'clearance_sale') {
@@ -568,6 +561,7 @@ class VendorController extends BaseController
         }
 
         return view('admin-views.vendor.view', [
+            'vendorProfile' => $profileContext['vendorProfile'],
             'seller' => $seller,
             'productWiseTax' => $productWiseTax,
             'current_date' => date('Y-m-d'),
@@ -662,14 +656,15 @@ class VendorController extends BaseController
         $taxData = $this->getTaxSystemType();
         $productWiseTax = $taxData['productWiseTax'] && !$taxData['is_included'];
 
-        $products = $this->productRepo->getListWhere(
-            orderBy: ['id' => 'desc'],
-            searchValue: $request['searchValue'],
-            filters: ['seller_id' => $seller['id'], 'added_by' => 'seller'],
-            relations: ['translations'],
-            dataLimit: getWebConfig(name: WebConfigKey::PAGINATION_LIMIT)
-        );
+        $filters = $request->validate([
+            'searchValue' => 'nullable|string|max:100',
+            'review_status' => 'nullable|in:0,1,2',
+            'publication_status' => 'nullable|in:0,1',
+        ]);
+        $products = app(\App\Services\AdminVendorProfileService::class)->productQuery($seller, $filters)
+            ->with('translations')->latest('id')->paginate(getWebConfig(name: WebConfigKey::PAGINATION_LIMIT) ?: 20)->withQueryString();
         return view('admin-views.vendor.view.product', [
+            'vendorProductProfile' => app(\App\Services\AdminVendorProfileService::class)->products($seller, $products),
             'seller' => $seller,
             'products' => $products,
             'productWiseTax' => $productWiseTax,

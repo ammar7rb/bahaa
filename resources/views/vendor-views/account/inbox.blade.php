@@ -4,7 +4,7 @@
 <div class="content container-fluid vendor-inbox-page">
     <div class="vendor-page-heading"><div><h1>{{ translate($kind === 'messages' ? 'administration_messages' : 'notifications') }}</h1><p>{{ translate($kind === 'messages' ? 'vendor_conversations_hint' : 'vendor_notifications_hint') }}</p></div><a class="btn btn-outline-primary" href="{{ route('vendor.account') }}">{{ translate('vendor_account') }}</a></div>
     <nav class="vendor-inbox-tabs" aria-label="{{ translate('vendor_navigation') }}"><a href="{{ route('vendor.messages') }}" class="{{ $kind === 'messages' ? 'is-active' : '' }}">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'messages']){{ translate('administration_messages') }}</a><a href="{{ route('vendor.notifications') }}" class="{{ $kind === 'notifications' ? 'is-active' : '' }}">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'notifications']){{ translate('notifications') }}</a></nav>
-    <div class="vendor-inbox-surface">
+    <div class="vendor-inbox-surface" data-vendor-message-refresh>
     @if($kind === 'messages')
         @forelse($data['threads'] as $item)
             <a class="vendor-thread-row {{ $item['unread_count'] ? 'is-unread' : '' }}" href="{{ $item['action_url'] }}"><span class="vendor-thread-icon">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'messages'])</span><span class="vendor-thread-copy"><strong>{{ $item['title'] }}</strong><span>{{ \Illuminate\Support\Str::limit($item['body'], 180) }}</span><small>{{ translate($item['status']) }} · {{ $item['message_count'] }} {{ translate('vendor_messages_count_label') }}</small></span><span class="vendor-thread-meta"><time>{{ \Carbon\Carbon::parse($item['created_at'])->diffForHumans() }}</time>@if($item['unread_count'])<span class="vendor-count is-green">+{{ $item['unread_count'] }}</span>@endif</span></a>
@@ -21,3 +21,6 @@
     </div>
 </div>
 @endsection
+@push('script')
+<script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-message-refresh.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-message-refresh.js')) }}" defer></script>
+@endpush

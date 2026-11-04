@@ -20,6 +20,7 @@ class CustomerManager
 {
     public static function create_support_ticket($data)
     {
+        abort_if(($data['type'] ?? null) === 'account_activation', 410);
         $support = new SupportTicket();
         $support->customer_id = $data['customer_id'];
         $support->subject = $data['subject'];

@@ -487,15 +487,6 @@
                     </a>
                 </li>
                 <li>
-                    <a class="nav-link {{ Request::is('admin/activation-center*') ? 'active' : '' }}"
-                       href="{{ route('admin.activation-center.index') }}" title="{{ __('activations.title') }}">
-                        <i class="fi fi-sr-user-check"></i>
-                        <span class="aside-mini-hidden-element text-truncate">
-                            <span class="position-relative">{{ __('activations.title') }}</span>
-                        </span>
-                    </a>
-                </li>
-                <li>
                     <a class="nav-link {{ Request::is('admin/support-ticket*') ? 'active' : '' }}"
                        href="{{ route('admin.support-ticket.view') }}" title="{{ translate('support_Ticket') }}">
                         <i class="fi fi-sr-headphones"></i>

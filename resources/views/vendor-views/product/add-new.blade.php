@@ -34,6 +34,13 @@
         <form class="product-form text-start form-advance-validation form-advance-file-validation" action="{{ route('vendor.products.add') }}"
               method="POST" enctype="multipart/form-data" id="product_form" novalidate="novalidate">
             @csrf
+            <div id="product-publish-feedback" class="alert alert-info" role="status" tabindex="-1" hidden></div>
+            <input type="hidden" name="publish_product" value="1">
+            @if(config('vendor_advertising.creation_slots_enabled'))
+                <input type="hidden" name="slot_id" value="{{ request('slot_id') }}">
+                <input type="hidden" name="slot_reservation_token" value="{{ request('slot_reservation_token') }}">
+                <div data-slot-editor data-slot="{{ request('slot_id') }}" data-token="{{ request('slot_reservation_token') }}" data-reserve="{{ route('vendor.packages.slots.reserve', request('slot_id')) }}" data-cancel="{{ route('vendor.packages.slots.cancel-reservation', request('slot_id')) }}"></div>
+            @endif
 
             @include('vendor-views.product.add._basic-setup')
             @include("vendor-views.product.add._general-setup")
@@ -50,7 +57,7 @@
                         {{ translate('reset') }}
                     </button>
                     <button type="button" class="btn btn--primary min-w-120 product-add-requirements-check">
-                        {{ translate('submit') }}
+                        {{ session('local', app()->getLocale()) === 'ar' ? 'نشر' : 'Publish' }}
                     </button>
                 </div>
             </div>
@@ -94,7 +101,6 @@
 
     <span id="message-click-to-upload" data-text="{{ translate('click_to_upload') }}"></span>
     <span id="message-drag-and-drop" data-text="{{ translate('Or_drag_and_drop') }}"></span>
-    <span id="message-seller-product-minimum-images-required" data-text="{{ translate('seller_product_minimum_images_required') }}"></span>
     <span id="message-seller-product-pieces-per-unit-required" data-text="{{ translate('seller_product_pieces_per_unit_required') }}"></span>
     <span id="message-seller-product-measurement-invalid" data-text="{{ translate('seller_product_measurement_invalid') }}"></span>
 
@@ -106,9 +112,9 @@
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/plugins/summernote/summernote.min.js') }}"></script>
 
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor.js') }}"></script>
-    <script src="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor-init.js') }}"></script>
-    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/product-add-update.js') }}"></script>
-    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/product-add-colors-img.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor-init.js') }}?v={{ filemtime(public_path('assets/back-end/libs/quill-editor/quill-editor-init.js')) }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/product-add-update.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor/product-add-update.js')) }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/product-add-colors-img.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor/product-add-colors-img.js')) }}"></script>
 
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/file-upload/pdf.min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/file-upload/pdf-worker.min.js') }}"></script>
@@ -141,4 +147,8 @@
 
 
 
+@endpush
+
+@push('script')
+<script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-slot-editor.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-slot-editor.js')) }}" defer></script>
 @endpush

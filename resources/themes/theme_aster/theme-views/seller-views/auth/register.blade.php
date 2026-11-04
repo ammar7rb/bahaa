@@ -68,7 +68,7 @@
                                                         <span class="text-danger fs-12 password-error"></span>
                                                     </label>
                                                     <div class="input-inner-end-ele">
-                                                        <input class="form-control password-check" type="password"
+                                                        <input class="form-control password-check" data-special-character-optional="true" type="password"
                                                                id="password" name="password"
                                                                value="{{old('password') }}"
                                                                placeholder="{{ translate('enter_password') }}" required>
@@ -92,14 +92,6 @@
                                                     </div>
                                                     <small class="text-danger confirm-password-error"></small>
                                                 </div>
-                                            </div>
-                                            <div class="col-12 mb-4">
-                                                <label class="d-flex align-items-start gap-2" for="seller-combined-terms">
-                                                    <input type="checkbox" id="seller-combined-terms" name="terms_accepted" value="1" required>
-                                                    <span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'أقر بأنني موافق على' : 'I acknowledge that I agree to the' }}
-                                                        <a href="{{ route('business-page.view', ['slug'=>'terms-and-conditions']) }}" target="_blank" rel="noopener">{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}</a>
-                                                    </span>
-                                                </label>
                                             </div>
                                             @if($requiredSellerPolicies->isNotEmpty())
                                                 <div class="col-12">
@@ -168,9 +160,6 @@
                 </div>
             </div>
         </div>
-        <span id="get-confirm-and-cancel-button-text" data-sure="{{ translate('are_you_sure').'?'}}"
-              data-message="{{ translate('want_to_apply_as_a_vendor').'?'}}"
-              data-confirm="{{ translate('yes') }}" data-cancel="{{ translate('no') }}"></span>
         <span id="registration-availability-endpoint" data-url="{{ route('vendor.auth.registration.check-availability') }}"></span>
         <span id="proceed-to-next-validation-message"
               data-mail-error="{{ translate('please_enter_your_email').'.'}}"
@@ -196,7 +185,7 @@
     </script>
 
     <script src="{{ theme_asset('assets/js/vendor-registration.js') }}?v={{ filemtime(base_path('resources/themes/theme_aster/public/assets/js/vendor-registration.js')) }}"></script>
-    <script src="{{theme_asset('assets/js/password-strength.js') }}"></script>
+    <script src="{{theme_asset('assets/js/password-strength.js') }}?v={{ filemtime(base_path('resources/themes/theme_aster/public/assets/js/password-strength.js')) }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/min/moment.min.js"></script>
     <script src="{{theme_asset('assets/plugins/daterangepicker/daterangepicker.min.js') }}"></script>
     <script src="{{ theme_asset('assets/js/file-upload/pdf.min.js') }}"></script>

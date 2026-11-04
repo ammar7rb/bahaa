@@ -67,6 +67,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::post('reason', 'reason')->middleware('throttle:10,1,customer-deletion-reason:');
         Route::post('finish', 'finish')->middleware('throttle:5,1,customer-deletion-password:');
     });
+    Route::post('customer/order/{order}/package-cancellation', [\App\Http\Controllers\Customer\PackageOrderCancellationController::class, 'request'])->middleware(['auth:api', 'throttle:10,1']);
     Route::post('customer/order/{order}/payment-proof/retry', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'submit'])->middleware(['auth:api','throttle:10,1']);
     Route::prefix('customer/subscription')->middleware('auth:api')->controller('\App\Http\Controllers\Customer\MonthlySubscriptionController')->group(function () {
         Route::get('/', 'index');
@@ -179,7 +180,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
 
     Route::group(['prefix' => 'customer/order', 'middleware' => 'apiGuestCheck'], function () {
         Route::controller(CustomerController::class)->group(function () {
-            Route::get('get-order-by-id', 'getOrderById');
+            Route::get('get-order-by-id', 'getOrderById')->middleware(\App\Http\Middleware\CustomerOrderTrackingBoundary::class);
         });
     });
 
@@ -307,8 +308,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
                     Route::post('place-by-offline-payment', 'placeOrderByOfflinePayment');
                 });
                 Route::controller(CustomerController::class)->group(function () {
-                    Route::get('details', 'get_order_details');
-                    Route::get('generate-invoice', 'getOrderInvoice');
+                    Route::get('details', 'get_order_details')->middleware(\App\Http\Middleware\CustomerOrderTrackingBoundary::class);
+                    Route::get('generate-invoice', 'getOrderInvoice')->middleware(\App\Http\Middleware\CustomerOrderTrackingBoundary::class);
                 });
                 Route::group(['prefix' => 'deliveryman-review'], function () {
                     Route::controller(ReviewController::class)->group(function () {
@@ -339,7 +340,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
                 Route::get('conv/{ticket_id}', 'get_support_ticket_conv');
                 Route::post('reply/{ticket_id}', 'reply_support_ticket');
                 Route::get('activation/status', 'activationStatus');
-                Route::post('activation/ticket', 'activationTicket');
             });
         });
 
@@ -426,7 +426,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::post('/', [PaymentController::class, 'customer_add_to_fund_request']);
     });
 
-    Route::group(['prefix' => 'order'], function () {
+    Route::group(['prefix' => 'order', 'middleware' => [\App\Http\Middleware\CustomerOrderTrackingBoundary::class]], function () {
         Route::controller(OrderController::class)->group(function () {
             Route::get('track', 'track_by_order_id');
             Route::get('track-order-details', 'track_order_details_history');

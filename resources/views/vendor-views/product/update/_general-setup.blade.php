@@ -34,7 +34,7 @@
                                 <div class="form-group mb-0">
                                     <label class="title-color">{{ translate('brand') }} <span class="text-muted">({{ translate('optional') }})</span></label>
                                     <select class="js-select2-custom form-control" name="brand_id" id="brand_id">
-                                        <option value="">{{ translate('No_Brand') }}</option>
+                                        <option value="">{{ translate('brand') }}</option>
                                         @foreach($brands as $brand)
                                             <option value="{{ $brand['id'] }}" {{ $brand['id'] == $product['brand_id'] ? 'selected' : '' }}>{{ $brand['defaultName'] }}</option>
                                         @endforeach

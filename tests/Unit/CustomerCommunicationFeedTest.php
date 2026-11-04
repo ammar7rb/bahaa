@@ -37,6 +37,9 @@ class CustomerCommunicationFeedTest extends TestCase
             $t->id(); $t->unsignedBigInteger('customer_id'); $t->boolean('is_guest')->default(false); $t->string('order_status'); $t->timestamps();
         });
         $user = new User(); $user->id = 1; auth('customer')->setUser($user);
+        Schema::create('notification_seens', function (Blueprint $t) {
+            $t->id(); $t->integer('user_id')->nullable(); $t->integer('notification_id'); $t->timestamps();
+        });
     }
 
     private function ticket(int $id, int $customer, bool $hidden = false): void
@@ -44,6 +47,46 @@ class CustomerCommunicationFeedTest extends TestCase
         DB::table('support_tickets')->insert(['id' => $id, 'customer_id' => $customer, 'subject' => 'طلب دعم',
             'description' => 'وصف المشكلة', 'status' => 'open', 'hidden_from_subject_at' => $hidden ? now() : null,
             'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    public function test_mobile_customer_reply_is_owned_validated_and_saved(): void
+    {
+        Schema::table('support_ticket_convs', fn (Blueprint $t) => $t->text('attachment')->nullable());
+        $this->ticket(1, 1); $this->ticket(2, 2);
+        $user = new User(); $user->id = 1;
+        $request = \Illuminate\Http\Request::create('/', 'POST', ['message' => 'رد من العميل']);
+        $request->setUserResolver(fn () => $user);
+        $controller = app(\App\Http\Controllers\RestAPI\v1\CustomerController::class);
+        $this->assertSame(404, $controller->reply_support_ticket($request, 2)->getStatusCode());
+        $this->assertSame(200, $controller->reply_support_ticket($request, 1)->getStatusCode());
+        $this->assertDatabaseHas('support_ticket_convs', ['support_ticket_id' => 1, 'customer_message' => 'رد من العميل']);
+        $empty = \Illuminate\Http\Request::create('/', 'POST', ['message' => '   ']);
+        $empty->setUserResolver(fn () => $user);
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $controller->reply_support_ticket($empty, 1);
+    }
+
+    public function test_badge_counts_only_unread_admin_replies_and_preserves_waiting_conversations(): void
+    {
+        $this->ticket(1, 1);
+        $service = app(CustomerCommunicationService::class);
+        SupportTicketConv::create(['support_ticket_id'=>1, 'customer_message'=>'طلب العميل']);
+        $this->assertSame(0, $service->unreadMessageCount(1));
+        $this->assertSame(0, $service->notifications(1)->count());
+        $this->assertSame(1, $service->messages(1)->count());
+        SupportTicketConv::create(['support_ticket_id'=>1, 'admin_id'=>1, 'admin_message'=>'رد الإدارة']);
+        $this->assertSame(1, $service->unreadMessageCount(1));
+        $this->assertSame(1, $service->unreadNotifications(1)->count());
+        $loaded = $service->messages(1)->with('conversations')->first();
+        $service->markSupportRepliesRead($loaded, 2);
+        $this->assertSame(1, $service->unreadMessageCount(1));
+        $service->markSupportRepliesRead($loaded, 1);
+        $this->assertSame(0, $service->unreadMessageCount(1));
+        $this->assertSame(0, $service->unreadNotifications(1)->count());
+        SupportTicketConv::create(['support_ticket_id'=>1, 'admin_id'=>1, 'admin_message'=>'رد جديد']);
+        $service->markSupportRepliesRead($loaded, 1);
+        $this->assertSame(1, $service->unreadMessageCount(1));
+        $this->assertSame(1, $service->unreadNotifications(1)->count());
     }
 
     public function test_urgent_package_notice_links_to_subscription_only_for_order_owner(): void
@@ -134,5 +177,42 @@ class CustomerCommunicationFeedTest extends TestCase
         $directory = base_path('output/customer-phase12');
         if (!is_dir($directory)) mkdir($directory, 0777, true);
         file_put_contents($directory.'/header-preview.html', '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/front-end/css/customer-profile-communication.css"><style>body{margin:0;background:#f4f7fb;color:#172942;font-family:Arial,sans-serif}.container{max-width:1100px;margin:auto;padding-inline:16px;box-sizing:border-box}a{color:#1a428a}svg{width:22px;height:22px}main{padding:24px}button{min-height:44px}</style></head><body>'.$header.'<main><h1>الملف الشخصي</h1><p>معاينة معزولة للهيدر؛ بيانات الاختبار ليست حساباً فعلياً.</p></main><script src="/assets/front-end/js/customer-profile-communication.js"></script></body></html>');
+    }
+
+    public function test_open_chat_feed_receives_new_replies_and_does_not_cache_them(): void
+    {
+        $this->ticket(1, 1);
+        $controller = app(\App\Http\Controllers\Web\UserProfileController::class);
+        $this->assertCount(0, $controller->ticketMessages(1)->getData(true)['messages']);
+        SupportTicketConv::create(['support_ticket_id' => 1, 'admin_id' => 1, 'admin_message' => 'رسالة جديدة']);
+        $response = $controller->ticketMessages(1);
+        $message = $response->getData(true)['messages'][0];
+        $this->assertSame('رسالة جديدة', $message['body']);
+        $this->assertSame('admin', $message['sender_type']);
+        $this->assertSame([], $message['attachments']);
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+    }
+
+    public function test_open_chat_feed_rejects_another_customers_ticket(): void
+    {
+        $this->ticket(2, 2);
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        app(\App\Http\Controllers\Web\UserProfileController::class)->ticketMessages(2);
+    }
+
+    public function test_activation_banner_is_absent_from_all_conversations(): void
+    {
+        session()->put('local', 'ar');
+        $activation = \Mockery::mock(\App\Services\CustomerActivationService::class);
+        $activation->shouldReceive('payload')->andReturn(['banner' => ['visible' => true, 'message' => 'بانتظار التفعيل']]);
+        app()->instance(\App\Services\CustomerActivationService::class, $activation);
+        $request = Request::create('/support-ticket/1');
+        $route = new \Illuminate\Routing\Route('GET', 'support-ticket/{id}', fn () => null);
+        $route->name('support-ticket.index');
+        $request->setRouteResolver(fn () => $route);
+        app()->instance('request', $request);
+        $view = 'web-views.users-profile.partials.customer-activation-banner';
+        $this->assertStringNotContainsString('id="customer-activation-notice"', view($view, ['conversation' => (object) ['purpose' => 'account_activation']])->render());
+        $this->assertStringNotContainsString('id="customer-activation-notice"', view($view, ['conversation' => (object) ['purpose' => 'problem_report']])->render());
     }
 }

@@ -149,6 +149,33 @@ class FlashDealController extends BaseController
 
     public function addProduct(ProductIDRequest $request, $deal_id, FlashDealService $flashDealService): RedirectResponse
     {
+        $deal = $this->flashDealRepo->getFirstWhere(params: ['id' => $deal_id]);
+        abort_unless($deal, 404);
+        if ($deal->deal_type === 'flash_deal') {
+            $validated = $request->validate([
+                'product_id' => ['required', 'array', 'min:1'],
+                'product_id.*' => ['required', 'integer', 'exists:products,id'],
+                'discount_type' => ['required', 'in:percent,flat'],
+                'discount' => ['required', 'numeric', 'gt:0'],
+            ]);
+            if ($validated['discount_type'] === 'percent' && (float) $validated['discount'] >= 100) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['discount' => 'يجب أن تكون نسبة الخصم أقل من 100%.']);
+            }
+            if ($validated['discount_type'] === 'flat') {
+                $amount = currencyConverter((float) $validated['discount']);
+                $products = \App\Models\Product::withoutGlobalScopes()->whereIn('id', $validated['product_id'])->get(['id', 'unit_price', 'variation']);
+                foreach ($products as $product) {
+                    $prices = [(float) $product->unit_price];
+                    foreach (json_decode($product->variation ?? '[]', true) ?: [] as $variation) {
+                        if (isset($variation['price'])) $prices[] = (float) $variation['price'];
+                    }
+                    if ($amount >= min($prices)) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['discount' => 'يجب أن يقل الخصم عن سعر كل منتج وخياراته.']);
+                    }
+                }
+                $request->merge(['discount' => $amount]);
+            }
+        }
         foreach ($request['product_id'] as $key => $productId) {
             $flashDealProducts = $this->flashDealProductRepo->getFirstWhere(params: ['flash_deal_id' => $deal_id, 'product_id' => $productId]);
             if (!$flashDealProducts) {
