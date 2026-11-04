@@ -26,6 +26,11 @@ class ThemeAssetPublisher
             return;
         }
 
+        // Sigma Care deliberately inherits Aster's commerce runtime/assets.
+        if ($theme === 'theme_sigma_care') {
+            $this->sync('theme_aster');
+        }
+
         $source = $this->themesRoot . DIRECTORY_SEPARATOR . $theme . DIRECTORY_SEPARATOR . 'public';
         $destination = $this->publicThemesRoot . DIRECTORY_SEPARATOR . $theme . DIRECTORY_SEPARATOR . 'public';
 
@@ -61,6 +66,11 @@ class ThemeAssetPublisher
         }
 
         $themePublicPath = $this->publicThemesRoot . DIRECTORY_SEPARATOR . $theme . DIRECTORY_SEPARATOR . 'public';
+
+        if ($theme === 'theme_sigma_care') {
+            return $this->isReady('theme_aster')
+                && File::isFile($themePublicPath . DIRECTORY_SEPARATOR . 'assets/css/sigma-care.css');
+        }
 
         return File::isDirectory($themePublicPath . DIRECTORY_SEPARATOR . 'assets')
             && File::isFile($themePublicPath . DIRECTORY_SEPARATOR . 'addon' . DIRECTORY_SEPARATOR . 'theme_routes.php');
