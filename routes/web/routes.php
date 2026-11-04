@@ -259,6 +259,9 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::get('account-photos/{kind}/{id}', [\App\Http\Controllers\Customer\AccountPhotoController::class, '__invoke'])
         ->whereIn('kind', ['customer', 'seller'])->whereNumber('id')->name('account-photos.show');
 
+    Route::get('wallet/withdrawals', [\App\Http\Controllers\Customer\WalletWithdrawalController::class, 'index'])->middleware('customer')->name('customer.withdrawals.index');
+    Route::post('wallet/withdrawals', [\App\Http\Controllers\Customer\WalletWithdrawalController::class, 'store'])->middleware(['customer', 'throttle:5,1'])->name('customer.withdrawals.store');
+
     Route::view('account-settings', 'customer-account.settings')->middleware('customer')->name('customer.settings');
     Route::post('account-settings/password', [\App\Http\Controllers\Customer\AccountSettingsController::class, 'password'])
         ->middleware(['customer', 'throttle:5,1'])->name('customer.settings.password');

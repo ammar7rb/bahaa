@@ -168,6 +168,13 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         Route::post('offers/{offer?}', 'offer')->name('offer');
         Route::delete('offers/{offer}', 'deleteOffer')->name('offer-delete');
     });
+    Route::prefix('operations/customer-withdrawals')->name('customer-withdrawals.')->middleware('module:people')
+        ->controller(\App\Http\Controllers\Admin\Customer\WalletWithdrawalController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('settings', 'settings')->middleware('module:business_settings')->name('settings');
+            Route::post('{id}/review', 'review')->name('review');
+        });
+
     Route::prefix('customer/monthly-subscriptions')->name('customer.monthly-subscriptions.')->middleware('module:people')->controller('\App\Http\Controllers\Admin\Customer\MonthlySubscriptionController')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('customers/{customer}/disable-auto-renew', 'disableAutoRenew')->name('disable-auto-renew');

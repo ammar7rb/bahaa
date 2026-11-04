@@ -32,6 +32,7 @@
                     @endforeach
                 </ul>
             </section>
+<p><a href="{{ route('customer.withdrawals.index') }}">سحب رصيد المحفظة</a></p>
             <a class="btn btn-outline-danger" href="{{ route('customer.deletion.show') }}">{{ translate('delete_account') }}</a>
         </section>
     </div>

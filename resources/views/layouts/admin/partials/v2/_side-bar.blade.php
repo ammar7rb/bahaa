@@ -265,6 +265,11 @@
                     <span class="v2-nav-btn"><span class="v2-nav-label">مدد تسوية مستحقات التجار</span></span>
                 </a>
             @endif
+            @if(Helpers::module_permission_check('people'))
+                <a class="v2-nav-item" data-item="customer-withdrawal-rates" href="{{ route('admin.customer-withdrawals.index') }}">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">نسب ورسوم السحب</span></span>
+                </a>
+            @endif
             @if (Helpers::module_permission_check('people'))
                 <a class="v2-nav-item {{ request()->routeIs('admin.monthly-packages.*') ? 'v2-is-active' : '' }}" data-item="monthly-packages" href="{{ route('admin.monthly-packages.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-calendar"></i></span><span class="v2-nav-label">الباقات الشهرية</span></span></a>
                 <a class="v2-nav-item {{ request()->routeIs('admin.customer.password-recovery.*') ? 'v2-is-active' : '' }}" data-item="customer-password-recovery" href="{{ route('admin.customer.password-recovery.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-key"></i></span><span class="v2-nav-label">استعادة كلمة مرور العملاء</span></span></a>
