@@ -39,6 +39,14 @@ class CustomerOrderWalletPaymentService
             if ($orders->count() !== count($orderIds) || $orders->contains(fn ($order) => $order->payment_status !== 'paid'
                 || !in_array($order->payment_method, ['pay_by_wallet', 'wallet', 'wallet_balance'], true))) $this->deny('لا يمكن خصم قيمة هذه الطلبات من المحفظة.');
             if (!$customer->is_active || $customer->account_deleted_at) $this->deny('الحساب موقوف. تواصل مع الدعم.');
+            // Recheck under the wallet lock: the package may have expired after cart reservation.
+            $eligibility = app(CustomerPurchaseEligibilityService::class);
+            if ($eligibility->enabled()) {
+                $state = $eligibility->status($customer);
+                if (!$state['can_checkout']) {
+                    $this->deny($state['message']);
+                }
+            }
             if (round((float) $customer->wallet_balance, 3) < $amount) $this->deny('رصيد المحفظة لا يكفي لدفع الطلب.');
             $balance = round((float) $customer->wallet_balance - $amount, 3);
             $customer->update(['wallet_balance' => $balance]);
