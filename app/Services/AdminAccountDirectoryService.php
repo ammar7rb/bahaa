@@ -14,7 +14,14 @@ class AdminAccountDirectoryService
         $customers = DB::table('users')->where(fn ($q) => $q->whereNull('email')->orWhere('email','!=','walking@customer.com'))
             ->selectRaw("id, 'customer' as kind, CASE WHEN COALESCE(f_name,'')='' AND COALESCE(l_name,'')='' THEN name ELSE f_name END as f_name, l_name, email, phone, NULL as store_name, CASE WHEN is_active=1 THEN 'active' ELSE 'frozen' END as account_status, created_at");
         if (!empty($filters['guest_customers'])) {
-            $customers->where('onboarding_journey', 'checkout_first');
+            // Registration origin remains immutable; a first activated package
+            // graduates the same account permanently, including after expiry.
+            $customers->where('onboarding_journey', 'checkout_first')
+                ->whereNotExists(function ($subscriptions) {
+                    $subscriptions->selectRaw('1')->from('customer_monthly_subscriptions as guest_package')
+                        ->whereColumn('guest_package.customer_id', 'users.id')
+                        ->whereNotNull('guest_package.package_id');
+                });
         }
         $vendors = DB::table('sellers')->selectRaw("sellers.id, 'vendor' as kind, f_name, l_name, email, phone, (SELECT name FROM shops WHERE shops.seller_id=sellers.id ORDER BY shops.id LIMIT 1) as store_name, CASE status WHEN 'approved' THEN 'active' WHEN 'suspended' THEN 'frozen' ELSE status END as account_status, sellers.created_at");
         $q = DB::query()->fromSub($customers->unionAll($vendors), 'accounts');

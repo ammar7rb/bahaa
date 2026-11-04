@@ -106,6 +106,33 @@ class CustomerPackageWalletPolicyTest extends TestCase
         $this->assertSame(now()->addDays(30)->toIso8601String(), CustomerMonthlySubscription::latest('id')->first()->expires_at->toIso8601String());
     }
 
+    public function test_quick_signup_subscription_keeps_the_same_account_and_existing_order(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('onboarding_journey')->nullable(); $table->string('phone')->nullable();
+            $table->string('first_checkout_operation_id')->nullable();
+        });
+        Schema::create('orders', function (Blueprint $table) {
+            $table->id(); $table->integer('customer_id'); $table->string('payment_status'); $table->decimal('order_amount', 24, 3);
+        });
+        DB::table('users')->where('id', 1)->update(['onboarding_journey' => 'checkout_first', 'phone' => '01000000003', 'first_checkout_operation_id' => 'original-checkout']);
+        DB::table('orders')->insert(['id' => 301, 'customer_id' => 1, 'payment_status' => 'paid', 'order_amount' => 120]);
+        $orderBefore = DB::table('orders')->first();
+        $referenceBefore = \App\Services\AdministrativeReferenceService::format('customer', 1);
+        $payment = app(\App\Services\CustomerPackageWalletService::class)->transact(1, $this->purchase());
+        $customer = User::findOrFail(1);
+        $this->assertSame(2, User::count());
+        $this->assertSame(1, $payment->customer_id);
+        $this->assertSame(1, CustomerMonthlySubscription::latest('id')->first()->customer_id);
+        $this->assertSame($referenceBefore, \App\Services\AdministrativeReferenceService::format('customer', $customer->id));
+        $this->assertSame('01000000003', $customer->phone);
+        $this->assertSame('checkout_first', $customer->onboarding_journey);
+        $this->assertSame('original-checkout', $customer->first_checkout_operation_id);
+        $this->assertEquals(900, $customer->wallet_balance);
+        $this->assertEquals($orderBefore, DB::table('orders')->first());
+        $this->assertSame(1, DB::table('wallet_transactions')->count());
+    }
+
     public function test_auto_renewal_requires_consent_and_never_overdraws_the_wallet(): void
     {
         (require database_path('migrations/2026_11_04_151000_add_customer_package_auto_renewal.php'))->up();

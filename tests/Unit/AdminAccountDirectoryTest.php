@@ -45,6 +45,30 @@ class AdminAccountDirectoryTest extends TestCase
         $this->assertSame(2,$page->firstItem());
     }
 
+    public function test_quick_signup_account_leaves_guest_directory_after_first_package_even_after_expiry(): void
+    {
+        Schema::table('users', fn (Blueprint $table) => $table->string('onboarding_journey')->default('standard'));
+        Schema::create('customer_monthly_subscriptions', function (Blueprint $table) {
+            $table->id(); $table->integer('customer_id'); $table->integer('package_id')->nullable();
+            $table->timestamp('expires_at');
+        });
+        DB::table('users')->where('id', 12)->update(['onboarding_journey' => 'checkout_first']);
+        DB::table('orders')->insert(['id' => 301, 'customer_id' => 12, 'order_amount' => 120]);
+        $customerBefore = DB::table('users')->where('id', 12)->first();
+        $orderBefore = DB::table('orders')->where('id', 301)->first();
+        $directory = app(AdminAccountDirectoryService::class);
+        $this->assertSame([12], $directory->query(['guest_customers' => 1])->pluck('id')->all());
+        DB::table('customer_monthly_subscriptions')->insert(['customer_id' => 12, 'package_id' => 1, 'expires_at' => now()->addDays(30)]);
+        $this->assertSame(0, $directory->query(['guest_customers' => 1])->count());
+        $this->assertSame(12, $directory->query(['q' => 'C000012'])->first()->id);
+        $this->assertSame(3, $directory->query([])->count());
+        $this->assertEquals($customerBefore, DB::table('users')->where('id', 12)->first());
+        $this->assertEquals($orderBefore, DB::table('orders')->where('id', 301)->first());
+        $this->travel(31)->days();
+        $this->assertSame(0, $directory->query(['guest_customers' => 1])->count());
+        $this->assertSame(12, $directory->query(['q' => 'C000012'])->first()->id);
+    }
+
     public function test_vendor_activity_counts_only_approved_enabled_vendor_products(): void
     {
         DB::table('products')->insert([
@@ -205,7 +229,10 @@ class AdminAccountDirectoryTest extends TestCase
         $english=Blade::render($matches[1],['accounts'=>$accounts,'contacts'=>$directory->contacts(collect($accounts->items())),'errors'=>new \Illuminate\Support\ViewErrorBag]);
         foreach(['Customer List','Order count','Active products','title="View"','title="Freeze"','title="Permanently delete"'] as $label) $this->assertStringContainsString($label,$english);
         session()->put('local','ar');
-        $sidebar=file_get_contents(resource_path('views/layouts/admin/partials/v2/_side-bar.blade.php'));$this->assertGreaterThan(strpos($sidebar,'data-item="pos"'),strpos($sidebar,'data-item="customer-list"'));
+        $sidebar=file_get_contents(resource_path('views/layouts/admin/partials/v2/_side-bar.blade.php'));
+        $directoryPosition = strpos($sidebar, 'data-item="all-accounts"');
+        $this->assertIsInt($directoryPosition);
+        $this->assertGreaterThan(strpos($sidebar, 'data-item="pos"'), $directoryPosition);
         if(getenv('ADMIN_DIRECTORY_QA_EXPORT')) {
             $dir=storage_path('app/admin-account-directory-qa');if(!is_dir($dir))mkdir($dir,0777,true);
             file_put_contents($dir.'/print.html',str_replace('http://localhost/ba/public/assets/','/assets/',view('admin-views.accounts.print',['accounts'=>collect($accounts->items()),'contacts'=>$directory->contacts(collect($accounts->items())),'filters'=>[]])->render()));
