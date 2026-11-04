@@ -42,6 +42,12 @@ class SellerController extends Controller
 {
     use FileManagerTrait;
 
+    public function financial_summary(Request $request, \App\Services\SellerLedgerService $ledger): JsonResponse
+    {
+        abort_unless($request->seller instanceof Seller, 401);
+        return response()->json(['financial_summary' => $ledger->summary((int) $request->seller->id)]);
+    }
+
     public function __construct(
         private readonly OrderTransactionRepository $orderTransactionRepo,
         private readonly DashboardService           $dashboardService,

@@ -38,7 +38,6 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin']],
             Route::post('blog-status-update'. '/{id}', 'updateBlogStatus')->name('blog-status-update');
             Route::get('draft-edit' . '/{id}', 'draftEdit')->name('draft-edit');
             Route::post('delete', 'delete')->name('delete');
-            Route::post('section-view', 'sectionView')->name('section-view');
         });
 
         Route::controller(BlogDownloadAppController::class)->group(function () {

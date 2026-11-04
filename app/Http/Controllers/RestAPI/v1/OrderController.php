@@ -41,6 +41,19 @@ class OrderController extends Controller
 {
     use CommonTrait, FileManagerTrait;
 
+    public function confirmReceipt(Request $request, int $id, \App\Services\OrderLogisticsService $logistics): JsonResponse
+    {
+        $customer = $request->user('api');
+        abort_unless($customer, 401);
+        $order = Order::where('customer_id', $customer->id)->where('is_guest', false)->findOrFail($id);
+        try {
+            $logistics->confirmCustomerReceipt($order, (int) $customer->id);
+        } catch (\DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+        return response()->json(['message' => 'تم تأكيد استلام الطلب.']);
+    }
+
     public function insuranceQuote(Request $request): JsonResponse
     {
         $carts = OrderManager::processOrderGenerateData(data: [

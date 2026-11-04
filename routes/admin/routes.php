@@ -476,7 +476,6 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::post('delete', 'delete')->name('delete');
             Route::get('export', 'exportList')->name('export');
             Route::post('status-update', 'updateStatus')->name('status-update');
-            Route::post('review-queue/decision', 'reviewDecision')->name('review-queue.decision');
             Route::post('load-more-brands', 'loadMoreBrands')->name('load-more-brands');
         });
     });
