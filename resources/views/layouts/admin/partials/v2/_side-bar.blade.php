@@ -260,6 +260,11 @@
         <div class="v2-ctx-head"><div class="v2-ctx-title">{{ __('payments.operations') }}</div></div>
         <div class="v2-ctx-group v2-is-pinned" style="display:none;"><div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div><div class="v2-ctx-group-body"></div></div>
         <div class="v2-ctx-group">
+            @if(Helpers::module_permission_check('business_settings'))
+                <a class="v2-nav-item" data-item="seller-settlement-timing" href="{{ route('admin.business-settings.vendor-settings.index') }}#seller-settlement-hold-days">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">مدد تسوية مستحقات التجار</span></span>
+                </a>
+            @endif
             @if (Helpers::module_permission_check('people'))
                 <a class="v2-nav-item {{ request()->routeIs('admin.monthly-packages.*') ? 'v2-is-active' : '' }}" data-item="monthly-packages" href="{{ route('admin.monthly-packages.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-calendar"></i></span><span class="v2-nav-label">الباقات الشهرية</span></span></a>
                 <a class="v2-nav-item {{ request()->routeIs('admin.customer.password-recovery.*') ? 'v2-is-active' : '' }}" data-item="customer-password-recovery" href="{{ route('admin.customer.password-recovery.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-key"></i></span><span class="v2-nav-label">استعادة كلمة مرور العملاء</span></span></a>
