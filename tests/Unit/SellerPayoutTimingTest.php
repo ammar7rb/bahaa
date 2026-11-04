@@ -78,6 +78,30 @@ class SellerPayoutTimingTest extends SellerWithdrawalReservationTest
         $this->assertSame('ref-1', $row->fresh()->payout_reference);
     }
 
+    public function test_sales_payout_has_its_own_approval_deadline_and_keeps_operating_balance_separate(): void
+    {
+        $this->enableTiming();
+        DB::table('business_settings')->insert(['type' => 'seller_sales_withdrawal_days', 'value' => '20']);
+        $seller = Seller::create();
+        SellerWallet::create(['seller_id' => $seller->id, 'total_earning' => 100]);
+        $definition = \App\Models\WithdrawalMethod::create(['method_name' => 'InstaPay']);
+        $method = \App\Models\VendorWithdrawMethodInfo::create([
+            'user_id' => $seller->id, 'withdraw_method_id' => $definition->id, 'method_name' => 'Recipient',
+            'method_type' => 'instapay', 'approval_status' => 'approved', 'is_active' => true, 'method_info' => ['recipient_name' => 'Seller'],
+        ]);
+        $service = app(SellerWithdrawalService::class);
+        $row = $service->submit($seller->id, $method->id, 40, 'sales-one');
+        $approved = $service->finish($row->id, 1);
+        $this->assertSame(now()->addDays(20)->startOfSecond()->toDateTimeString(), $approved->payout_due_at->toDateTimeString());
+        $this->assertSame(0, $approved->approved);
+        $this->travel(20)->days();
+        $service->finish($row->id, 1, payoutReference: 'sales-transfer-1');
+        $balances = app(SellerLedgerService::class)->summary($seller->id);
+        $this->assertSame(60.0, $balances['available']);
+        $this->assertSame(40.0, $balances['withdrawn']);
+        $this->assertSame(0.0, $balances['operating']);
+    }
+
     protected function tearDown(): void
     {
         Schema::dropIfExists('business_settings');

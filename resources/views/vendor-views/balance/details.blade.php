@@ -18,6 +18,7 @@
         <form method="post" action="{{ route('vendor.balance.operating-refund') }}">
             @csrf
             <input type="hidden" name="request_key" value="{{ old('request_key', (string) \Illuminate\Support\Str::uuid()) }}">
+            <input type="hidden" name="currency_code" value="{{ session('currency_code') ?: getCurrencyCode(type: 'default') }}">
             <label for="operating-refund-amount">مبلغ الاسترداد *</label>
             <input class="form-control mb-3" id="operating-refund-amount" name="amount" type="number" min="0.01" max="{{ usdToDefaultCurrency($summary['operating']) }}" step="0.01" required>
             <button class="btn btn--primary" @disabled($summary['operating'] <= 0)>طلب استرداد</button>

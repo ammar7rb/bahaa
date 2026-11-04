@@ -99,14 +99,17 @@ class VendorFinanceWorkspaceController extends Controller
     public function operatingRefunds(Request $request)
     {
         $seller = $this->seller($request);
-        return response()->json(['requests' => WithdrawRequest::where('seller_id', $seller->id)->where('source_bucket', 'operating')->latest('id')->paginate(20)]);
+        return response()->json([
+            'requests' => WithdrawRequest::where('seller_id', $seller->id)->where('source_bucket', 'operating')->latest('id')->paginate(20),
+            'days' => app(SellerWithdrawalService::class)->payoutDays('operating'),
+        ]);
     }
 
     public function operatingRefund(Request $request)
     {
-        $input = $request->validate(['amount' => 'required|numeric|min:0.01|max:999999999', 'request_key' => 'required|uuid']);
+        $input = $request->validate(['amount' => 'required|numeric|min:0.01|max:999999999', 'request_key' => 'required|uuid', 'currency_code' => 'required|exists:currencies,code']);
         try {
-            $result = app(SellerWithdrawalService::class)->operatingRefund($this->seller($request)->id, (float) \App\Utils\Convert::usd($input['amount']), $input['request_key']);
+            $result = app(SellerWithdrawalService::class)->operatingRefund($this->seller($request)->id, (float) \App\Utils\Convert::usdPaymentModule($input['amount'], $input['currency_code']), $input['request_key']);
         } catch (\DomainException | \InvalidArgumentException $error) {
             throw ValidationException::withMessages(['amount' => translate($error->getMessage())]);
         }
