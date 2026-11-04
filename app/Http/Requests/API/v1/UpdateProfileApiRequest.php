@@ -33,8 +33,9 @@ class UpdateProfileApiRequest extends FormRequest
         $userId = $this->user()->id;
 
         return [
-            'f_name' => ['required', 'string', 'max:255'],
-            'l_name' => ['required', 'string', 'max:255'],
+            'f_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'l_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'organization_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'phone' => [
                 'required',
                 'string',
@@ -68,8 +69,6 @@ class UpdateProfileApiRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'f_name.required' => translate('First name is required!'),
-            'l_name.required' => translate('Last name is required!'),
             'phone.required' => translate('Phone is required!'),
             'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'phone.unique' => translate('Phone_already_exists'),

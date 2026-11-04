@@ -29,7 +29,7 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'f_name', 'l_name', 'name', 'email', 'password', 'country_code', 'phone', 'image', 'login_medium',
+        'f_name', 'l_name', 'organization_name', 'name', 'email', 'password', 'country_code', 'phone', 'image', 'login_medium',
         'is_active', 'social_id', 'is_phone_verified', 'temporary_token', 'referral_code', 'referred_by',
         'street_address', 'country', 'city', 'zip', 'terms_accepted_at', 'privacy_accepted_at',
         'monthly_insurance_started_at', 'monthly_insurance_paid_until', 'monthly_insurance_last_paid_at'

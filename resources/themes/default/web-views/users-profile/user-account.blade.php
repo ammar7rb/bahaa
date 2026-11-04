@@ -67,7 +67,7 @@
                                         <label for="firstName"
                                                class="mb-2 text-capitalize">{{translate('first_name')}} </label>
                                         <input type="text" class="form-control" id="f_name" name="f_name"  data-required-msg="{{ translate('first_name_is_required') }}"
-                                               value="{{$customerDetail['f_name']}}" required>
+                                               value="{{$customerDetail['f_name']}}">
                                     </div>
                                     <div class="form-group col-md-6 mb-0">
                                         <label for="lastName"
@@ -77,7 +77,9 @@
                                     </div>
 
                                     <div class="form-group col-md-6 mb-0">
-                                        <label for="phone" class="mb-2 text-capitalize">
+                                        <label for="organization-name">{{ getLanguageCode(country_code: getDefaultLanguage()) === 'ar' ? 'اسم المؤسسة' : 'Organization name' }}</label>
+                                                <input type="text" class="form-control mb-3" id="organization-name" name="organization_name" maxlength="255" value="{{ old('organization_name', $customerDetail['organization_name'] ?? '') }}">
+                                                <label for="phone" class="mb-2 text-capitalize">
                                             {{ translate('phone_number') }}
                                         </label>
                                         <div class="position-relative d-flex align-items-center">

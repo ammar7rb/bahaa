@@ -618,14 +618,15 @@ class CustomerController extends Controller
         $effectivePhone = $phones->normalizeLocal($request['phone']);
         $phoneChanged = $effectivePhone !== $phones->normalizeLocal($user['phone']);
         $user->update([
-            'f_name' => $request->f_name,
-            'l_name' => $request->l_name,
+            'f_name' => $request->exists('f_name') ? (string) $request->input('f_name') : $user->getAttribute('f_name'),
+            'l_name' => $request->exists('l_name') ? (string) $request->input('l_name') : $user->getAttribute('l_name'),
             'image' => $imageName,
+            'organization_name' => $request->input('organization_name', $user->organization_name),
             'phone' => $effectivePhone,
-            'email' => $request['email'],
+            'email' => $request->input('email', $user->email),
             'is_phone_verified' => $phoneChanged ? 0 : $user['is_phone_verified'],
-            'is_email_verified' => $request['email'] == $user['email'] ? $user['is_email_verified'] : 0,
-            'email_verified_at' => $request['email'] == $user['email'] ? $user['email_verified_at'] : null,
+            'is_email_verified' => $request->input('email', $user->email) == $user['email'] ? $user['is_email_verified'] : 0,
+            'email_verified_at' => $request->input('email', $user->email) == $user['email'] ? $user['email_verified_at'] : null,
             'password' => $password,
             'updated_at' => now(),
         ]);

@@ -22,20 +22,26 @@
                                         <div class="col-sm-6">
                                             <div class="form-group">
                                                 <label class="text-capitalize" for="f_name2">{{translate('first_name')}}</label>
-                                                <input type="text" id="f_name" class="form-control" value="{{$customerDetail['f_name']}}" name="f_name" placeholder="{{translate('ex').':'.translate('jhon')}}" data-required-msg="{{ translate('first_name_is_required') }}" required>
+                                                <input type="text" id="f_name" class="form-control" value="{{$customerDetail['f_name']}}" name="f_name" placeholder="{{translate('ex').':'.translate('jhon')}}" data-required-msg="{{ translate('first_name_is_required') }}">
                                             </div>
                                         </div>
                                         <div class="col-sm-6">
                                             <div class="form-group">
                                                 <label class="text-capitalize" for="l_name2">{{translate('last_name')}}</label>
-                                                <input type="text" id="l_name" class="form-control" value="{{$customerDetail['l_name']}}" name="l_name" data-required-msg="{{ translate('last_name_is_required') }}" placeholder="{{translate('ex').':'.translate('doe')}}" required>
+                                                <input type="text" id="l_name" class="form-control" value="{{$customerDetail['l_name']}}" name="l_name" data-required-msg="{{ translate('last_name_is_required') }}" placeholder="{{translate('ex').':'.translate('doe')}}">
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="form-group mb-3">
+                                                <label for="organization-name">{{ getLanguageCode(country_code: getDefaultLanguage()) === 'ar' ? 'اسم المؤسسة' : 'Organization name' }}</label>
+                                                <input type="text" class="form-control" id="organization-name" name="organization_name" maxlength="255" value="{{ old('organization_name', $customerDetail['organization_name'] ?? '') }}">
                                             </div>
                                         </div>
                                         <div class="col-sm-6">
                                             <div class="form-group">
                                                 <label for="phone2">{{translate('phone')}}</label>
                                                 <div class="position-relative d-flex align-items-center">
-                                                    <input type="tel" id="phone" class="form-control" value="{{$customerDetail['phone']}}" placeholder="{{translate('ex').':'.'01xxxxxxxxx'}}"  name="phone">
+                                                    <input type="tel" id="phone" class="form-control" value="{{$customerDetail['phone']}}" placeholder="{{translate('ex').':'.'01xxxxxxxxx'}}"  name="phone" required>
 
                                                     @if($customerDetail['phone'] && getLoginConfig(key: 'phone_verification'))
                                                         @if($customerDetail['is_phone_verified'])
