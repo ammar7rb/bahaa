@@ -79,6 +79,14 @@ class PaymentReviewController extends Controller
         return view('admin-views.payment-reviews.index', ['reviews' => $paginator, 'counts' => $counts, 'methods' => $methods, 'pendingCount' => $counts->get('pending', 0)]);
     }
 
+    public function guestOrders(Request $request): View
+    {
+        abort_unless(\App\Utils\Helpers::module_permission_check('orders'), 403);
+        $request->merge(['guest_orders' => '1', 'panel' => null]);
+        $data = $this->index($request)->getData();
+        return view('admin-views.guest-orders.index', $data);
+    }
+
     public function requestPackage(int $id): RedirectResponse
     {
         abort_unless(\App\Utils\Helpers::module_permission_check('orders'), 403);
