@@ -260,7 +260,7 @@ class ReviewController extends BaseController
 
     public function getCustomerList(Request $request): JsonResponse
     {
-        $data = $this->customerRepo->getCustomerList(request: $request);
+        $data = $this->customerRepo->getCustomerNameList(request: $request);
         return response()->json($data);
     }
 
