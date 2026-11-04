@@ -372,6 +372,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::get('list/{status}', 'index')->name('list');
             Route::get('export-excel/{status}', 'exportList')->name('export-excel');
             Route::get('generate-invoice/{id}', 'generateInvoice')->name('generate-invoice')->withoutMiddleware(['module:orders']);
+            Route::post('{id}/reject-cancellation', 'rejectCancellation')->name('reject-cancellation');
             Route::get('details/{id}', 'getView')->name('details');
             Route::post('address-update', 'updateAddress')->name('address-update'); // update address from order details
             Route::post('{id}/shipping-decision', 'saveShippingDecision')->name('shipping-decision');

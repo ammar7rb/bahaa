@@ -637,6 +637,23 @@ class OrderController extends BaseController
         $this->generatePdf(view: $mpdfView, filePrefix: 'order_invoice_', filePostfix: $order['id'], pdfType: 'invoice');
     }
 
+    public function rejectCancellation(Request $request, int $id): RedirectResponse
+    {
+        $input = $request->validate(['reason' => 'required|string|max:1000']);
+        DB::transaction(function () use ($id, $input) {
+            $order = Order::lockForUpdate()->findOrFail($id);
+            abort_unless($order->customer_cancel_request_status === 'pending', 409);
+            $order->customer_cancel_request_status = 'rejected';
+            $order->save();
+            app(\App\Services\CustomerPaymentNotificationService::class)->notify(
+                (int) $order->customer_id, 'order-status-'.$id.'-cancel-request-rejected',
+                'تم رفض طلب إلغاء الطلب #'.$id.'. '.$input['reason'],
+            );
+        });
+
+        return back()->with('success', 'تم رفض طلب الإلغاء.');
+    }
+
     public function updateStatus(
         Request                       $request,
         DeliveryManTransactionService $deliveryManTransactionService,
@@ -731,6 +748,10 @@ class OrderController extends BaseController
         }
         $this->orderRepo->updateStockOnOrderStatusChange($request['id'], $request['order_status']);
         $this->orderRepo->update(id: $request['id'], data: ['order_status' => $request['order_status']]);
+        if ($request['order_status'] === 'canceled' && $locked->customer_cancel_request_status === 'pending') {
+            $locked->customer_cancel_request_status = 'approved';
+            $locked->save();
+        }
         if ($request['order_status'] == 'delivered') {
             $this->orderRepo->update(id: $request['id'], data: ['payment_status' => 'paid', 'is_pause' => 0]);
             $this->orderDetailRepo->updateWhere(params: ['order_id' => $order['id']], data: ['delivery_status' => $request['order_status'], 'payment_status' => 'paid']);

@@ -428,11 +428,14 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::post('/', [PaymentController::class, 'customer_add_to_fund_request']);
     });
 
+    Route::post('order/cancel-order', [\App\Http\Controllers\Customer\OrderCancellationRequestController::class, 'store'])
+        ->middleware(['auth:api', 'throttle:10,1']);
+
     Route::group(['prefix' => 'order', 'middleware' => [\App\Http\Middleware\CustomerOrderTrackingBoundary::class]], function () {
         Route::controller(OrderController::class)->group(function () {
             Route::get('track', 'track_by_order_id');
             Route::get('track-order-details', 'track_order_details_history');
-            Route::get('cancel-order', 'order_cancel');
+
             Route::post('track-order', 'track_order');
         });
     });

@@ -44,6 +44,7 @@
                     </div>
                 @endif
                 @if($state['package_refund'] ?? null)<p class="customer-order-help">{{ $state['package_refund']['status'] === 'completed' ? 'تم تسجيل رد المبلغ.' : 'راجع تفاصيل الطلب لمعرفة حالة رد المبلغ.' }}</p>@endif
+                @include('customer-checkout.cancellation-request')
             </article>
         @empty<div class="customer-order-empty"><h2>ليس لديك طلبات بعد</h2><p>ستظهر مشترياتك هنا لتتابعها بسهولة.</p><a href="{{ route('products') }}">تصفح المنتجات ←</a></div>@endforelse
         {{ $orders->links() }}

@@ -234,7 +234,8 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('account-notifications', [\App\Http\Controllers\Customer\NotificationCenterController::class, 'index'])->middleware('customer')->name('customer.notifications.index');
         Route::get('account-order-tracking', [\App\Http\Controllers\Customer\OrderTrackingController::class, 'index'])->middleware('customer')->name('customer.tracking.index');
         Route::get('account-messages', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->middleware('customer')->name('customer.messages.index');
-        Route::get('order-cancel/{id}', 'order_cancel')->name('order-cancel');
+        Route::get('order-cancel/{id}', fn (int $id) => redirect()->route('account-order-details', ['id' => $id]))
+            ->middleware('customer')->name('order-cancel');
         Route::post('ticket-submit', 'submitSupportTicket')->name('ticket-submit');
         Route::redirect('account-delete/{id}', '/account-settings')->middleware('customer')->name('account-delete');
         Route::get('refer-earn', 'refer_earn')->name('refer-earn')->middleware('customer');
@@ -247,6 +248,8 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     // Customer-to-seller/delivery chat is intentionally unavailable. Customers
     // use the support-ticket center for administration communication.
 
+    Route::post('customer/orders/{id}/cancellation', [\App\Http\Controllers\Customer\OrderCancellationRequestController::class, 'store'])
+        ->middleware(['customer', 'throttle:10,1'])->name('customer.order.cancellation');
     Route::post('customer/order/{order}/package-cancellation', [\App\Http\Controllers\Customer\PackageOrderCancellationController::class, 'request'])->middleware(['customer', 'throttle:10,1'])->name('customer.order.package-cancellation');
     Route::get('customer/communication', [\App\Http\Controllers\Customer\CommunicationController::class, 'index'])->middleware(['customer', 'throttle:60,1'])->name('customer.communication.index');
     Route::post('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'update'])->middleware(['customer','throttle:10,1'])->name('customer.contact-phones.update');

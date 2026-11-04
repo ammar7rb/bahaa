@@ -39,3 +39,5 @@
     @php($refundState = app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order)['package_refund'] ?? null)
     @if($refundState)<div class="alert alert-info">{{ $refundState['status'] === 'completed' ? 'تم تسجيل رد المبلغ.' : ($refundState['status'] === 'external_approved' ? 'تم اعتماد الرد عبر وسيلة الدفع، وفي انتظار تنفيذ التحويل.' : 'طلب رد المبلغ قيد مراجعة الإدارة. تبدأ المهلة بعد الاعتماد.') }}</div>@endif
 @endif
+
+@include('customer-checkout.cancellation-request', ['state' => $purchaseState ?? []])

@@ -3,6 +3,17 @@
 @section('title', translate('order_Details'))
 
 @section('content')
+    @if($order->customer_cancel_request_status === 'pending')
+        <section class="alert alert-warning mx-3 my-3" aria-label="طلب إلغاء العميل">
+            <p>العميل طلب إلغاء الطلب. للموافقة، استخدم إجراء إلغاء الطلب الموجود في الصفحة بعد مراجعة حالته.</p>
+            <form method="post" action="{{ route('admin.orders.reject-cancellation', $order->id) }}">
+                @csrf
+                <label for="cancel-reject-reason">سبب رفض الإلغاء</label>
+                <input class="form-control mb-2" id="cancel-reject-reason" name="reason" required maxlength="1000">
+                <button class="btn btn-outline-danger" type="submit">رفض طلب الإلغاء</button>
+            </form>
+        </section>
+    @endif
     @php($shippingAddress = $order['shipping_address_data'] ?? null)
     <div class="content container-fluid">
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
