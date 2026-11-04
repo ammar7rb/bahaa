@@ -18,18 +18,13 @@ class CustomerCheckoutRegistrationService
         $data = Validator::make($input, [
             'name' => 'required|string|max:100',
             'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/'],
-            'password' => 'required|string|min:8|max:128',
-            'terms_accepted' => 'required|accepted',
-            'policy_version_ids' => 'nullable|array',
-            'policy_version_ids.*' => 'integer',
+            'password' => 'required|string|min:6|max:128',
         ], [
             'name.required' => 'اكتب اسمك للمتابعة.',
             'phone.required' => 'أدخل رقم الموبايل.',
             'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'password.required' => 'أدخل كلمة المرور.',
-            'password.min' => 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
-            'terms_accepted.required' => 'وافق على الشروط والأحكام وسياسة الخصوصية للمتابعة.',
-            'terms_accepted.accepted' => 'وافق على الشروط والأحكام وسياسة الخصوصية للمتابعة.',
+            'password.min' => 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.',
         ])->validate();
 
         try {
@@ -37,20 +32,13 @@ class CustomerCheckoutRegistrationService
             if (User::query()->whereIn('phone', $phones->aliases($data['phone']))->orWhere('canonical_phone', $data['phone'])->exists()) {
                 throw ValidationException::withMessages(['phone' => 'هذا الرقم مسجل بالفعل. سجّل الدخول بكلمة المرور للحفاظ على حسابك وسلتك.']);
             }
-            $policies = app(PolicyAcceptanceService::class);
-            $ids = $policies->requiredFor('customer')->pluck('id')->map(fn ($id) => (int) $id)->all();
-            if (array_diff($ids, $data['policy_version_ids'] ?? [])) {
-                throw ValidationException::withMessages(['policy_version_ids' => 'راجع الشروط والسياسات الحالية ووافق عليها قبل التسجيل.']);
-            }
             $user = User::query()->create([
                 'name' => trim($data['name']), 'f_name' => trim($data['name']), 'l_name' => '',
                 'phone' => $data['phone'], 'canonical_phone' => $data['phone'], 'email' => null,
                 'password' => Hash::make($data['password']), 'is_active' => 1,
                 'is_phone_verified' => 0, 'is_email_verified' => 0,
                 'activation_status' => 'active', 'onboarding_journey' => 'checkout_first',
-                'terms_accepted_at' => now(), 'privacy_accepted_at' => now(),
             ]);
-            $policies->accept('customer', (int) $user->id, $ids);
             return $user;
         });
         } catch (\Illuminate\Database\QueryException $error) {

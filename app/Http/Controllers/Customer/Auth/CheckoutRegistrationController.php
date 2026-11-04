@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Customer\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\CustomerCheckoutRegistrationService;
-use App\Services\PolicyAcceptanceService;
 use App\Utils\CartManager;
 use Illuminate\Http\Request;
 
@@ -16,7 +15,7 @@ class CheckoutRegistrationController extends Controller
             return redirect()->route('checkout-details');
         }
         session()->put('checkout_login_return', true);
-        return view('customer-checkout.register', ['policies' => app(PolicyAcceptanceService::class)->requiredFor('customer')]);
+        return view('customer-checkout.register');
     }
 
     public function store(Request $request, CustomerCheckoutRegistrationService $service)
