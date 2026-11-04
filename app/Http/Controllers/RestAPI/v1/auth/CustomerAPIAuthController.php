@@ -53,12 +53,11 @@ class CustomerAPIAuthController extends Controller
     {
         $request->merge(['phone' => app(EgyptPhoneService::class)->normalizeLocal($request->input('phone'))]);
         $validator = Validator::make($request->all(), [
-            'f_name' => 'required',
-            'l_name' => 'required',
-            'email' => 'required|unique:users',
+            'f_name' => 'required|string|max:100',
+            'l_name' => 'nullable|string|max:100',
+            'email' => 'nullable|email|max:255|unique:users',
             'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueCustomerPhone],
-            'password' => 'required|min:6',
-            'terms_accepted' => 'required|accepted',
+            'password' => 'required|string|min:6|max:255',
             'policy_version_ids' => 'nullable|array',
             'policy_version_ids.*' => 'integer',
         ], [
@@ -72,22 +71,15 @@ class CustomerAPIAuthController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
-        $policyService = app(PolicyAcceptanceService::class);
-        $requiredPolicyIds = $policyService->requiredFor('customer')->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $submittedPolicyIds = collect($request->input('policy_version_ids', []))->map(fn ($id) => (int) $id)->unique()->all();
-        if (array_diff($requiredPolicyIds, $submittedPolicyIds)) {
-            return response()->json(['errors' => [['code' => 'required_policies_not_accepted', 'message' => translate('required_policies_must_be_accepted')]]], 422);
-        }
-
         $referUser = $request['referral_code'] ? $this->customerRepo->getFirstWhere(params: ['referral_code' => $request['referral_code']]) : null;
 
         $temporaryToken = Str::random(40);
 
         $user = $this->customerRepo->add([
-            'name' => $request['f_name'] . ' ' . $request['l_name'],
+            'name' => trim($request['f_name'] . ' ' . ($request['l_name'] ?? '')),
             'f_name' => $request['f_name'],
-            'l_name' => $request['l_name'],
-            'email' => $request['email'],
+            'l_name' => $request['l_name'] ?? null,
+            'email' => $request['email'] ?? null,
             'phone' => $request['phone'],
             'password' => bcrypt($request['password']),
             'temporary_token' => $temporaryToken,
@@ -96,10 +88,9 @@ class CustomerAPIAuthController extends Controller
             'canonical_phone' => app(EgyptPhoneService::class)->normalizeLocal($request['phone']),
             'referral_code' => Helpers::generate_referer_code(),
             'referred_by' => $referUser?->id ?? null,
-            'terms_accepted_at' => now(),
-            'privacy_accepted_at' => now(),
+            'terms_accepted_at' => null,
+            'privacy_accepted_at' => null,
         ]);
-        $policyService->accept('customer', (int) $user->id, $requiredPolicyIds);
         $activationService = app(CustomerActivationService::class);
         $activationService->ensureTicket($user);
 
@@ -115,7 +106,7 @@ class CustomerAPIAuthController extends Controller
             event(new CustomerRegisteredViaReferralEvent($referralCustomer, $referUser));
         }
 
-        $emailVerification = getLoginConfig(key: 'email_verification') ?? 0;
+        $emailVerification = $user->email && (getLoginConfig(key: 'email_verification') ?? 0);
         $phoneVerification = getLoginConfig(key: 'phone_verification') ?? 0;
 
         if ($phoneVerification && !$user->is_phone_verified) {

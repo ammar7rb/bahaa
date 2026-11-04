@@ -75,10 +75,10 @@ class CustomerAuthService
     public function getCustomerRegisterData(object|array $request, object|array|null $referUser): array
     {
         return [
-            'name' => $request['f_name'] . ' ' . $request['l_name'],
+            'name' => trim($request['f_name'] . ' ' . ($request['l_name'] ?? '')),
             'f_name' => $request['f_name'],
-            'l_name' => $request['l_name'],
-            'email' => $request['email'],
+            'l_name' => $request['l_name'] ?? null,
+            'email' => $request['email'] ?? null,
             'phone' => $request['phone'],
             'is_active' => 1,
             'activation_status' => 'active',
@@ -87,8 +87,8 @@ class CustomerAuthService
             'password' => bcrypt($request['password']),
             'referral_code' => Helpers::generate_referer_code(),
             'referred_by' => $referUser ? $referUser['id'] : null,
-            'terms_accepted_at' => now(),
-            'privacy_accepted_at' => now(),
+            'terms_accepted_at' => null,
+            'privacy_accepted_at' => null,
         ];
     }
 

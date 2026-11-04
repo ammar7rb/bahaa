@@ -72,13 +72,6 @@ class RegisterController extends Controller
 
     public function submitRegisterData(CustomerRegistrationRequest $request): JsonResponse|RedirectResponse
     {
-        $policyService = app(PolicyAcceptanceService::class);
-        $requiredPolicyIds = $policyService->requiredFor('customer')->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $submittedPolicyIds = collect($request->input('policy_version_ids', []))->map(fn ($id) => (int) $id)->unique()->all();
-        if (array_diff($requiredPolicyIds, $submittedPolicyIds)) {
-            return response()->json(['errors' => [['code' => 'required_policies_not_accepted', 'message' => translate('required_policies_must_be_accepted')]]], 422);
-        }
-
         if ($request['keep_customer_login_redirect_url']) {
             session()->put('keep_customer_login_redirect_url', $request['keep_customer_login_redirect_url']);
         } else {
@@ -101,14 +94,13 @@ class RegisterController extends Controller
         $referralConfig = getWebConfig(name: 'ref_earning_customer');
         $referralEarningRate = $this->businessSettingRepo->getFirstWhere(params: ['type' => 'ref_earning_exchange_rate']);
         $user = $this->customerRepo->add(data: $this->customerAuthService->getCustomerRegisterData($request, $referUser));
-        $policyService->accept('customer', (int) $user->id, $requiredPolicyIds);
         if (!empty($referUser) && isset($referralConfig['ref_earning_discount_status']) && $referralConfig['ref_earning_discount_status'] == 1) {
             $referralCustomer = $this->referByEarnCustomerService->addReferralCustomerData(referralData: $referralConfig, referralEarningRate: $referralEarningRate, referUser: $referUser, userId: $user->id);
             event(new CustomerRegisteredViaReferralEvent($referralCustomer, $referUser));
         }
 
         $phoneVerification = getLoginConfig(key: 'phone_verification');
-        $emailVerification = getLoginConfig(key: 'email_verification');
+        $emailVerification = $user->email && getLoginConfig(key: 'email_verification');
 
         if ($request->ajax()) {
             if ($phoneVerification && !$user->is_phone_verified) {
