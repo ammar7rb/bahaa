@@ -6,7 +6,7 @@
     @includeFirst(['theme-views.partials._profile-aside','web-views.partials._profile-aside'])
     <section class="col-lg-9"><header class="customer-communication-heading"><h1>الإشعارات</h1><p>تحديثات الإدارة المتعلقة بحسابك وطلباتك وباقتك.</p></header>
         <div class="customer-communication-list" data-communication-list="notifications">
-        @forelse($notifications as $notice)<article class="customer-communication-item"><span class="customer-communication-icon" aria-hidden="true">@include('customer-subscription.icon',['name'=>'bell'])</span><div><h2>{{ $notice->title }}</h2><p>{{ $notice->description }}</p>@if($notice->created_at)<time datetime="{{ $notice->created_at->toIso8601String() }}">{{ $notice->created_at->format('Y/m/d · H:i') }}</time>@endif</div></article>
+        @forelse($notifications as $notice)<article class="customer-communication-item"><span class="customer-communication-icon" aria-hidden="true">@include('customer-subscription.icon',['name'=>'bell'])</span><div><h2>{{ $notice->title }}</h2><p>{{ $notice->description }}</p>@if(preg_match('/^initial-order-\d+-requirements$/', (string) $notice->customer_event_key))<p><a href="{{ route('customer.subscription.index') }}">اختيار باقة</a> · <a href="{{ route('customer.messages.index') }}">تواصل مع الدعم الفني</a></p>@endif@if($notice->created_at)<time datetime="{{ $notice->created_at->toIso8601String() }}">{{ $notice->created_at->format('Y/m/d · H:i') }}</time>@endif</div></article>
         @empty<div class="customer-communication-empty"><h2>لا توجد إشعارات حاليًا</h2><p>ستظهر هنا الإشعارات التي ترسلها الإدارة إليك.</p></div>@endforelse
         </div><nav class="mt-4" data-communication-pagination aria-label="صفحات الإشعارات">{{ $notifications->links() }}</nav>
     </section>
