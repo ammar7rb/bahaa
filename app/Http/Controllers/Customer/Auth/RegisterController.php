@@ -60,7 +60,11 @@ class RegisterController extends Controller
     {
         $this->customerAuthService->storeCustomerAuthReturnURL();
         $keepCustomerLoginRedirectUrl = session('keep_customer_login_redirect_url');
-        return view('web-views.customer-views.auth.register', [
+        $view = in_array(theme_root_path(), ['theme_aster', 'theme_sigma_care'], true)
+            ? 'customer-account.registration'
+            : 'web-views.customer-views.auth.register';
+
+        return view($view, [
             'keepCustomerLoginRedirectUrl' => $keepCustomerLoginRedirectUrl,
             'requiredPolicies' => app(PolicyAcceptanceService::class)->requiredFor('customer'),
         ]);

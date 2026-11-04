@@ -140,7 +140,9 @@
 @endif
 
 @if(!auth()->guard('customer')->check())
-    @include('theme-views.layouts.partials.modal._register')
+    @unless(request()->routeIs('customer.auth.sign-up'))
+        @include('theme-views.layouts.partials.modal._register')
+    @endunless
     @include('theme-views.layouts.partials.modal._login')
 @endif
 

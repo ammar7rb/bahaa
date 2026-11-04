@@ -1,10 +1,15 @@
+@php($inlineRegistration = $inlineRegistration ?? false)
+@if($inlineRegistration)
+<div class="card mx-auto" style="max-width: 54rem">
+@else
 <div class="modal fade max-z-index-for-auth-modal" id="registerModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header border-0 pb-0">
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body px-4 px-lg-5">
+@endif
+            <div @class(['card-body p-4 p-lg-5' => $inlineRegistration, 'modal-body px-4 px-lg-5' => !$inlineRegistration])>
                 <div class="mb-4 text-center">
                     <img width="200" alt="" class="dark-support ba-platform-logo"
                          src="{{ getStorageImages(path: $web_config['web_logo'], type: 'logo') }}">
@@ -21,7 +26,7 @@
                 <form action="{{ route('customer.auth.sign-up') }}" method="POST" id="customer-form"
                       enctype="multipart/form-data">
                     @csrf
-                    <div class="custom-scrollbar height-45vh">
+                    <div @class(["custom-scrollbar height-45vh" => !$inlineRegistration])>
                         <div class="row">
                             <div class="col-sm-6">
                                 <div class="form-group mb-4">
@@ -151,8 +156,10 @@
                     @endif
                 </div>
             </div>
+@unless($inlineRegistration)
         </div>
     </div>
+@endunless
 </div>
 
 @push('script')
