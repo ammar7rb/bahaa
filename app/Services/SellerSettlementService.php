@@ -35,6 +35,10 @@ class SellerSettlementService
             // delivered timestamp, so the transition time is the current time.
             $deliveredAt = now()->copy();
             $dueAt = $manualDueAt?->copy() ?? $this->calculateDueAt($deliveredAt);
+            if ($order->shipping_fulfillment_mode === 'seller_shipping' && (float)$order->shipping_seller_entitlement > 0
+                && $order->shipping_settlement_due_at && $order->shipping_settlement_due_at->gt($dueAt)) {
+                $dueAt = $order->shipping_settlement_due_at->copy();
+            }
             $timezone = $this->timezone();
             $preDueDays = $this->preDueAlertDays();
             $settlementPayload = [
@@ -173,15 +177,28 @@ class SellerSettlementService
         return DB::transaction(function () use ($settlement, $now) {
             $identity = SellerSettlement::find($settlement instanceof SellerSettlement ? $settlement->id : $settlement);
             if (!$identity) return false;
+            Order::whereKey($identity->order_id)->lockForUpdate()->firstOrFail();
             $this->ledger->lockSellerFinancialState((int) $identity->seller_id);
             $model = SellerSettlement::query()->lockForUpdate()->find($identity->id);
-            if (! $model || ! in_array($model->status, [SellerSettlement::STATUS_HELD, SellerSettlement::STATUS_DISPUTED], true)) {
+            if (! $model || $model->status !== SellerSettlement::STATUS_HELD) {
                 return false;
             }
-            if ($model->due_at && $model->due_at->isFuture()) {
+            if (!$model->due_at || $model->due_at->gt($now)) {
                 return false;
             }
 
+            if (Schema::hasTable('order_vendor_pricings') && \App\Models\OrderVendorPricing::where('order_id', $model->order_id)->exists()) {
+                $order = Order::findOrFail($model->order_id);
+                $blocked = in_array($order->order_status, ['returned','failed','canceled'], true)
+                    || (Schema::hasTable('refund_requests') && RefundRequest::where('order_id', $order->id)->whereNotIn('status', ['rejected','denied'])->lockForUpdate()->get(['id'])->isNotEmpty()
+                        && data_get($model->metadata, 'review_resolution.fingerprint') !== $this->reviewFingerprint($order));
+                if ($blocked) {
+                    $this->dispute($model, 'Return/cancellation requires administrative financial review.');
+                    return false;
+                }
+                if ($order->shipping_settlement_due_at && $order->shipping_settlement_due_at->gt($now)
+                    && $order->shipping_fulfillment_mode === 'seller_shipping' && (float)$order->shipping_seller_entitlement > 0) return false;
+            }
             $this->ledger->post(
                 sellerId: (int) $model->seller_id,
                 eventType: 'seller_order_settlement_release',
@@ -194,6 +211,7 @@ class SellerSettlementService
                 referenceId: (int) $model->id,
             );
             $model->update(['status' => SellerSettlement::STATUS_RELEASED, 'released_at' => $now]);
+            $this->audit($model, 'settlement_released');
             $this->notifySeller($model, 'settlement_released');
             return true;
         });
@@ -228,6 +246,7 @@ class SellerSettlementService
                 'reviewed_by_admin_id' => $adminId,
                 'review_note' => $reason,
             ]);
+            $this->audit($model, 'settlement_reversed', ['reason' => $reason], $adminId);
             $this->notifySeller($model, 'settlement_reversed');
             return true;
         });
@@ -243,7 +262,9 @@ class SellerSettlementService
             if (! $model || $model->status !== SellerSettlement::STATUS_HELD) {
                 return false;
             }
-            $model->update(['status' => SellerSettlement::STATUS_DISPUTED, 'review_note' => $reason]);
+            $model->update(['status' => SellerSettlement::STATUS_DISPUTED, 'review_note' => $reason,
+                'metadata' => array_merge($model->metadata ?? [], ['financial_revision' => (int)data_get($model->metadata, 'financial_revision', 0) + 1])]);
+            $this->audit($model, 'settlement_disputed', ['reason' => $reason]);
             return true;
         });
     }
@@ -333,6 +354,41 @@ class SellerSettlementService
             ]);
             return $model->fresh();
         });
+    }
+
+    public function resumeAfterReview(int $id, string $reason, int $adminId): bool
+    {
+        if ($adminId <= 0 || trim($reason) === '') throw new DomainException('administrative_review_reason_required');
+        return DB::transaction(function () use ($id, $reason, $adminId) {
+            $identity = SellerSettlement::findOrFail($id);
+            Order::whereKey($identity->order_id)->lockForUpdate()->firstOrFail();
+            $this->ledger->lockSellerFinancialState((int)$identity->seller_id);
+            $model = SellerSettlement::lockForUpdate()->findOrFail($id);
+            if ($model->status !== SellerSettlement::STATUS_DISPUTED) return false;
+            $order = Order::findOrFail($model->order_id);
+            if ($order->order_status !== 'delivered') throw new DomainException('Only a delivered order can resume settlement after review.');
+            $model->update(['status' => SellerSettlement::STATUS_HELD, 'reviewed_by_admin_id' => $adminId, 'review_note' => $reason,
+                'metadata' => array_merge($model->metadata ?? [], [
+                    'financial_revision' => (int)data_get($model->metadata, 'financial_revision', 0) + 1,
+                    'review_resolution' => ['fingerprint' => $this->reviewFingerprint($order), 'admin_id' => $adminId, 'reason' => $reason, 'at' => now()->toIso8601String()],
+                ])]);
+            $this->audit($model, 'settlement_review_resumed', ['reason' => $reason], $adminId);
+            return true;
+        });
+    }
+
+    private function reviewFingerprint(Order $order): string
+    {
+        $returns = Schema::hasTable('refund_requests') ? RefundRequest::where('order_id', $order->id)
+            ->whereNotIn('status', ['rejected','denied'])->orderBy('id')->lockForUpdate()->get(['id','status','amount'])->toArray() : [];
+        return hash('sha256', json_encode([$order->order_status, $returns], JSON_THROW_ON_ERROR));
+    }
+
+    private function audit(SellerSettlement $settlement, string $event, array $data = [], ?int $adminId = null): void
+    {
+        if ($order = Order::find($settlement->order_id)) app(OrderFinancialAuditService::class)->record(
+            $order, $event, 'seller_settlements', $settlement->id,
+            $data + ['operation_key' => in_array($event, ['settlement_disputed','settlement_review_resumed'], true) ? (string)data_get($settlement->metadata, 'financial_revision', 0) : '', 'settlement_amount' => $settlement->amount, 'settlement_status' => $settlement->status, 'due_at' => $settlement->due_at?->toIso8601String()], $adminId);
     }
 
     public function calculateDueAt(Carbon $deliveredAt): Carbon

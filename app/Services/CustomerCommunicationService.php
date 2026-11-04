@@ -25,6 +25,36 @@ class CustomerCommunicationService
             ->with('latestConversation')->latest('updated_at')->latest('id');
     }
 
+    public function unreadNotifications(int $customerId)
+    {
+        return $this->notifications($customerId)->whereDoesntHave('notificationSeenBy',
+            fn ($query) => $query->where('user_id', $customerId));
+    }
+
+    public function unreadMessageCount(int $customerId): int
+    {
+        $ticketIds = $this->unreadNotifications($customerId)->where('customer_id', $customerId)
+            ->where('customer_event_key', 'like', 'support-reply-%')->pluck('customer_event_key')
+            ->map(fn ($key) => preg_match('/^support-reply-(\d+)-\d+$/', $key, $match) ? (int) $match[1] : null)
+            ->filter()->unique()->values();
+        return $this->messages($customerId)->whereIn('id', $ticketIds)
+            ->whereHas('conversations', fn ($query) => $query->whereNotNull('admin_id')->where('admin_id', '>', 0))->count();
+    }
+
+    public function markSupportRepliesRead(SupportTicket $ticket, int $customerId): void
+    {
+        if ((int) $ticket->customer_id !== $customerId || $ticket->hidden_from_subject_at) return;
+        // Only acknowledge replies actually loaded for this customer; a concurrent reply stays unread.
+        $keys = $ticket->conversations->filter(fn ($reply) => $reply->admin_id)
+            ->map(fn ($reply) => 'support-reply-'.$ticket->id.'-'.$reply->id);
+        $ids = $this->notifications($customerId)->where('customer_id', $customerId)
+            ->whereIn('customer_event_key', $keys)->pluck('id');
+        foreach ($ids as $id) {
+            \App\Models\NotificationSeen::updateOrInsert(['user_id' => $customerId, 'notification_id' => $id],
+                ['created_at' => now(), 'updated_at' => now()]);
+        }
+    }
+
     public function notificationItem(Notification $notice, int $customerId): array
     {
         $target = null;
