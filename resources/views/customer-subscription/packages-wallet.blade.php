@@ -23,11 +23,13 @@
     </section>
     @endif
     @if($subscription['legacy_open_payment'] ?? null)<p class="monthly-notice">توجد عملية سابقة محفوظة في السجل. لا تُخصم تلقائيًا؛ تابع حالتها مع الإدارة.</p>@endif
-    @if($subscription['active'])<p class="monthly-notice">الترقية بسعر الباقة الأعلى كاملًا، مع الحفاظ على تاريخ انتهاء الاشتراك الحالي.</p>@endif
+    @if($subscription['active'])<p class="monthly-notice">يبدأ التجديد أو تغيير الباقة فترة جديدة مدتها 30 يومًا فورًا.</p>@endif
     <section id="monthly-plans" class="package-plans" aria-labelledby="plans-title"><h2 id="plans-title">{{ $subscription['active'] ? 'باقتك والترقية' : 'اختر باقتك' }}</h2><div class="package-grid">
     @forelse($packages as $package)
         @php($current=$subscription['active'] && $subscription['package_id']===$package->id)
-        @php($eligible=!$subscription['active'] || (!$current && $package->purchase_limit>$subscription['allowance']['base_limit']))
+        @php($higher = $subscription['active'] && $package->purchase_limit > $subscription['allowance']['base_limit'])
+        @php($top = $subscription['active'] && $packages->max('purchase_limit') <= $subscription['allowance']['base_limit'])
+        @php($eligible = !$subscription['active'] || $higher || $top)
         <article class="package-choice {{ $current ? 'package-active' : '' }}">
             <div class="package-card-top"><h3>{{ $current ? $subscription['package_name'] : $package->name }}</h3>@if($current)<span class="package-badge paid">الباقة الحالية</span>@endif</div>
             <p class="package-description">{{ $package->description }}</p><div class="package-price"><bdi>{{ $money($current ? $subscription['allowance']['package_price'] : $package->package_price) }}</bdi><span>ج.م</span></div><p class="package-price-label">سعر الباقة · الاشتراك الجديد 30 يومًا</p>
@@ -45,7 +47,7 @@
                 @else<p>لم تحدد الإدارة رسوم تجديد الحد بعد.</p>@endif
             @elseif($eligible)
                 <form method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>@csrf
-                    @include('customer-subscription.transaction-fields',['operation'=>'purchase','quoteToken'=>$package->quote_token,'quoteAmount'=>$package->package_price])<input type="hidden" name="package_id" value="{{ $package->id }}"><button class="monthly-button" type="submit" @disabled(!$purchase_wallet_enabled)>{{ $subscription['active'] ? 'ترقية من رصيد المحفظة' : 'اشتراك من رصيد المحفظة' }}</button></form>
+                    @include('customer-subscription.transaction-fields',['operation'=>'purchase','quoteToken'=>$package->quote_token,'quoteAmount'=>$package->package_price])<input type="hidden" name="package_id" value="{{ $package->id }}"><button class="monthly-button" type="submit" @disabled(!$purchase_wallet_enabled)>{{ $higher ? 'ترقية من رصيد المحفظة' : 'اشتراك من رصيد المحفظة' }}</button></form>
             @else<p class="package-card-state">باقة غير متاحة للترقية</p>@endif
         </article>
     @empty<p>لا توجد باقات متاحة حاليًا.</p>@endforelse

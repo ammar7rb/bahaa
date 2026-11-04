@@ -84,8 +84,13 @@ class CustomerPackageWalletService
             return ['kind'=>'renew_limit','amount'=>$package->renewal_price,'allowance'=>$restored,'base_limit'=>(float)$active->granted_allowance,'name'=>'تجديد حد '.$active->package_name,'package_id'=>$package->id,'offer_id'=>null];
         }
         if($input['operation']!=='purchase')throw new DomainException('معاملة باقة غير صالحة.');
-        if($active&&($active->package_id===$package->id||(float)$package->purchase_limit<=(float)$active->granted_allowance))throw new DomainException('اختر باقة أعلى للترقية، أو إجراء تجديد الحد لباقة الحالية.');
-        return ['kind'=>$renewing ? 'renew_package' : ($active ? 'upgrade' : 'activation'),'amount'=>$package->package_price,'allowance'=>$package->purchase_limit,'name'=>$package->name,'package_id'=>$package->id,'offer_id'=>null];
+        $renewing = $latest && (int) $latest->package_id === (int) $package->id;
+        $upgrading = $active && !$renewing && (float) $package->purchase_limit > (float) $active->granted_allowance;
+        if ($active && !$renewing && !$upgrading && $catalog->available()->reorder()
+            ->where('purchase_limit', '>', $active->granted_allowance)->exists()) {
+            throw new DomainException('اختر باقة أعلى للترقية.');
+        }
+        return ['kind'=>$renewing ? 'renew_package' : ($upgrading ? 'upgrade' : 'activation'),'amount'=>$package->package_price,'allowance'=>$package->purchase_limit,'name'=>$package->name,'package_id'=>$package->id,'offer_id'=>null];
     }
 
     private function apply(int $customerId,CustomerSubscriptionPayment $payment,?CustomerMonthlySubscription $active): CustomerMonthlySubscription
@@ -95,8 +100,8 @@ class CustomerPackageWalletService
             $active->limit_revision++;$active->save();return $active;
         }
         $start=now()->startOfSecond();
-        $end=$active && $payment->purchase_kind !== 'renew_package' ? $active->expires_at->copy() : $start->copy()->addDays(30);
-        // Upgrade replaces the entitlement; its end remains the original monthly expiry.
+        $end = $start->copy()->addDays(30);
+        // The new package replaces the current entitlement immediately.
         if($active)$active->update(['expires_at'=>$start]);
         return CustomerMonthlySubscription::create(['customer_id'=>$customerId,'payment_id'=>$payment->id,
             'package_id'=>$payment->package_id,'package_name'=>$payment->terms_name,'package_price'=>$payment->quoted_amount,
