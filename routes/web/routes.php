@@ -256,7 +256,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['customer', 'throttle:10,1,customer-support-report:'])->name('customer.support.report');
     Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show'])->name('customer.purchasing-limit');
     Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['customer', 'throttle:10,1,customer-profile-image:'])->name('customer.profile-image');
-    Route::get('account-photos/{kind}/{id}', \App\Http\Controllers\Customer\AccountPhotoController::class)
+    Route::get('account-photos/{kind}/{id}', [\App\Http\Controllers\Customer\AccountPhotoController::class, '__invoke'])
         ->whereIn('kind', ['customer', 'seller'])->whereNumber('id')->name('account-photos.show');
 
     Route::view('account-settings', 'customer-account.settings')->middleware('customer')->name('customer.settings');
@@ -295,9 +295,9 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('/', [PostPurchaseInvoiceController::class, 'index'])->name('index');
         Route::get('{invoice}', [PostPurchaseInvoiceController::class, 'show'])->name('show');
         Route::get('{invoice}/state', [PostPurchaseInvoiceController::class, 'state'])->name('state');
-        Route::post('{invoice}/pay-digital', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class)->name('pay-digital');
-        Route::post('{invoice}/use-insurance-balance', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class)->name('use-insurance-balance');
-        Route::post('{invoice}/offline-payment', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class)->name('offline-payment');
+        Route::post('{invoice}/pay-digital', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke'])->name('pay-digital');
+        Route::post('{invoice}/use-insurance-balance', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke'])->name('use-insurance-balance');
+        Route::post('{invoice}/offline-payment', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke'])->name('offline-payment');
     });
 
     Route::controller(UserLoyaltyController::class)->group(function () {
@@ -436,7 +436,7 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
     Route::controller(PaymentController::class)->group(function () {
         Route::post('web-payment-request', 'payment')->name('web-payment-request');
         Route::post('customer-add-fund-request', 'customer_add_to_fund_request')->name('add-fund-request');
-        Route::post('customer-order-edit-pay-amount', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class)->name('customer-order-edit-pay-amount');
+        Route::post('customer-order-edit-pay-amount', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke'])->name('customer-order-edit-pay-amount');
     });
 });
 

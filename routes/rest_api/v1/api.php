@@ -84,15 +84,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::controller(PostPurchaseInvoiceController::class)->group(function () {
             Route::get('/', 'index');
             Route::get('{invoice}', 'show');
-            Route::post('{invoice}/use-insurance-balance', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class);
+            Route::post('{invoice}/use-insurance-balance', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
         });
     });
 
     Route::group(['prefix' => 'customer/order-insurance', 'middleware' => 'auth:api'], function () {
         Route::controller(PostPurchaseInvoiceController::class)->group(function () {
             Route::get('{order}', 'mobileClaim');
-            Route::post('{order}/pay', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class);
-            Route::post('{order}/offline', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class);
+            Route::post('{order}/pay', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
+            Route::post('{order}/offline', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
             Route::post('{order}/support', 'mobileSupport');
             Route::post('{order}/decline', 'mobileDecline');
         });
@@ -441,10 +441,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
 
     Route::group(['prefix' => 'edit-order', 'middleware' => 'apiGuestCheck'], function () {
         Route::controller(OrderEditController::class)->group(function () {
-            Route::post('due-payment-by-offline-payment', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class);
-            Route::post('due-payment-by-wallet', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class);
-            Route::post('due-payment-by-cod', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class);
-            Route::post('due-payment-by-digital-payment', \App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class);
+            Route::post('due-payment-by-offline-payment', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
+            Route::post('due-payment-by-wallet', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
+            Route::post('due-payment-by-cod', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
+            Route::post('due-payment-by-digital-payment', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
         });
     });
 
