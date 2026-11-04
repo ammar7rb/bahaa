@@ -58,97 +58,567 @@
 
 ## جميع الحالات غير الناجحة ورسالة كل منها
 
-### AccountActivationCenterContractTest::test_stage_n1_has_one_center_for_customers_and_sellers_with_private_evidence  ```text Failed asserting that '<?php\n ``` 
-### AccountActivationCenterContractTest::test_customer_and_seller_activation_payloads_are_wired_to_the_unified_case  ```text Failed asserting that '<?php\n ``` 
-### AccountActivationCenterServiceTest::test_required_evidence_blocks_then_allows_customer_activation_and_hides_conversation  ```text Failed asserting that 0 is identical to 1. ``` 
-### AdminOrderGatePhaseThreeTest::test_admin_assignment_saves_seller_insurance_shipping_and_audited_snapshot  ```text TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215 ``` 
-### AdminOrderGatePhaseThreeTest::test_pending_review_is_hidden_and_unpaid_order_cannot_be_released  ```text TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215 ``` 
-### AdminOrderGatePhaseThreeTest::test_release_requires_both_decisions_and_then_sends_only_after_admin_audit  ```text TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215 ``` 
-### AdminOrderGatePhaseThreeTest::test_open_investigation_freezes_flow_and_is_idempotent  ```text TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215 ``` 
-### AdminOrderGatePhaseThreeTest::test_investigation_messages_go_only_through_admin_support_channels  ```text TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215 ``` 
-### AdminOrderGatePhaseThreeTest::test_final_fake_order_decision_schedules_purchase_refund_and_closes_investigation  ```text TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215 ``` 
-### AdminOrderGatePhaseThreeTest::test_phase_three_routes_migration_dashboard_and_feature_are_present  ```text Failed asserting that '@extends('layouts.vendor.app')\n ``` 
-### AdminWorkspaceTest::test_phone_formats_link_to_the_exact_customer_and_vendor  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such column: c.admin_id (Connection: sqlite, Database: :memory:, SQL: select * from (select * from (select 'contact' as kind, id, name as sender, COALESCE(sender_type, CASE WHEN subject LIKE '%تاجر%' OR EXISTS (SELECT 1 FROM sellers s WHERE s.email = contacts.email AND s.email <> '') THEN 'vendor' ELSE 'customer' END) as audience, subject, COALESCE((SELECT body FROM contact_conversation_messages m WHERE m.contact_id=contact … ``` 
-### AdminWorkspaceTest::test_inbox_and_center_share_counts_and_exclude_activation_tickets  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such column: c.admin_id (Connection: sqlite, Database: :memory:, SQL: select count(*) as aggregate from (select * from (select 'contact' as kind, id, name as sender, COALESCE(sender_type, CASE WHEN subject LIKE '%تاجر%' OR EXISTS (SELECT 1 FROM sellers s WHERE s.email = contacts.email AND s.email <> '') THEN 'vendor' ELSE 'customer' END) as audience, subject, COALESCE((SELECT body FROM contact_conversation_messages m WHERE  … ``` 
-### AdminWorkspaceTest::test_search_finds_message_bodies_and_correct_conversation_routes  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such column: c.admin_id (Connection: sqlite, Database: :memory:, SQL: select * from (select * from (select 'contact' as kind, id, name as sender, COALESCE(sender_type, CASE WHEN subject LIKE '%تاجر%' OR EXISTS (SELECT 1 FROM sellers s WHERE s.email = contacts.email AND s.email <> '') THEN 'vendor' ELSE 'customer' END) as audience, subject, COALESCE((SELECT body FROM contact_conversation_messages m WHERE m.contact_id=contact … ``` 
-### AdminWorkspaceTest::test_full_names_references_and_new_pages_respect_permissions  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such column: c.admin_id (Connection: sqlite, Database: :memory:, SQL: select * from (select * from (select 'contact' as kind, id, name as sender, COALESCE(sender_type, CASE WHEN subject LIKE '%تاجر%' OR EXISTS (SELECT 1 FROM sellers s WHERE s.email = contacts.email AND s.email <> '') THEN 'vendor' ELSE 'customer' END) as audience, subject, COALESCE((SELECT body FROM contact_conversation_messages m WHERE m.contact_id=contact … ``` 
-### AdminWorkspaceTest::test_totals_and_pending_reviews_are_distinct_and_blade_renders  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such column: c.admin_id (Connection: sqlite, Database: :memory:, SQL: select sum("unread") as aggregate from (select * from (select 'contact' as kind, id, name as sender, COALESCE(sender_type, CASE WHEN subject LIKE '%تاجر%' OR EXISTS (SELECT 1 FROM sellers s WHERE s.email = contacts.email AND s.email <> '') THEN 'vendor' ELSE 'customer' END) as audience, subject, COALESCE((SELECT body FROM contact_conversation_messages m W … ``` 
-### ApprovedVendorEarningTest::test_only_approved_procurement_tax_and_vendor_shipping_are_held_once  ```text Failed asserting that 300.0 is identical to 185.0. ``` 
-### CustomerEmptyCartTest::test_a_signed_in_customer_can_open_an_empty_cart_without_being_sent_to_login  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: business_settings (Connection: sqlite, Database: :memory:, SQL: select * from "business_settings") ``` 
-### CustomerEmptyCartTest::test_a_guest_can_view_an_empty_cart_when_guest_checkout_is_disabled  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: business_settings (Connection: sqlite, Database: :memory:, SQL: select * from "business_settings") ``` 
-### CustomerInsuranceBalanceServiceTest::test_verified_insurance_deposit_is_idempotent_and_does_not_credit_purchase_wallet  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: customer_legacy_payment_receipts (Connection: sqlite, Database: :memory:, SQL: insert or ignore into "customer_legacy_payment_receipts" ("reference", "customer_id", "amount", "currency_code", "snapshot", "received_at") values (insurance-deposit-deposit-123, 1, 75, USD, {"payment_id":"deposit-123","payment_method":"stripe","base_amount":75}, 2026-11-04 19:41:58)) ``` 
-### CustomerInsuranceBalanceServiceTest::test_insurance_applies_only_above_the_admin_threshold  ```text Failed asserting that false is true. ``` 
-### CustomerInsuranceBalanceServiceTest::test_zero_threshold_means_every_positive_order_and_never_disables_insurance  ```text Failed asserting that false is true. ``` 
-### CustomerInsuranceBalanceServiceTest::test_percentage_and_fixed_customer_insurance_keep_the_same_threshold_contract  ```text Failed asserting that 0.0 is identical to 75.0. ``` 
-### CustomerInsuranceBalanceServiceTest::test_paid_insurance_remains_held_until_maturity_then_becomes_insurance_only_balance  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 table users has no column named canonical_phone (Connection: sqlite, Database: :memory:, SQL: insert into "users" ("name", "email", "phone", "canonical_phone", "wallet_balance", "updated_at", "created_at") values (Insurance Test Customer, insurance@example.com, 01000000000, 01000000000, 500, 2026-08-10 10:00:00, 2026-08-10 10:00:00)) ``` 
-### CustomerInsuranceBalanceServiceTest::test_matured_balance_cannot_pay_products_and_can_pay_insurance_idempotently  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 table users has no column named canonical_phone (Connection: sqlite, Database: :memory:, SQL: insert into "users" ("name", "email", "phone", "canonical_phone", "wallet_balance", "updated_at", "created_at") values (Insurance Test Customer, insurance@example.com, 01000000000, 01000000000, 500, 2026-08-10 10:00:00, 2026-08-10 10:00:00)) ``` 
-### CustomerPostPurchaseInsuranceFlowTest::test_purchase_payment_and_insurance_are_two_distinct_steps_and_references  ```text Failed asserting that null is identical to 'purchase_payment_pending'. ``` 
-### CustomerPostPurchaseInsuranceFlowTest::test_insurance_wallet_payment_moves_order_to_admin_review_without_touching_purchase_wallet  ```text TypeError: App\Services\CustomerPostPurchaseInsuranceService::payFromInsuranceBalance(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 147 ``` 
-### CustomerPostPurchaseInsuranceFlowTest::test_offline_evidence_can_be_rejected_and_resubmitted_without_releasing_order  ```text TypeError: App\Services\CustomerPostPurchaseInsuranceService::submitOfflinePayment(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 162 ``` 
-### CustomerPostPurchaseInsuranceFlowTest::test_payment_method_cannot_change_while_offline_evidence_is_under_review  ```text TypeError: App\Services\CustomerPostPurchaseInsuranceService::submitOfflinePayment(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 176 ``` 
-### CustomerPostPurchaseInsuranceFlowTest::test_support_ticket_is_linked_once_to_the_insurance_claim  ```text TypeError: App\Services\CustomerPostPurchaseInsuranceService::openSupportTicket(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 195 ``` 
-### CustomerPostPurchaseInsuranceFlowTest::test_decline_schedules_purchase_refund_then_credits_purchase_wallet_once  ```text TypeError: App\Services\CustomerPostPurchaseInsuranceService::decline(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 210 ``` 
-### CustomerPostPurchaseInsuranceFlowTest::test_paid_insurance_cannot_be_declined  ```text TypeError: App\Services\CustomerPostPurchaseInsuranceService::markPaid(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 227 ``` 
-### HomepageSectionBuilderPhaseSixTest::test_both_public_templates_and_theme_activation_use_the_builder_contract  ```text Failed asserting that '<?php\n ``` 
-### IdentityAndSupportBatchTest::test_customer_activation_ticket_is_created_once_and_admin_can_approve_it  ```text ErrorException: Attempt to read property "id" on null ``` 
-### IdentityAndSupportBatchTest::test_vendor_repository_can_find_the_visible_m_reference  ```text Failed asserting that two strings are identical. ``` 
-### InsuranceRulesAndIncentivesTest::test_welcome_credit_and_premium_discount_are_separate_idempotent_records  ```text Failed asserting that 0.0 is identical to 50.0. ``` 
-### InsuranceRulesAndIncentivesTest::test_selected_scope_does_not_insure_new_customers_until_they_are_included  ```text Failed asserting that false is true. ``` 
-### InsuranceRulesAndIncentivesTest::test_saving_one_insurance_menu_does_not_change_the_other  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: post_purchase_invoices (Connection: sqlite, Database: :memory:, SQL: select * from "post_purchase_invoices" where "status" = pending and "tax_amount" > 0 and "id" is not null order by "id" asc limit 100) ``` 
-### InsuranceRulesAndIncentivesTest::test_created_order_keeps_rule_and_discount_snapshots_after_admin_changes  ```text DomainException: customer_security_deposits_retired ``` 
-### InsuranceWalletSeparationTest::test_purchase_wallet_and_insurance_wallet_policies_are_one_way  ```text Failed asserting that two arrays are identical. ``` 
-### InsuranceWalletSeparationTest::test_customer_hold_partial_release_confiscation_and_reversal_are_audited_and_idempotent  ```text DomainException: تم إيقاف تأمين العملاء. تتم مطابقة المبالغ القديمة من الأرشيف. ``` 
-### InsuranceWalletSeparationTest::test_customer_paid_insurance_record_can_be_partially_confiscated_before_maturity_without_double_debit  ```text DomainException: تم إيقاف تأمين العملاء. تتم مطابقة المبالغ القديمة من الأرشيف. ``` 
-### InsuranceWalletSeparationTest::test_released_customer_insurance_record_debits_and_reverses_the_insurance_wallet_exactly_once  ```text DomainException: تم إيقاف تأمين العملاء. تتم مطابقة المبالغ القديمة من الأرشيف. ``` 
-### OfflineSecondStageTest::test_submitted_offline_order_gets_one_second_invoice_without_confirming_first_payment  ```text Failed asserting that actual size 0 matches expected size 1. ``` 
-### OperationsCatalogTest::test_both_public_templates_and_theme_activation_use_the_builder_contract  ```text Failed asserting that '<?php\n ``` 
-### OperationsCatalogTest::test_integrated_blade_views_compile_without_php_syntax_errors  ```text ErrorException: file_get_contents(/home/sigma-eg/git/sigma-release-qa.LaQbDf/resources/themes/theme_sigma_care/theme-views/home.blade.php): Failed to open stream: No such file or directory ``` 
-### OrderCommercePhaseZeroTest::test_customer_insurance_contract_separates_purchase_and_insurance_values  ```text Failed asserting that false is true. ``` 
-### OrderCommercePhaseZeroTest::test_dashboard_contains_fixed_shortcuts_for_the_merged_admin_centers  ```text Failed asserting that '@php\n ``` 
-### OrderPaymentSummaryTest::test_purchase_paid_does_not_hide_unpaid_insurance_and_tax  ```text Failed asserting that false is true. ``` 
-### OrderPaymentSummaryTest::test_submitted_proof_is_shown_as_under_review_not_as_paid  ```text Failed asserting that false is true. ``` 
-### OrderPaymentSummaryTest::test_insurance_balance_payment_does_not_mark_remaining_tax_paid  ```text Failed asserting that null is identical to 'payment_stage_paid'. ``` 
-### OrderPaymentSummaryTest::test_fully_paid_second_invoice_clears_warning  ```text Failed asserting that null is identical to 'payment_stage_paid'. ``` 
-### OrderPaymentSummaryTest::test_second_invoice_not_yet_calculated_is_not_presented_as_complete  ```text Failed asserting that false is true. ``` 
-### OrderShippingProofServiceTest::test_delivery_upload_completes_without_intermediate_proofs_or_admin_approval  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: seller_order_insurances (Connection: sqlite, Database: :memory:, SQL: select * from "seller_order_insurances" where "seller_order_insurances"."order_id" = 1 and "seller_order_insurances"."order_id" is not null limit 1) ``` 
-### OrderShippingProofServiceTest::test_mobile_proof_uses_request_seller_without_web_login_and_keeps_private_history  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: seller_order_insurances (Connection: sqlite, Database: :memory:, SQL: select * from "seller_order_insurances" where "seller_order_insurances"."order_id" = 1 and "seller_order_insurances"."order_id" is not null limit 1) ``` 
-### OrderShippingProofServiceTest::test_completion_failure_rolls_back_proof_status_and_file  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: seller_order_insurances (Connection: sqlite, Database: :memory:, SQL: select * from "seller_order_insurances" where "seller_order_insurances"."order_id" = 1 and "seller_order_insurances"."order_id" is not null limit 1) ``` 
-### OrderShippingProofServiceTest::test_seller_uploads_private_proofs_in_order_and_admin_approves_delivery  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: seller_order_insurances (Connection: sqlite, Database: :memory:, SQL: select * from "seller_order_insurances" where "seller_order_insurances"."order_id" = 1 and "seller_order_insurances"."order_id" is not null limit 1) ``` 
-### PaymentReviewWorkspaceTest::test_notifications_and_old_links_target_unified_deposit  ```text BadMethodCallException: Method Illuminate\View\View::getTargetUrl does not exist. ``` 
-### PaymentReviewWorkspaceTest::test_drawer_and_filters_render_arabic_without_exposing_storage_paths  ```text Failed asserting that '<div class="content container-fluid">\n ``` 
-### PaymentReviewWorkspaceTest::test_settings_show_only_offline_methods_and_respect_management_permissions  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: addon_settings (Connection: sqlite, Database: :memory:, SQL: select * from "addon_settings" where "settings_type" in (payment_config) and "is_active" = 1 and "key_name" in (ssl_commerz, paypal, stripe, razor_pay, paystack, senang_pay, paymob_accept, flutterwave, paytm, paytabs, liqpay, mercadopago, bkash)) ``` 
-### PostPurchaseInvoicePayabilityTest::test_second_invoice_is_payable_after_first_payment_proof_is_submitted  ```text Failed asserting that false is true. ``` 
-### SellerActivationRegistrationApiTest::test_registration_activation_api_returns_banner_ticket_messages_and_accepts_seller_reply  ```text Failed asserting that false is true. ``` 
-### SellerActivationServiceTest::test_registration_ticket_is_created_once_with_the_required_automatic_message  ```text ErrorException: Attempt to read property "id" on null ``` 
-### SellerCommerceRegressionTest::test_product_quota_guard_rejects_a_seller_with_pending_activation  ```text Expected DomainException was not thrown. ``` 
-### SellerMobileSupportConversationTest::test_device_can_resume_its_own_ticket_without_login_and_creation_is_idempotent  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 table contacts has no column named sender_type (Connection: sqlite, Database: :memory:, SQL: insert into "contacts" ("mobile_support_token_hash", "name", "email", "mobile_number", "message", "sender_type", "subject", "seen", "updated_at", "created_at") values (ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb, Seller, test@example.com, +201000000000, Reset my password, vendor, طلب إعادة تعيين كلمة المرور - تاجر, … ``` 
-### SellerMobileSupportConversationTest::test_another_device_cannot_read_ticket_by_knowing_email  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 table contacts has no column named sender_type (Connection: sqlite, Database: :memory:, SQL: insert into "contacts" ("mobile_support_token_hash", "name", "email", "mobile_number", "message", "sender_type", "subject", "seen", "updated_at", "created_at") values (ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb, Seller, test@example.com, 12345, Help, vendor, طلب إعادة تعيين كلمة المرور - تاجر, 0, 2026-11-04 19:42: … ``` 
-### SellerProductApiPolicyGuardTest::test_legacy_add_and_update_apis_reject_fewer_than_five_distinct_images  ```text Failed asserting that 200 is identical to 422. ``` 
-### SellerProductApiPolicyGuardTest::test_current_add_api_rejects_fewer_than_five_distinct_images  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: system_tax_setups (Connection: sqlite, Database: :memory:, SQL: select * from "system_tax_setups" where "is_active" = 1 and "tax_payer" = vendor and "is_default" = 1 limit 1) ``` 
-### SellerProductApiPolicyGuardTest::test_current_update_api_rejects_fewer_than_five_distinct_images  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: system_tax_setups (Connection: sqlite, Database: :memory:, SQL: select * from "system_tax_setups" where "is_active" = 1 and "tax_payer" = vendor and "is_default" = 1 limit 1) ``` 
-### SellerRegistrationRequestTest::test_first_registration_stage_requires_only_email_phone_and_password  ```text Failed asserting that false is true. ``` 
-### SellerRegistrationVerificationModeTest::test_default_mode_uses_support_ticket_without_otp  ```text Failed asserting that false is true. ``` 
-### SellerRegistrationVerificationModeTest::test_each_configured_mode_exposes_its_required_verification_steps  ```text Failed asserting that false is true. ``` 
-### SellerRestrictedOrdersPhaseFourTest::test_routes_and_application_have_a_dedicated_pending_insurance_inbox  ```text ErrorException: file_get_contents(E:/project/vendor-app-main/lib/utill/app_constants.dart): Failed to open stream: No such file or directory ``` 
-### SellerRestrictedOrdersPhaseFourTest::test_company_shipping_statuses_are_protected_in_web_api_and_application  ```text ErrorException: file_get_contents(E:/project/vendor-app-main/lib/features/order_details/widgets/seller_shipping_assignment_widget.dart): Failed to open stream: No such file or directory ``` 
-### StageN2N3ContractTest::test_n2_dashboard_uses_one_server_contract_for_web_and_vendor_app  ```text Could not read ../Vendor app/lib/utill/app_constants.dart ``` 
-### StageN2N3ContractTest::test_n3_ordinary_product_creation_has_no_package_or_insurance_gate  ```text Failed asserting that '<?php\n ``` 
-### StageN2N3ContractTest::test_n3_product_lifecycle_and_optional_measurement_contract_is_server_enforced  ```text Failed asserting that '<?php\n ``` 
-### StageN2N3ContractTest::test_n3_admin_review_decision_is_audited_and_reason_protected  ```text Failed asserting that '@extends('layouts.admin.app')\n ``` 
-### StageN4PostPurchaseInvoiceContractTest::test_second_invoice_has_an_immutable_tax_and_insurance_contract  ```text Failed asserting that '<?php\n ``` 
-### StageN4PostPurchaseInvoiceContractTest::test_first_payment_excludes_tax_and_the_seller_is_gated_until_admin_release  ```text Failed asserting that '<?php\n ``` 
-### StageN4PostPurchaseInvoiceContractTest::test_web_api_admin_and_customer_app_are_wired_to_the_same_invoice  ```text Could not read user-app-main/lib/features/order_insurance/screens/customer_order_insurance_screen.dart ``` 
-### StageN5N6ShippingRefundContractTest::test_shipping_settlement_and_private_proof_are_connected_to_all_channels  ```text Could not resolve application path ../Vendor app/lib/features/order_details/domain/repositories/order_details_repository.dart ``` 
-### StageN5N6ShippingRefundContractTest::test_customer_app_uses_structured_text_address_and_insurance_notice  ```text Could not resolve application path ../user-app/lib/features/address/domain/models/address_model.dart ``` 
-### StageN5N6ShippingRefundContractTest::test_authentication_captcha_is_removed_from_platform_and_apps  ```text Could not resolve application path ../user-app/lib ``` 
-### StageN7ReleaseReadinessContractTest::test_mobile_and_web_contracts_hide_order_data_until_allowed_and_expose_required_actions  ```text Could not read vendor-app-main/lib/utill/app_constants.dart ``` 
-### StageN7ReleaseReadinessContractTest::test_release_tooling_and_captcha_shutdown_are_ready_for_manual_acceptance  ```text Could not read scripts/sync-runtime-merge-to-xampp.ps1 ``` 
-### StageSevenSupportAndActivationTest::test_activation_and_support_printing_routes_are_registered  ```text Failed asserting that false is true. ``` 
-### StageSevenSupportAndActivationTest::test_customer_inbox_is_backed_by_administration_support_tickets  ```text ErrorException: file_get_contents(E:/project/user-app-main/lib/features/chat/screens/inbox_screen.dart): Failed to open stream: No such file or directory ``` 
-### StageSevenSupportAndActivationTest::test_activation_conversation_has_attachments_printing_and_dashboard_shortcut  ```text Failed asserting that '@extends('layouts.admin.app')\n ``` 
-### VendorOrderPhaseTwoTest::test_seller_cannot_cancel_even_with_override_reason  ```text Failed asserting that exception of type "DomainException" is thrown. ``` 
-### VendorOrderPhaseTwoTest::test_legacy_vendor_payment_mutation_is_denied_before_controller  ```text Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: seller_order_insurances (Connection: sqlite, Database: :memory:, SQL: select * from "seller_order_insurances" where "seller_order_insurances"."order_id" = 1 and "seller_order_insurances"."order_id" is not null limit 1) ``` 
-### CriticalBatchConfigurationTest::test_customer_purchase_packages_are_legacy_and_cannot_gate_or_debit_checkout  ```text Error: Call to undefined method App\Services\CustomerPurchaseLimitService::isEnabled() ``` 
-### CriticalBatchConfigurationTest::test_customer_purchase_package_routes_are_not_registered  ```text Failed asserting that true is false. ``` 
-### ReleaseApprovalBatchTest::test_legacy_release_data_is_audited_applied_idempotently_and_rolled_back  ```text Failed asserting that 0 is identical to 1. ``` 
-### ReleaseApprovalBatchTest::test_non_strict_release_readiness_can_report_local_only_warnings  ```text { ``` 
+### AccountActivationCenterContractTest::test_stage_n1_has_one_center_for_customers_and_sellers_with_private_evidence
+
+```text
+Failed asserting that '<?php\n
+```
+
+### AccountActivationCenterContractTest::test_customer_and_seller_activation_payloads_are_wired_to_the_unified_case
+
+```text
+Failed asserting that '<?php\n
+```
+
+### AccountActivationCenterServiceTest::test_required_evidence_blocks_then_allows_customer_activation_and_hides_conversation
+
+```text
+Failed asserting that 0 is identical to 1.
+```
+
+### AdminOrderGatePhaseThreeTest::test_admin_assignment_saves_seller_insurance_shipping_and_audited_snapshot
+
+```text
+TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215
+```
+
+### AdminOrderGatePhaseThreeTest::test_pending_review_is_hidden_and_unpaid_order_cannot_be_released
+
+```text
+TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215
+```
+
+### AdminOrderGatePhaseThreeTest::test_release_requires_both_decisions_and_then_sends_only_after_admin_audit
+
+```text
+TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215
+```
+
+### AdminOrderGatePhaseThreeTest::test_open_investigation_freezes_flow_and_is_idempotent
+
+```text
+TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215
+```
+
+### AdminOrderGatePhaseThreeTest::test_investigation_messages_go_only_through_admin_support_channels
+
+```text
+TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215
+```
+
+### AdminOrderGatePhaseThreeTest::test_final_fake_order_decision_schedules_purchase_refund_and_closes_investigation
+
+```text
+TypeError: App\Services\AdminOrderGateService::__construct(): Argument #1 ($shipping) must be of type App\Services\OrderShippingDecisionService, Mockery_2_App_Services_SellerOrderInsuranceService given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/AdminOrderGatePhaseThreeTest.php on line 215
+```
+
+### AdminOrderGatePhaseThreeTest::test_phase_three_routes_migration_dashboard_and_feature_are_present
+
+```text
+Failed asserting that '@extends('layouts.vendor.app')\n
+```
+
+### AdminWorkspaceTest::test_phone_formats_link_to_the_exact_customer_and_vendor
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such column: c.admin_id (Connection: sqlite, Database: :memory:, SQL: select * from (select * from (select 'contact' as kind, id, name as sender, COALESCE(sender_type, CASE WHEN subject LIKE '%تاجر%' OR EXISTS (SELECT 1 FROM sellers s WHERE s.email = contacts.email AND s.email <> '') THEN 'vendor' ELSE 'customer' END) as audience, subject, COALESCE((SELECT body FROM contact_conversation_messages m WHERE m.contact_id=contact …
+```
+
+### AdminWorkspaceTest::test_inbox_and_center_share_counts_and_exclude_activation_tickets
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such column: c.admin_id (Connection: sqlite, Database: :memory:, SQL: select count(*) as aggregate from (select * from (select 'contact' as kind, id, name as sender, COALESCE(sender_type, CASE WHEN subject LIKE '%تاجر%' OR EXISTS (SELECT 1 FROM sellers s WHERE s.email = contacts.email AND s.email <> '') THEN 'vendor' ELSE 'customer' END) as audience, subject, COALESCE((SELECT body FROM contact_conversation_messages m WHERE  …
+```
+
+### AdminWorkspaceTest::test_search_finds_message_bodies_and_correct_conversation_routes
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such column: c.admin_id (Connection: sqlite, Database: :memory:, SQL: select * from (select * from (select 'contact' as kind, id, name as sender, COALESCE(sender_type, CASE WHEN subject LIKE '%تاجر%' OR EXISTS (SELECT 1 FROM sellers s WHERE s.email = contacts.email AND s.email <> '') THEN 'vendor' ELSE 'customer' END) as audience, subject, COALESCE((SELECT body FROM contact_conversation_messages m WHERE m.contact_id=contact …
+```
+
+### AdminWorkspaceTest::test_full_names_references_and_new_pages_respect_permissions
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such column: c.admin_id (Connection: sqlite, Database: :memory:, SQL: select * from (select * from (select 'contact' as kind, id, name as sender, COALESCE(sender_type, CASE WHEN subject LIKE '%تاجر%' OR EXISTS (SELECT 1 FROM sellers s WHERE s.email = contacts.email AND s.email <> '') THEN 'vendor' ELSE 'customer' END) as audience, subject, COALESCE((SELECT body FROM contact_conversation_messages m WHERE m.contact_id=contact …
+```
+
+### AdminWorkspaceTest::test_totals_and_pending_reviews_are_distinct_and_blade_renders
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such column: c.admin_id (Connection: sqlite, Database: :memory:, SQL: select sum("unread") as aggregate from (select * from (select 'contact' as kind, id, name as sender, COALESCE(sender_type, CASE WHEN subject LIKE '%تاجر%' OR EXISTS (SELECT 1 FROM sellers s WHERE s.email = contacts.email AND s.email <> '') THEN 'vendor' ELSE 'customer' END) as audience, subject, COALESCE((SELECT body FROM contact_conversation_messages m W …
+```
+
+### ApprovedVendorEarningTest::test_only_approved_procurement_tax_and_vendor_shipping_are_held_once
+
+```text
+Failed asserting that 300.0 is identical to 185.0.
+```
+
+### CustomerEmptyCartTest::test_a_signed_in_customer_can_open_an_empty_cart_without_being_sent_to_login
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: business_settings (Connection: sqlite, Database: :memory:, SQL: select * from "business_settings")
+```
+
+### CustomerEmptyCartTest::test_a_guest_can_view_an_empty_cart_when_guest_checkout_is_disabled
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: business_settings (Connection: sqlite, Database: :memory:, SQL: select * from "business_settings")
+```
+
+### CustomerInsuranceBalanceServiceTest::test_verified_insurance_deposit_is_idempotent_and_does_not_credit_purchase_wallet
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: customer_legacy_payment_receipts (Connection: sqlite, Database: :memory:, SQL: insert or ignore into "customer_legacy_payment_receipts" ("reference", "customer_id", "amount", "currency_code", "snapshot", "received_at") values (insurance-deposit-deposit-123, 1, 75, USD, {"payment_id":"deposit-123","payment_method":"stripe","base_amount":75}, 2026-11-04 19:41:58))
+```
+
+### CustomerInsuranceBalanceServiceTest::test_insurance_applies_only_above_the_admin_threshold
+
+```text
+Failed asserting that false is true.
+```
+
+### CustomerInsuranceBalanceServiceTest::test_zero_threshold_means_every_positive_order_and_never_disables_insurance
+
+```text
+Failed asserting that false is true.
+```
+
+### CustomerInsuranceBalanceServiceTest::test_percentage_and_fixed_customer_insurance_keep_the_same_threshold_contract
+
+```text
+Failed asserting that 0.0 is identical to 75.0.
+```
+
+### CustomerInsuranceBalanceServiceTest::test_paid_insurance_remains_held_until_maturity_then_becomes_insurance_only_balance
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 table users has no column named canonical_phone (Connection: sqlite, Database: :memory:, SQL: insert into "users" ("name", "email", "phone", "canonical_phone", "wallet_balance", "updated_at", "created_at") values (Insurance Test Customer, insurance@example.com, 01000000000, 01000000000, 500, 2026-08-10 10:00:00, 2026-08-10 10:00:00))
+```
+
+### CustomerInsuranceBalanceServiceTest::test_matured_balance_cannot_pay_products_and_can_pay_insurance_idempotently
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 table users has no column named canonical_phone (Connection: sqlite, Database: :memory:, SQL: insert into "users" ("name", "email", "phone", "canonical_phone", "wallet_balance", "updated_at", "created_at") values (Insurance Test Customer, insurance@example.com, 01000000000, 01000000000, 500, 2026-08-10 10:00:00, 2026-08-10 10:00:00))
+```
+
+### CustomerPostPurchaseInsuranceFlowTest::test_purchase_payment_and_insurance_are_two_distinct_steps_and_references
+
+```text
+Failed asserting that null is identical to 'purchase_payment_pending'.
+```
+
+### CustomerPostPurchaseInsuranceFlowTest::test_insurance_wallet_payment_moves_order_to_admin_review_without_touching_purchase_wallet
+
+```text
+TypeError: App\Services\CustomerPostPurchaseInsuranceService::payFromInsuranceBalance(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 147
+```
+
+### CustomerPostPurchaseInsuranceFlowTest::test_offline_evidence_can_be_rejected_and_resubmitted_without_releasing_order
+
+```text
+TypeError: App\Services\CustomerPostPurchaseInsuranceService::submitOfflinePayment(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 162
+```
+
+### CustomerPostPurchaseInsuranceFlowTest::test_payment_method_cannot_change_while_offline_evidence_is_under_review
+
+```text
+TypeError: App\Services\CustomerPostPurchaseInsuranceService::submitOfflinePayment(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 176
+```
+
+### CustomerPostPurchaseInsuranceFlowTest::test_support_ticket_is_linked_once_to_the_insurance_claim
+
+```text
+TypeError: App\Services\CustomerPostPurchaseInsuranceService::openSupportTicket(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 195
+```
+
+### CustomerPostPurchaseInsuranceFlowTest::test_decline_schedules_purchase_refund_then_credits_purchase_wallet_once
+
+```text
+TypeError: App\Services\CustomerPostPurchaseInsuranceService::decline(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 210
+```
+
+### CustomerPostPurchaseInsuranceFlowTest::test_paid_insurance_cannot_be_declined
+
+```text
+TypeError: App\Services\CustomerPostPurchaseInsuranceService::markPaid(): Argument #1 ($insurance) must be of type App\Models\OrderInsurance, null given, called in /home/sigma-eg/git/sigma-release-qa.LaQbDf/tests/Unit/CustomerPostPurchaseInsuranceFlowTest.php on line 227
+```
+
+### HomepageSectionBuilderPhaseSixTest::test_both_public_templates_and_theme_activation_use_the_builder_contract
+
+```text
+Failed asserting that '<?php\n
+```
+
+### IdentityAndSupportBatchTest::test_customer_activation_ticket_is_created_once_and_admin_can_approve_it
+
+```text
+ErrorException: Attempt to read property "id" on null
+```
+
+### IdentityAndSupportBatchTest::test_vendor_repository_can_find_the_visible_m_reference
+
+```text
+Failed asserting that two strings are identical.
+```
+
+### InsuranceRulesAndIncentivesTest::test_welcome_credit_and_premium_discount_are_separate_idempotent_records
+
+```text
+Failed asserting that 0.0 is identical to 50.0.
+```
+
+### InsuranceRulesAndIncentivesTest::test_selected_scope_does_not_insure_new_customers_until_they_are_included
+
+```text
+Failed asserting that false is true.
+```
+
+### InsuranceRulesAndIncentivesTest::test_saving_one_insurance_menu_does_not_change_the_other
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: post_purchase_invoices (Connection: sqlite, Database: :memory:, SQL: select * from "post_purchase_invoices" where "status" = pending and "tax_amount" > 0 and "id" is not null order by "id" asc limit 100)
+```
+
+### InsuranceRulesAndIncentivesTest::test_created_order_keeps_rule_and_discount_snapshots_after_admin_changes
+
+```text
+DomainException: customer_security_deposits_retired
+```
+
+### InsuranceWalletSeparationTest::test_purchase_wallet_and_insurance_wallet_policies_are_one_way
+
+```text
+Failed asserting that two arrays are identical.
+```
+
+### InsuranceWalletSeparationTest::test_customer_hold_partial_release_confiscation_and_reversal_are_audited_and_idempotent
+
+```text
+DomainException: تم إيقاف تأمين العملاء. تتم مطابقة المبالغ القديمة من الأرشيف.
+```
+
+### InsuranceWalletSeparationTest::test_customer_paid_insurance_record_can_be_partially_confiscated_before_maturity_without_double_debit
+
+```text
+DomainException: تم إيقاف تأمين العملاء. تتم مطابقة المبالغ القديمة من الأرشيف.
+```
+
+### InsuranceWalletSeparationTest::test_released_customer_insurance_record_debits_and_reverses_the_insurance_wallet_exactly_once
+
+```text
+DomainException: تم إيقاف تأمين العملاء. تتم مطابقة المبالغ القديمة من الأرشيف.
+```
+
+### OfflineSecondStageTest::test_submitted_offline_order_gets_one_second_invoice_without_confirming_first_payment
+
+```text
+Failed asserting that actual size 0 matches expected size 1.
+```
+
+### OperationsCatalogTest::test_both_public_templates_and_theme_activation_use_the_builder_contract
+
+```text
+Failed asserting that '<?php\n
+```
+
+### OperationsCatalogTest::test_integrated_blade_views_compile_without_php_syntax_errors
+
+```text
+ErrorException: file_get_contents(/home/sigma-eg/git/sigma-release-qa.LaQbDf/resources/themes/theme_sigma_care/theme-views/home.blade.php): Failed to open stream: No such file or directory
+```
+
+### OrderCommercePhaseZeroTest::test_customer_insurance_contract_separates_purchase_and_insurance_values
+
+```text
+Failed asserting that false is true.
+```
+
+### OrderCommercePhaseZeroTest::test_dashboard_contains_fixed_shortcuts_for_the_merged_admin_centers
+
+```text
+Failed asserting that '@php\n
+```
+
+### OrderPaymentSummaryTest::test_purchase_paid_does_not_hide_unpaid_insurance_and_tax
+
+```text
+Failed asserting that false is true.
+```
+
+### OrderPaymentSummaryTest::test_submitted_proof_is_shown_as_under_review_not_as_paid
+
+```text
+Failed asserting that false is true.
+```
+
+### OrderPaymentSummaryTest::test_insurance_balance_payment_does_not_mark_remaining_tax_paid
+
+```text
+Failed asserting that null is identical to 'payment_stage_paid'.
+```
+
+### OrderPaymentSummaryTest::test_fully_paid_second_invoice_clears_warning
+
+```text
+Failed asserting that null is identical to 'payment_stage_paid'.
+```
+
+### OrderPaymentSummaryTest::test_second_invoice_not_yet_calculated_is_not_presented_as_complete
+
+```text
+Failed asserting that false is true.
+```
+
+### OrderShippingProofServiceTest::test_delivery_upload_completes_without_intermediate_proofs_or_admin_approval
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: seller_order_insurances (Connection: sqlite, Database: :memory:, SQL: select * from "seller_order_insurances" where "seller_order_insurances"."order_id" = 1 and "seller_order_insurances"."order_id" is not null limit 1)
+```
+
+### OrderShippingProofServiceTest::test_mobile_proof_uses_request_seller_without_web_login_and_keeps_private_history
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: seller_order_insurances (Connection: sqlite, Database: :memory:, SQL: select * from "seller_order_insurances" where "seller_order_insurances"."order_id" = 1 and "seller_order_insurances"."order_id" is not null limit 1)
+```
+
+### OrderShippingProofServiceTest::test_completion_failure_rolls_back_proof_status_and_file
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: seller_order_insurances (Connection: sqlite, Database: :memory:, SQL: select * from "seller_order_insurances" where "seller_order_insurances"."order_id" = 1 and "seller_order_insurances"."order_id" is not null limit 1)
+```
+
+### OrderShippingProofServiceTest::test_seller_uploads_private_proofs_in_order_and_admin_approves_delivery
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: seller_order_insurances (Connection: sqlite, Database: :memory:, SQL: select * from "seller_order_insurances" where "seller_order_insurances"."order_id" = 1 and "seller_order_insurances"."order_id" is not null limit 1)
+```
+
+### PaymentReviewWorkspaceTest::test_notifications_and_old_links_target_unified_deposit
+
+```text
+BadMethodCallException: Method Illuminate\View\View::getTargetUrl does not exist.
+```
+
+### PaymentReviewWorkspaceTest::test_drawer_and_filters_render_arabic_without_exposing_storage_paths
+
+```text
+Failed asserting that '<div class="content container-fluid">\n
+```
+
+### PaymentReviewWorkspaceTest::test_settings_show_only_offline_methods_and_respect_management_permissions
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: addon_settings (Connection: sqlite, Database: :memory:, SQL: select * from "addon_settings" where "settings_type" in (payment_config) and "is_active" = 1 and "key_name" in (ssl_commerz, paypal, stripe, razor_pay, paystack, senang_pay, paymob_accept, flutterwave, paytm, paytabs, liqpay, mercadopago, bkash))
+```
+
+### PostPurchaseInvoicePayabilityTest::test_second_invoice_is_payable_after_first_payment_proof_is_submitted
+
+```text
+Failed asserting that false is true.
+```
+
+### SellerActivationRegistrationApiTest::test_registration_activation_api_returns_banner_ticket_messages_and_accepts_seller_reply
+
+```text
+Failed asserting that false is true.
+```
+
+### SellerActivationServiceTest::test_registration_ticket_is_created_once_with_the_required_automatic_message
+
+```text
+ErrorException: Attempt to read property "id" on null
+```
+
+### SellerCommerceRegressionTest::test_product_quota_guard_rejects_a_seller_with_pending_activation
+
+```text
+Expected DomainException was not thrown.
+```
+
+### SellerMobileSupportConversationTest::test_device_can_resume_its_own_ticket_without_login_and_creation_is_idempotent
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 table contacts has no column named sender_type (Connection: sqlite, Database: :memory:, SQL: insert into "contacts" ("mobile_support_token_hash", "name", "email", "mobile_number", "message", "sender_type", "subject", "seen", "updated_at", "created_at") values (ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb, Seller, test@example.com, +201000000000, Reset my password, vendor, طلب إعادة تعيين كلمة المرور - تاجر, …
+```
+
+### SellerMobileSupportConversationTest::test_another_device_cannot_read_ticket_by_knowing_email
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 table contacts has no column named sender_type (Connection: sqlite, Database: :memory:, SQL: insert into "contacts" ("mobile_support_token_hash", "name", "email", "mobile_number", "message", "sender_type", "subject", "seen", "updated_at", "created_at") values (ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb, Seller, test@example.com, 12345, Help, vendor, طلب إعادة تعيين كلمة المرور - تاجر, 0, 2026-11-04 19:42: …
+```
+
+### SellerProductApiPolicyGuardTest::test_legacy_add_and_update_apis_reject_fewer_than_five_distinct_images
+
+```text
+Failed asserting that 200 is identical to 422.
+```
+
+### SellerProductApiPolicyGuardTest::test_current_add_api_rejects_fewer_than_five_distinct_images
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: system_tax_setups (Connection: sqlite, Database: :memory:, SQL: select * from "system_tax_setups" where "is_active" = 1 and "tax_payer" = vendor and "is_default" = 1 limit 1)
+```
+
+### SellerProductApiPolicyGuardTest::test_current_update_api_rejects_fewer_than_five_distinct_images
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: system_tax_setups (Connection: sqlite, Database: :memory:, SQL: select * from "system_tax_setups" where "is_active" = 1 and "tax_payer" = vendor and "is_default" = 1 limit 1)
+```
+
+### SellerRegistrationRequestTest::test_first_registration_stage_requires_only_email_phone_and_password
+
+```text
+Failed asserting that false is true.
+```
+
+### SellerRegistrationVerificationModeTest::test_default_mode_uses_support_ticket_without_otp
+
+```text
+Failed asserting that false is true.
+```
+
+### SellerRegistrationVerificationModeTest::test_each_configured_mode_exposes_its_required_verification_steps
+
+```text
+Failed asserting that false is true.
+```
+
+### SellerRestrictedOrdersPhaseFourTest::test_routes_and_application_have_a_dedicated_pending_insurance_inbox
+
+```text
+ErrorException: file_get_contents(E:/project/vendor-app-main/lib/utill/app_constants.dart): Failed to open stream: No such file or directory
+```
+
+### SellerRestrictedOrdersPhaseFourTest::test_company_shipping_statuses_are_protected_in_web_api_and_application
+
+```text
+ErrorException: file_get_contents(E:/project/vendor-app-main/lib/features/order_details/widgets/seller_shipping_assignment_widget.dart): Failed to open stream: No such file or directory
+```
+
+### StageN2N3ContractTest::test_n2_dashboard_uses_one_server_contract_for_web_and_vendor_app
+
+```text
+Could not read ../Vendor app/lib/utill/app_constants.dart
+```
+
+### StageN2N3ContractTest::test_n3_ordinary_product_creation_has_no_package_or_insurance_gate
+
+```text
+Failed asserting that '<?php\n
+```
+
+### StageN2N3ContractTest::test_n3_product_lifecycle_and_optional_measurement_contract_is_server_enforced
+
+```text
+Failed asserting that '<?php\n
+```
+
+### StageN2N3ContractTest::test_n3_admin_review_decision_is_audited_and_reason_protected
+
+```text
+Failed asserting that '@extends('layouts.admin.app')\n
+```
+
+### StageN4PostPurchaseInvoiceContractTest::test_second_invoice_has_an_immutable_tax_and_insurance_contract
+
+```text
+Failed asserting that '<?php\n
+```
+
+### StageN4PostPurchaseInvoiceContractTest::test_first_payment_excludes_tax_and_the_seller_is_gated_until_admin_release
+
+```text
+Failed asserting that '<?php\n
+```
+
+### StageN4PostPurchaseInvoiceContractTest::test_web_api_admin_and_customer_app_are_wired_to_the_same_invoice
+
+```text
+Could not read user-app-main/lib/features/order_insurance/screens/customer_order_insurance_screen.dart
+```
+
+### StageN5N6ShippingRefundContractTest::test_shipping_settlement_and_private_proof_are_connected_to_all_channels
+
+```text
+Could not resolve application path ../Vendor app/lib/features/order_details/domain/repositories/order_details_repository.dart
+```
+
+### StageN5N6ShippingRefundContractTest::test_customer_app_uses_structured_text_address_and_insurance_notice
+
+```text
+Could not resolve application path ../user-app/lib/features/address/domain/models/address_model.dart
+```
+
+### StageN5N6ShippingRefundContractTest::test_authentication_captcha_is_removed_from_platform_and_apps
+
+```text
+Could not resolve application path ../user-app/lib
+```
+
+### StageN7ReleaseReadinessContractTest::test_mobile_and_web_contracts_hide_order_data_until_allowed_and_expose_required_actions
+
+```text
+Could not read vendor-app-main/lib/utill/app_constants.dart
+```
+
+### StageN7ReleaseReadinessContractTest::test_release_tooling_and_captcha_shutdown_are_ready_for_manual_acceptance
+
+```text
+Could not read scripts/sync-runtime-merge-to-xampp.ps1
+```
+
+### StageSevenSupportAndActivationTest::test_activation_and_support_printing_routes_are_registered
+
+```text
+Failed asserting that false is true.
+```
+
+### StageSevenSupportAndActivationTest::test_customer_inbox_is_backed_by_administration_support_tickets
+
+```text
+ErrorException: file_get_contents(E:/project/user-app-main/lib/features/chat/screens/inbox_screen.dart): Failed to open stream: No such file or directory
+```
+
+### StageSevenSupportAndActivationTest::test_activation_conversation_has_attachments_printing_and_dashboard_shortcut
+
+```text
+Failed asserting that '@extends('layouts.admin.app')\n
+```
+
+### VendorOrderPhaseTwoTest::test_seller_cannot_cancel_even_with_override_reason
+
+```text
+Failed asserting that exception of type "DomainException" is thrown.
+```
+
+### VendorOrderPhaseTwoTest::test_legacy_vendor_payment_mutation_is_denied_before_controller
+
+```text
+Illuminate\Database\QueryException: SQLSTATE[HY000]: General error: 1 no such table: seller_order_insurances (Connection: sqlite, Database: :memory:, SQL: select * from "seller_order_insurances" where "seller_order_insurances"."order_id" = 1 and "seller_order_insurances"."order_id" is not null limit 1)
+```
+
+### CriticalBatchConfigurationTest::test_customer_purchase_packages_are_legacy_and_cannot_gate_or_debit_checkout
+
+```text
+Error: Call to undefined method App\Services\CustomerPurchaseLimitService::isEnabled()
+```
+
+### CriticalBatchConfigurationTest::test_customer_purchase_package_routes_are_not_registered
+
+```text
+Failed asserting that true is false.
+```
+
+### ReleaseApprovalBatchTest::test_legacy_release_data_is_audited_applied_idempotently_and_rolled_back
+
+```text
+Failed asserting that 0 is identical to 1.
+```
+
+### ReleaseApprovalBatchTest::test_non_strict_release_readiness_can_report_local_only_warnings
+
+```text
+{
+```
+
