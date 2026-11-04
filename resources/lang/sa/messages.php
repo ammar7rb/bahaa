@@ -4934,6 +4934,7 @@ return array_replace([
 	"order_out_for_delivery_message" => "طلب الخروج لرسالة التسليم",
 	"order_payment" => "دفع الطلب",
 	"order_pending_message" => "رسالة الطلب في انتظار",
+	"medical_report" => "دفع تقرير فني لجهاز طبي",
 	"order_place" => "مكان الطلب",
 	"order_placed" => "تم تقديم الطلب",
 	"order_placed_successfully" => "تم وضع الطلب بنجاح",

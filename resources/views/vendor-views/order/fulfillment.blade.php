@@ -20,7 +20,14 @@
         <div class="vf-order-body">
             <div class="vf-progress" aria-label="مراحل تنفيذ الطلب">
                 @foreach($stageLabels as $state => $label)
-                <div class="vf-stage {{ $stageIndex !== false && $loop->index < $stageIndex ? 'is-done' : '' }} {{ $row['order_status'] === $state ? 'is-current' : '' }}" @if($row['order_status'] === $state) aria-current="step" @endif><span><i class="fi fi-rr-{{ $stageIndex !== false && $loop->index < $stageIndex ? 'check' : $stageIcons[$state] }}" aria-hidden="true"></i></span><strong>{{ $label }}</strong></div>
+                <div class="vf-stage {{ $stageIndex !== false && ($loop->index < $stageIndex || ($state === 'delivered' && $row['order_status'] === 'delivered')) ? 'is-done' : '' }} {{ $row['order_status'] === $state && $state !== 'delivered' ? 'is-current' : '' }}" @if($row['order_status'] === $state) aria-current="step" @endif><span><i class="fi fi-rr-{{ $stageIndex !== false && ($loop->index < $stageIndex || ($state === 'delivered' && $row['order_status'] === 'delivered')) ? 'check' : $stageIcons[$state] }}" aria-hidden="true"></i></span><strong>{{ $label }}</strong>
+                    @if(!$document && $state === 'confirmed' && $responseRequired)
+                        <form method="post" action="{{ route('vendor.orders.shipping-response.store', $row['id']) }}">@csrf<button class="btn btn-sm btn-outline-primary" name="decision" value="accept">قبول الطلب</button></form>
+                    @elseif(!$document && !$responseRequired && in_array($state, $shipping['allowed_seller_statuses'], true))
+                        @if($state === 'delivered')<a class="btn btn-sm btn-outline-primary" href="#vf-proof-{{ $row['id'] }}">تم التسليم</a>
+                        @else<form class="vendor-status-form" method="post" action="{{ route('vendor.orders.status') }}">@csrf<input type="hidden" name="id" value="{{ $row['id'] }}"><input type="hidden" name="order_status" value="{{ $state }}"><button class="btn btn-sm btn-outline-primary">تأكيد</button></form>@endif
+                    @endif
+                </div>
                 @endforeach
             </div>
             <div class="vf-layout">
@@ -42,13 +49,10 @@
                     <section class="vf-section vf-actions"><h3><i class="fi fi-rr-refresh" aria-hidden="true"></i> الخطوة التالية</h3><p class="vf-cta">{{ $row['fulfillment_cta'] }}</p><div class="vf-feedback" role="alert" hidden></div>
                         @if($responseRequired)
                         <p class="vf-muted">راجع المستحقات وبيانات التسليم، ثم اقبل الطلب لبدء التجهيز.</p>
-                        <form method="post" action="{{ route('vendor.orders.shipping-response.store', $row['id']) }}">@csrf<button class="btn btn-primary vf-primary" name="decision" value="accept"><i class="fi fi-rr-check" aria-hidden="true"></i> قبول الطلب</button></form>
                         @endif
                         @foreach($shipping['allowed_seller_statuses'] as $status)
                             @if($status === 'delivered')
-                            <form class="vf-proof" enctype="multipart/form-data" method="post" action="{{ route('vendor.orders.shipping-proof.store', $row['id']) }}">@csrf<input type="hidden" name="shipping_status" value="delivered"><label for="vf-proof-{{ $row['id'] }}">إثبات التسليم</label><input id="vf-proof-{{ $row['id'] }}" type="file" name="proof" required accept="image/*,application/pdf,video/*" class="form-control my-2"><label for="vf-note-{{ $row['id'] }}">ملاحظة التسليم (اختياري)</label><input id="vf-note-{{ $row['id'] }}" type="text" name="note" maxlength="1000" class="form-control my-2"><button class="btn btn-primary vf-primary"><i class="fi fi-rr-check-circle" aria-hidden="true"></i> تأكيد التسليم مع الإثبات</button></form>
-                            @else
-                            <form class="vendor-status-form" method="post" action="{{ route('vendor.orders.status') }}">@csrf<input type="hidden" name="id" value="{{ $row['id'] }}"><input type="hidden" name="order_status" value="{{ $status }}"><button class="btn btn-primary vf-primary"><i class="fi fi-rr-{{ $stageIcons[$status] ?? 'refresh' }}" aria-hidden="true"></i> {{ ['processing'=>'بدء تجهيز الطلب','out_for_delivery'=>'تأكيد بدء الشحن'][$status] ?? translate($status) }}</button></form>
+                            <form class="vf-proof" enctype="multipart/form-data" method="post" action="{{ route('vendor.orders.shipping-proof.store', $row['id']) }}">@csrf<input type="hidden" name="shipping_status" value="delivered"><label for="vf-proof-{{ $row['id'] }}">إثبات التسليم</label><input id="vf-proof-{{ $row['id'] }}" type="file" name="proof" required accept="image/*,application/pdf,video/*" class="form-control my-2"><label for="vf-note-{{ $row['id'] }}">ملاحظة التسليم (اختياري)</label><input id="vf-note-{{ $row['id'] }}" type="text" name="note" maxlength="1000" class="form-control my-2"><button class="btn btn-primary vf-primary"><i class="fi fi-rr-check-circle" aria-hidden="true"></i> تم التسليم</button></form>
                             @endif
                         @endforeach
                         @if(!$responseRequired && empty($shipping['allowed_seller_statuses']))<p class="vf-muted mb-0">{{ $row['order_status'] === 'delivered' ? 'اكتمل تسليم هذا الطلب.' : 'لا توجد خطوة تنفيذ متاحة حاليًا.' }}</p>@endif

@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'all_customer_vendor_accounts' => 'All Accounts — Customers and Vendors',
+    'checkout_first_registration' => 'Registered through direct checkout',
     'order_purchase_refund_recorded' => 'Purchase refund recorded.',
     "purchase_and_shipping_payment" => "Products and shipping invoice",
     "customer_order_insurance_payment" => "Customer insurance",
@@ -1045,6 +1047,7 @@ return [
     "if_enabled_customers_will_receive_&_enjoy_this_bonus_offer." => "if enabled customers will receive & enjoy this bonus offer.",
     "want_to_disable_this_bonus_status" => "want to disable this bonus status",
     "want_to_enable_this_bonus_status" => "want to enable this bonus status",
+    "medical_report" => "Medical device technical report",
     "order_place" => "order place",
     "point_to_wallet" => "point to wallet",
     "upload_Banner" => "upload Banner",

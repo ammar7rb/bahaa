@@ -1,3 +1,6 @@
+@if($order->order_status === 'delivered')
+    <div class="alert alert-success" role="status" dir="rtl">تم التسليم</div>
+@endif
 @if($order->customer_checkout_operation_id && in_array($order->order_status, ['pending','confirmed','processing'], true))
     @php($purchaseState = app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order))
     <div class="alert {{ $purchaseState['stage'] === 'ready_for_fulfillment' ? 'alert-success' : 'alert-warning' }} d-flex flex-wrap justify-content-between align-items-center gap-2" dir="rtl" role="status">

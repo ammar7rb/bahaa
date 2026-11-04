@@ -2582,7 +2582,7 @@ class OrderManager
             ->unique('status')
             ->keyBy('status');
 
-        $order = Order::where('id', $orderId)->select('created_at')->first();
+        $order = Order::where('id', $orderId)->select('created_at', 'updated_at', 'order_status')->first();
 
         if (!$isOrderOnlyDigital) {
             $orderTracking = [
@@ -2627,6 +2627,19 @@ class OrderManager
             }
         }
         unset($statusData);
+
+        // A completed delivery remains authoritative even when an older order
+        // is missing its history entry, or contains an earlier terminal event.
+        if ($order->order_status === 'delivered') {
+            $orderTracking['order_delivered']['status'] = true;
+            $orderTracking['order_delivered']['date_time'] ??= $order->updated_at;
+            foreach (['order_canceled', 'order_returned', 'order_failed'] as $previousTerminal) {
+                if (isset($orderTracking[$previousTerminal])) {
+                    $orderTracking[$previousTerminal]['status'] = false;
+                    $orderTracking[$previousTerminal]['date_time'] = null;
+                }
+            }
+        }
 
         $statusKeys = array_keys($orderTracking);
 

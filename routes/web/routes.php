@@ -59,6 +59,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('medical-devices', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'index'])->name('medical-devices.index');
 Route::get('medical-devices/{device}', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'show'])->whereNumber('device')->name('medical-devices.show');
 Route::post('medical-devices/{device}/inquire', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'inquire'])->whereNumber('device')->middleware('throttle:20,1')->name('medical-devices.inquire');
+Route::post('medical-devices/{device}/purchase-request', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'purchaseRequest'])->whereNumber('device')->middleware(['customer', 'throttle:20,1'])->name('medical-devices.purchase-request');
 Route::get('/image-proxy', function () {
     $url = request('url');
     if (!$url) {

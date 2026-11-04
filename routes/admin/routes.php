@@ -153,6 +153,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::get('inquiries', 'inquiries')->name('inquiries');
             Route::get('inquiries/{inquiry}', 'inquiry')->name('inquiry');
             Route::post('inquiries/{inquiry}/status', 'status')->name('status');
+            Route::post('inquiries/{inquiry}/report', 'sendReport')->name('report');
         });
     });
     Route::prefix('operations/homepage-sections')->name('operations.homepage-sections.')->middleware('module:catalog')->controller(\App\Http\Controllers\Admin\Operations\HomepageSectionsController::class)->group(function () {

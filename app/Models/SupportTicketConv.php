@@ -59,8 +59,12 @@ class SupportTicketConv extends Model
         $images = [];
         $value = $this->attachment;
         if ($value){
-            foreach ($value as $item){
+            foreach ($value as $index => $item){
                 $item = isset($item['file_name']) ? (array)$item : ['file_name' => $item, 'storage' => 'public'];
+                if (($item['storage'] ?? null) === 'medical-report' && !empty($item['medical_report_purchase_id'])) {
+                    $images[] = ['key' => $item['original_name'] ?? 'report', 'path' => route('support-ticket.attachments.download', [$this->support_ticket_id, $this->id, $index]), 'status' => 200];
+                    continue;
+                }
                 $images[] =  $this->storageLink('support-ticket',$item['file_name'],$item['storage'] ?? 'public');
             }
         }

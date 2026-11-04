@@ -334,6 +334,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         });
 
         Route::group(['prefix' => 'support-ticket'], function () {
+            Route::get('{id}/attachments/{message}/{index}/download', [\App\Http\Controllers\ChatAttachmentController::class, 'customerApi'])->whereNumber('id')->whereNumber('index')->middleware('throttle:30,1');
             Route::controller(CustomerController::class)->group(function () {
                 Route::post('create', 'create_support_ticket');
                 Route::get('get', 'get_support_tickets');

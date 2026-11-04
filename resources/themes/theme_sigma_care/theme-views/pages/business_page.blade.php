@@ -37,6 +37,7 @@
                         @include('theme-views.partials._care-credit-request')
                     @else
                         {!! $businessPage?->description !!}
+                        @if($businessPage->slug === 'terms-and-conditions')<p>ثمن التقرير الفني للأجهزة الطبية غير قابل للاسترجاع بعد سداده.</p>@endif
                     @endif
                 </div>
             </div>
