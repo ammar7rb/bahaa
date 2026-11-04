@@ -131,6 +131,9 @@ class CustomerAuthService
             return false;
         }
 
+        if (str_starts_with($parts['path'] ?? '', '/account-photos/')) {
+            return false;
+        }
         return rtrim($parts['path'] ?? '', '/') !==
             rtrim(parse_url(route('customer.communication.index'), PHP_URL_PATH), '/');
     }
