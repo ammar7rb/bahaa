@@ -23,7 +23,9 @@
             <input id="amount-{{ $transferId }}" name="{{ $isDeposit ? 'amount' : 'transferred_amount' }}" type="number" min="0.01" step="{{ $isDeposit ? '0.01' : '0.001' }}" required value="{{ $isDeposit ? old('amount') : number_format($amount,$digits,'.','') }}" inputmode="decimal" @readonly(!$isDeposit)>
             <div class="transfer-input-grid">
                 <div><label for="sender-phone-{{ $transferId }}">الرقم الذي حولت منه</label><input id="sender-phone-{{ $transferId }}" name="sender_phone" type="tel" dir="ltr" required maxlength="40" autocomplete="tel" value="{{ old('sender_phone') }}" placeholder="أضف رقمك للمتابعة"></div>
+                @unless($isDeposit && $instapay)
                 <div><label for="sender-name-{{ $transferId }}">{{ $instapay ? 'اسم الحساب الخاص بك' : 'اسم المحفظة الخاصة بك' }}</label><input id="sender-name-{{ $transferId }}" name="sender_name" required maxlength="150" value="{{ old('sender_name') }}" autocomplete="name"></div>
+                @endunless
             </div>
             <label class="transfer-upload" for="proof-{{ $transferId }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5"/></svg><strong>أرفق صورة إيصال التحويل</strong><span>اضغط لاختيار الصورة · JPG أو PNG أو WebP حتى 5 ميجابايت</span><input id="proof-{{ $transferId }}" name="payment_proof" type="file" accept="image/jpeg,image/png,image/webp" required data-proof-input><span data-proof-name aria-live="polite">لم يتم اختيار صورة بعد</span><img class="transfer-proof-preview" alt="معاينة إثبات التحويل" hidden></label>
             <label for="note-{{ $transferId }}">ملاحظة للإدارة (اختياري)</label><textarea id="note-{{ $transferId }}" name="payment_note" maxlength="1000" rows="2"></textarea>

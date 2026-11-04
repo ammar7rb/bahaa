@@ -21,7 +21,10 @@ class CustomerBalanceDepositController extends Controller
             : redirect()->route('customer-balances')->with('deposit_message', translate('deposit_submitted_for_review'));
         abort_unless(getWebConfig('add_funds_to_wallet') == 1 && (getWebConfig('offline_payment')['status'] ?? 0), 403);
         if ($request->input('transfer_schema') === 'sender_v2') {
-            $sender = app(\App\Services\CustomerTransferInformationService::class)->sender($request->all());
+            $selection = $request->validate(['method_id' => 'required|integer']);
+            $channel = OfflinePaymentMethod::where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])
+                ->whereKey($selection['method_id'])->value('payment_channel');
+            $sender = app(\App\Services\CustomerTransferInformationService::class)->sender($request->all(), $channel !== 'instapay');
             $request->merge(['payment_reference' => 'deposit-transfer-'.$customerId.':'.$request->input('request_key'), 'method_information' => $sender]);
         }
         $data = $request->validate([
@@ -41,7 +44,7 @@ class CustomerBalanceDepositController extends Controller
         $information = $modern ? $data['method_information'] : [];
         foreach ($modern ? [] : ($method->method_informations ?? []) as $field) {
             $key = $field['customer_input'] ?? '';
-            if ($key === '' || $key === 'payment_screenshot') continue;
+            if ($key === '' || $key === 'payment_screenshot' || ($method->payment_channel === 'instapay' && $key === 'sender_name')) continue;
             $value = trim($data['method_information'][$key] ?? '');
             if (($field['is_required'] ?? false) && $value === '') {
                 throw \Illuminate\Validation\ValidationException::withMessages(['method_information' => translate('required_offline_payment_information_is_missing')]);
