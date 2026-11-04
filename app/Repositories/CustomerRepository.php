@@ -115,6 +115,13 @@ class CustomerRepository implements CustomerRepositoryInterface
         $query = $this->user
             ->with($relations)
             ->when($searchValue, function ($query) use ($searchValue) {
+                $reference = \App\Services\AdministrativeReferenceService::parse($searchValue);
+                if (($reference['type'] ?? null) === 'users') {
+                    $query->whereKey($reference['id'])
+                        ->where(fn ($customer) => $customer->whereNull('email')->orWhere('email', '!=', 'abc@gm.com'));
+                    return;
+                }
+
                 $query->where(function ($q) use ($searchValue) {
                     $q->orWhere('email', 'like', "%$searchValue%")
                         ->orWhere('phone', 'like', "%$searchValue%")
@@ -124,7 +131,7 @@ class CustomerRepository implements CustomerRepositoryInterface
                         ->when(is_numeric($searchValue), function ($q) use ($searchValue) {
                             $q->orWhere('id', (int) $searchValue);
                         });
-                })->where('email', '!=', 'abc@gm.com');
+                })->where(fn ($customer) => $customer->whereNull('email')->orWhere('email', '!=', 'abc@gm.com'));
             })
             ->when(isset($filters['order_date']) && !empty($filters['order_date']), function ($query) use ($filters) {
                 $dates = explode(' - ', $filters['order_date']);
