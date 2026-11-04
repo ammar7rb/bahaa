@@ -35,7 +35,7 @@ class CustomerPurchaseWalletPolicyService
             'wallet' => 'purchase_wallet',
             'allowed_uses' => ['product_purchase', 'purchase_refund', 'monthly_subscription'],
             'insurance_payment_allowed' => false,
-            'withdrawable' => false,
+            'withdrawable' => \Illuminate\Support\Facades\Schema::hasTable('customer_wallet_withdrawals'),
         ];
     }
 

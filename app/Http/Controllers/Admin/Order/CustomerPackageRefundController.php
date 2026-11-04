@@ -49,7 +49,7 @@ class CustomerPackageRefundController extends Controller
     {
         $data = $request->validate([
             'method' => ['required', 'in:purchase_wallet'],
-            'reference' => ['nullable', 'string', 'max:191', 'nullable'],
+            'reference' => ['nullable', 'string', 'max:191'],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
         $service->complete($refund, (int) auth('admin')->id(), $data['method'], $data['reference'] ?? null, $data['note'] ?? null);
