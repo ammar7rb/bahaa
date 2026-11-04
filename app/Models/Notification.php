@@ -48,7 +48,18 @@ class Notification extends Model
 
     public function scopeActive($query):mixed
     {
-        return $query->where('status', 1);
+        return $query->where('status', 1)->whereNot(fn ($expired) => $this->scopeExpiredWalletDeposit($expired));
+    }
+
+    public function scopeExpiredWalletDeposit($query): mixed
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('notifications', 'customer_event_key')) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereNotNull('customer_event_key')
+            ->where('customer_event_key', 'like', 'wallet-deposit-%')
+            ->where('created_at', '<=', now()->subMonthNoOverflow());
     }
 
     public function scopeForCustomer($query, ?int $customerId): mixed
