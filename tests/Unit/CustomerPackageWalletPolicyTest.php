@@ -90,6 +90,38 @@ class CustomerPackageWalletPolicyTest extends TestCase
         try{$service->transact(1,array_replace($input,['expected_amount'=>101]));$this->fail('Reused key changed terms');}catch(\DomainException $e){$this->assertStringContainsString('مختلف',$e->getMessage());}
     }
 
+    public function test_opted_in_auto_renewal_debits_once_and_starts_thirty_days(): void
+    {
+        (require database_path('migrations/2026_11_04_151000_add_customer_package_auto_renewal.php'))->up();
+        Schema::table('users', fn (Blueprint $table) => $table->timestamp('account_deleted_at')->nullable());
+        app(\App\Services\CustomerPackageWalletService::class)->transact(1, $this->purchase());
+        DB::table('users')->where('id', 1)->update(['package_auto_renew' => true]);
+        $this->travel(31)->days();
+        app(\App\Services\CustomerPackageAutoRenewalService::class)->run();
+        app(\App\Services\CustomerPackageAutoRenewalService::class)->run();
+        $this->assertEquals(800, User::find(1)->wallet_balance);
+        $this->assertSame(2, CustomerMonthlySubscription::count());
+        $this->assertSame(2, DB::table('wallet_transactions')->count());
+        $this->assertSame('renew_package', CustomerSubscriptionPayment::where('customer_id', 1)->latest('id')->value('purchase_kind'));
+        $this->assertSame(now()->addDays(30)->toIso8601String(), CustomerMonthlySubscription::latest('id')->first()->expires_at->toIso8601String());
+    }
+
+    public function test_auto_renewal_requires_consent_and_never_overdraws_the_wallet(): void
+    {
+        (require database_path('migrations/2026_11_04_151000_add_customer_package_auto_renewal.php'))->up();
+        Schema::table('users', fn (Blueprint $table) => $table->timestamp('account_deleted_at')->nullable());
+        app(\App\Services\CustomerPackageWalletService::class)->transact(1, $this->purchase());
+        $this->travel(31)->days();
+        app(\App\Services\CustomerPackageAutoRenewalService::class)->run();
+        $this->assertEquals(900, User::find(1)->wallet_balance);
+        DB::table('users')->where('id', 1)->update(['package_auto_renew' => true, 'wallet_balance' => 10]);
+        app(\App\Services\CustomerPackageAutoRenewalService::class)->run();
+        $this->assertEquals(10, User::find(1)->wallet_balance);
+        $this->assertNotNull(User::find(1)->package_auto_renew_failed_at);
+        $this->assertSame(1, CustomerMonthlySubscription::count());
+        $this->assertSame(1, DB::table('wallet_transactions')->count());
+    }
+
     public function test_insufficient_balance_stale_quote_and_disabled_or_excluded_package_never_debit(): void
     {
         $service=app(\App\Services\CustomerPackageWalletService::class);$input=$this->purchase();
@@ -148,14 +180,16 @@ class CustomerPackageWalletPolicyTest extends TestCase
         $this->assertEquals(875,User::find(1)->wallet_balance);
     }
 
-    public function test_upgrade_keeps_original_expiry_and_charges_full_higher_price(): void
+    public function test_upgrade_starts_a_new_thirty_day_period_and_charges_full_higher_price(): void
     {
         $service=app(\App\Services\CustomerPackageWalletService::class);$service->transact(1,$this->purchase());$sub=CustomerMonthlySubscription::first();
         $expiry=$sub->expires_at->toIso8601String();$this->travel(5)->days();$gold=CustomerPurchasePackage::find(2);
         $payment=$service->transact(1,$this->purchase(['package_id'=>2,'quote_token'=>app(CustomerPackageCatalogService::class)->token($gold,'package'),'expected_amount'=>200,'expected_subscription_id'=>$sub->id]));
         $this->assertSame('upgrade',$payment->purchase_kind);$this->assertEquals(200,$payment->quoted_amount);$this->assertEquals(700,User::find(1)->wallet_balance);
-        $this->assertSame(2,CustomerMonthlySubscription::count());$this->assertSame(25,app(CustomerMonthlySubscriptionService::class)->status(1)['remaining_days']);
-        $this->assertSame($expiry,CustomerMonthlySubscription::latest('id')->first()->expires_at->toIso8601String());
+        $this->assertSame(2,CustomerMonthlySubscription::count());
+        $newSubscription = CustomerMonthlySubscription::latest('id')->first();
+        $this->assertSame(now()->addDays(30)->toIso8601String(), $newSubscription->expires_at->toIso8601String());
+        $this->assertNotSame($expiry, $newSubscription->expires_at->toIso8601String());
         $this->assertTrue($sub->fresh()->expires_at->lte(now()));
     }
 

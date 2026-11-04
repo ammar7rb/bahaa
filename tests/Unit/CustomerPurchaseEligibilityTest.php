@@ -233,7 +233,7 @@ class CustomerPurchaseEligibilityTest extends TestCase
         $this->service()->requestPackageForOrder(1);
         $this->service()->requestPackageForOrder(1);
         $this->assertSame(1, DB::table('notifications')->count());
-        $this->assertStringContainsString('يلزم الاشتراك في باقة', DB::table('notifications')->value('description'));
+        $this->assertStringContainsString('برجاء اختيار إحدى الباقات للاشتراك واستكمال طلبك', DB::table('notifications')->value('description'));
         $this->assertSame('paid', DB::table('orders')->where('id',1)->value('payment_status'));
         $this->assertNull(DB::table('orders')->where('id',1)->value('customer_eligible_at'));
         Schema::drop('notifications');
@@ -272,10 +272,10 @@ class CustomerPurchaseEligibilityTest extends TestCase
         $this->service()->reevaluateCustomer(1);$this->assertNull(DB::table('orders')->value('customer_eligible_at'));
         DB::table('users')->where('id',1)->update(['is_active'=>1]);$this->preparing();
     }
-    public function test_expiry_allows_new_prepaid_purchases_without_relocking_preparing_orders(): void {
+    public function test_expiry_blocks_new_checkout_without_relocking_paid_preparing_orders(): void {
         $this->initialOrders();$this->subscribe();DB::table('users')->where('id',1)->update(['activation_status'=>'active']);$this->preparing();
         $eligibleAt=DB::table('orders')->value('customer_eligible_at');$this->travel(31)->days();
-        $this->assertTrue($this->service()->status(User::find(1))['can_checkout']);$this->preparing();
+        $this->assertFalse($this->service()->status(User::find(1))['can_checkout']);$this->preparing();
         $this->assertSame($eligibleAt,DB::table('orders')->value('customer_eligible_at'));
     }
     public function test_canceled_first_order_does_not_block_another_prepaid_order(): void {
