@@ -58,10 +58,10 @@ class CustomerBalanceDepositService
             $deposit->update(['status' => $decision === 'approve' ? 'paid' : 'rejected', 'reviewed_by_admin_id' => $adminId, 'review_note' => $note, 'reviewed_at' => now()]);
             if ($deposit->wallet_type === 'purchase') {
                 $message = $decision === 'approve'
-                    ? 'تم قبول طلب شحن المحفظة وإضافة المبلغ. رصيدك الجديد: '
+                    ? 'تمت إضافة الرصيد إلى محفظتك بنجاح. رصيدك الحالي: '
                         .number_format($customer->wallet_balance * ($deposit->submitted_amount > 0 ? $deposit->submitted_amount / $deposit->amount : 1), 2)
                         .' '.$deposit->currency_code
-                    : 'تم رفض طلب شحن المحفظة. سبب الرفض: '.trim((string) $note);
+                    : 'تعذّر اعتماد عملية شحن المحفظة. السبب: '.trim((string) $note).' يرجى مراجعة بيانات التحويل وإعادة المحاولة أو التواصل مع الدعم الفني.';
                 app(CustomerPaymentNotificationService::class)->notify((int) $deposit->customer_id, 'wallet-deposit-'.$deposit->id.'-'.$decision, $message);
             }
             return $deposit;

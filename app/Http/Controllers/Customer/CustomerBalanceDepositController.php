@@ -71,7 +71,7 @@ class CustomerBalanceDepositController extends Controller
                 'method_information' => $information, 'payment_reference' => $data['payment_reference'],
                 'payment_proof' => $path, 'payment_note' => $data['payment_note'] ?? null, 'request_key' => $requestKey,
             ]);
-            app(\App\Services\CustomerPaymentNotificationService::class)->notify($customerId, 'wallet-deposit-'.$deposit->id.'-pending', 'تم استلام طلب شحن المحفظة وهو قيد مراجعة الإدارة. لم يُضف الرصيد بعد.');
+            app(\App\Services\CustomerPaymentNotificationService::class)->notify($customerId, 'wallet-deposit-'.$deposit->id.'-pending', 'تم استلام طلب شحن محفظتك بنجاح، وجارٍ التحقق من عملية الدفع. سنخطرك بنتيجة المراجعة.');
             });
         } catch (\Throwable $exception) {
             Storage::disk('local')->delete($path);
