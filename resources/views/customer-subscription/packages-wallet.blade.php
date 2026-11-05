@@ -21,14 +21,14 @@
     @unless($purchase_wallet_enabled)<p class="monthly-error">محفظة المنصة غير متاحة حاليًا.</p>@endunless
     @if($subscription['active'])
     <section class="package-account" aria-label="باقتك الحالية">
-        <div class="package-account-title"><h2>{{ $subscription['package_name'] }}</h2><span class="package-paid">مدفوع</span><p>بدأت {{ \Carbon\Carbon::parse($subscription['starts_at'])->format('Y/m/d') }} · تنتهي {{ \Carbon\Carbon::parse($subscription['expires_at'])->format('Y/m/d') }} · متبقي {{ $subscription['remaining_days'] }} يومًا</p></div>
-        <dl class="package-account-facts">@foreach(['base_limit'=>'حد الباقة الأساسي','committed_limit'=>'المستخدم أو المحجوز خلال الاشتراك','available_limit'=>'المتاح الآن'] as $key=>$label)<div><dt>{{ $label }}</dt><dd><bdi>{{ $money($subscription['allowance'][$key]) }}</bdi> <small>ج.م</small></dd></div>@endforeach</dl>
+        <div class="package-account-title"><h2>{{ $subscription['package_name'] }}</h2><a href="#renew-current-package">تجديد</a> <span class="package-paid">مدفوع</span><p>بدأت {{ \Carbon\Carbon::parse($subscription['starts_at'])->format('Y/m/d') }} · تنتهي {{ \Carbon\Carbon::parse($subscription['expires_at'])->format('Y/m/d') }} · متبقي {{ $subscription['remaining_days'] }} يومًا</p></div>
+        <dl class="package-account-facts">@foreach(['base_limit'=>'حد الباقة الأساسي','committed_limit'=>'المستخدم أو المحجوز خلال الاشتراك','available_limit'=>'المتاح الآن'] as $key=>$label)<div><dt>{{ $label }} @if($key === 'available_limit')<a href="#renew-current-limit">تجديد</a>@endif</dt><dd><bdi>{{ $money($subscription['allowance'][$key]) }}</bdi> <small>ج.م</small></dd></div>@endforeach</dl>
     </section>
     @endif
     @if($subscription['active'] && !$auto_renew_enabled)
         <form class="monthly-notice" method="post" action="{{ route('customer.subscription.auto-renew') }}">
             @csrf
-            <label><input type="checkbox" name="auto_renew" value="1" required> تجديد تلقائي من رصيد المحفظة عند انتهاء الباقة</label>
+            <label><input type="checkbox" name="auto_renew" value="1" required onchange="if(this.checked &amp;&amp; this.form.requestSubmit) this.form.requestSubmit()"> تجديد تلقائي من رصيد المحفظة عند انتهاء الباقة</label>
             <button type="submit" class="monthly-button">تفعيل التجديد التلقائي</button>
         </form>
     @endif
@@ -45,16 +45,16 @@
             <p class="package-description">{{ $package->description }}</p><div class="package-price"><bdi>{{ $money($current ? $subscription['allowance']['package_price'] : $package->package_price) }}</bdi><span>ج.م</span></div><p class="package-price-label">سعر الباقة · الاشتراك الجديد 30 يومًا</p>
             <div class="package-credit"><span>الحد الائتماني</span><strong><bdi>{{ $money($current ? $subscription['allowance']['base_limit'] : $package->purchase_limit) }}</bdi> ج.م</strong></div>
             @if($current)
-                <form method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>
+                <form id="renew-current-package" method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>
                     @csrf
                     @include('customer-subscription.transaction-fields', ['operation' => 'purchase', 'quoteToken' => $package->quote_token, 'quoteAmount' => $package->package_price])
                     <input type="hidden" name="package_id" value="{{ $package->id }}">
                     <button class="monthly-button" type="submit" @disabled(!$purchase_wallet_enabled)>تجديد الباقة بـ{{ $money($package->package_price) }} ج.م</button>
                 </form>
                 <p>تجديد الحد فقط؛ يبقى تاريخ انتهاء الباقة {{ \Carbon\Carbon::parse($subscription['expires_at'])->format('Y/m/d') }}.</p>
-                @if($package->renewal_price>0)<form method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>@csrf
+                @if($package->renewal_price>0)<form id="renew-current-limit" method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>@csrf
                     @include('customer-subscription.transaction-fields',['operation'=>'renew_limit','quoteToken'=>$package->quote_token,'quoteAmount'=>$package->renewal_price])<input type="hidden" name="package_id" value="{{ $package->id }}"><button class="monthly-button" type="submit" @disabled(!$purchase_wallet_enabled)>تجديد الحد بـ{{ $money($package->renewal_price) }} ج.م</button></form>
-                @else<p>لم تحدد الإدارة رسوم تجديد الحد بعد.</p>@endif
+                @else<p id="renew-current-limit">لم تحدد الإدارة رسوم تجديد الحد بعد.</p>@endif
             @elseif($eligible)
                 <form method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>@csrf
                     @include('customer-subscription.transaction-fields',['operation'=>'purchase','quoteToken'=>$package->quote_token,'quoteAmount'=>$package->package_price])<input type="hidden" name="package_id" value="{{ $package->id }}"><button class="monthly-button" type="submit" @disabled(!$purchase_wallet_enabled)>{{ $higher ? 'ترقية الباقة' : 'اشترك الآن' }}</button></form>
