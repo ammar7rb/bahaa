@@ -9,7 +9,10 @@
 <main class="monthly-page package-page" dir="rtl">
     <a class="monthly-back" href="{{ route('user-profile') }}">العودة إلى الملف الشخصي</a>
     <header class="package-heading"><h1>الباقات الشهرية</h1><p>تُخصم معاملات الباقات من محفظة المنصة وتُفعّل فورًا. الحد الائتماني لا يُضاف إلى رصيد المحفظة.</p></header>
-    @if($errors->any())<div class="monthly-error" role="alert">{{ $errors->first() }}</div>@endif
+    @if($errors->any() && str_contains($errors->first(), 'رصيد محفظة المنصة غير كاف'))
+        <dialog open class="package-funds-dialog" aria-labelledby="package-funds-title"><div><h2 id="package-funds-title">برجاء شحن رصيدكم لإتمام العملية</h2><a class="monthly-button" href="{{ route('wallet') }}#purchase-balance">شحن المحفظة</a><button type="button" onclick="this.closest('dialog').close()">إغلاق</button></div></dialog>
+        <style>.package-funds-dialog{position:fixed;inset:0;z-index:9999;width:100%;height:100%;max-width:none;max-height:none;border:0;margin:0;background:rgba(15,30,54,.45);backdrop-filter:blur(5px);display:grid;place-items:center}.package-funds-dialog:not([open]){display:none}.package-funds-dialog div{background:white;border-radius:18px;padding:32px;text-align:center;max-width:440px}.package-funds-dialog h2{font-size:20px;margin-bottom:22px}.package-funds-dialog button{border:0;background:transparent;padding:12px;color:#1a428a}</style>
+    @elseif($errors->any())<div class="monthly-error" role="alert">{{ $errors->first() }}</div>@endif
     @if(session('subscription_message'))<div class="monthly-notice" role="status">{{ session('subscription_message') }}</div>@endif
     <section class="package-wallet-bar" aria-label="رصيد محفظتك">
         <div class="package-wallet-balance"><span>رصيد محفظتك</span><strong><bdi>{{ $money($purchase_balance) }}</bdi> <small>ج.م</small></strong></div>
@@ -28,8 +31,6 @@
             <label><input type="checkbox" name="auto_renew" value="1" required> تجديد تلقائي من رصيد المحفظة عند انتهاء الباقة</label>
             <button type="submit" class="monthly-button">تفعيل التجديد التلقائي</button>
         </form>
-    @elseif($auto_renew_enabled)
-        <p class="monthly-notice">التجديد التلقائي مفعّل. لإيقافه تواصل مع الإدارة.</p>
     @endif
     @if($subscription['legacy_open_payment'] ?? null)<p class="monthly-notice">توجد عملية سابقة محفوظة في السجل. لا تُخصم تلقائيًا؛ تابع حالتها مع الإدارة.</p>@endif
     @if($subscription['active'])<p class="monthly-notice">يبدأ التجديد أو تغيير الباقة فترة جديدة مدتها 30 يومًا فورًا.</p>@endif
@@ -56,7 +57,7 @@
                 @else<p>لم تحدد الإدارة رسوم تجديد الحد بعد.</p>@endif
             @elseif($eligible)
                 <form method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>@csrf
-                    @include('customer-subscription.transaction-fields',['operation'=>'purchase','quoteToken'=>$package->quote_token,'quoteAmount'=>$package->package_price])<input type="hidden" name="package_id" value="{{ $package->id }}"><button class="monthly-button" type="submit" @disabled(!$purchase_wallet_enabled)>{{ $higher ? 'ترقية من رصيد المحفظة' : 'اشتراك من رصيد المحفظة' }}</button></form>
+                    @include('customer-subscription.transaction-fields',['operation'=>'purchase','quoteToken'=>$package->quote_token,'quoteAmount'=>$package->package_price])<input type="hidden" name="package_id" value="{{ $package->id }}"><button class="monthly-button" type="submit" @disabled(!$purchase_wallet_enabled)>{{ $higher ? 'ترقية الباقة' : 'اشترك الآن' }}</button></form>
             @else<p class="package-card-state">باقة غير متاحة للترقية</p>@endif
         </article>
     @empty<p>لا توجد باقات متاحة حاليًا.</p>@endforelse

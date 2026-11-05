@@ -10,7 +10,8 @@
         try {
             await navigator.clipboard.writeText(value);
             feedback.textContent = document.documentElement.lang.startsWith('ar') ? 'تم نسخ رقم الحساب' : 'Account number copied';
-            copyButton.querySelector('span').textContent = document.documentElement.lang.startsWith('ar') ? 'تم النسخ' : 'Copied';
+            copyButton.classList.add('is-copied');
+            setTimeout(() => copyButton.classList.remove('is-copied'), 2000);
         } catch (_) {
             feedback.textContent = document.documentElement.lang.startsWith('ar') ? 'تعذر النسخ، يمكنك تحديد الرقم ونسخه' : 'Copy failed; select the number to copy it';
         }

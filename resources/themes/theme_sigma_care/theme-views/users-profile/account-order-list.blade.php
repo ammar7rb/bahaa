@@ -1,6 +1,6 @@
 @extends('theme-views.layouts.app')
 @section('title', 'طلباتي | SIGMA')
-@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-orders.css') }}">@endpush
+@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-orders.css') }}?v=20261106">@endpush
 @section('content')
 <main class="container py-4" dir="rtl"><div class="row g-3">
     @include('theme-views.partials._profile-aside')
@@ -8,6 +8,7 @@
         @if(session('customer_cancel_message'))<div class="alert alert-success">{{ session('customer_cancel_message') }}</div>@endif
         @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
         <header class="customer-orders-heading"><div><h1>طلباتي</h1><p>تابع مشترياتك وحالة كل طلب.</p></div><a href="{{ route('account-oder', ['show_order'=>$show_order, 'order_by'=>request('order_by') === 'asc' ? 'desc' : 'asc']) }}">{{ request('order_by') === 'asc' ? 'الأحدث أولًا' : 'الأقدم أولًا' }} ↕</a></header>
+        <a class="btn btn-outline-primary mb-3" href="{{ route('customer.tracking.index') }}">تتبع الطلبات</a>
         <nav class="nav nav-pills gap-2 mb-3" aria-label="فئات الطلبات">
             @foreach(['ongoing' => 'طلبات نشطة', 'previous' => 'طلبات سابقة'] as $category => $label)
                 <a @class(['nav-link', 'active' => $show_order === $category])
@@ -21,9 +22,9 @@
                 <header><div><a href="{{ route('account-order-details',['id'=>$order->id]) }}"><strong>طلب #{{ $order->id }}</strong></a><time>{{ $order->created_at?->format('Y/m/d') }}</time></div><span class="customer-order-status">{{ $state && in_array($order->order_status,['pending','confirmed','processing']) ? $state['message'] : translate($order->order_status === 'processing' ? 'packaging' : $order->order_status) }}</span></header>
                 @php($stage = ['pending' => 1, 'confirmed' => 2, 'processing' => 2, 'out_for_delivery' => 3, 'delivered' => 4][$order->order_status] ?? null)
                 @if($stage)
-                    <ol class="list-unstyled d-flex flex-wrap gap-2 p-3 mb-0" aria-label="مراحل الطلب">
+                    <ol class="customer-order-stages list-unstyled" aria-label="مراحل الطلب">
                         @foreach(['تم الطلب', 'جاري التجهيز', 'جاري الشحن', 'تم التسليم'] as $label)
-                            <li @class(['badge', 'bg-primary' => $loop->iteration <= $stage, 'bg-light text-dark' => $loop->iteration > $stage])
+                            <li @class(['customer-order-stage', 'is-complete' => $loop->iteration < $stage, 'is-current' => $loop->iteration === $stage])
                                 @if($loop->iteration === $stage) aria-current="step" @endif>{{ $label }}</li>
                         @endforeach
                     </ol>
