@@ -9,7 +9,9 @@
     $money = fn($value) => rtrim(rtrim(number_format((float)$value,3,'.',','),'0'),'.');
 @endphp
 <main class="container py-4" dir="rtl"><div class="row g-3">
-    @includeFirst(['theme-views.partials._profile-aside', 'web-views.partials._profile-aside'])
+    @if(view()->exists('theme-views.partials._profile-aside') || view()->exists('web-views.partials._profile-aside'))
+        @includeFirst(['theme-views.partials._profile-aside', 'web-views.partials._profile-aside'])
+    @endif
     <section class="col-lg-9 monthly-page package-page">
     <header class="package-heading"><h1>الباقات الشهرية</h1></header>
     @if($errors->any() && str_contains($errors->first(), 'رصيد محفظة المنصة غير كاف'))
