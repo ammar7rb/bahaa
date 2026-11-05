@@ -15,9 +15,9 @@
                     @foreach(['current_password' => 'current_password', 'password' => 'new_password', 'password_confirmation' => 'confirm_password'] as $field => $label)
                         <label for="settings-{{ $field }}">{{ translate($label) }} *</label>
                         <input class="form-control mb-3" id="settings-{{ $field }}" name="{{ $field }}" type="password" autocomplete="{{ $field === 'current_password' ? 'current-password' : 'new-password' }}" maxlength="255" required>
+                        @if($field === 'current_password')<a class="settings-forgot" href="{{ route('customer.password-recovery.form') }}" data-settings-dialog="recovery-dialog">هل نسيت كلمة المرور؟</a>@endif
                     @endforeach
                     <button class="btn btn-primary" type="submit">{{ translate('save') }}</button>
-                    <a class="btn btn-link" href="{{ route('customer.auth.recover-password') }}">{{ translate('forgot_password') }}</a>
                 </form>
             </section>
             <section class="card card-body mb-4">
@@ -33,8 +33,22 @@
                 </ul>
             </section>
 <section class="customer-settings-actions"><a class="btn btn-outline-primary" href="{{ route('customer.auth.logout') }}">{{ translate('logout') }}</a></section>
-            <a class="btn btn-outline-danger" href="{{ route('customer.deletion.show') }}">{{ translate('delete_account') }}</a>
+            <a class="btn btn-outline-danger" href="{{ route('customer.deletion.show') }}" data-settings-dialog="deletion-dialog">{{ translate('delete_account') }}</a>
         </section>
     </div>
 </main>
+<dialog id="recovery-dialog" class="settings-dialog" aria-labelledby="recovery-title">
+    <div class="settings-dialog-head"><h2 id="recovery-title">استعادة كلمة المرور</h2><button type="button" class="settings-dialog-close" data-dialog-close aria-label="إغلاق">&times;</button></div>
+    <p>أدخل رقم الهاتف أو البريد المسجل، وسيتواصل معك الدعم للتحقق من الحساب.</p>
+    <form method="post" action="{{ route('customer.password-recovery.request') }}">@csrf
+        <label for="settings-recovery-identity">رقم الهاتف أو البريد الإلكتروني</label>
+        <input class="form-control" id="settings-recovery-identity" name="identity" value="{{ old('identity') }}" autocomplete="username" maxlength="191" required>
+        <div class="settings-dialog-actions"><button class="btn btn-primary" type="submit">إرسال طلب الاستعادة</button><button class="btn btn-outline-secondary" type="button" data-dialog-close>إلغاء</button></div>
+    </form>
+</dialog>
+<dialog id="deletion-dialog" class="settings-dialog settings-dialog-frame" aria-label="حذف الحساب">
+    <button type="button" class="settings-dialog-close" data-dialog-close aria-label="إغلاق">&times;</button>
+    <iframe title="خطوات حذف الحساب" data-deletion-frame></iframe>
+</dialog>
 @endsection
+@push('script')<script src="{{ asset('assets/front-end/js/customer-settings-dialogs.js') }}?v=20261108" defer></script>@endpush

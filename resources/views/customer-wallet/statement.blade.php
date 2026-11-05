@@ -1,3 +1,8 @@
+@if(\Illuminate\Support\Facades\Schema::hasColumn('notifications', 'customer_event_key'))
+    @foreach(\App\Models\Notification::active()->where('customer_id', auth('customer')->id())->where('customer_event_key', 'like', 'package-wallet-%')->latest('id')->limit(10)->get() as $packageNotice)
+        <div class="wallet-package-notice" role="status"><span>{{ $packageNotice->description }}</span> <a href="{{ route('customer.notifications.index') }}">عرض الإشعار</a></div>
+    @endforeach
+@endif
 <h2 class="h5">حركة رصيد المحفظة</h2>
                 <form method="get" action="{{ route('wallet') }}" class="row g-2 mb-3">
                     <input type="hidden" name="wallet_tab" value="balances">

@@ -27,5 +27,5 @@
         @endforeach
     </nav>
 </header>
-@push('script')<script src="{{ asset('assets/front-end/js/customer-profile-communication.js') }}?v=20261106" defer></script>@endpush
+@push('script')<script src="{{ asset('assets/front-end/js/customer-profile-communication.js') }}?v=20261108" defer></script>@endpush
 @endif

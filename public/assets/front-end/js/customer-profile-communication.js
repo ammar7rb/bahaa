@@ -50,7 +50,15 @@
         if (rendered.get(container) === signature) return;
         rendered.set(container, signature);
         if (!items.length) {
-            const empty = document.createElement('p'); empty.textContent = words.empty;
+            const empty = document.createElement(full ? 'div' : 'p');
+            if (full) {
+                empty.className = 'customer-communication-empty';
+                const heading = document.createElement('h2');
+                heading.textContent = container.dataset.communicationList === 'messages' ? (ar ? 'لا توجد محادثات بعد' : 'No conversations yet') : (ar ? 'لا توجد إشعارات حاليًا' : 'No notifications yet');
+                const detail = document.createElement('p');
+                detail.textContent = container.dataset.communicationList === 'messages' ? (ar ? 'ابدأ بالتواصل مع الدعم، وستجد الرسائل والردود هنا.' : 'Your support conversations will appear here.') : (ar ? 'ستظهر هنا إشعارات حسابك وطلباتك.' : 'Your account updates will appear here.');
+                empty.append(heading, detail);
+            } else empty.textContent = words.empty;
             container.replaceChildren(empty);
         } else container.replaceChildren(...items.map(item => row(item, full)));
     };

@@ -1,6 +1,6 @@
-@extends('layouts.front-end.app')
+@extends(in_array(theme_root_path(), ['theme_aster', 'theme_sigma_care'], true) ? 'theme-views.layouts.app' : 'layouts.front-end.app')
 @section('title','الرسائل')
-@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-communication.css') }}?v=20261013.5">@endpush
+@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-communication.css') }}?v=20261108">@endpush
 @section('content')
 <main class="container customer-communication-page" dir="rtl"><div class="row g-4">@includeFirst(['theme-views.partials._profile-aside','web-views.partials._profile-aside'])<section class="col-lg-9"><header class="customer-communication-heading"><h1>الرسائل</h1><p>محادثاتك مع الدعم والإدارة، بما فيها الرسائل السابقة.</p></header>
     @if($errors->any())<div role="alert" class="alert alert-danger">{{ $errors->first() }}</div>@endif
