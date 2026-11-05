@@ -5,7 +5,9 @@
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-packages.css') }}?v=20261014b">
 @endpush
 @section('content')
-@php($money = fn($value) => rtrim(rtrim(number_format((float)$value,3,'.',','),'0'),'.'))
+@php
+    $money = fn($value) => rtrim(rtrim(number_format((float)$value,3,'.',','),'0'),'.');
+@endphp
 <main class="monthly-page package-page" dir="rtl">
     <a class="monthly-back" href="{{ route('user-profile') }}">العودة إلى الملف الشخصي</a>
     <header class="package-heading"><h1>الباقات الشهرية</h1><p>تُخصم معاملات الباقات من محفظة المنصة وتُفعّل فورًا. الحد الائتماني لا يُضاف إلى رصيد المحفظة.</p></header>
@@ -20,9 +22,22 @@
     </section>
     @unless($purchase_wallet_enabled)<p class="monthly-error">محفظة المنصة غير متاحة حاليًا.</p>@endunless
     @if($subscription['active'])
+    @php
+        $currentPackage = $packages->firstWhere('id', $subscription['package_id']);
+    @endphp
     <section class="package-account" aria-label="باقتك الحالية">
-        <div class="package-account-title"><h2>{{ $subscription['package_name'] }}</h2><a href="#renew-current-package">تجديد</a> <span class="package-paid">مدفوع</span><p>بدأت {{ \Carbon\Carbon::parse($subscription['starts_at'])->format('Y/m/d') }} · تنتهي {{ \Carbon\Carbon::parse($subscription['expires_at'])->format('Y/m/d') }} · متبقي {{ $subscription['remaining_days'] }} يومًا</p></div>
-        <dl class="package-account-facts">@foreach(['base_limit'=>'حد الباقة الأساسي','committed_limit'=>'المستخدم أو المحجوز خلال الاشتراك','available_limit'=>'المتاح الآن'] as $key=>$label)<div><dt>{{ $label }} @if($key === 'available_limit')<a href="#renew-current-limit">تجديد</a>@endif</dt><dd><bdi>{{ $money($subscription['allowance'][$key]) }}</bdi> <small>ج.م</small></dd></div>@endforeach</dl>
+        <div class="package-account-title"><h2>{{ $subscription['package_name'] }}</h2>
+            @if($currentPackage)<form method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>@csrf
+                @include('customer-subscription.transaction-fields', ['operation'=>'purchase','quoteToken'=>$currentPackage->quote_token,'quoteAmount'=>$currentPackage->package_price])
+                <input type="hidden" name="package_id" value="{{ $currentPackage->id }}"><button type="submit" class="monthly-button" @disabled(!$purchase_wallet_enabled)>تجديد</button>
+            </form>@endif
+            <span class="package-paid">مدفوع</span><p>بدأت {{ \Carbon\Carbon::parse($subscription['starts_at'])->format('Y/m/d') }} · تنتهي {{ \Carbon\Carbon::parse($subscription['expires_at'])->format('Y/m/d') }} · متبقي {{ $subscription['remaining_days'] }} يومًا</p></div>
+        <dl class="package-account-facts">@foreach(['base_limit'=>'حد الباقة الأساسي','committed_limit'=>'المستخدم أو المحجوز خلال الاشتراك','available_limit'=>'المتاح الآن'] as $key=>$label)<div><dt>{{ $label }}</dt><dd><bdi>{{ $money($subscription['allowance'][$key]) }}</bdi> <small>ج.م</small></dd>
+            @if($key === 'available_limit' && $currentPackage && $currentPackage->renewal_price > 0)<form method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>@csrf
+                @include('customer-subscription.transaction-fields', ['operation'=>'renew_limit','quoteToken'=>$currentPackage->quote_token,'quoteAmount'=>$currentPackage->renewal_price])
+                <input type="hidden" name="package_id" value="{{ $currentPackage->id }}"><button type="submit" class="monthly-button" @disabled(!$purchase_wallet_enabled)>تجديد</button>
+            </form>@endif
+        </div>@endforeach</dl>
     </section>
     @endif
     @if($subscription['active'] && !$auto_renew_enabled)
