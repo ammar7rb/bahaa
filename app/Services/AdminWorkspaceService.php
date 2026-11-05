@@ -11,6 +11,22 @@ use Illuminate\Support\Facades\Schema;
 class AdminWorkspaceService
 {
     private ?string $currencyCode = null;
+
+    /** Recent completed wallet operations are informational, never payment approvals. */
+    public function recentCustomerSubscriptionEvents(): array
+    {
+        if (!Schema::hasTable('customer_subscription_payments') || !Schema::hasColumn('customer_subscription_payments', 'wallet_policy_version')) return [];
+        return \App\Models\CustomerSubscriptionPayment::with('customer')
+            ->where('wallet_policy_version', 2)->where('status', 'approved')->where('payment_method', 'wallet_balance')
+            ->where('approved_at', '>=', now()->subMonthNoOverflow())
+            ->orderByDesc('approved_at')->orderByDesc('id')->limit(6)->get()->map(function ($payment) {
+                $kind = ['activation' => 'اشتراك', 'upgrade' => 'ترقية', 'renew_package' => 'تجديد الباقة', 'renew_limit' => 'تجديد الحد الائتماني', 'increase' => 'زيادة الحد الائتماني'][$payment->purchase_kind] ?? 'معاملة باقة';
+                $customer = trim(($payment->customer?->f_name ?? '').' '.($payment->customer?->l_name ?? ''));
+                return ['id' => $payment->id, 'kind' => $kind, 'customer' => $customer ?: 'عميل',
+                    'account' => AdministrativeReferenceService::format('customer', (int) $payment->customer_id),
+                    'package' => $payment->terms_name, 'time' => $payment->approved_at?->format('Y/m/d H:i')];
+            })->all();
+    }
     public function totals(): array
     {
         return [

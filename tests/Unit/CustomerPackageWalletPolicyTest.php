@@ -85,6 +85,11 @@ class CustomerPackageWalletPolicyTest extends TestCase
         $this->assertSame($payment->id,$retry->id);$this->assertSame('approved',$payment->status);
         $this->assertEquals(900,User::find(1)->wallet_balance);$this->assertEquals(3000,$payment->allowance_after);
         $this->assertEquals(900,$payment->wallet_balance_after);$this->assertSame(1,CustomerMonthlySubscription::count());
+        $events = app(\App\Services\AdminWorkspaceService::class)->recentCustomerSubscriptionEvents();
+        $this->assertCount(1, $events);
+        $this->assertSame('C000001', $events[0]['account']);
+        $this->assertSame('اشتراك', $events[0]['kind']);
+        $this->assertSame('Silver', $events[0]['package']);
         $this->assertSame(1,DB::table('wallet_transactions')->count());
         $this->assertEquals($payment->id,DB::table('wallet_transactions')->value('customer_subscription_payment_id'));
         try{$service->transact(1,array_replace($input,['expected_amount'=>101]));$this->fail('Reused key changed terms');}catch(\DomainException $e){$this->assertStringContainsString('مختلف',$e->getMessage());}
@@ -103,6 +108,8 @@ class CustomerPackageWalletPolicyTest extends TestCase
         $this->assertSame(2, CustomerMonthlySubscription::count());
         $this->assertSame(2, DB::table('wallet_transactions')->count());
         $this->assertSame('renew_package', CustomerSubscriptionPayment::where('customer_id', 1)->latest('id')->value('purchase_kind'));
+        $events = app(\App\Services\AdminWorkspaceService::class)->recentCustomerSubscriptionEvents();
+        $this->assertSame('تجديد الباقة', $events[0]['kind']);
         $this->assertSame(now()->addDays(30)->toIso8601String(), CustomerMonthlySubscription::latest('id')->first()->expires_at->toIso8601String());
     }
 
@@ -234,6 +241,7 @@ class CustomerPackageWalletPolicyTest extends TestCase
         $input=$this->purchase(['operation'=>'renew_limit','expected_amount'=>25,'expected_subscription_id'=>$sub->id]);
         $payment=$service->transact(1,$input);$service->transact(1,$input);
         $this->assertSame('renew_limit',$payment->purchase_kind);$this->assertEquals(0,$payment->allowance_before);$this->assertEquals(3000,$payment->allowance_after);
+        $this->assertSame('تجديد الحد الائتماني', app(\App\Services\AdminWorkspaceService::class)->recentCustomerSubscriptionEvents()[0]['kind']);
         $this->assertSame($start,$sub->fresh()->starts_at->toIso8601String());$this->assertSame($expiry,$sub->fresh()->expires_at->toIso8601String());
         $this->assertEquals(3000,$sub->fresh()->committed_allowance);$this->assertSame(1,CustomerMonthlySubscription::count());
         $this->assertEquals(875,User::find(1)->wallet_balance);$this->assertSame(2,DB::table('wallet_transactions')->count());
@@ -260,6 +268,7 @@ class CustomerPackageWalletPolicyTest extends TestCase
         $expiry=$sub->expires_at->toIso8601String();$this->travel(5)->days();$gold=CustomerPurchasePackage::find(2);
         $payment=$service->transact(1,$this->purchase(['package_id'=>2,'quote_token'=>app(CustomerPackageCatalogService::class)->token($gold,'package'),'expected_amount'=>200,'expected_subscription_id'=>$sub->id]));
         $this->assertSame('upgrade',$payment->purchase_kind);$this->assertEquals(200,$payment->quoted_amount);$this->assertEquals(700,User::find(1)->wallet_balance);
+        $this->assertSame('ترقية', app(\App\Services\AdminWorkspaceService::class)->recentCustomerSubscriptionEvents()[0]['kind']);
         $this->assertSame(2,CustomerMonthlySubscription::count());
         $newSubscription = CustomerMonthlySubscription::latest('id')->first();
         $this->assertSame(now()->addDays(30)->toIso8601String(), $newSubscription->expires_at->toIso8601String());

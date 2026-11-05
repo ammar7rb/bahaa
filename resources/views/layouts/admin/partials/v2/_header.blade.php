@@ -49,6 +49,21 @@
         <div id="admin-search-results" class="admin-search-results" role="listbox" hidden></div>
     </div>
     <div class="v2-header-right">
+        @if(Helpers::module_permission_check('people'))
+            @php($subscriptionEvents = app(\App\Services\AdminWorkspaceService::class)->recentCustomerSubscriptionEvents())
+            <div class="v2-dropdown">
+                <button class="v2-icon-btn admin-inbox-toggle" type="button" data-v2-dropdown-toggle aria-expanded="false" aria-label="معاملات الاشتراك المكتملة" title="معاملات الاشتراك المكتملة"><i class="fi fi-rr-calendar" aria-hidden="true"></i>@if(count($subscriptionEvents))<span class="v2-badge-dot">{{ count($subscriptionEvents) }}</span>@endif</button>
+                <div class="v2-dropdown-menu admin-inbox" dir="rtl">
+                    <div class="admin-inbox-heading"><h4>معاملات الاشتراك المكتملة</h4></div>
+                    <div class="v2-pop-scroll">
+                        @forelse($subscriptionEvents as $event)
+                            <a class="admin-notice" href="{{ route('admin.customer.monthly-subscriptions.index') }}"><span class="admin-notice-content"><strong>{{ $event['kind'] }} · {{ $event['package'] }}</strong><span>{{ $event['customer'] }} · <bdi>{{ $event['account'] }}</bdi></span><time>{{ $event['time'] }}</time></span></a>
+                        @empty<p class="admin-empty">لا توجد معاملات اشتراك حديثة.</p>@endforelse
+                    </div>
+                    <a class="admin-inbox-view-all" href="{{ route('admin.customer.monthly-subscriptions.index') }}">سجل الاشتراكات</a>
+                </div>
+            </div>
+        @endif
         @foreach($workspaceMenus as $kind => [$label, $icon, $url])
             @if(isset($workspaceSnapshot['categories'][$kind]) && ($kind !== 'payments' || Helpers::module_permission_check('orders') || Helpers::module_permission_check('people') || Helpers::module_permission_check('reports')))
                 @php
