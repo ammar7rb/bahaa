@@ -1,11 +1,11 @@
 @extends(in_array(theme_root_path(), ['theme_aster', 'theme_sigma_care'], true) ? 'theme-views.layouts.app' : 'layouts.front-end.app')
 @section('title', translate('settings'))
 @section('content')
-<main class="container py-5">
+<main class="container py-4 customer-settings">
     <div class="row g-4">
         @includeFirst(['theme-views.partials._profile-aside', 'web-views.partials._profile-aside'])
-        <section class="col-lg-9">
-            <h1>{{ translate('settings') }}</h1>
+        <section class="col-lg-9 customer-settings-content">
+            <header class="customer-settings-heading"><h1>{{ translate('settings') }}</h1><p>إدارة أمان حسابك وتفضيلاتك</p></header>
             @if(session('settings_status'))<p class="alert alert-success" role="status">{{ session('settings_status') }}</p>@endif
             @if($errors->any())<p class="alert alert-danger" role="alert">{{ $errors->first() }}</p>@endif
             <section class="card card-body mb-4">
@@ -32,7 +32,7 @@
                     @endforeach
                 </ul>
             </section>
-<p><a class="btn btn-outline-primary" href="{{ route('customer.auth.logout') }}">{{ translate('logout') }}</a></p>
+<section class="customer-settings-actions"><a class="btn btn-outline-primary" href="{{ route('customer.auth.logout') }}">{{ translate('logout') }}</a></section>
             <a class="btn btn-outline-danger" href="{{ route('customer.deletion.show') }}">{{ translate('delete_account') }}</a>
         </section>
     </div>
