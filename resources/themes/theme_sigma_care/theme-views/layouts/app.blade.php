@@ -76,7 +76,7 @@
     </style>
 
     <meta name="color-scheme" content="light">
-    <link rel="stylesheet" href="{{ theme_asset('assets/css/sigma-care.css') }}?v=25">
+    <link rel="stylesheet" href="{{ theme_asset('assets/css/sigma-care.css') }}?v=26">
     <link rel="stylesheet" href="{{ asset('assets/front-end/css/care-basket.css') }}?v=20261017.1">
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
