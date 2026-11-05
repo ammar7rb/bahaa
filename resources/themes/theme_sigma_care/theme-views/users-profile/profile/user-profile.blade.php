@@ -12,7 +12,6 @@
                     <div class="card mb-3">
                         <div class="card-body">
                             @include('customer-subscription.profile-overview')
-                            <nav class="d-flex flex-wrap gap-3 mt-3" aria-label="روابط الحساب"><a href="{{ route('account-address') }}">العناوين</a><a href="{{ route('wishlists') }}">المفضلة</a><a href="{{ route('shop-cart') }}">السلة</a><a href="{{ route('customer.auth.logout') }}">تسجيل الخروج</a></nav>
                             <div class="mt-30 bg-light rounded p-3">
                                 <div class="d-flex align-items-center flex-wrap justify-content-between gap-3">
                                     <h5>{{translate('Personal_Details')}}</h5>

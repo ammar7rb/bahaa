@@ -10,7 +10,7 @@
             <span class="customer-status {{ $headerCustomer->is_active ? 'is-active' : 'is-suspended' }}"><span aria-hidden="true">●</span>
                 {{ $headerCustomer->is_active ? ($isArabic ? 'نشط' : 'Active') : ($isArabic ? 'معلق' : 'Suspended') }}
             </span></div>
-            <div class="customer-reference"><bdi dir="ltr" id="customer-account-reference">{{ $headerCustomer->administrative_reference }}</bdi><button type="button" data-copy-account aria-label="{{ $isArabic ? 'نسخ رقم الحساب' : 'Copy account number' }}" title="{{ $isArabic ? 'نسخ رقم الحساب' : 'Copy account number' }}"><i class="bi bi-copy" aria-hidden="true"></i></button><span class="visually-hidden" aria-live="polite" data-copy-feedback></span></div>
+            <div class="customer-reference"><bdi dir="ltr" id="customer-account-reference">{{ $headerCustomer->administrative_reference }}</bdi><button type="button" data-copy-account aria-label="{{ $isArabic ? 'نسخ رقم الحساب' : 'Copy account number' }}" title="{{ $isArabic ? 'نسخ رقم الحساب' : 'Copy account number' }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><span class="visually-hidden" aria-live="polite" data-copy-feedback></span></div>
         </div>
     </div>
     <nav class="customer-profile-actions" aria-label="{{ translate('messages') }} / {{ translate('notifications') }}">

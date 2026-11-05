@@ -8,13 +8,13 @@
         @if(session('customer_cancel_message'))<div class="alert alert-success">{{ session('customer_cancel_message') }}</div>@endif
         @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
         <header class="customer-orders-heading"><div><h1>طلباتي</h1><p>تابع مشترياتك وحالة كل طلب.</p></div><a href="{{ route('account-oder', ['show_order'=>$show_order, 'order_by'=>request('order_by') === 'asc' ? 'desc' : 'asc']) }}">{{ request('order_by') === 'asc' ? 'الأحدث أولًا' : 'الأقدم أولًا' }} ↕</a></header>
-        <a class="btn btn-outline-primary mb-3" href="{{ route('customer.tracking.index') }}">تتبع الطلبات</a>
         <nav class="nav nav-pills gap-2 mb-3" aria-label="فئات الطلبات">
             @foreach(['ongoing' => 'طلبات نشطة', 'previous' => 'طلبات سابقة'] as $category => $label)
                 <a @class(['nav-link', 'active' => $show_order === $category])
                     @if($show_order === $category) aria-current="page" @endif
                     href="{{ route('account-oder', ['show_order' => $category, 'order_by' => request('order_by')]) }}">{{ $label }}</a>
             @endforeach
+            <a class="nav-link" href="{{ route('customer.tracking.index') }}">تتبع الطلبات</a>
         </nav>
         @forelse($orders as $order)
             @php($state = $order->customer_checkout_operation_id ? app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order) : null)
