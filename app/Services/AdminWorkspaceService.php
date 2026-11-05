@@ -20,7 +20,7 @@ class AdminWorkspaceService
             ->where('wallet_policy_version', 2)->where('status', 'approved')->where('payment_method', 'wallet_balance')
             ->where('approved_at', '>=', now()->subMonthNoOverflow())
             ->orderByDesc('approved_at')->orderByDesc('id')->limit(6)->get()->map(function ($payment) {
-                $kind = ['activation' => 'اشتراك', 'upgrade' => 'ترقية', 'renew_package' => 'تجديد الباقة', 'renew_limit' => 'تجديد الحد الائتماني', 'increase' => 'زيادة الحد الائتماني'][$payment->purchase_kind] ?? 'معاملة باقة';
+                $kind = ['activation' => 'اشتراك', 'upgrade' => 'ترقية', 'downgrade' => 'تغيير لباقة أقل', 'renew_package' => 'تجديد الباقة', 'renew_limit' => 'تجديد الحد الائتماني', 'increase' => 'زيادة الحد الائتماني'][$payment->purchase_kind] ?? 'معاملة باقة';
                 $customer = trim(($payment->customer?->f_name ?? '').' '.($payment->customer?->l_name ?? ''));
                 return ['id' => $payment->id, 'kind' => $kind, 'customer' => $customer ?: 'عميل',
                     'account' => AdministrativeReferenceService::format('customer', (int) $payment->customer_id),

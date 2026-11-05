@@ -53,8 +53,6 @@
     @forelse($packages as $package)
         @php($current=$subscription['active'] && $subscription['package_id']===$package->id)
         @php($higher = $subscription['active'] && $package->purchase_limit > $subscription['allowance']['base_limit'])
-        @php($top = $subscription['active'] && $packages->max('purchase_limit') <= $subscription['allowance']['base_limit'])
-        @php($eligible = !$subscription['active'] || $higher || $top)
         <article class="package-choice {{ $current ? 'package-active' : '' }}">
             <div class="package-card-top"><h3>{{ $current ? $subscription['package_name'] : $package->name }}</h3>@if($current)<span class="package-badge paid">الباقة الحالية</span>@endif</div>
             <p class="package-description">{{ $package->description }}</p><div class="package-price"><bdi>{{ $money($current ? $subscription['allowance']['package_price'] : $package->package_price) }}</bdi><span>ج.م</span></div><p class="package-price-label">سعر الباقة · الاشتراك الجديد 30 يومًا</p>
@@ -70,10 +68,10 @@
                 @if($package->renewal_price>0)<form id="renew-current-limit" method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>@csrf
                     @include('customer-subscription.transaction-fields',['operation'=>'renew_limit','quoteToken'=>$package->quote_token,'quoteAmount'=>$package->renewal_price])<input type="hidden" name="package_id" value="{{ $package->id }}"><button class="monthly-button" type="submit" @disabled(!$purchase_wallet_enabled)>تجديد الحد بـ{{ $money($package->renewal_price) }} ج.م</button></form>
                 @else<p id="renew-current-limit">لم تحدد الإدارة رسوم تجديد الحد بعد.</p>@endif
-            @elseif($eligible)
+            @else
                 <form method="post" action="{{ route('customer.subscription.transact') }}" data-package-transaction>@csrf
                     @include('customer-subscription.transaction-fields',['operation'=>'purchase','quoteToken'=>$package->quote_token,'quoteAmount'=>$package->package_price])<input type="hidden" name="package_id" value="{{ $package->id }}"><button class="monthly-button" type="submit" @disabled(!$purchase_wallet_enabled)>{{ $higher ? 'ترقية الباقة' : 'اشترك الآن' }}</button></form>
-            @else<p class="package-card-state">باقة غير متاحة للترقية</p>@endif
+            @endif
         </article>
     @empty<p>لا توجد باقات متاحة حاليًا.</p>@endforelse
     </div></section>
@@ -89,7 +87,7 @@
             <div class="package-increase-footer"><p>المبلغ المطلوب <strong><bdi data-increase-total>{{ $money($firstOffer->price) }}</bdi> ج.م</strong></p><button class="monthly-button" type="submit" @disabled(!$purchase_wallet_enabled)>زيادة الحد من رصيد المحفظة</button></div>
         </form>@else<p>لا توجد عروض زيادة متاحة حاليًا.</p>@endif
     </section>@endif
-    <details class="monthly-history package-history"><summary>سجل معاملات الباقات</summary>@forelse($payments as $payment)<div class="monthly-history-row"><span>{{ $payment->terms_name ?: 'عملية سابقة' }} · {{ ['activation'=>'اشتراك','upgrade'=>'ترقية','renew_package'=>'تجديد الباقة','renew_limit'=>'تجديد الحد','increase'=>'زيادة الحد'][$payment->purchase_kind] ?? 'عملية سابقة' }}</span><span>{{ $money($payment->quoted_amount) }} {{ $payment->currency_code }}</span><span>{{ ['approved'=>'معتمد','pending_review'=>'طلب سابق قيد المراجعة','draft'=>'مسودة سابقة','rejected'=>'مرفوض','cancelled'=>'ملغى'][$payment->status] ?? $payment->status }}</span></div>@empty<p>لا توجد معاملات بعد.</p>@endforelse{{ $payments->links() }}</details>
+    <details class="monthly-history package-history"><summary>سجل معاملات الباقات</summary>@forelse($payments as $payment)<div class="monthly-history-row"><span>{{ $payment->terms_name ?: 'عملية سابقة' }} · {{ ['activation'=>'اشتراك','upgrade'=>'ترقية','downgrade'=>'تغيير لباقة أقل','renew_package'=>'تجديد الباقة','renew_limit'=>'تجديد الحد','increase'=>'زيادة الحد'][$payment->purchase_kind] ?? 'عملية سابقة' }}</span><span>{{ $money($payment->quoted_amount) }} {{ $payment->currency_code }}</span><span>{{ ['approved'=>'معتمد','pending_review'=>'طلب سابق قيد المراجعة','draft'=>'مسودة سابقة','rejected'=>'مرفوض','cancelled'=>'ملغى'][$payment->status] ?? $payment->status }}</span></div>@empty<p>لا توجد معاملات بعد.</p>@endforelse{{ $payments->links() }}</details>
 </main>
 @endsection
 @push('script')<script src="{{ asset('assets/front-end/js/customer-packages.js') }}?v=20261014" defer></script>@endpush

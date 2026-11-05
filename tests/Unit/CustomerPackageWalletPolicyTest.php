@@ -290,6 +290,45 @@ class CustomerPackageWalletPolicyTest extends TestCase
         $this->assertTrue($sub->fresh()->expires_at->lte(now()));
     }
 
+    public function test_lower_package_starts_immediately_and_charges_only_once(): void
+    {
+        $service = app(\App\Services\CustomerPackageWalletService::class);
+        $gold = CustomerPurchasePackage::findOrFail(2);
+        $service->transact(1, $this->purchase(['package_id'=>2, 'quote_token'=>app(CustomerPackageCatalogService::class)->token($gold,'package'), 'expected_amount'=>200]));
+        $old = CustomerMonthlySubscription::latest('id')->firstOrFail();
+        $input = $this->purchase(['expected_subscription_id'=>$old->id]);
+        $payment = $service->transact(1, $input);
+        $retry = $service->transact(1, $input);
+        $this->assertSame($payment->id, $retry->id);
+        $this->assertSame('downgrade', $payment->purchase_kind);
+        $this->assertEquals(700, User::findOrFail(1)->wallet_balance);
+        $this->assertSame(2, DB::table('wallet_transactions')->count());
+        $this->assertEquals(3000, $payment->allowance_after);
+        $this->assertTrue($old->fresh()->expires_at->lte(now()));
+        $this->assertSame(now()->addDays(30)->toIso8601String(), CustomerMonthlySubscription::latest('id')->first()->expires_at->toIso8601String());
+        $this->assertSame('تغيير لباقة أقل', app(\App\Services\AdminWorkspaceService::class)->recentCustomerSubscriptionEvents()[0]['kind']);
+    }
+
+    public function test_lower_package_does_not_change_subscription_if_balance_is_insufficient(): void
+    {
+        $service = app(\App\Services\CustomerPackageWalletService::class);
+        $gold = CustomerPurchasePackage::findOrFail(2);
+        $service->transact(1, $this->purchase(['package_id'=>2, 'quote_token'=>app(CustomerPackageCatalogService::class)->token($gold,'package'), 'expected_amount'=>200]));
+        $old = CustomerMonthlySubscription::latest('id')->firstOrFail();
+        $expiry = $old->expires_at->toIso8601String();
+        User::whereKey(1)->update(['wallet_balance'=>50]);
+        try {
+            $service->transact(1, $this->purchase(['expected_subscription_id'=>$old->id]));
+            $this->fail('Lower package charged without enough balance');
+        } catch (\DomainException $e) {
+            $this->assertStringContainsString('غير كاف', $e->getMessage());
+        }
+        $this->assertSame(1, CustomerMonthlySubscription::count());
+        $this->assertEquals(50, User::findOrFail(1)->wallet_balance);
+        $this->assertSame($expiry, $old->fresh()->expires_at->toIso8601String());
+        $this->assertSame(1, DB::table('wallet_transactions')->count());
+    }
+
     public function test_api_uses_authenticated_owner_and_closes_all_old_payment_paths(): void
     {
         $this->actingAs(User::find(1),'api')->postJson('http://localhost/api/v1/customer/subscription/transact',$this->purchase(['customer_id'=>2,'quoted_amount'=>1]))->assertOk()->assertJsonPath('payment.customer_id',1)->assertJsonPath('payment.status','approved');

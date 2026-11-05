@@ -90,11 +90,8 @@ class CustomerPackageWalletService
         if($input['operation']!=='purchase')throw new DomainException('معاملة باقة غير صالحة.');
         $renewing = $latest && (int) $latest->package_id === (int) $package->id;
         $upgrading = $latest && !$renewing && (float) $package->purchase_limit > (float) $latest->granted_allowance;
-        if ($active && !$renewing && !$upgrading && $catalog->available()->reorder()
-            ->where('purchase_limit', '>', $active->granted_allowance)->exists()) {
-            throw new DomainException('اختر باقة أعلى للترقية.');
-        }
-        return ['kind'=>$renewing ? 'renew_package' : ($upgrading ? 'upgrade' : 'activation'),'amount'=>$package->package_price,'allowance'=>$package->purchase_limit,'name'=>$package->name,'package_id'=>$package->id,'offer_id'=>null];
+        $downgrading = $latest && !$renewing && (float) $package->purchase_limit < (float) $latest->granted_allowance;
+        return ['kind'=>$renewing ? 'renew_package' : ($upgrading ? 'upgrade' : ($downgrading ? 'downgrade' : 'activation')),'amount'=>$package->package_price,'allowance'=>$package->purchase_limit,'name'=>$package->name,'package_id'=>$package->id,'offer_id'=>null];
     }
 
     private function apply(int $customerId,CustomerSubscriptionPayment $payment,?CustomerMonthlySubscription $active): CustomerMonthlySubscription
