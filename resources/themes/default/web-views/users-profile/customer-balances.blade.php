@@ -20,9 +20,8 @@
                 <button type="button" class="profile-aside-btn btn btn--primary d-lg-none">{{ translate('profile_info') }}</button>
             </div>
             <div class="row align-items-stretch">
-                <div class="col-md-6 mb-3 wallet-subscription-column">@include('customer-subscription.entry')</div>
                 @foreach(['purchase'] as $walletType)
-                    <div class="col-md-6 mb-3" id="{{ $walletType }}-balance">
+                    <div class="col-12 mb-3" id="{{ $walletType }}-balance">
                         <div class="card h-100 wallet-balance-card wallet-balance-{{ $walletType }}"><div class="card-body">
                             <div class="wallet-card-heading"><h2 class="h6 mb-0">{{ translate($walletType . '_balance_title') }}</h2><span class="wallet-icon-tile">@include('web-views.users-profile.partials.wallet-icon', ['icon' => $walletType])</span></div>
                             <p class="wallet-amount my-3"><bdi>{{ webCurrencyConverter( $purchaseBalance) }}</bdi></p>

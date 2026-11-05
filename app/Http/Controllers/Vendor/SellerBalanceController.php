@@ -112,7 +112,7 @@ class SellerBalanceController extends Controller
         if ($request->get('wallet_target') === 'insurance') return back()->withErrors(['wallet_target' => translate('seller_insurance_retired')]);
         try {
             app(\App\Services\VendorFundingSubmissionService::class)->submit(auth('seller')->user(),$request);
-            return back()->with('success',translate('seller_balance_deposit_submitted'));
+            return back()->with('success','تم استلام طلب الإيداع، وجارٍ التحقق من عملية الدفع.');
         } catch (DomainException $e) { return back()->withErrors(['amount'=>translate($e->getMessage())])->withInput(); }
     }
 

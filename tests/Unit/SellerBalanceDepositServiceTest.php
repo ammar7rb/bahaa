@@ -13,6 +13,42 @@ use Tests\TestCase;
 
 class SellerBalanceDepositServiceTest extends TestCase
 {
+    public function test_vendor_deposit_notifications_are_private_idempotent_and_expire_after_a_month(): void
+    {
+        Schema::create('business_settings', function (Blueprint $table) { $table->id(); $table->string('type'); $table->text('value')->nullable(); });
+        Schema::create('notifications', function (Blueprint $table) {
+            $table->id(); $table->unsignedBigInteger('seller_id')->nullable(); $table->string('customer_event_key')->nullable()->unique();
+            $table->string('sent_by'); $table->string('sent_to'); $table->string('title'); $table->text('description');
+            $table->boolean('status'); $table->integer('notification_count'); $table->string('image')->nullable(); $table->timestamps();
+        });
+        \Illuminate\Support\Facades\DB::table('business_settings')->insert(['type' => 'currency_model', 'value' => 'single_currency']);
+        session(['system_default_currency_info' => (object) ['code' => 'USD']]);
+        \Carbon\Carbon::setTestNow('2026-01-15 12:00:00');
+        try {
+            $seller = Seller::create(['email' => 'notification@example.test']);
+            $service = app(SellerBalanceDepositService::class);
+            $deposit = $service->createOffline($seller, ['amount' => 125, 'currency_code' => 'USD']);
+            $service->markPaid($deposit, ['transaction_id' => 'test'], 1);
+            $service->markPaid($deposit->fresh(), ['transaction_id' => 'test'], 1);
+            $rows = \Illuminate\Support\Facades\DB::table('notifications')->orderBy('id')->get();
+            $this->assertCount(2, $rows);
+            $this->assertSame($seller->id, $rows[0]->seller_id);
+            $other = Seller::create(['email' => 'other@example.test']);
+            $this->assertSame(2, app(\App\Services\VendorInboxService::class)->notifications($seller)->count());
+            $this->assertSame(0, app(\App\Services\VendorInboxService::class)->notifications($other)->count());
+            $this->assertStringContainsString('جارٍ التحقق', $rows[0]->description);
+            $this->assertStringContainsString('125.00 USD', $rows[1]->description);
+            $rejected = $service->createOffline($seller, ['amount' => 5, 'currency_code' => 'USD']);
+            $service->reject($rejected, 1, 'التحويل غير موجود');
+            $this->assertStringContainsString('فشلت', \Illuminate\Support\Facades\DB::table('notifications')->latest('id')->value('description'));
+            \Carbon\Carbon::setTestNow('2026-02-15 12:00:01');
+            $this->assertSame(0, \App\Models\Notification::active()->count());
+            $this->assertSame(4, \App\Models\Notification::expiredWalletDeposit()->count());
+        } finally {
+            \Carbon\Carbon::setTestNow();
+            Schema::dropIfExists('notifications'); Schema::dropIfExists('business_settings');
+        }
+    }
     protected function setUp(): void
     {
         parent::setUp();

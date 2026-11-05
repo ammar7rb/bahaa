@@ -34,7 +34,6 @@ class UserWalletController extends Controller
 
         return view('web-views.users-profile.customer-balances', [
             'purchaseBalance' => (float) auth('customer')->user()->wallet_balance,
-            'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status($customerId),
             'purchaseEntries' => $entries,
             'paymentGatewayList' => $gateways,
             'canDeposit' => getWebConfig(name: 'add_funds_to_wallet') == 1 && ($digitalPayment['status'] ?? 0) && $gateways->isNotEmpty(),

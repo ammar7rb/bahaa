@@ -71,6 +71,10 @@ class AccountPhotoPrivacyTest extends TestCase
         $this->actingAs((new \App\Models\Admin())->forceFill(['id' => 9]), 'admin');
         $this->assertTrue(app(AccountPhotoAccess::class)->canView('customer', 1));
         $this->assertTrue(app(AccountPhotoAccess::class)->canView('seller', 11));
+        Storage::disk('local')->put('private-account-photos/profile/owner.webp', 'photo-bytes');
+        $response = app(AccountPhotoController::class)(Request::create('/account-photos/customer/1'), 'customer', 1, app(AccountPhotoAccess::class));
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
     }
 
     public function test_legacy_default_avatar_does_not_request_a_nonexistent_private_photo(): void
