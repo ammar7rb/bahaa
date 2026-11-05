@@ -59,7 +59,7 @@
                     <div class="admin-inbox-heading"><h4>معاملات الاشتراك المكتملة</h4></div>
                     <div class="v2-pop-scroll">
                         @forelse($subscriptionEvents as $event)
-                            <a class="admin-notice" href="{{ route('admin.customer.monthly-subscriptions.index') }}"><span class="admin-notice-content"><strong>{{ $event['kind'] }} · {{ $event['package'] }}</strong><span>{{ $event['customer'] }} · <bdi>{{ $event['account'] }}</bdi></span><time>{{ $event['time'] }}</time></span></a>
+                            <a class="admin-notice" href="{{ $event['url'] }}"><span class="admin-notice-content"><strong>{{ $event['kind'] }} · {{ $event['package'] }}</strong><span>{{ $event['customer'] }} · <bdi>{{ $event['account'] }}</bdi></span><time>{{ $event['time'] }}</time></span></a>
                         @empty<p class="admin-empty">لا توجد معاملات اشتراك حديثة.</p>@endforelse
                     </div>
                     <a class="admin-inbox-view-all" href="{{ route('admin.customer.monthly-subscriptions.index') }}">سجل الاشتراكات</a>

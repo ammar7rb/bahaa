@@ -10,6 +10,20 @@ use Tests\TestCase;
 
 class CustomerPackageWalletPolicyTest extends TestCase
 {
+    public function test_admin_activity_includes_only_paid_vendor_wallet_subscription(): void
+    {
+        Schema::create('sellers', function (Blueprint $t) { $t->id(); $t->string('f_name')->nullable(); $t->string('l_name')->nullable(); });
+        Schema::create('seller_package_subscriptions', function (Blueprint $t) { $t->id(); $t->string('package_name'); $t->string('payment_status'); });
+        Schema::create('seller_ledger_entries', function (Blueprint $t) { $t->id(); $t->integer('seller_id'); $t->integer('reference_id'); $t->string('reference_type'); $t->string('event_type'); $t->string('direction'); $t->timestamps(); });
+        DB::table('sellers')->insert(['id'=>76,'f_name'=>'تاجر','l_name'=>'اختبار']);
+        DB::table('seller_package_subscriptions')->insert([['id'=>1,'package_name'=>'Gold','payment_status'=>'paid'],['id'=>2,'package_name'=>'Silver','payment_status'=>'unpaid']]);
+        foreach ([1,2] as $id) DB::table('seller_ledger_entries')->insert(['seller_id'=>76,'reference_id'=>$id,'reference_type'=>\App\Models\SellerPackageSubscription::class,'event_type'=>'seller_package_purchase','direction'=>'debit','created_at'=>now(),'updated_at'=>now()]);
+        $events = app(\App\Services\AdminWorkspaceService::class)->recentCustomerSubscriptionEvents();
+        $this->assertCount(1, $events);
+        $this->assertSame('M000076', $events[0]['account']);
+        $this->assertSame('Gold', $events[0]['package']);
+        $this->assertSame('اشتراك تاجر', $events[0]['kind']);
+    }
     protected function setUp(): void
     {
         parent::setUp();$this->travelTo(\Carbon\Carbon::parse('2026-10-01 10:00:00','Africa/Cairo'));

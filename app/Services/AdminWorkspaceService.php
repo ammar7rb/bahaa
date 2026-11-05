@@ -16,7 +16,7 @@ class AdminWorkspaceService
     public function recentCustomerSubscriptionEvents(): array
     {
         if (!Schema::hasTable('customer_subscription_payments') || !Schema::hasColumn('customer_subscription_payments', 'wallet_policy_version')) return [];
-        return \App\Models\CustomerSubscriptionPayment::with('customer')
+        $events = \App\Models\CustomerSubscriptionPayment::with('customer')
             ->where('wallet_policy_version', 2)->where('status', 'approved')->where('payment_method', 'wallet_balance')
             ->where('approved_at', '>=', now()->subMonthNoOverflow())
             ->orderByDesc('approved_at')->orderByDesc('id')->limit(6)->get()->map(function ($payment) {
@@ -24,8 +24,26 @@ class AdminWorkspaceService
                 $customer = trim(($payment->customer?->f_name ?? '').' '.($payment->customer?->l_name ?? ''));
                 return ['id' => $payment->id, 'kind' => $kind, 'customer' => $customer ?: 'عميل',
                     'account' => AdministrativeReferenceService::format('customer', (int) $payment->customer_id),
-                    'package' => $payment->terms_name, 'time' => $payment->approved_at?->format('Y/m/d H:i')];
-            })->all();
+                    'package' => $payment->terms_name, 'time' => $payment->approved_at?->format('Y/m/d H:i'),
+                    'url' => route('admin.customer.monthly-subscriptions.index')];
+            });
+        if (Schema::hasTable('seller_ledger_entries') && Schema::hasTable('seller_package_subscriptions') && Schema::hasTable('sellers')) {
+            $vendorEvents = DB::table('seller_ledger_entries as ledger')
+                ->join('seller_package_subscriptions as subscription', 'subscription.id', '=', 'ledger.reference_id')
+                ->join('sellers as seller', 'seller.id', '=', 'ledger.seller_id')
+                ->where('ledger.event_type', 'seller_package_purchase')->where('ledger.direction', 'debit')
+                ->where('ledger.reference_type', \App\Models\SellerPackageSubscription::class)
+                ->where('subscription.payment_status', 'paid')->where('ledger.created_at', '>=', now()->subMonthNoOverflow())
+                ->orderByDesc('ledger.created_at')->orderByDesc('ledger.id')->limit(6)
+                ->get(['ledger.id', 'ledger.seller_id', 'ledger.created_at', 'seller.f_name', 'seller.l_name', 'subscription.package_name'])
+                ->map(fn ($row) => ['id' => $row->id, 'kind' => 'اشتراك تاجر',
+                    'customer' => trim(($row->f_name ?? '').' '.($row->l_name ?? '')) ?: 'تاجر',
+                    'account' => AdministrativeReferenceService::format('seller', (int) $row->seller_id),
+                    'package' => $row->package_name, 'time' => \Carbon\Carbon::parse($row->created_at)->format('Y/m/d H:i'),
+                    'url' => route('admin.vendors.view', ['id' => $row->seller_id])]);
+            $events = $events->concat($vendorEvents);
+        }
+        return $events->sortByDesc('time')->take(6)->values()->all();
     }
     public function totals(): array
     {
