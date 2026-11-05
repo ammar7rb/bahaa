@@ -1,18 +1,16 @@
 @if(auth('customer')->check() && request()->is('user-profile', 'user-account', 'account-notifications', 'account-messages', 'account-tickets', 'support-ticket*'))
 @php($headerCustomer = auth('customer')->user())
-@push('css_or_js')
-<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-communication.css') }}?v=20261013">
-@endpush
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-communication.css') }}?v=20261105">
 <header class="container customer-profile-header" data-customer-communication data-feed-url="{{ route('customer.communication.index') }}">
     <div class="customer-profile-identity">
         <img src="{{ getStorageImages(path: $headerCustomer->image_full_url, type: 'avatar') }}" alt="" width="48" height="48">
         <div>
-            <strong>{{ $headerCustomer->f_name }} {{ $headerCustomer->l_name }}</strong>
-            <bdi dir="ltr">{{ $headerCustomer->administrative_reference }}</bdi>
             @php($isArabic = getLanguageCode(country_code: getDefaultLanguage()) === 'ar')
-            <small class="d-block">
+            <div class="customer-identity-name"><strong>{{ $headerCustomer->f_name }} {{ $headerCustomer->l_name }}</strong>
+            <span class="customer-status {{ $headerCustomer->is_active ? 'is-active' : 'is-suspended' }}"><span aria-hidden="true">●</span>
                 {{ $headerCustomer->is_active ? ($isArabic ? 'نشط' : 'Active') : ($isArabic ? 'معلق' : 'Suspended') }}
-            </small>
+            </span></div>
+            <div class="customer-reference"><bdi dir="ltr" id="customer-account-reference">{{ $headerCustomer->administrative_reference }}</bdi><button type="button" data-copy-account aria-label="{{ $isArabic ? 'نسخ رقم الحساب' : 'Copy account number' }}" title="{{ $isArabic ? 'نسخ رقم الحساب' : 'Copy account number' }}"><i class="bi bi-copy" aria-hidden="true"></i><span>{{ $isArabic ? 'نسخ' : 'Copy' }}</span></button><span class="visually-hidden" aria-live="polite" data-copy-feedback></span></div>
         </div>
     </div>
     <nav class="customer-profile-actions" aria-label="{{ translate('messages') }} / {{ translate('notifications') }}">
@@ -29,5 +27,5 @@
         @endforeach
     </nav>
 </header>
-@push('script')<script src="{{ asset('assets/front-end/js/customer-profile-communication.js') }}?v=20261013" defer></script>@endpush
+@push('script')<script src="{{ asset('assets/front-end/js/customer-profile-communication.js') }}?v=20261105" defer></script>@endpush
 @endif

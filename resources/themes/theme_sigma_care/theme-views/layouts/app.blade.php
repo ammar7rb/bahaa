@@ -111,7 +111,7 @@
 @include('web-views.users-profile.partials.customer-activation-banner')
 @include('customer-subscription.expiry-banner')
 
-@if(!request()->routeIs('shop-cart') && !request()->is('checkout*','customer/checkout*'))
+@if(!request()->routeIs('shop-cart') && !request()->is('checkout*','customer/checkout*','user-profile','user-account','account-*','support-ticket*','wallet*','customer/subscription*','customer/account-deletion*'))
 <div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'browsing'])</div>
 @endif
 @include('customer-account.profile-header')

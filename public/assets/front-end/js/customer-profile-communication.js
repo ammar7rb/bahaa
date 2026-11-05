@@ -2,6 +2,19 @@
     'use strict';
     const header = document.querySelector('[data-customer-communication]');
     if (!header) return;
+    const copyButton = header.querySelector('[data-copy-account]');
+    copyButton?.addEventListener('click', async () => {
+        const value = header.querySelector('#customer-account-reference')?.textContent.trim();
+        if (!value) return;
+        const feedback = header.querySelector('[data-copy-feedback]');
+        try {
+            await navigator.clipboard.writeText(value);
+            feedback.textContent = document.documentElement.lang.startsWith('ar') ? 'تم نسخ رقم الحساب' : 'Account number copied';
+            copyButton.querySelector('span').textContent = document.documentElement.lang.startsWith('ar') ? 'تم النسخ' : 'Copied';
+        } catch (_) {
+            feedback.textContent = document.documentElement.lang.startsWith('ar') ? 'تعذر النسخ، يمكنك تحديد الرقم ونسخه' : 'Copy failed; select the number to copy it';
+        }
+    });
     const ar = document.documentElement.lang.startsWith('ar') || document.documentElement.dir === 'rtl';
     const words = ar ? {empty:'لا توجد عناصر حالياً.',error:'تعذر تحميل التحديثات. أعد المحاولة.',retry:'إعادة المحاولة'}
         : {empty:'No items yet.',error:'Could not load updates. Please retry.',retry:'Retry'};
