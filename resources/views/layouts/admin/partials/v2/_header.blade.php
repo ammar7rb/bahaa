@@ -50,7 +50,9 @@
     </div>
     <div class="v2-header-right">
         @if(Helpers::module_permission_check('people'))
-            @php($subscriptionEvents = app(\App\Services\AdminWorkspaceService::class)->recentCustomerSubscriptionEvents())
+            @php
+                $subscriptionEvents = app(\App\Services\AdminWorkspaceService::class)->recentCustomerSubscriptionEvents();
+            @endphp
             <div class="v2-dropdown">
                 <button class="v2-icon-btn admin-inbox-toggle" type="button" data-v2-dropdown-toggle aria-expanded="false" aria-label="معاملات الاشتراك المكتملة" title="معاملات الاشتراك المكتملة"><i class="fi fi-rr-calendar" aria-hidden="true"></i>@if(count($subscriptionEvents))<span class="v2-badge-dot">{{ count($subscriptionEvents) }}</span>@endif</button>
                 <div class="v2-dropdown-menu admin-inbox" dir="rtl">
