@@ -22,10 +22,29 @@ class SellerBalanceFundingSettingsController extends Controller
     public function index(): View
     {
         return view('admin-views.vendor.balance-funding-settings.index', [
+            'salesTransferSettings' => app(\App\Services\SellerCashTransferService::class)->settings(),
             'settings' => $this->settingsService->get(),
             'paymentGateways' => payment_gateways(),
             'offlinePaymentMethods' => OfflinePaymentMethod::query()->where('status', 1)->get(),
         ]);
+    }
+
+    public function updateSalesTransfer(Request $request): RedirectResponse
+    {
+        abort_unless(\App\Utils\Helpers::module_permission_check('people'), 403);
+        $input = $request->validate(['type' => 'required|in:percent,fixed', 'value' => 'required|numeric|min:0|max:1000000']);
+        if ($input['type'] === 'percent' && (float) $input['value'] > 100) {
+            return back()->withErrors(['value' => translate('sales_cash_transfer_percent_invalid')]);
+        }
+        $value = $input['type'] === 'fixed' ? (float) \App\Utils\Convert::usd($input['value']) : (float) $input['value'];
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $input, $value) {
+            $setting = \App\Models\BusinessSetting::query()->where('type', \App\Services\SellerCashTransferService::SETTING)->lockForUpdate()->first();
+            if (!$setting) $setting = new \App\Models\BusinessSetting(['type' => \App\Services\SellerCashTransferService::SETTING]);
+            $setting->value = json_encode(['enabled' => $request->boolean('enabled'), 'type' => $input['type'], 'value' => $value]);
+            $setting->save();
+        });
+        ToastMagic::success(translate('sales_cash_transfer_settings_saved'));
+        return back();
     }
 
     public function update(Request $request): RedirectResponse

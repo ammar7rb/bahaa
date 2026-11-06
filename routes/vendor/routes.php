@@ -91,6 +91,9 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             Route::get('inbox/counts', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'counts'])->name('inbox.counts');
             Route::controller('\\App\\Http\\Controllers\\Vendor\\VendorFinanceWorkspaceController')->group(function () {
                 Route::get('invoices', 'invoices')->name('invoices');
+                Route::get('invoices/preview', 'invoicePreview')->name('invoices.preview');
+                Route::get('balance/transfer-quote', 'transferQuote')->middleware('throttle:30,1')->name('balance.transfer-quote');
+                Route::post('balance/transfer', 'transferToCash')->middleware('throttle:10,1')->name('balance.transfer');
                 Route::get('account/withdrawal-methods', 'methods')->name('account.withdrawal-methods');
                 Route::post('account/withdrawal-methods', 'saveMethod')->name('account.withdrawal-methods.save');
                 Route::post('account/withdrawal-methods/{method}/disable', 'disableMethod')->name('account.withdrawal-methods.disable');
@@ -112,6 +115,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                 Route::controller(SellerPackageController::class)->group(function () {
                     Route::get('/', 'index')->name('index');
                     Route::get('slots', 'slots')->name('slots');
+                    Route::post('auto-renewal', [\App\Http\Controllers\Vendor\VendorAutoRenewalController::class, 'enable'])->middleware('throttle:10,1')->name('auto-renewal.enable');
                     Route::post('slots/{slot}/create', 'openSlot')->block(10, 10)->name('slots.open');
                     Route::post('slots/{slot}/reserve', 'reserveSlot')->block(10, 10)->name('slots.reserve');
                     Route::post('slots/{slot}/cancel-reservation', 'cancelSlotReservation')->block(10, 10)->name('slots.cancel-reservation');

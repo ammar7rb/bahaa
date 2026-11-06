@@ -4,6 +4,8 @@ return [
     // Enable only after the slot/payment interfaces and transition are deployed together.
     'enabled' => (bool) env('VENDOR_ADVERTISING_ENABLED', false),
     'creation_slots_enabled' => (bool) env('VENDOR_SLOT_CREATION_ENABLED', false),
+    'auto_renewal_enabled' => (bool) env('VENDOR_AUTO_RENEWAL_ENABLED', false),
+    'extra_publish_enabled' => (bool) env('VENDOR_EXTRA_PUBLISH_ENABLED', false),
     'reservation_idle_minutes' => (int) env('VENDOR_SLOT_RESERVATION_IDLE_MINUTES', 0),
     'duration_days' => 30,
     'transition_days' => 7,

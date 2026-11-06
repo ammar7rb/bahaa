@@ -100,6 +100,7 @@ class SellerBalanceDepositService
                 'paid_at' => now(),
                 'metadata' => $metadata,
             ]);
+            if ($deposit->source === SellerBalanceDeposit::SOURCE_OFFLINE && $walletTarget === 'operating') app(SellerDepositNotificationService::class)->notify($deposit, true);
             return $deposit->fresh();
         });
     }
@@ -109,8 +110,10 @@ class SellerBalanceDepositService
         if (trim($reason) === '') {
             throw new DomainException('seller_balance_deposit_rejection_reason_required');
         }
+        return DB::transaction(function () use ($deposit, $adminId, $reason) {
         $this->ledger->lockSellerFinancialState((int) $deposit->seller_id);
             $deposit = SellerBalanceDeposit::query()->lockForUpdate()->findOrFail($deposit->id);
+        if ($deposit->status === SellerBalanceDeposit::STATUS_REJECTED && $deposit->source === SellerBalanceDeposit::SOURCE_OFFLINE) return $deposit;
         if ($deposit->status !== SellerBalanceDeposit::STATUS_PENDING || $deposit->source !== SellerBalanceDeposit::SOURCE_OFFLINE) {
             throw new DomainException('seller_balance_deposit_cannot_be_rejected');
         }
@@ -120,7 +123,9 @@ class SellerBalanceDepositService
             'reviewed_by_admin_id' => $adminId,
             'reviewed_at' => now(),
         ]);
+        app(SellerDepositNotificationService::class)->notify($deposit, false);
         return $deposit->fresh();
+        });
     }
 
     public function reverse(SellerBalanceDeposit $deposit, int $adminId, string $reason): SellerBalanceDeposit

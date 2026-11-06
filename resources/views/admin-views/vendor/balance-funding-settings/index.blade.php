@@ -21,6 +21,17 @@
         </button>
     </form>
 </div>
+<section class="card card-body mt-4">
+    <h2>{{ translate('sales_cash_transfer_settings') }}</h2>
+    <p>{{ translate('sales_cash_transfer_settings_hint') }}</p>
+    <form method="post" action="{{ route('admin.vendors.balance-funding-settings.sales-transfer') }}">@csrf
+        <div class="row g-3"><div class="col-md-3"><label for="sales-transfer-type">{{ translate('sales_cash_transfer_fee_type') }}</label><select id="sales-transfer-type" class="form-control" name="type"><option value="percent" @selected(($salesTransferSettings['type'] ?? 'percent') === 'percent')>{{ translate('sales_cash_transfer_percent') }}</option><option value="fixed" @selected(($salesTransferSettings['type'] ?? '') === 'fixed')>{{ translate('sales_cash_transfer_fixed') }}</option></select></div>
+        <div class="col-md-3"><label for="sales-transfer-value">{{ translate('sales_cash_transfer_fee_value') }}</label><input id="sales-transfer-value" class="form-control" type="number" name="value" min="0" max="1000000" step="0.01" value="{{ ($salesTransferSettings['type'] ?? '') === 'fixed' ? \App\Utils\Convert::default($salesTransferSettings['value']) : ($salesTransferSettings['value'] ?? 3) }}" required></div>
+        <div class="col-md-3 d-flex align-items-end"><label><input type="checkbox" name="enabled" value="1" @checked($salesTransferSettings['enabled'] ?? false)> {{ translate('sales_cash_transfer_enabled') }}</label></div>
+        <div class="col-md-3 d-flex align-items-end"><button class="btn btn--primary" type="submit">{{ translate('save') }}</button></div></div>
+    </form>
+</section>
+
 @endsection
 
 @push('script')

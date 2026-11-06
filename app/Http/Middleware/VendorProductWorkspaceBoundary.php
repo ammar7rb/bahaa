@@ -71,7 +71,37 @@ class VendorProductWorkspaceBoundary
                 && !VendorProductWorkspace::where('seller_id', $sellerId)->where('product_id', $request->input('id') ?? $request->input('product_id'))->where('legacy_exempt', true)->exists()) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['advertising_slot' => 'اختر الإعلان من صفحة المساحات لتفعيله.']);
             }
-            if ($reservations->enabled() && $create) {
+            if ($reservations->enabled() && $create && config('vendor_advertising.extra_publish_enabled') && $request->boolean('extra_ad_publish')) {
+                $data = $request->validate(['extra_ad_subscription_id' => 'required|integer|min:1', 'extra_ad_request_key' => 'required|uuid', 'extra_ad_expected_price' => 'required|numeric|gt:0']);
+                try {
+                    $response = \Illuminate\Support\Facades\DB::transaction(function () use ($sellerId, $request, $next, $reservations, $data) {
+                        $seller = \App\Models\Seller::whereKey($sellerId)->lockForUpdate()->firstOrFail();
+                        try {
+                            $purchase = app(\App\Services\VendorExtraAdService::class)->purchase($seller, [
+                                'subscription_id' => (int) $data['extra_ad_subscription_id'], 'quantity' => 1,
+                                'request_key' => $data['extra_ad_request_key'], 'expected_unit_price' => number_format((float) $data['extra_ad_expected_price'], 2, '.', ''),
+                                'payment_method' => 'operating_balance',
+                            ]);
+                        } catch (\DomainException $error) {
+                            throw \Illuminate\Validation\ValidationException::withMessages(['extra_ad_payment' => $error->getMessage()]);
+                        }
+                        $slot = \App\Models\VendorAdvertisingSlot::where('seller_id', $sellerId)->where('extra_ad_purchase_id', $purchase->id)->lockForUpdate()->firstOrFail();
+                        $token = $data['extra_ad_request_key'];
+                        if ($reservations->receipt($sellerId, $slot->id, $token)) {
+                            return $request->is('api/*') || $request->expectsJson()
+                                ? response()->json(['message' => translate('product_added_successfully'), 'already_saved' => true, 'saved' => true, 'redirect_url' => route('vendor.products.list', ['type' => 'all'])])
+                                : redirect()->route('vendor.products.list', ['type' => 'all']);
+                        }
+                        $reservations->reserve($seller, $slot->id, $token);
+                        $request->merge(['slot_id' => $slot->id, 'slot_reservation_token' => $token]);
+                        $result = $next($request);
+                        if (!$reservations->receipt($sellerId, $slot->id, $token)) throw new \App\Exceptions\VendorPublicationRollback($result);
+                        return $result;
+                    });
+                } catch (\App\Exceptions\VendorPublicationRollback $rollback) {
+                    $response = $rollback->response;
+                }
+            } elseif ($reservations->enabled() && $create) {
                 $request->validate(['slot_id' => 'required|integer|min:1', 'slot_reservation_token' => 'required|uuid']);
                 $response = \Illuminate\Support\Facades\DB::transaction(function () use ($sellerId, $request, $next, $reservations) {
                     \App\Models\Seller::whereKey($sellerId)->lockForUpdate()->firstOrFail();
@@ -102,6 +132,14 @@ class VendorProductWorkspaceBoundary
             $response->headers->set('Cache-Control', 'private, no-store');
             return $response;
         } catch (\Illuminate\Validation\ValidationException $exception) {
+            if (isset($exception->errors()['extra_ad_payment'])) {
+                $message = $exception->errors()['extra_ad_payment'][0];
+                if ($request->expectsJson() || $request->is('api/*')) return response()->json([
+                    'message' => $message, 'errors' => [['code' => 'extra_ad_payment', 'message' => $message]],
+                    'action' => ['type' => 'wallet', 'url' => route('vendor.balance.payments')],
+                ], 422);
+                return back()->withErrors(['extra_ad_payment' => $message])->withInput();
+            }
             if (isset($exception->errors()['advertising_slot']) || ($create ?? false) && (isset($exception->errors()['slot_id']) || isset($exception->errors()['slot_reservation_token']))) {
                 $message = $exception->errors()['advertising_slot'][0] ?? 'اختَر مساحة متاحة وافتح نموذج الإضافة منها.';
                 if ($request->expectsJson() || $request->is('api/*')) return response()->json([

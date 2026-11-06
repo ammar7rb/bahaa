@@ -47,7 +47,7 @@
             @endif
         </article>
     @endforeach
-        <article class="vendor-slot-card vendor-slot-buy"><h2>مساحة إضافية</h2><p>تنتهي مع الاشتراك الحالي ولا تتجدد تلقائيًا.</p>@if($extraSettings['enabled'] && $extraSettings['unit_price'] > 0 && $summary['active_subscription'])<strong>{{ webCurrencyConverter(amount: $extraSettings['unit_price']) }} للمساحة</strong><a class="btn btn--primary mt-3" href="#extra-ad-purchase">شراء الآن</a>@else<p>الشراء غير متاح حتى تفعيل الإضافات وتحديد سعرها ووجود اشتراك سارٍ.</p>@endif</article>
+        <article class="vendor-slot-card vendor-slot-buy"><h2>مساحة إضافية</h2><p>تنتهي مع الاشتراك الحالي ولا تتجدد تلقائيًا.</p>@if($extraSettings['enabled'] && $extraSettings['unit_price'] > 0 && $summary['active_subscription'])<strong>{{ webCurrencyConverter(amount: $extraSettings['unit_price']) }} للمساحة</strong>@if(config('vendor_advertising.extra_publish_enabled') && config('vendor_product_workspace.enabled'))<a class="btn btn--primary mt-3" href="{{ route('vendor.products.add', ['extra_ad' => 1]) }}">إضافة إعلان</a>@else<a class="btn btn--primary mt-3" href="#extra-ad-purchase">شراء الآن</a>@endif @else<p>الشراء غير متاح حتى تفعيل الإضافات وتحديد سعرها ووجود اشتراك سارٍ.</p>@endif</article>
     </div>
     @include('vendor-views.product.partials.saved-advertisements')
     <div id="extra-ad-purchase">@include('vendor-views.package.partials.extra-ads')</div>

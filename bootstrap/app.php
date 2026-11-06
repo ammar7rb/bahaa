@@ -115,6 +115,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('packages:expire-subscriptions')
             ->everyFiveMinutes()
             ->withoutOverlapping();
+        $schedule->command('vendor:process-auto-renewals')->everyMinute()->withoutOverlapping();
         $schedule->command('seller-settlements:release-due')
             ->everyFiveMinutes()
             ->withoutOverlapping();

@@ -192,11 +192,23 @@ class ProductController extends BaseController
 
     public function getAddView(): View|RedirectResponse
     {
-        if (config('vendor_advertising.creation_slots_enabled')
-            && (!request()->filled('slot_id') || !request()->filled('slot_reservation_token'))) {
-            return redirect()->route('vendor.packages.index')->withErrors([
-                'slot' => 'اختر مساحة متاحة وافتح نموذج إضافة المنتج منها.',
-            ]);
+        if (config('vendor_advertising.creation_slots_enabled')) {
+            if (request()->boolean('extra_ad') && config('vendor_advertising.extra_publish_enabled') && config('vendor_product_workspace.enabled')) {
+                $seller = auth('seller')->user();
+                $subscription = app(\App\Services\SellerPackagePurchaseService::class)->getSummary($seller)['active_subscription'];
+                $settings = app(\App\Services\VendorExtraAdService::class)->settings();
+                if (!$subscription || !$settings['enabled'] || (float) $settings['unit_price'] <= 0) return redirect()->route('vendor.packages.slots');
+                request()->merge(['extra_ad_publish' => true, 'extra_ad_subscription_id' => $subscription->id,
+                    'extra_ad_expected_price' => $settings['unit_price'], 'extra_ad_request_key' => (string) \Illuminate\Support\Str::uuid()]);
+            } else {
+                $slotId = (int) request('slot_id');
+                $token = session('vendor_slot_tokens.'.auth('seller')->id().'.'.$slotId);
+                if (!$slotId || !$token) return redirect()->route('vendor.packages.slots');
+                $nextToken = (string) \Illuminate\Support\Str::uuid();
+                app(\App\Services\VendorSlotReservationService::class)->reserve(auth('seller')->user(), $slotId, $nextToken, $token);
+                session(['vendor_slot_tokens.'.auth('seller')->id().'.'.$slotId => $nextToken]);
+                request()->merge(['slot_reservation_token' => $nextToken]);
+            }
         }
         $taxData = $this->getTaxSystemType();
         $productWiseTax = $taxData['productWiseTax'] && ! $taxData['is_included'];
@@ -223,7 +235,7 @@ class ProductController extends BaseController
 
     public function add(ProductAddRequest $request, ProductService $service): JsonResponse|RedirectResponse
     {
-        if ($request->ajax()) {
+        if ($request->ajax() && !$request->boolean('publish_product')) {
             return response()->json([], 200);
         }
 
@@ -253,6 +265,8 @@ class ProductController extends BaseController
         );
 
         ToastMagic::success(translate('product_added_successfully'));
+
+        if ($request->ajax()) return response()->json(['saved' => true, 'redirect_url' => route('vendor.products.list', ['type' => 'all'])]);
 
         return redirect()->route('vendor.products.list', ['type' => 'all']);
     }

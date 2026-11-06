@@ -67,6 +67,7 @@ class VendorAdvertisingOverviewService
                 'available' => $cards->where('capacity_status', 'available')->count(), 'reserved' => $cards->where('capacity_status', 'reserved')->count(),
                 'included' => (int) ($cycle?->product_limit ?? 0), 'additional' => $slots->whereNotNull('extra_ad_purchase_id')->count()],
             'extra_settings' => $extraSettings,
+            'extra_publish_enabled' => (bool) (config('vendor_advertising.extra_publish_enabled') && config('vendor_product_workspace.enabled') && config('vendor_advertising.creation_slots_enabled')),
             'can_buy_extra' => (bool) $current && $extraSettings['enabled'] && (float) $extraSettings['unit_price'] > 0,
         ];
     }

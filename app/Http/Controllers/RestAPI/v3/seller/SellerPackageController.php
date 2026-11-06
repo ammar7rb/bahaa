@@ -79,6 +79,8 @@ class SellerPackageController extends Controller
         $operatingBalance = (float) ($this->ledger->summary($request->seller->id)[SellerLedgerService::OPERATING] ?? 0);
 
         return response()->json([
+            'auto_renewal_available' => config('vendor_advertising.auto_renewal_enabled') && \Illuminate\Support\Facades\Schema::hasTable('vendor_auto_renewals'),
+            'auto_renewal_enabled' => config('vendor_advertising.auto_renewal_enabled') && \Illuminate\Support\Facades\Schema::hasTable('vendor_auto_renewals') && \Illuminate\Support\Facades\DB::table('vendor_auto_renewals')->where('seller_id', $request->seller->id)->where('enabled', true)->exists(),
             'packages' => SellerPackage::query()->active()->orderBy('sort_order')->orderBy('id')->get()
                 ->map(function (SellerPackage $package) {
                     $duration = $this->durationService->fromPackage($package);

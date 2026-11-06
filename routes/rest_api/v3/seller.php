@@ -84,6 +84,8 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
         Route::post('inbox/read', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'read']);
         Route::controller('\\App\\Http\\Controllers\\Vendor\\VendorFinanceWorkspaceController')->group(function () {
             Route::get('invoices', 'invoices');
+            Route::get('balance/transfer-quote', 'transferQuote')->middleware('throttle:30,1');
+            Route::post('balance/transfer', 'transferToCash')->middleware('throttle:10,1');
             Route::get('invoices/{order}/document', 'invoiceDocument')->whereNumber('order');
             Route::get('withdrawal-methods', 'methods');
             Route::post('withdrawal-methods', 'saveMethod');
@@ -93,6 +95,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
             Route::post('balance/operating-refunds', 'operatingRefund')->middleware('throttle:6,1');
         });
         Route::prefix('packages')->controller(SellerPackageController::class)->group(function () {
+            Route::post('auto-renewal', [\App\Http\Controllers\Vendor\VendorAutoRenewalController::class, 'enable'])->middleware('throttle:10,1');
             Route::get('extra-ads', [\App\Http\Controllers\RestAPI\v3\seller\VendorExtraAdController::class, 'index']);
             Route::post('extra-ads', [\App\Http\Controllers\RestAPI\v3\seller\VendorExtraAdController::class, 'store']);
             Route::get('slots', [\App\Http\Controllers\RestAPI\v3\seller\VendorAdvertisingSlotController::class, 'index']);

@@ -27,6 +27,7 @@ class VendorFinancialWorkspaceService
         $upcoming = (clone $pending)->where('status', 'held')->where('due_at', '>', now());
         $nearest = (clone $upcoming)->min('due_at');
         $summary = [
+            'available_balance' => (float) (app(SellerLedgerService::class)->summary($sellerId, initializeLegacy: false)[SellerLedgerService::AVAILABLE] ?? 0),
             'total_receivables' => (float) (clone $pending)->sum('amount'),
             'upcoming_receivables' => (float) (clone $upcoming)->sum('amount'),
             'settled_total' => (float) (clone $visible)->where('status', 'released')->sum('amount'),

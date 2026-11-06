@@ -25,7 +25,8 @@ class VendorExtraAdService
             $existing = VendorExtraAdPurchase::where('seller_id', $seller->id)->where('request_key', $data['request_key'])->first();
             if ($existing) {
                 if ($existing->quantity !== (int) $data['quantity'] || $existing->payment_method !== $data['payment_method']
-                    || $existing->seller_package_subscription_id !== (int) $data['subscription_id']) {
+                    || $existing->seller_package_subscription_id !== (int) $data['subscription_id']
+                    || (int) round((float) $existing->unit_price * 100) !== (int) round((float) $data['expected_unit_price'] * 100)) {
                     throw new DomainException('مفتاح الطلب مستخدم لشراء مختلف.');
                 }
                 return $existing;
@@ -59,7 +60,7 @@ class VendorExtraAdService
             if ($data['payment_method'] === 'offline_payment' && ($proof['transfer_reference'] ?? null)) app(VendorTransferReferenceService::class)->reserve((int)$proof['method_id'],$proof['transfer_reference'],'extra_ad',$purchase->id);
             if ($wallet) {
                 $ledger = app(SellerLedgerService::class);
-                if (($ledger->summary($seller->id)['operating'] ?? 0) < (float) $total) throw new DomainException('رصيد المدفوعات غير كافٍ.');
+                if (($ledger->summary($seller->id)['operating'] ?? 0) < (float) $total) throw new DomainException('رصيد المدفوعات غير كافٍ. برجاء شحن الرصيد.');
                 $ledger->post($seller->id, 'extra_ad_purchase', 'extra-ad-'.$purchase->id,
                     [['bucket' => 'operating', 'direction' => 'debit', 'amount' => (float) $total, 'reporting_category' => 'package', 'reference_code' => $purchase->admin_reference]],
                     VendorExtraAdPurchase::class, $purchase->id, ['currency' => 'EGP', 'reference' => $purchase->admin_reference]);

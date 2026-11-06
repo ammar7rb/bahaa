@@ -53,6 +53,8 @@ class SellerPackageController extends Controller
             'products' => config('vendor_advertising.enabled') ? \App\Models\Product::withoutGlobalScopes()->where('added_by', 'seller')->where('user_id', $seller->id)->get(['id', 'name', 'request_status', 'status']) : collect(),
             'packages' => SellerPackage::query()->active()->orderBy('sort_order')->orderBy('id')->get(),
             'summary' => $summary,
+            'autoRenewal' => config('vendor_advertising.auto_renewal_enabled') && \Illuminate\Support\Facades\Schema::hasTable('vendor_auto_renewals') ? \Illuminate\Support\Facades\DB::table('vendor_auto_renewals')->where('seller_id', $seller->id)->first() : null,
+            'autoRenewalAvailable' => config('vendor_advertising.auto_renewal_enabled') && \Illuminate\Support\Facades\Schema::hasTable('vendor_auto_renewals'),
             'extraSettings' => config('vendor_advertising.enabled') ? app(\App\Services\VendorExtraAdService::class)->settings() : [],
             'extraPurchases' => config('vendor_advertising.enabled') ? \App\Models\VendorExtraAdPurchase::where('seller_id', $seller->id)->latest('id')->paginate(20, ['*'], 'extra_page') : collect(),
             'subscriptions' => $seller->packageSubscriptions()->latest('id')->limit(10)->get(),
@@ -65,9 +67,10 @@ class SellerPackageController extends Controller
         ]);
     }
 
-    public function slots(): RedirectResponse
+    public function slots(): RedirectResponse|View
     {
         abort_unless(config('vendor_advertising.enabled'), 404);
+        if (config('vendor_advertising.extra_publish_enabled')) return $this->slotsWorkspace();
         return redirect()->route('vendor.products.list', ['type' => 'all']);
     }
 

@@ -613,6 +613,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
 
     Route::group(['prefix' => 'vendors', 'as' => 'vendors.', 'middleware' => ['module:people']], function () {
         Route::controller(SellerBalanceFundingSettingsController::class)->prefix('balance-funding-settings')->name('balance-funding-settings.')->group(function () {
+            Route::post('sales-transfer', 'updateSalesTransfer')->name('sales-transfer');
             Route::get('/', 'index')->name('index');
             Route::post('/', 'update')->name('update');
         });
@@ -645,6 +646,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::post('{id}/approve', 'approve')->name('approve');
             Route::post('{id}/reject-payment', 'reject')->name('reject');
         });
+        Route::post('auto-renewal/{seller}/disable', [\App\Http\Controllers\Admin\Vendor\VendorAutoRenewalAdminController::class, 'disable'])->whereNumber('seller')->name('auto-renewal.disable');
 
         Route::group(['prefix' => 'package-payments', 'as' => 'package-payments.'], function () {
             Route::controller(SellerPackagePaymentController::class)->group(function () {

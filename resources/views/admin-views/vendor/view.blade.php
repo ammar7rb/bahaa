@@ -4,6 +4,9 @@
 
 @section('content')
     <div class="content container-fluid">
+        @if(config('vendor_advertising.auto_renewal_enabled') && \Illuminate\Support\Facades\Schema::hasTable('vendor_auto_renewals') && \Illuminate\Support\Facades\DB::table('vendor_auto_renewals')->where('seller_id', $seller->id)->where('enabled', true)->exists())
+            <div class="card card-body mb-4"><strong>التجديد التلقائي مفعل</strong><form method="post" action="{{ route('admin.vendors.auto-renewal.disable', $seller->id) }}">@csrf<button class="btn btn-outline-danger mt-2" type="submit">إيقاف التجديد التلقائي</button></form></div>
+        @endif
         <div class="mb-3">
             <h2 class="h1 mb-0 text-capitalize d-flex align-items-center gap-2">
                 <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/add-new-seller.png') }}" alt="">

@@ -7,6 +7,21 @@
     @if($summary['active_subscription'])
         <section class="card card-body mb-4"><h2>{{ $summary['active_subscription']->package_name }}</h2><p>الإعلانات المتبقية: {{ max(0, $slots->count() - (int) $summary['active_subscription']->used_product_limit) }} • الإضافات: {{ max(0, $slots->count() - (int) $summary['active_subscription']->product_limit) }} • موعد انتهاء الاشتراك {{ $summary['active_subscription']->expires_at?->format('Y-m-d H:i') }}</p></section>
     @endif
+    @if($summary['active_subscription'] && $autoRenewalAvailable && !($autoRenewal->enabled ?? false))
+        @php($renewalPlan = $packages->firstWhere('id', $summary['active_subscription']->seller_package_id))
+        @if($renewalPlan)
+            <form method="post" action="{{ route('vendor.packages.auto-renewal.enable') }}" class="card card-body mb-4">
+                @csrf
+                <input type="hidden" name="subscription_id" value="{{ $summary['active_subscription']->id }}">
+                <input type="hidden" name="expected_price" value="{{ $renewalPlan->package_price }}">
+                <label><input type="checkbox" required> التجديد التلقائي عند انتهاء الاشتراك من الرصيد النقدي بقيمة {{ webCurrencyConverter(amount: $renewalPlan->package_price) }}</label>
+                <p>يتوقف التجديد ويصلك إشعار إذا لم يكفِ الرصيد أو تغيّر سعر الباقة. لإلغاء التجديد تواصل مع الإدارة.</p>
+                <button class="btn btn--primary align-self-start" type="submit">تفعيل التجديد التلقائي</button>
+            </form>
+        @endif
+    @elseif($autoRenewalAvailable && ($autoRenewal->enabled ?? false))
+        <p class="alert alert-info">التجديد التلقائي مفعل. لإلغائه تواصل مع الإدارة.</p>
+    @endif
     @foreach($summary['scheduled_subscriptions'] as $scheduled)
         <div class="alert alert-info">الدورة القادمة مدفوعة: {{ $scheduled->package_name }} — تبدأ {{ $scheduled->starts_at?->format('Y-m-d H:i') }}. تظل شروط الدورة الحالية كما هي حتى انتهائها.</div>
     @endforeach
