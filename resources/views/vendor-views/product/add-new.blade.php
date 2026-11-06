@@ -8,7 +8,7 @@
     <link href="{{ dynamicAsset(path: 'public/assets/back-end/plugins/summernote/summernote.min.css') }}" rel="stylesheet">
     <link href="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor.css') }}" rel="stylesheet">
     <link href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-product.css') }}" rel="stylesheet">
-    <link href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-product-entry.css') }}" rel="stylesheet">
+    <link href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-product-entry.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-product-entry.css')) }}" rel="stylesheet">
 @endpush
 
 @section('content')
@@ -122,7 +122,7 @@
 @endsection
 
 @push('script')
-    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-product-entry.js') }}" defer></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-product-entry.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-product-entry.js')) }}" defer></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/tags-input.min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/new/back-end/libs/spartan-multi-image-picker/spartan-multi-image-picker-min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/plugins/summernote/summernote.min.js') }}"></script>

@@ -32,3 +32,9 @@
 #product_form .row.g-2{row-gap:8px}
 #product_form .vendor-sale-options{max-width:360px}
 #product_form .action-btn-wrapper{padding-top:8px}
+/* Keep the distance between visible controls compact at every viewport width. */
+#product_form>.card,#product_form>.outline-wrapper,#product_form>.general_wrapper,#product_form>.price_wrapper{margin:0 0 12px!important}
+#product_form label.title-color{margin-bottom:6px}
+#product_form .vendor-product-image-slot{height:100px;min-height:0;aspect-ratio:auto}
+#product_form .seller-product-specification .border-top{margin-top:12px!important}
+@media(max-width:575px){#product_form .vendor-product-image-slot{height:54px}#product_form .row.g-2>[class*="col-"]{padding-block:0}}
