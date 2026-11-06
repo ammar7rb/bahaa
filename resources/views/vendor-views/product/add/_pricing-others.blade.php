@@ -1,10 +1,8 @@
 <div class="price_wrapper mt-3">
     <div class="outline-wrapper">
         <div class="card rest-part bg-animate">
+            @if(getActiveAIProviderConfigCache())
             <div class="card-header d-flex justify-content-between align-items-center border-0 shadow-none pb-0 pc-header-ai-btn">
-                <div>
-                    <h3 class="mb-1">{{ translate('Pricing_&_Others') }}</h3>
-                </div>
 
                 @if(getActiveAIProviderConfigCache())
                 <button type="button"
@@ -23,6 +21,7 @@
                 @endif
 
             </div>
+            @endif
             <div class="card-body">
                 <div class="bg-section rounded-10 p-12 p-sm-20">
                     <div class="row align-items-end">

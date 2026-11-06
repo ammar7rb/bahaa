@@ -59,7 +59,6 @@
             @include('vendor-views.product.partials._seller-product-specification', ['specPart' => 'sale'])
             @include("vendor-views.product.add._general-setup")
             @include('vendor-views.product.partials._seller-product-specification', ['specPart' => 'measurements'])
-            @include("vendor-views.product.add._product-variation-setup")
             <input type="hidden" name="product_type" value="physical">
             <div class="card card-body mt-3">
                 @include('vendor-views.product.add._title-description', ['fieldPart' => 'description'])

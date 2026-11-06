@@ -8,11 +8,6 @@
 
 <div class="outline-wrapper mt-3 seller-product-specification physical_product_show">
     <div class="card rest-part bg-animate">
-        <div class="card-header border-0 shadow-none pb-0">
-            <div>
-                <h3 class="mb-1">{{ ($specPart ?? 'all') === 'sale' ? 'نوع البيع' : (($specPart ?? 'all') === 'measurements' ? 'تاريخ الانتهاء والأبعاد' : translate('seller_product_sale_unit_and_measurements')) }}</h3>
-            </div>
-        </div>
         <div class="card-body">
             <div class="bg-section rounded-10 p-12 p-sm-20">
                 @if($sellerProduct && ($specPart ?? 'all') !== 'sale')

@@ -1,10 +1,8 @@
 <div class="general_wrapper mt-3">
     <div class="outline-wrapper">
         <div class="card rest-part bg-animate">
+            @if(getActiveAIProviderConfigCache())
             <div class="card-header d-flex justify-content-between align-items-center border-0 shadow-none pb-0 pc-header-ai-btn">
-                <div>
-                    <h3 class="mb-1">{{ translate('General_Setup') }}</h3>
-                </div>
                 @if(getActiveAIProviderConfigCache())
                     <button type="button" class="btn bg-white text-primary bg-transparent shadow-none border-0 opacity-1 generate_btn_wrapper p-0 general_setup_auto_fill" id="general_setup_auto_fill" data-route="{{ route('vendor.product.general-setup-auto-fill') }}" data-lang="en">
                         <img width="18" height="18" src="{{ dynamicAsset(path: 'public/assets//back-end/img/ai/blink-right-small.svg') }}" alt="">
@@ -13,6 +11,7 @@
                     </button>
                 @endif
             </div>
+            @endif
             <div class="card-body">
                 <div class="bg-section rounded-10 p-12 p-sm-20">
                     <input type="hidden" name="product_type" value="physical">
