@@ -4,7 +4,6 @@
             <label for="" class="form-label fw-semibold mb-1">
                 {{ translate('product_thumbnail') }}
             </label>
-            <p class="fs-12 mb-0">{{ translate('Upload_image') }}</p>
         </div>
         <div class="upload-file mb-4">
             <input type="file" name="image" class="upload-file__input single_file_input action-upload-color-image"

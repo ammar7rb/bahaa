@@ -4,3 +4,21 @@
 #product_form select[hidden]{display:none!important}
 .vendor-sale-options[hidden]{display:none}
 #product_form{direction:rtl;text-align:right}#product_form .card{border:0!important;box-shadow:none!important;border-radius:0!important}#product_form .card-header,#product_form .mb-20{text-align:right}#product_form .bg-section{background:#fff!important;padding-inline:0!important}#product_form>.card.card-body{padding-top:0}#product_form .vendor-product-extra-images{border:0;padding-inline:0}#product_form .upload-file{width:180px;height:180px;max-width:100%;margin-inline:auto}#product_form .upload-file__wrapper{width:100%;height:100%;min-height:180px}#product_form .mb-5{margin-bottom:1rem!important}#product_form .form-control,#product_form button{transition:border-color .16s ease,background-color .16s ease}#product_form ::selection{background:#dbe8ff;color:#153b7d}@media(prefers-reduced-motion:reduce){#product_form .form-control,#product_form button{transition:none}}
+/* Compact spacing belongs to this form; keep shared dashboard cards unchanged. */
+#product_form .card-body{padding:0!important}
+#product_form .card-header{min-height:0;padding:0 0 12px!important}
+#product_form .card-header h3,#product_form .mb-20 h2{margin:0!important;font-size:18px;line-height:1.5}
+#product_form .bg-section{padding:0!important}
+#product_form>.card,#product_form>.outline-wrapper,#product_form>.general_wrapper,#product_form>.price_wrapper{margin:0 0 24px!important}
+#product_form>.card:last-of-type{margin-bottom:16px!important}
+#product_form .mb-20{margin-bottom:16px!important}
+#product_form .form-group{margin-bottom:0}
+#product_form label.title-color{margin-bottom:8px}
+#product_form .row.gy-4{--bs-gutter-y:16px;margin-top:-16px;margin-bottom:0}
+#product_form .row.gy-4>[class*="col-"]{margin-top:16px}
+#product_form .vendor-product-extra-images{padding:0;height:auto}
+#product_form .upload-file{width:144px;height:144px;margin-bottom:10px!important}
+#product_form .upload-file__wrapper{min-height:144px}
+#product_form .mb-5{margin-bottom:10px!important}
+#product_form .seller-product-specification .row+.row{margin-top:16px!important}
+@media(max-width:575px){#product_form>.card,#product_form>.outline-wrapper,#product_form>.general_wrapper,#product_form>.price_wrapper{margin-bottom:20px!important}#product_form .card-header h3,#product_form .mb-20 h2{font-size:17px}#product_form .row.gy-4{--bs-gutter-y:12px;margin-top:-12px}#product_form .row.gy-4>[class*="col-"]{margin-top:12px}}

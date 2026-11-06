@@ -4,9 +4,6 @@
             <div class="card-header d-flex justify-content-between align-items-center border-0 shadow-none pb-0 pc-header-ai-btn">
                 <div>
                     <h3 class="mb-1">{{ translate('Pricing_&_Others') }}</h3>
-                    <p class="fs-12 mb-0">
-                        {{ translate('Here_you_can_setup_the_price_and_other_information_for_the_product.') }}
-                    </p>
                 </div>
 
                 @if(getActiveAIProviderConfigCache())

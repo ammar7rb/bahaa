@@ -4,7 +4,6 @@
             <div class="card-header d-flex justify-content-between align-items-center border-0 shadow-none pb-0 pc-header-ai-btn">
                 <div>
                     <h3 class="mb-1">{{ translate('General_Setup') }}</h3>
-                    <p class="fs-12 mb-0">{{ translate('Here_you_can_setup_the_foundational_details_required_for_product_creation.') }}</p>
                 </div>
                 @if(getActiveAIProviderConfigCache())
                     <button type="button" class="btn bg-white text-primary bg-transparent shadow-none border-0 opacity-1 generate_btn_wrapper p-0 general_setup_auto_fill" id="general_setup_auto_fill" data-route="{{ route('vendor.product.general-setup-auto-fill') }}" data-lang="en">
@@ -26,8 +25,7 @@
                                     <option value="">{{ translate('select_category') }}</option>
                                     @foreach ($categories as $category)
                                         <option value="{{ $category['id'] }}" {{ old('category_id') == $category['id'] ? 'selected' : '' }}>{{ $category['defaultName'] }}</option>
-                                    @endforeach
-                                <option value="other" @selected(old('category_id', isset($product) && $product->category_review_required ? 'other' : '') === 'other')>{{ translate('other') }}</option></select>
+                                    @endforeach</select>
                             </div>
                         </div>
                         <div class="col-md-6 col-lg-4">
@@ -44,7 +42,6 @@
                                     <label class="title-color">{{ translate('brand') }} <span class="text-muted">({{ translate('optional') }})</span></label>
                                     <select class="js-select2-custom form-control" name="brand_id" id="brand_id">
                                         <option value="">{{ translate('brand') }}</option>
-                                        <option value="other">{{ translate('other') }}</option>
                                         @foreach ($brands as $brand)
                                             <option value="{{ $brand['id'] }}">{{ $brand['defaultName'] }}</option>
                                         @endforeach
