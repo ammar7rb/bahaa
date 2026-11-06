@@ -15,30 +15,23 @@
             <div class="card-body">
                 <div class="bg-section rounded-10 p-12 p-sm-20">
                     <input type="hidden" name="product_type" value="physical">
+                    <input type="hidden" name="sub_category_id" value="">
                     <input type="hidden" name="sub_sub_category_id" value="">
                     <div class="row g-2">
-                        <div class="col-md-6 col-lg-4">
+                        <div class="col-md-6">
                             <div class="form-group mb-0">
-                                <label class="title-color">{{ translate('category') }} <span class="text-muted">({{ translate('optional') }})</span></label>
-                                <select class="js-select2-custom form-control action-get-request-onchange" name="category_id" data-url-prefix="{{ route('vendor.products.get-categories').'?parent_id=' }}" data-element-id="sub-category-select" data-element-type="select" id="category_id">
+                                <label class="title-color">{{ translate('category') }}</label>
+                                <select class="js-select2-custom form-control" name="category_id" id="category_id">
                                     <option value="">{{ translate('select_category') }}</option>
                                     @foreach ($categories as $category)
                                         <option value="{{ $category['id'] }}" {{ old('category_id') == $category['id'] ? 'selected' : '' }}>{{ $category['defaultName'] }}</option>
                                     @endforeach</select>
                             </div>
                         </div>
-                        <div class="col-md-6 col-lg-4">
-                            <div class="form-group mb-0">
-                                <label class="title-color">{{ translate('sub_Category') }}</label>
-                                <select class="js-select2-custom form-control" name="sub_category_id" id="sub-category-select" data-url-prefix="{{ route('vendor.products.get-categories').'?parent_id=' }}">
-                                    <option value="" selected>{{ translate('select_Sub_Category') }}</option>
-                                </select>
-                            </div>
-                        </div>
                         @if($brandSetting)
-                            <div class="col-md-6 col-lg-4 physical_product_show">
+                            <div class="col-md-6 physical_product_show">
                                 <div class="form-group mb-0">
-                                    <label class="title-color">{{ translate('brand') }} <span class="text-muted">({{ translate('optional') }})</span></label>
+                                    <label class="title-color">{{ translate('brand') }}</label>
                                     <select class="js-select2-custom form-control" name="brand_id" id="brand_id">
                                         <option value="">{{ translate('brand') }}</option>
                                         @foreach ($brands as $brand)

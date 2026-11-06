@@ -24,7 +24,7 @@
                     @endif
                     @if(($specPart ?? 'all') !== 'sale')
                     <div class="col-md-6 col-lg-4">
-                        <label class="title-color" for="expiry_date">{{ translate('expiry_date') }} <span class="text-muted">({{ translate('optional') }})</span></label>
+                        <label class="title-color" for="expiry_date">{{ translate('expiry_date') }}</label>
                         <input class="form-control" type="date" name="expiry_date" id="expiry_date" min="{{ now()->addDay()->format('Y-m-d') }}"
                                value="{{ old('expiry_date', optional(data_get($sellerProduct, 'expiry_date'))->format('Y-m-d')) }}">
                         @error('expiry_date') <div class="text-danger fs-12 mt-1">{{ $message }}</div> @enderror

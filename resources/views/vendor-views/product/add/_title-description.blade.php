@@ -30,7 +30,7 @@
         <div class="form-group mb-0">
             <div class="d-flex justify-content-between align-items-center">
                 <label class="title-color" for="ar_description">
-                    {{ translate('description') }} <span class="text-muted">({{ translate('optional') }})</span>
+                    {{ translate('description') }}
                 </label>
                 @if(getActiveAIProviderConfigCache())
                     <button type="button" class="btn bg-white text-primary bg-transparent shadow-none border-0 opacity-1 generate_btn_wrapper p-0 auto_fill_description"
