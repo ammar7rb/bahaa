@@ -38,3 +38,5 @@
 #product_form .vendor-product-image-slot{height:100px;min-height:0;aspect-ratio:auto}
 #product_form .seller-product-specification .border-top{margin-top:12px!important}
 @media(max-width:575px){#product_form .vendor-product-image-slot{height:54px}#product_form .row.g-2>[class*="col-"]{padding-block:0}}
+#product_form .row.g-2{--bs-gutter-y:0;margin-block:0!important;row-gap:12px}
+#product_form .row.g-2>[class*="col-"]{padding-block:0!important;margin-block:0!important}
