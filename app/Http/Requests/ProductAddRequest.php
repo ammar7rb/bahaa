@@ -63,13 +63,15 @@ class ProductAddRequest extends Request
     {
         $rules = [
             'name' => 'required',
-            'category_id' => ['required', function ($attribute, $value, $fail) {
+            'category_id' => [auth('seller')->check() ? 'nullable' : 'required', function ($attribute, $value, $fail) {
                 if ($value === 'other' && !auth('seller')->check()) { $fail(translate('category_is_required')); return; }
-                foreach (app(\App\Services\SellerProductCategoryService::class)->validate($this->all()) as $message) $fail(translate($message));
+                foreach (app(\App\Services\SellerProductCategoryService::class)->validate($this->all(), auth('seller')->check()) as $message) $fail(translate($message));
             }],
             'product_type' => 'required|in:physical',
-            'images' => 'nullable|array',
-            'images.*' => 'nullable|image',
+            'sub_category_id' => 'nullable|prohibited_without:category_id',
+            'sub_sub_category_id' => 'nullable|prohibited_without:sub_category_id',
+            'images' => auth('seller')->check() ? 'nullable|array|max:5' : 'nullable|array',
+            'images.*' => auth('seller')->check() ? getRulesStringForImageValidation(rules: ['nullable', 'image'], skipMimes: ['svg', 'gif']) : 'nullable|image',
             'digital_product_type' => 'nullable',
             // 'digital_file_ready' => 'required_if' . ':' . 'digital_product_type' . ',==,' . 'ready_product' . '|' . 'mimes' . ':jpg,jpeg,png,gif,zip,pdf',
             'unit' => 'required_if'.':'.'product_type'.',==,'.'physical',
@@ -88,8 +90,8 @@ class ProductAddRequest extends Request
             'weight' => 'nullable|numeric|gt:0',
             'weight_unit' => 'nullable|in:g,kg',
             'no_production_expiry_dates' => 'boolean',
-            'production_date' => 'exclude_if:no_production_expiry_dates,1|required|date',
-            'expiry_date' => 'exclude_if:no_production_expiry_dates,1|required|date|after_or_equal:production_date|after:today',
+            'production_date' => auth('seller')->check() ? 'nullable|date' : 'exclude_if:no_production_expiry_dates,1|required|date',
+            'expiry_date' => auth('seller')->check() ? ['nullable', 'date', 'after:today', \Illuminate\Validation\Rule::when($this->filled('production_date'), ['after_or_equal:production_date'])] : 'exclude_if:no_production_expiry_dates,1|required|date|after_or_equal:production_date|after:today',
         ];
 
         $rules['image'] = 'nullable|image';
@@ -129,7 +131,7 @@ class ProductAddRequest extends Request
                 } else {
                     $cleanedDescription = is_string($description) ? trim(strip_tags($description)) : null;
                 }
-                if (empty($cleanedDescription)) {
+                if (empty($cleanedDescription) && !auth('seller')->check()) {
                     $validator->errors()->add(
                         'description', translate('Product_description_is_required').'!'
                     );

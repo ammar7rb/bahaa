@@ -16,25 +16,39 @@
         </div>
         <div class="card-body">
             <div class="bg-section rounded-10 p-12 p-sm-20">
-                <label class="d-flex align-items-center gap-2 mb-3"><input type="checkbox" name="no_production_expiry_dates" id="no_production_expiry_dates" value="1" @checked(old('no_production_expiry_dates', data_get($sellerProduct,'no_production_expiry_dates',false)))> {{ translate('no_production_expiry_dates') }}</label><div class="row g-2">
+                @if($sellerProduct && ($specPart ?? 'all') !== 'sale')
+                <label class="d-flex align-items-center gap-2 mb-3"><input type="checkbox" name="no_production_expiry_dates" id="no_production_expiry_dates" value="1" @checked(old('no_production_expiry_dates', data_get($sellerProduct,'no_production_expiry_dates',false)))> {{ translate('no_production_expiry_dates') }}</label>
+                @endif
+                <div class="row g-2">
+                    @if($sellerProduct && ($specPart ?? 'all') !== 'sale')
                     <div class="col-md-6 col-lg-4">
                         <label class="title-color" for="production_date">{{ translate('production_date') }} <span class="input-required-icon">*</span></label>
                         <input class="form-control" type="date" name="production_date" id="production_date" required
                                value="{{ old('production_date', optional(data_get($sellerProduct, 'production_date'))->format('Y-m-d')) }}">
                         @error('production_date') <div class="text-danger fs-12 mt-1">{{ $message }}</div> @enderror
                     </div>
+                    @endif
+                    @if(($specPart ?? 'all') !== 'sale')
                     <div class="col-md-6 col-lg-4">
-                        <label class="title-color" for="expiry_date">{{ translate('expiry_date') }} <span class="input-required-icon">*</span></label>
-                        <input class="form-control" type="date" name="expiry_date" id="expiry_date" required min="{{ now()->addDay()->format('Y-m-d') }}"
+                        <label class="title-color" for="expiry_date">{{ translate('expiry_date') }} <span class="text-muted">({{ translate('optional') }})</span></label>
+                        <input class="form-control" type="date" name="expiry_date" id="expiry_date" min="{{ now()->addDay()->format('Y-m-d') }}"
                                value="{{ old('expiry_date', optional(data_get($sellerProduct, 'expiry_date'))->format('Y-m-d')) }}">
                         @error('expiry_date') <div class="text-danger fs-12 mt-1">{{ $message }}</div> @enderror
                     </div>
+                    @endif
+                    @if(($specPart ?? 'all') !== 'measurements')
                     <div class="col-md-6 col-lg-4" id="sale_unit_selector">
                         <label class="title-color" for="sale_unit_type">{{ translate('seller_product_sale_unit_type') }} <span class="input-required-icon">*</span></label>
                         <select class="form-control" name="sale_unit_type" id="sale_unit_type" data-package-price="{{ translate('price_per_package') }}" data-piece-price="{{ translate('price_per_piece') }}" data-package-quantity="{{ translate('quantity_packages') }}" data-piece-quantity="{{ translate('quantity_pieces') }}" required>
                             <option value="piece" {{ $saleUnitType === 'piece' ? 'selected' : '' }}>{{ translate('seller_product_sale_unit_piece') }}</option>
                             <option value="package" {{ $saleUnitType === 'package' ? 'selected' : '' }}>{{ translate('seller_product_sale_unit_package') }}</option>
                         </select>
+                        @if(($specPart ?? 'all') === 'sale')
+                        <div class="vendor-sale-options" role="group" aria-label="{{ translate('seller_product_sale_unit_type') }}" hidden>
+                            <button type="button" data-vendor-sale-option="piece" aria-pressed="{{ $saleUnitType === 'piece' ? 'true' : 'false' }}">{{ translate('seller_product_sale_unit_piece') }}</button>
+                            <button type="button" data-vendor-sale-option="package" aria-pressed="{{ $saleUnitType === 'package' ? 'true' : 'false' }}">{{ translate('seller_product_sale_unit_package') }}</button>
+                        </div>
+                        @endif
                     </div>
                     <div class="col-md-6 col-lg-4" id="pieces_per_unit_wrapper" @if($saleUnitType !== 'package') style="display: none;" @endif>
                         <label class="title-color" for="pieces_per_unit">{{ translate('seller_product_pieces_per_unit') }} <span class="input-required-icon">*</span></label>
@@ -42,8 +56,10 @@
                                value="{{ old('pieces_per_unit', data_get($sellerProduct, 'pieces_per_unit')) }}"
                                placeholder="{{ translate('seller_product_pieces_per_unit') }}">
                     </div>
+                    @endif
                 </div>
 
+                @if(($specPart ?? 'all') !== 'sale')
                 <div class="border-top mt-3 pt-3">
                     <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
                         <label class="title-color mb-0">{{ translate('seller_product_optional_dimensions') }}</label>
@@ -75,6 +91,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
                 @if($sellerProduct)<input type="hidden" name="tags" value="{{ $sellerProduct->tags->pluck('tag')->implode(', ') }}">@endif
             </div>
@@ -82,6 +99,7 @@
     </div>
 </div>
 
+@if(($specPart ?? 'all') !== 'measurements')
 @push('script')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -107,3 +125,4 @@
         });
     </script>
 @endpush
+@endif

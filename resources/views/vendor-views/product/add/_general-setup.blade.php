@@ -21,9 +21,9 @@
                     <div class="row g-2">
                         <div class="col-md-6 col-lg-4">
                             <div class="form-group mb-0">
-                                <label class="title-color">{{ translate('category') }} <span class="input-required-icon">*</span></label>
-                                <select class="js-select2-custom form-control action-get-request-onchange" name="category_id" data-url-prefix="{{ route('vendor.products.get-categories').'?parent_id=' }}" data-element-id="sub-category-select" data-element-type="select" data-required-msg="{{ translate('category_is_required') }}" required id="category_id">
-                                    <option value="{{ old('category_id') }}" selected disabled>{{ translate('select_category') }}</option>
+                                <label class="title-color">{{ translate('category') }} <span class="text-muted">({{ translate('optional') }})</span></label>
+                                <select class="js-select2-custom form-control action-get-request-onchange" name="category_id" data-url-prefix="{{ route('vendor.products.get-categories').'?parent_id=' }}" data-element-id="sub-category-select" data-element-type="select" id="category_id">
+                                    <option value="">{{ translate('select_category') }}</option>
                                     @foreach ($categories as $category)
                                         <option value="{{ $category['id'] }}" {{ old('category_id') == $category['id'] ? 'selected' : '' }}>{{ $category['defaultName'] }}</option>
                                     @endforeach
@@ -44,6 +44,7 @@
                                     <label class="title-color">{{ translate('brand') }} <span class="text-muted">({{ translate('optional') }})</span></label>
                                     <select class="js-select2-custom form-control" name="brand_id" id="brand_id">
                                         <option value="">{{ translate('brand') }}</option>
+                                        <option value="other">{{ translate('other') }}</option>
                                         @foreach ($brands as $brand)
                                             <option value="{{ $brand['id'] }}">{{ $brand['defaultName'] }}</option>
                                         @endforeach

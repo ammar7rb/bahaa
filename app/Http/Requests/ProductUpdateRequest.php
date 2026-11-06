@@ -69,11 +69,13 @@ class ProductUpdateRequest extends FormRequest
 
         $rules = [
             'name' => 'required',
-            'category_id' => ['required', function ($attribute, $value, $fail) {
+            'category_id' => [auth('seller')->check() ? 'nullable' : 'required', function ($attribute, $value, $fail) {
                 if ($value === 'other' && !auth('seller')->check()) { $fail(translate('category_is_required')); return; }
-                foreach (app(\App\Services\SellerProductCategoryService::class)->validate($this->all()) as $message) $fail(translate($message));
+                foreach (app(\App\Services\SellerProductCategoryService::class)->validate($this->all(), auth('seller')->check()) as $message) $fail(translate($message));
             }],
             'product_type' => 'required|in:physical',
+            'sub_category_id' => 'nullable|prohibited_without:category_id',
+            'sub_sub_category_id' => 'nullable|prohibited_without:sub_category_id',
             'image' => 'nullable|image',
             'images' => 'nullable|array',
             'images.*' => 'nullable|image',
@@ -101,8 +103,8 @@ class ProductUpdateRequest extends FormRequest
             'weight' => 'nullable|numeric|gt:0',
             'weight_unit' => 'nullable|in:g,kg',
             'no_production_expiry_dates' => 'boolean',
-            'production_date' => 'exclude_if:no_production_expiry_dates,1|required|date',
-            'expiry_date' => 'exclude_if:no_production_expiry_dates,1|required|date|after_or_equal:production_date|after:today',
+            'production_date' => auth('seller')->check() ? 'nullable|date' : 'exclude_if:no_production_expiry_dates,1|required|date',
+            'expiry_date' => auth('seller')->check() ? ['nullable', 'date', 'after:today', \Illuminate\Validation\Rule::when($this->filled('production_date'), ['after_or_equal:production_date'])] : 'exclude_if:no_production_expiry_dates,1|required|date|after_or_equal:production_date|after:today',
         ];
 
         return $rules;
@@ -141,7 +143,7 @@ class ProductUpdateRequest extends FormRequest
                     $cleanedDescription = is_string($description) ? trim(strip_tags($description)) : null;
                 }
 
-                if (empty($cleanedDescription)) {
+                if (empty($cleanedDescription) && !auth('seller')->check()) {
                     $validator->errors()->add(
                         'description', translate('Product_description_is_required').'!'
                     );

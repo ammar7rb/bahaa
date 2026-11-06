@@ -8,6 +8,7 @@
     <link href="{{ dynamicAsset(path: 'public/assets/back-end/plugins/summernote/summernote.min.css') }}" rel="stylesheet">
     <link href="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor.css') }}" rel="stylesheet">
     <link href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-product.css') }}" rel="stylesheet">
+    <link href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-product-entry.css') }}" rel="stylesheet">
 @endpush
 
 @section('content')
@@ -54,11 +55,15 @@
             @endif
 
             @include('vendor-views.product.add._basic-setup')
-            @include("vendor-views.product.add._general-setup")
-            @include('vendor-views.product.partials._seller-product-specification')
             @include("vendor-views.product.add._pricing-others")
+            @include('vendor-views.product.partials._seller-product-specification', ['specPart' => 'sale'])
+            @include("vendor-views.product.add._general-setup")
+            @include('vendor-views.product.partials._seller-product-specification', ['specPart' => 'measurements'])
             @include("vendor-views.product.add._product-variation-setup")
             <input type="hidden" name="product_type" value="physical">
+            <div class="card card-body mt-3">
+                @include('vendor-views.product.add._title-description', ['fieldPart' => 'description'])
+            </div>
 
             @include('vendor-views.product.partials.ai-sidebar')
 
@@ -118,6 +123,7 @@
 @endsection
 
 @push('script')
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-product-entry.js') }}" defer></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/tags-input.min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/new/back-end/libs/spartan-multi-image-picker/spartan-multi-image-picker-min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/plugins/summernote/summernote.min.js') }}"></script>

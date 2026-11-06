@@ -545,7 +545,7 @@ class ProductService
             app(SellerProductSpecificationService::class)->normalize($request->only([
                 'length', 'width', 'height', 'dimension_unit', 'weight', 'weight_unit', 'sale_unit_type', 'pieces_per_unit',
             ])),
-            app(ProductDateComplianceService::class)->normalized($request->only(['production_date', 'expiry_date', 'no_production_expiry_dates']))
+            app(ProductDateComplianceService::class)->normalized($request->only(['production_date', 'expiry_date', 'no_production_expiry_dates']), $addedBy === 'seller')
         );
 
         return array_merge([
@@ -556,7 +556,7 @@ class ProductService
             'code' => $request['code'],
             'slug' => $this->getSlug($request),
             'category_ids' => json_encode($this->getCategoriesArray(request: $request)),
-            'category_review_required' => $request['category_id'] === 'other',
+            'category_review_required' => $request['category_id'] === 'other' || ($addedBy === 'seller' && !$request->filled('category_id')),
             'category_id' => $request['category_id'] === 'other' ? null : $request['category_id'],
             'sub_category_id' => $request['sub_category_id'],
             'sub_sub_category_id' => $request->input('sub_sub_category_id'),
@@ -648,7 +648,7 @@ class ProductService
             'code' => $request['code'],
             'product_type' => $request['product_type'],
             'category_ids' => json_encode($this->getCategoriesArray(request: $request)),
-            'category_review_required' => $request['category_id'] === 'other',
+            'category_review_required' => $request['category_id'] === 'other' || ($updateBy === 'seller' && !$request->filled('category_id')),
             'category_id' => $request['category_id'] === 'other' ? null : $request['category_id'],
             'sub_category_id' => $request['sub_category_id'],
             'sub_sub_category_id' => $request->input('sub_sub_category_id'),
@@ -688,7 +688,8 @@ class ProductService
             'length', 'width', 'height', 'dimension_unit', 'weight', 'weight_unit', 'sale_unit_type', 'pieces_per_unit',
         ]));
         $dataArray += app(ProductDateComplianceService::class)->normalized(
-            $request->only(['production_date', 'expiry_date', 'no_production_expiry_dates'])
+            $request->only(['production_date', 'expiry_date', 'no_production_expiry_dates']),
+            $product->added_by === 'seller' && $updateBy === 'seller'
         );
 
         if ($request->file('image')) {

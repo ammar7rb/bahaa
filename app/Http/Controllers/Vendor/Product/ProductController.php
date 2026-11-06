@@ -372,6 +372,7 @@ class ProductController extends BaseController
      */
     private function resolveSellerBrand(ProductAddRequest|ProductUpdateRequest $request): void
     {
+        if ($request->input('brand_id') === 'other') $request->merge(['brand_id' => null]);
         $name = trim((string) $request->input('brand_name'));
         if ($name === '' || $request->filled('brand_id')) {
             return;

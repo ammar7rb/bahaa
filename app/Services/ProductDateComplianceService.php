@@ -11,17 +11,17 @@ use Illuminate\Support\Facades\Schema;
 
 class ProductDateComplianceService
 {
-    public function validate(array $data): array
+    public function validate(array $data, bool $sellerOptional = false): array
     {
         $errors = [];
         if (filter_var($data['no_production_expiry_dates'] ?? false, FILTER_VALIDATE_BOOLEAN)) return [];
         $production = $this->parse($data['production_date'] ?? null);
         $expiry = $this->parse($data['expiry_date'] ?? null);
 
-        if (! $production) {
+        if (! $production && ! $sellerOptional) {
             $errors['production_date'] = 'product_production_date_is_required';
         }
-        if (! $expiry) {
+        if (! $expiry && ! $sellerOptional) {
             $errors['expiry_date'] = 'product_expiry_date_is_required';
         }
         if ($production && $expiry && $expiry->lt($production)) {
@@ -34,18 +34,18 @@ class ProductDateComplianceService
         return $errors;
     }
 
-    public function normalized(array $data): array
+    public function normalized(array $data, bool $sellerOptional = false): array
     {
         if (filter_var($data['no_production_expiry_dates'] ?? false, FILTER_VALIDATE_BOOLEAN)) return ['no_production_expiry_dates' => true, 'production_date' => null, 'expiry_date' => null];
-        $errors = $this->validate($data);
+        $errors = $this->validate($data, $sellerOptional);
         if ($errors) {
             throw new DomainException((string) reset($errors));
         }
 
         return [
-            'no_production_expiry_dates' => false,
-            'production_date' => $this->parse($data['production_date'])->toDateString(),
-            'expiry_date' => $this->parse($data['expiry_date'])->toDateString(),
+            'no_production_expiry_dates' => $sellerOptional && empty($data['production_date']) && empty($data['expiry_date']),
+            'production_date' => $this->parse($data['production_date'] ?? null)?->toDateString(),
+            'expiry_date' => $this->parse($data['expiry_date'] ?? null)?->toDateString(),
         ];
     }
 
@@ -60,7 +60,7 @@ class ProductDateComplianceService
             'no_production_expiry_dates' => $product->no_production_expiry_dates,
             'production_date' => $product->getRawOriginal('production_date'),
             'expiry_date' => $product->getRawOriginal('expiry_date'),
-        ]);
+        ], $product->added_by === 'seller');
         if ($errors) {
             throw new DomainException((string) reset($errors));
         }
