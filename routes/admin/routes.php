@@ -772,6 +772,10 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::get('accounts/{type}/{id}/statement', 'statement')->whereIn('type',['customer','vendor'])->whereNumber('id')->name('statement');
             Route::get('entries/{source}/{id}', 'entry')->whereNumber('id')->name('entry');
         });
+        Route::prefix('vendor-fulfillment')->name('vendor-fulfillment.')->controller(\App\Http\Controllers\Admin\VendorFulfillmentReportController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('export', 'export')->middleware('throttle:10,1')->name('export');
+        });
         Route::get('operational-print', OperationalPrintReportController::class)->name('operational-print');
 
         Route::controller(ReportController::class)->group(function () {

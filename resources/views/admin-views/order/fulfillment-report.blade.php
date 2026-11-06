@@ -1,0 +1,32 @@
+@extends('layouts.admin.app')
+@section('title','متابعة تنفيذ طلبات التجار والمطابقة')
+@section('content')
+<div class="content container-fluid" dir="rtl">
+<div class="d-flex flex-wrap justify-content-between gap-2 mb-3"><h1 class="h3">متابعة تنفيذ طلبات التجار والمطابقة</h1><a class="btn btn-outline-primary" href="{{ route('admin.report.financials.company',['tab'=>'vendor_debts','seller_id'=>$filters['seller_id']??null]) }}">ماليات الشركة / ديون التجار</a></div>
+<p class="text-muted">التصفية الزمنية حسب تحويل الإدارة، وليس إنشاء العميل للطلب. الجزء خارج المساحة يحتفظ بتصنيفه وقت التحويل بعد تخصيصه. التقارير والمطابقة للقراءة فقط.</p>
+@if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
+<form method="get" class="card card-body mb-3"><div class="row g-2">
+<div class="col-md-2"><label class="w-100">رقم التاجر<input class="form-control" name="seller_id" type="number" min="1" value="{{ $filters['seller_id']??'' }}"></label></div>
+<div class="col-md-2"><label class="w-100">رقم الطلب<input class="form-control" name="order_id" type="number" min="1" value="{{ $filters['order_id']??'' }}"></label></div>
+<div class="col-md-3"><label class="w-100">حالة التنفيذ<select class="form-control" name="status"><option value="">كل الحالات</option>@foreach($labels as $key=>$label)<option value="{{ $key }}" @selected(($filters['status']??'')===$key)>{{ $label }}</option>@endforeach</select></label></div>
+<div class="col-md-3"><label class="w-100">الأهلية وقت التحويل<select class="form-control" name="portion"><option value="">كل الأجزاء</option><option value="advertising" @selected(($filters['portion']??'')==='advertising')>داخل مساحة</option><option value="outside_slot" @selected(($filters['portion']??'')==='outside_slot')>خارج مساحة</option></select></label></div>
+<div class="col-md-2"><label class="w-100">القفل<select class="form-control" name="restriction"><option value="">الكل</option><option value="restricted" @selected(($filters['restriction']??'')==='restricted')>مقيد</option><option value="partial" @selected(($filters['restriction']??'')==='partial')>مقيد جزئيًا</option></select></label></div>
+<div class="col-md-3"><label class="w-100">من تاريخ التحويل<input class="form-control" name="from" type="date" value="{{ $filters['from']??'' }}"></label></div><div class="col-md-3"><label class="w-100">إلى تاريخ التحويل<input class="form-control" name="to" type="date" value="{{ $filters['to']??'' }}"></label></div>
+<div class="col-md-6 d-flex flex-wrap align-items-end gap-2"><button class="btn btn-primary">عرض</button><a class="btn btn-outline-primary" href="{{ route('admin.report.vendor-fulfillment.export',array_merge($filters,['dataset'=>'requests','page'=>null])) }}">تصدير طلبات التنفيذ CSV</a><a class="btn btn-outline-secondary" href="{{ route('admin.report.vendor-fulfillment.index') }}">مسح المرشحات</a></div></div></form>
+<div class="d-flex flex-wrap gap-2 mb-3">@foreach($counts as $status=>$total)<span class="badge bg-light text-dark border p-2">{{ $labels[$status]??$status }}: {{ $total }}</span>@endforeach</div>
+<section class="card card-body mb-3"><h2 class="h5">المطابقة المالية التراكمية {{ !empty($filters['seller_id'])?'للتاجر #'.$filters['seller_id']:'لكل التجار' }}</h2>
+<p>تطابق الرسوم مع التحصيل والدين، وتطابق الإيداع مع سداد الدين وصافي الرصيد. تشمل كل التاريخ للتاجر المحدد، دون مرشحات حالة الطلب أو تاريخ التحويل. لا تجمع الاستحقاق والتحصيل كإيرادين.</p>
+<p role="status" class="alert {{ $reconciliation['charge_issues']+$reconciliation['deposit_issues']?'alert-danger':'alert-success' }}">فحص {{ $reconciliation['charges_checked'] }} رسمًا و{{ $reconciliation['deposits_checked'] }} إيداعًا؛ فروق الرسوم: {{ $reconciliation['charge_issues'] }}، فروق الإيداعات: {{ $reconciliation['deposit_issues'] }}.</p>
+@foreach($reconciliation['charge_examples'] as $issue)<p>رسم DEBT-{{ $issue->id }} — تاجر #{{ $issue->seller_id }} — فرق التحصيل {{ $issue->reconciliation_difference }} — فرق التقييم {{ $issue->assessment_difference }} — فرق تحصيل المحفظة {{ $issue->wallet_difference }}.</p>@endforeach
+@foreach($reconciliation['deposit_examples'] as $issue)<p>إيداع DEP-{{ $issue->deposit_id }} — تاجر #{{ $issue->seller_id }} — فرق التوزيع {{ $issue->allocation_difference }} — فرق التحصيل {{ $issue->collection_difference }}.</p>@endforeach
+<div class="d-flex flex-wrap gap-2">@foreach(['charges'=>'تصدير الرسوم والتحصيل والدين','deposits'=>'تصدير توزيع الإيداعات المؤكدة'] as $dataset=>$title)<a class="btn btn-outline-primary" href="{{ route('admin.report.vendor-fulfillment.export',['dataset'=>$dataset,'seller_id'=>$filters['seller_id']??null]) }}">{{ $title }} CSV</a>@endforeach</div></section>
+<section class="card"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>المراجع</th><th>الجزء والحالة</th><th>مستحق التاجر</th><th>التحويل والتعليق</th><th>القرارات والتاريخ</th></tr></thead><tbody>
+@forelse($requests as $part)<tr><td>تنفيذ #{{ $part->id }}<br>تاجر #{{ $part->seller_id }}<br><a href="{{ route('admin.orders.details',$part->order_id) }}">طلب #{{ $part->order_id }}</a></td>
+<td>{{ $part->portion==='advertising'?'داخل مساحة وقت التحويل':'خارج مساحة وقت التحويل' }}<br><span class="badge bg-light text-dark border">{{ $labels[$part->status]??$part->status }}</span></td>
+<td>بضائع: <bdi>{{ $part->vendor_amount }}</bdi><br>شحن: <bdi>{{ $part->shipping_amount }}</bdi> ج.م</td>
+<td>تحويل: <bdi>{{ $part->forwarded_at }}</bdi><br>موعد التعليق: <bdi>{{ $part->pending_due_at??'—' }}</bdi><br>التصنيف: <bdi>{{ $part->pending_at??'—' }}</bdi></td>
+<td><details><summary>عرض سجل الجزء</summary><p>إتاحة التفاصيل: {{ $part->unlocked_at??'—' }}<br>القبول: {{ $part->accepted_at??'—' }}<br>الرفض: {{ $part->rejected_at??'—' }}<br>الإلغاء: {{ $part->canceled_at??'—' }}<br>التسليم: {{ $part->delivered_at??'—' }}<br>السبب: {{ $part->decision_reason??'—' }}</p><ul>@foreach($events[$part->id]??[] as $event)<li><bdi>{{ $event->created_at }}</bdi> — {{ $labels[$event->event_type]??(['forwarded'=>'تحويل الإدارة','package_confirmed'=>'تأكيد الباقة دون قبول','unlocked'=>'تخصيص المساحة وإتاحة التفاصيل'][$event->event_type]??$event->event_type) }}</li>@endforeach</ul></details></td></tr>
+@empty<tr><td colspan="5" class="text-center p-4">لا توجد طلبات تنفيذ مطابقة.</td></tr>@endforelse
+</tbody></table></div><div class="card-footer">{{ $requests->links() }}</div></section>
+</div>
+@endsection

@@ -1,5 +1,6 @@
 <section class="fin-panel" dir="rtl">
     <h2>ديون التجار والتحصيل</h2><p class="fin-help">الاستحقاق ليس تحصيلًا نقديًا. سداد الدين لا يكرر احتساب الرسم، والإيداع الإجمالي يظهر مرة واحدة في التحصيلات الواردة. لا تخصم الديون من مستحقات المبيعات.</p>
+    <p><a class="fin-button" href="{{ route('admin.report.vendor-fulfillment.index',['seller_id'=>$filters['seller_id']??null]) }}">متابعة التنفيذ والمطابقة المالية والتصدير</a></p>
     <form method="get" class="fin-filters"><input type="hidden" name="tab" value="vendor_debts"><label>رقم التاجر<input class="form-control" type="number" min="1" name="seller_id" value="{{ $filters['seller_id'] ?? '' }}"></label><label>من<input class="form-control" type="date" name="from" value="{{ $filters['from'] ?? '' }}"></label><label>إلى<input class="form-control" type="date" name="to" value="{{ $filters['to'] ?? '' }}"></label><button class="fin-button fin-primary">عرض</button></form>
     @if($missing)<p role="status">دفتر الديون غير مهيأ بعد.</p>@endif
     <div class="cf-metrics">

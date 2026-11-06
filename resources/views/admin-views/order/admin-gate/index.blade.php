@@ -6,7 +6,7 @@
 <div class="content container-fluid">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div><h1 class="page-header-title mb-1">{{ translate('orders_waiting_for_admin_decision') }}</h1><p class="text-muted mb-0">{{ translate('complete_shipping_before_vendor_release') }}</p></div>
-        <a class="btn btn-outline-primary" href="{{ route('admin.orders.logistics.index') }}">{{ translate('logistics_center') }}</a>
+        <div class="d-flex flex-wrap gap-2"><a class="btn btn-outline-primary" href="{{ route('admin.report.vendor-fulfillment.index') }}">متابعة تنفيذ التجار والمطابقة</a><a class="btn btn-outline-primary" href="{{ route('admin.orders.logistics.index') }}">{{ translate('logistics_center') }}</a></div>
     </div>
 
     <div class="row g-3 mb-3">
