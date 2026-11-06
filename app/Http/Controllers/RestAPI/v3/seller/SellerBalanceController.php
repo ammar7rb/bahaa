@@ -123,7 +123,7 @@ class SellerBalanceController extends Controller
             $this->fundingSettings->assertAmountAllowed($amount);
             $proofName = $this->upload(dir: 'seller-balance/payment-proof/', format: 'webp', image: $request->file('payment_proof'));
             $deposit = $this->depositService->createOffline($request->seller, ['amount' => $amount, 'currency_code' => getCurrencyCode(type: 'default'), 'payment_method' => 'offline_payment', 'offline_payment_method_id' => $method->id, 'offline_information' => $information, 'payment_proof' => ['image_name' => $proofName, 'storage' => config('filesystems.disks.default') ?? 'public'], 'payment_note' => $request->get('payment_note'), 'wallet_target' => $request->get('wallet_target', 'operating')]);
-            return response()->json(['message' => translate('seller_balance_deposit_submitted'), 'deposit' => $deposit], 200);
+            return response()->json(['message' => 'تم استلام طلب الإيداع، وجارٍ التحقق من عملية الدفع.', 'deposit' => $deposit], 200);
         } catch (DomainException $exception) { return response()->json(['message' => translate($exception->getMessage())], 422); }
     }
 

@@ -23,7 +23,8 @@ class SellerBalanceDepositService
         unset($data['wallet_target']);
         $metadata = is_array($data['metadata'] ?? null) ? $data['metadata'] : [];
         $metadata['wallet_target'] = $walletTarget;
-        return SellerBalanceDeposit::create(array_merge($data, [
+        return DB::transaction(function () use ($seller, $data, $amount, $metadata) {
+        $deposit = SellerBalanceDeposit::create(array_merge($data, [
             'seller_id' => $seller->id,
             'amount' => $amount,
             'source' => SellerBalanceDeposit::SOURCE_OFFLINE,
@@ -31,6 +32,9 @@ class SellerBalanceDepositService
             'metadata' => $metadata,
             'idempotency_key' => 'offline-deposit:'.sha1($seller->id.'|'.microtime(true).'|'.bin2hex(random_bytes(8))),
         ]));
+        $this->notifyDeposit($deposit, 'pending', 'تم استلام طلب الإيداع، وجارٍ التحقق من عملية الدفع.');
+        return $deposit;
+        });
     }
 
     public function createDigital(Seller $seller, float $amount, string $currencyCode, string $paymentMethod, string $walletTarget = 'operating'): SellerBalanceDeposit
@@ -100,7 +104,11 @@ class SellerBalanceDepositService
                 'paid_at' => now(),
                 'metadata' => $metadata,
             ]);
-            if ($deposit->source === SellerBalanceDeposit::SOURCE_OFFLINE && $walletTarget === 'operating') app(SellerDepositNotificationService::class)->notify($deposit, true);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('notifications', 'customer_event_key')) {
+                $balance = $this->ledger->summary((int) $deposit->seller_id)[$bucket] ?? 0;
+                $formatted = number_format(\App\Utils\Convert::default($balance), 2).' '.getCurrencyCode(type: 'default');
+                $this->notifyDeposit($deposit, 'approve', 'تمت إضافة الرصيد بنجاح. رصيدك الحالي: '.$formatted);
+            }
             return $deposit->fresh();
         });
     }
@@ -123,9 +131,19 @@ class SellerBalanceDepositService
             'reviewed_by_admin_id' => $adminId,
             'reviewed_at' => now(),
         ]);
-        app(SellerDepositNotificationService::class)->notify($deposit, false);
+        $this->notifyDeposit($deposit, 'reject', 'عملية الإيداع فشلت، برجاء التحقق. السبب: '.trim($reason));
         return $deposit->fresh();
         });
+    }
+
+    private function notifyDeposit(SellerBalanceDeposit $deposit, string $state, string $message): void
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('notifications', 'customer_event_key')) return;
+        DB::table('notifications')->insertOrIgnore([
+            'seller_id' => $deposit->seller_id, 'customer_event_key' => 'wallet-deposit-vendor-'.$deposit->id.'-'.$state,
+            'sent_by' => 'admin', 'sent_to' => 'seller', 'title' => 'تحديث إيداع المحفظة', 'description' => $message,
+            'status' => 1, 'notification_count' => 1, 'image' => '', 'created_at' => now(), 'updated_at' => now(),
+        ]);
     }
 
     public function reverse(SellerBalanceDeposit $deposit, int $adminId, string $reason): SellerBalanceDeposit

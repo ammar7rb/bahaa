@@ -82,6 +82,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
         Route::group(['middleware' => ['seller']], function () {
             Route::get('account', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'show'])->name('account');
             Route::post('account', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'update'])->name('account.update');
+            Route::post('account/image', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'updateImage'])->middleware('throttle:10,1')->name('account.image');
             Route::post('account/password', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'password'])->middleware('throttle:6,1')->name('account.password');
             Route::get('account/document/{kind}', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'document'])->name('account.document');
             Route::get('messages', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index'])->name('messages');
