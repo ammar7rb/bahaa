@@ -10,6 +10,7 @@ use App\Models\Currency;
 use App\Models\OfflinePaymentMethod;
 use App\Models\SellerInsurance;
 use App\Services\SellerInsuranceService;
+use App\Services\SellerLedgerService;
 use App\Traits\FileManagerTrait;
 use App\Traits\Payment;
 use App\Traits\PaymentGatewayTrait;
@@ -29,6 +30,7 @@ class SellerInsuranceController extends Controller
 
     public function __construct(
         private readonly SellerInsuranceService $sellerInsuranceService,
+        private readonly SellerLedgerService $ledger,
     ) {}
 
     public function status(Request $request): JsonResponse
@@ -37,9 +39,12 @@ class SellerInsuranceController extends Controller
         $paymentGateways = collect(payment_gateways());
         $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
         $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
+        $operatingBalance = (float) ($this->ledger->summary($request->seller->id)[SellerLedgerService::OPERATING] ?? 0);
 
         return response()->json([
             'insurance' => $this->formatSummary($summary),
+            'operating_balance' => $operatingBalance,
+            'operating_balance_payment_available' => false,
             'digital_payment_available' => $paymentGateways->isNotEmpty() && ($digitalPaymentStatus['status'] ?? 0),
             'payment_gateways' => $paymentGateways->map(function ($gateway) {
                 $gatewayData = ! empty($gateway->additional_data) ? json_decode($gateway->additional_data) : null;
@@ -52,7 +57,7 @@ class SellerInsuranceController extends Controller
             'offline_payment_available' => (bool) ($offlinePaymentStatus['status'] ?? 0),
             'offline_payment_methods' => OfflinePaymentMethod::query()
                 ->where('status', 1)
-                ->get(['id', 'method_name', 'method_fields', 'method_informations']),
+                ->get(['id', 'method_name', 'payment_channel', 'method_fields', 'method_informations']),
         ]);
     }
 
@@ -67,10 +72,15 @@ class SellerInsuranceController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
-        $gateways = collect(payment_gateways());
-        $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
-        if (! ($digitalPaymentStatus['status'] ?? 0) || ! $gateways->firstWhere('key_name', $request->get('payment_method'))) {
-            return response()->json(['message' => translate('payment_method_is_not_available')], 403);
+        if ($request->get('payment_method') === 'operating_balance') {
+            return response()->json(['message' => translate('seller_operating_balance_cannot_pay_insurance')], 422);
+        }
+        if ($request->get('payment_method') !== 'operating_balance') {
+            $gateways = collect(payment_gateways());
+            $digitalPaymentStatus = getWebConfig(name: 'digital_payment');
+            if (! ($digitalPaymentStatus['status'] ?? 0) || ! $gateways->firstWhere('key_name', $request->get('payment_method'))) {
+                return response()->json(['message' => translate('payment_method_is_not_available')], 403);
+            }
         }
 
         try {

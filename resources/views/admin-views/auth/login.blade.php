@@ -1,6 +1,6 @@
 @php use App\Enums\DemoConstant; @endphp
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ session('direction') ?? 'ltr' }}">
 
 <head>
     <meta charset="utf-8">
@@ -17,13 +17,27 @@
         href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap">
 
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/libs/bootstrap/bootstrap.min.css') }}">
+    @if ((session('direction') ?? 'ltr') === 'rtl')
+        <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/libs/bootstrap/bootstrap.rtl.css') }}">
+    @endif
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/webfonts/uicons-regular-rounded.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/webfonts/uicons-solid-rounded.css') }}">
 
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/admin/css/style.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/admin/css/style-extended.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/admin/css/custom.css') }}">
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.css') }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-dark-mode.css') }}?v=20260910.4">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/sigma-auth.css') }}?v={{ filemtime(public_path('assets/back-end/css/sigma-auth.css')) }}">
+    <script>
+        (function () {
+            var storageKey = 'ba_admin_theme', storedTheme = null;
+            try { storedTheme = localStorage.getItem(storageKey); } catch (error) {}
+            var theme = storedTheme === 'dark' ? 'dark' : 'light';
+            function applyTheme(nextTheme) { var resolvedTheme = nextTheme === 'dark' ? 'dark' : 'light'; document.documentElement.setAttribute('data-ba-admin-theme', resolvedTheme); if (document.body) document.body.setAttribute('data-bs-theme', resolvedTheme); document.querySelectorAll('[data-admin-theme-icon]').forEach(function (icon) { icon.innerHTML = resolvedTheme === 'dark' ? '&#9728;' : '&#9790;'; }); }
+            window.baToggleAdminTheme = function () { var nextTheme = document.documentElement.getAttribute('data-ba-admin-theme') === 'dark' ? 'light' : 'dark'; try { localStorage.setItem(storageKey, nextTheme); } catch (error) {} applyTheme(nextTheme); };
+            applyTheme(theme); document.addEventListener('DOMContentLoaded', function () { applyTheme(theme); });
+        })();
+    </script>
 
     @if ($web_config['primary_color'])
         <style>
@@ -36,21 +50,19 @@
     {!! ToastMagic::styles() !!}
 </head>
 <body>
+    <button class="admin-auth-theme-toggle" type="button" onclick="window.baToggleAdminTheme(); return false;" aria-label="{{ translate('dark_mode') }}"><span data-admin-theme-icon aria-hidden="true">&#9790;</span></button>
     <main id="content" role="main" class="main">
         <div class="auth-wrapper">
-            <div class="auth-wrapper-left"
-                style="background: url('{{ dynamicAsset('public/assets/back-end/img/login-bg.webp') }}') no-repeat center center / cover">
+            <div class="auth-wrapper-left sigma-auth-panel"
+                style="background: url('{{ dynamicAsset('public/assets/back-end/img/sigma-medical-auth.webp') }}') no-repeat center center / cover">
                 <div class="auth-left-cont user-select-none">
                     @php($eCommerceLogo = getWebConfig(name: 'company_web_logo'))
                     <a class="d-inline-flex mb-5" href="{{ route('home') }}">
-                        <img width="310" src="{{ getStorageImages(path: $eCommerceLogo, type: 'backend-logo') }}"
-                            alt="Logo">
+                        <img class="ba-platform-logo" width="310" src="{{ getStorageImages(path: $eCommerceLogo, type: 'backend-logo') }}"
+                            alt="SIGMA Medical Supplies">
                     </a>
                     <h2 class="title h1">
-                        {{ translate('Make Your Business') }}
-                        <span class="fw-bold text-primary d-block text-capitalize">
-                            {{ translate('Profitable...') }}
-                        </span>
+                        {{ in_array(app()->getLocale(), ['ar', 'sa']) ? 'مستلزمات طبية تثق بها' : 'Medical supplies you can trust' }}
                     </h2>
                 </div>
             </div>
@@ -117,28 +129,6 @@
                             </div>
                         </div>
 
-                        @if(isset($recaptcha) && $recaptcha['status'] == 1)
-                            <div class="dynamic-default-and-recaptcha-section">
-                                <input type="hidden" name="g-recaptcha-response" class="render-grecaptcha-response" data-action="login"
-                                       data-input="#login-default-captcha-section"
-                                       data-default-captcha="#login-default-captcha-section"
-                                >
-
-                                <div class="default-captcha-container d-none" id="login-default-captcha-section"
-                                     data-placeholder="{{ translate('enter_captcha_value') }}"
-                                     data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                     data-session="{{ $role == 'admin' ? 'adminRecaptchaSessionKey' : 'employeeRecaptchaSessionKey' }}"
-                                >
-                                </div>
-                            </div>
-                        @else
-                            <div class="default-captcha-container"
-                                 data-placeholder="{{ translate('enter_captcha_value') }}"
-                                 data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                 data-session="{{ $role == 'admin' ? 'adminRecaptchaSessionKey' : 'employeeRecaptchaSessionKey' }}"
-                            >
-                            </div>
-                        @endif
 
                         <button type="submit" id="admin-login-btn" class="btn btn-lg btn-block btn-primary mt-2">
                             {{ translate('sign_in') }}
@@ -171,10 +161,7 @@
         </div>
     </main>
 
-    <span id="message-please-check-recaptcha" data-text="{{ translate('please_check_the_recaptcha') }}"></span>
     <span id="message-copied_success" data-text="{{ translate('copied_successfully') }}"></span>
-    <span id="route-get-session-recaptcha-code" data-route="{{ route('get-session-recaptcha-code') }}"
-        data-mode="{{ env('APP_MODE') }}"></span>
 
     <script src="{{ dynamicAsset(path: 'public/assets/new/back-end/libs/jquery/jquery-3.7.1.min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/bootstrap/bootstrap.bundle.min.js') }}"></script>
@@ -193,13 +180,6 @@
         </script>
     @endif
 
-    @php($recaptcha = getWebConfig(name: 'recaptcha'))
-    <span id="get-google-recaptcha-key"
-          data-value="{{ isset($recaptcha) && $recaptcha['status'] == 1 ? $recaptcha['site_key'] : '' }}"></span>
-    @if (isset($recaptcha) && $recaptcha['status'] == 1)
-        <script src="https://www.google.com/recaptcha/api.js?render={{ $recaptcha['site_key'] }}"></script>
-    @endif
-    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.js') }}"></script>
 
 </body>
 

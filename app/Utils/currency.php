@@ -237,10 +237,13 @@ if (!function_exists('setCurrencySymbol')) {
     {
         $decimalPointSettings = getWebConfig('decimal_point_settings');
         $position = getWebConfig('currency_symbol_position');
+        $formattedAmount = number_format($amount, (!empty($decimalPointSettings) ? $decimalPointSettings : 0));
+        $symbol = getCurrencySymbol(currencyCode: $currencyCode, type: $type);
+
         if ($position === 'left') {
-            $string = getCurrencySymbol(currencyCode: $currencyCode, type: $type) . '' . number_format($amount, (!empty($decimalPointSettings) ? $decimalPointSettings : 0));
+            $string = $symbol . ' ' . $formattedAmount;
         } else {
-            $string = number_format($amount, !empty($decimalPointSettings) ? $decimalPointSettings : 0) . getCurrencySymbol(currencyCode: $currencyCode, type: $type);
+            $string = $formattedAmount . ' ' . $symbol;
         }
         return $string;
     }
@@ -304,16 +307,20 @@ if (!function_exists('getProductPriceByType')) {
                 } else if ($clearanceSale['discount_type'] == 'flat') {
                     return $result == 'value' ? $clearanceSale['discount_amount'] : webCurrencyConverter(amount: $clearanceSale['discount_amount']);
                 }
-            } else if (isset($product['discount_type']) && $product['discount_type'] == 'percent') {
-                $amount = round($product['discount'], (!empty($decimalPointSettings) ? $decimalPointSettings : 0));
-                return $result == 'value' ? $amount : $amount . '%';
-            } else if (isset($product['discount_type']) && $product['discount_type'] == 'flat') {
-                return $result == 'value' ? $product['discount'] : webCurrencyConverter(amount: $product['discount']);
+            } else {
+                $offer = app(\App\Services\FlashSalePriceService::class)->forProduct($product);
+                if ($offer) {
+                    return $offer['type'] === 'percent'
+                        ? ($result == 'value' ? $offer['amount'] : $offer['amount'] . '%')
+                        : ($result == 'value' ? $offer['amount'] : webCurrencyConverter(amount: $offer['amount']));
+                }
+                return $result == 'value' ? 0 : webCurrencyConverter(amount: 0);
             }
         }
 
         if ($type == 'discount_type') {
-            $discountType = $product['discount_type'];
+            $offer = app(\App\Services\FlashSalePriceService::class)->forProduct($product);
+            $discountType = $offer['type'] ?? ($product['discount_type'] ?? 'flat');
             if ((isset($product['clearanceSale']) && $product['clearanceSale']) || isset($product['clearance_sale']) && $product['clearance_sale']) {
                 $clearanceSale = $product['clearanceSale'] ?? $product['clearance_sale'];
                 $discountType = $clearanceSale['discount_type'];

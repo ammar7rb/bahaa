@@ -60,7 +60,7 @@
                                         <div class="form-group">
                                             <label for="cf-subject">{{ translate('subject') }}:</label>
                                             <input class="form-control subject" type="text" name="subject"
-                                                value="{{ old('subject') }}" placeholder="{{ translate('short_title') }}"
+                                                value="{{ old('subject', request('subject')) }}" placeholder="{{ translate('short_title') }}"
                                                 required>
 
                                         </div>

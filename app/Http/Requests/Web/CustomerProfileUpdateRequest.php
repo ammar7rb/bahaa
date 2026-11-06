@@ -5,6 +5,7 @@ namespace App\Http\Requests\Web;
 use App\Traits\CalculatorTrait;
 use App\Traits\RecaptchaTrait;
 use App\Traits\ResponseHandler;
+use App\Services\EgyptPhoneService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Session;
@@ -26,12 +27,16 @@ class CustomerProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'f_name' => 'required',
-            'l_name' => 'required',
+            'password' => ['nullable','string','min:8','max:255'],
+            'current_password' => ['required_with:password','nullable','string','max:255'],
+            'password_confirmation' => ['required_with:password','nullable','string','same:password'],
+            'f_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'l_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'organization_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'phone' => [
                 'required',
-                'max:20',
-                Rule::unique('users', 'phone')->ignore(auth('customer')->id(), 'id'),
+                'regex:/^01[0125][0-9]{8}$/',
+                new \App\Rules\UniqueCustomerPhone(auth('customer')->id()),
             ],
             'email' => [
                 'nullable',
@@ -51,11 +56,12 @@ class CustomerProfileUpdateRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'f_name.required' => translate('first_name_is_required'),
-            'l_name.required' => translate('last_name_is_required'),
+            'current_password.required_with'=>'أدخل كلمة المرور الحالية لتغييرها.',
+            'password.min'=>'كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف.',
+            'password_confirmation.same'=>'تأكيد كلمة المرور لا يطابق الجديدة.',
             'phone.required' => translate('phone_number_is_required'),
             'phone.unique' => translate('phone_number_already_has_been_taken'),
-            'phone.max' => translate('The_phone_number_may_not_be_greater_than_20_characters'),
+            'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'image.mimes' => translate('The_image_type_must_be') . '.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',
             'image.max' => translate('The_image_may_not_be_greater_than_2_MB')
         ];
@@ -65,20 +71,6 @@ class CustomerProfileUpdateRequest extends FormRequest
     {
         return [
             function (Validator $validator) {
-                $numericPhoneValue = preg_replace('/[^0-9]/', '', $this['phone']);
-                $numericLength = strlen($numericPhoneValue);
-                if ($numericLength < 4) {
-                    $validator->errors()->add(
-                        'phone.min', translate('The_phone_number_must_be_at_least_4_characters')
-                    );
-                }
-
-                if ($numericLength > 20) {
-                    $validator->errors()->add(
-                        'phone.max', translate('The_phone_number_may_not_be_greater_than_20_characters')
-                    );
-                }
-
                 if ($this['password'] && !empty($this['password']) && empty($this['confirm_password'])) {
                     $validator->errors()->add(
                         'confirm_password.required', translate('confirm_password_is_required')
@@ -94,5 +86,13 @@ class CustomerProfileUpdateRequest extends FormRequest
                 }
             }
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'password_confirmation' => $this->input('confirm_password'),
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
+        ]);
     }
 }

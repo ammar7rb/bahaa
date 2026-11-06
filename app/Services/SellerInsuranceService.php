@@ -10,6 +10,15 @@ use Illuminate\Support\Str;
 
 class SellerInsuranceService
 {
+    public function __construct(
+        private readonly SellerLedgerService $ledger,
+    ) {}
+
+    public function payFromOperatingBalance(SellerInsurance $insurance): array
+    {
+        throw new DomainException('seller_operating_balance_cannot_pay_insurance');
+    }
+
     public function getSettings(): array
     {
         return [

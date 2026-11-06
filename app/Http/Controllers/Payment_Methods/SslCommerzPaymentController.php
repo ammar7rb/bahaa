@@ -17,25 +17,26 @@ class SslCommerzPaymentController extends Controller
 {
     use Processor;
 
-    private $store_id;
-    private $store_password;
-    private bool $host;
-    private string $direct_api_url;
+    private $store_id = '';
+    private $store_password = '';
+    private bool $host = true;
+    private string $direct_api_url = '';
     private PaymentRequest $payment;
     private $user;
 
     public function __construct(PaymentRequest $payment, User $user)
     {
         $config = $this->payment_config('ssl_commerz', 'payment_config');
+        $values = null;
         if (!is_null($config) && $config->mode == 'live') {
             $values = json_decode($config->live_values);
         } elseif (!is_null($config) && $config->mode == 'test') {
             $values = json_decode($config->test_values);
         }
 
-        if ($config) {
-            $this->store_id = $values->store_id;
-            $this->store_password = $values->store_password;
+        if ($config && is_object($values)) {
+            $this->store_id = $values->store_id ?? '';
+            $this->store_password = $values->store_password ?? '';
 
             # REQUEST SEND TO SSLCOMMERZ
             $this->direct_api_url = "https://sandbox.sslcommerz.com/gwprocess/v4/api.php";

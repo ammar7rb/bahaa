@@ -37,13 +37,16 @@ use Illuminate\Support\Facades\DB;
 
 class ProductManager
 {
-    public static function getHomepagePromotedProductsQuery()
+    public static function getHomepagePromotedProductsQuery(?string $placementScope = null)
     {
         $sortOrder = SellerProductPromotion::query()
             ->select('sort_order')
             ->whereColumn('seller_product_promotions.product_id', 'products.id')
             ->where('promotion_type', SellerProductPromotion::TYPE_HOMEPAGE)
             ->where('status', SellerProductPromotion::STATUS_ACTIVE)
+            ->when($placementScope, fn ($query) => $query->where('placement_scope', $placementScope))
+            ->whereIn('approval_status', [SellerProductPromotion::APPROVAL_APPROVED, SellerProductPromotion::APPROVAL_LEGACY])
+            ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
             ->where(function ($query) {
                 $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
             })
@@ -54,13 +57,16 @@ class ProductManager
             ->whereColumn('seller_product_promotions.product_id', 'products.id')
             ->where('promotion_type', SellerProductPromotion::TYPE_HOMEPAGE)
             ->where('status', SellerProductPromotion::STATUS_ACTIVE)
+            ->when($placementScope, fn ($query) => $query->where('placement_scope', $placementScope))
+            ->whereIn('approval_status', [SellerProductPromotion::APPROVAL_APPROVED, SellerProductPromotion::APPROVAL_LEGACY])
+            ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
             ->where(function ($query) {
                 $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
             })
             ->latest('id')
             ->limit(1);
 
-        return Product::active()
+        return Product::active()->homepageVisible()
             ->with([
                 'activeHomepagePromotion',
                 'seller.shop',
@@ -68,7 +74,7 @@ class ProductManager
                 'reviews' => fn ($query) => $query->active(),
                 'clearanceSale' => fn ($query) => $query->active(),
             ])
-            ->whereHas('activeHomepagePromotion')
+            ->whereHas('activeHomepagePromotion', fn ($query) => $query->when($placementScope, fn ($query) => $query->where('placement_scope', $placementScope)))
             ->orderByDesc($sortOrder)
             ->orderByDesc($activatedAt);
     }
@@ -77,6 +83,7 @@ class ProductManager
     {
         return $products->each(function ($product) {
             $product->setAttribute('is_homepage_promoted', true);
+            $product->setAttribute('advertising_badge_label', data_get($product->activeHomepagePromotion?->metadata, 'badge_label') ?: 'Featured_Ad');
         });
     }
 
@@ -537,11 +544,11 @@ class ProductManager
 
         $productListData = Product::with(['tags', 'clearanceSale' => function ($query) {
             return $query->active();
-        }])->whereIn('id', $productIds);
+        }])->active()->whereIn('id', $productIds);
         if ($category != 'all') {
-            $categoryWiseProduct = $productListData->where(['category_id' => $category])
-                ->orWhere(['sub_category_id' => $category])
-                ->orWhere(['sub_sub_category_id' => $category]);
+            $categoryWiseProduct = $productListData->where(function ($query) use ($category) {
+                $query->where(['category_id' => $category])->orWhere(['sub_category_id' => $category])->orWhere(['sub_sub_category_id' => $category]);
+            });
             $productListData = ProductManager::getPriorityWiseCategoryWiseProductsQuery(query: $categoryWiseProduct, dataLimit: $limit, offset: $offset);
         } else {
             $productListData = ProductManager::getPriorityWiseSearchedProductQuery(query: $productListData, keyword: $name, dataLimit: $limit, offset: $offset, type: 'translated');
@@ -563,7 +570,7 @@ class ProductManager
             ->pluck('translationable_id');
 
         $productListData = Product::with(['tags', 'translations'])
-            ->whereIn('id', $translationIds);
+            ->active()->whereIn('id', $translationIds);
 
         if ($category !== 'all') {
             $productListData->whereJsonContains('category_ids', [['id' => $category]]);
@@ -904,11 +911,7 @@ class ProductManager
                 $query->where('customer_id', $user != 'offline' ? $user->id : '0');
             }])
             ->where(function ($subQuery) use ($stockClearanceProductIds) {
-                return $subQuery->where(function ($query) {
-                    return $query->where('discount', '!=', 0);
-                })->orWhere(function ($query) use ($stockClearanceProductIds) {
-                    return $query->whereIn('id', $stockClearanceProductIds);
-                });
+                return $subQuery->whereIn('id', $stockClearanceProductIds);
             })
             ->orderBy('id', 'desc')
             ->paginate($limit, ['*'], 'page', $offset);
@@ -1560,7 +1563,7 @@ class ProductManager
             $query = $query->sortBy('is_shop_temporary_close');
         }
 
-        $query = self::prioritizeSearchPromotions($query);
+        $query = self::prioritizeSearchPromotions($query, $keyword);
 
         if ($dataLimit != 'all') {
             $currentPage = $offset ?? Paginator::resolveCurrentPage('page');
@@ -1575,12 +1578,29 @@ class ProductManager
         return $query;
     }
 
-    public static function prioritizeSearchPromotions($products)
+    public static function prioritizeSearchPromotions($products, ?string $keyword = null)
     {
+        $normalizedKeyword = mb_strtolower(trim((string) $keyword));
+
         return $products
-            ->map(function ($product) {
-                $product->setAttribute('is_search_promoted', (bool) $product->activeSearchPromotion);
-                $product->setAttribute('search_promotion_sort_order', $product->activeSearchPromotion?->sort_order ?? 0);
+            ->map(function ($product) use ($normalizedKeyword) {
+                $promotion = $product->activeSearchPromotion;
+                $placementMatches = match ($promotion?->placement_scope) {
+                    'keyword_search' => $promotion->placement_key !== null
+                        && mb_strtolower(trim($promotion->placement_key)) === $normalizedKeyword,
+                    'category_search' => $promotion->placement_key !== null
+                        && in_array(mb_strtolower(trim($promotion->placement_key)), [
+                            (string) $product->category_id,
+                            mb_strtolower((string) ($product->category?->name ?? '')),
+                        ], true),
+                    default => (bool) $promotion,
+                };
+                $product->setAttribute('is_search_promoted', (bool) $promotion && $placementMatches);
+                $product->setAttribute('advertising_badge_label', $placementMatches
+                    ? (data_get($promotion?->metadata, 'badge_label') ?: 'Featured_Ad')
+                    : null);
+                $product->setAttribute('search_promotion_sort_order', $placementMatches ? ($promotion?->sort_order ?? 0) : 0);
+                $product->setAttribute('package_search_priority', $placementMatches ? ($promotion?->search_priority ?? 1000000) : 1000000);
 
                 return $product;
             })
@@ -1590,9 +1610,17 @@ class ProductManager
                     return $promotionComparison;
                 }
 
+                if ($first->is_search_promoted && $second->is_search_promoted) {
+                    $packageComparison = $first->package_search_priority <=> $second->package_search_priority;
+                    if ($packageComparison !== 0) {
+                        return $packageComparison;
+                    }
+                }
+
                 return $second->search_promotion_sort_order <=> $first->search_promotion_sort_order;
             })
-            ->values();
+            ->values()
+            ->tap(fn ($sorted) => app(\App\Services\SellerPackagePerformanceService::class)->recordSearchImpressions($sorted));
     }
 
     public static function getPriorityWiseFlashDealsProductsQuery($id = null, $userId = null): array
@@ -2274,11 +2302,7 @@ class ProductManager
             ->when($request['offer_type'] == 'discounted', function ($query) {
                 $stockClearanceProductIds = StockClearanceProduct::active()->pluck('product_id')->toArray();
                 return $query->where(function ($subQuery) use ($stockClearanceProductIds) {
-                    return $subQuery->where(function ($query) {
-                        return $query->where('discount', '!=', 0);
-                    })->orWhere(function ($query) use ($stockClearanceProductIds) {
-                        return $query->whereIn('id', $stockClearanceProductIds);
-                    });
+                    return $subQuery->whereIn('id', $stockClearanceProductIds);
                 });
             })
             ->when($request['data_from'] == 'most-favorite', function ($query) {

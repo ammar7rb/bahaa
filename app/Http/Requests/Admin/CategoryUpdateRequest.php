@@ -40,6 +40,8 @@ class CategoryUpdateRequest extends FormRequest
                 maxSize: getFileUploadMaxSize(unit: 'kb'),
                 isDisallowed: true
             ),
+            'visual_source' => ['required', Rule::in(['upload', 'library'])],
+            'medical_icon' => ['nullable', 'string', Rule::in(array_keys(config('medical_category_icons', [])))],
             'priority' => 'required'
         ];
     }
@@ -59,6 +61,9 @@ class CategoryUpdateRequest extends FormRequest
     {
         return [
             function (Validator $validator) {
+                if ($this->input('visual_source') === 'library' && !$this->filled('medical_icon')) {
+                    $validator->errors()->add('medical_icon', translate('Please_select_an_icon'));
+                }
                 if (
                     isset($this['name'][0]) &&
                     Category::where(['name' => $this['name'][0], 'position' => $this['position']])->where('id', '!=', $this['id'])

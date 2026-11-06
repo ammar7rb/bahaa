@@ -21,7 +21,7 @@ class LoginController extends Controller
     public function login(Request $request, SellerRegistrationVerificationService $verificationService): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required',
+            'email' => 'required|string|max:191',
             'password' => 'required|min:6'
         ]);
 
@@ -29,24 +29,8 @@ class LoginController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
-        $data = [
-            'email' => $request['email'],
-            'password' => $request['password']
-        ];
-
-        $seller = Seller::where(['email' => $request['email']])->first();
-
-        if ($seller && isset($seller?->shop) && empty($seller?->shop?->setup_guide_app)) {
-            Shop::where(['seller_id' => $seller['id']])->update([
-                'setup_guide_app' => json_encode([
-                    'shop_setup' => 0,
-                    'add_new_product' => Product::where(['added_by' => 'seller', 'user_id' => $seller['id']])->count() > 0 ? 1 : 0,
-                    'order_setup' => 0,
-                    'withdraw_setup' => 0,
-                    'payment_information' => 0,
-                ]),
-            ]);
-        }
+        $seller = app(\App\Services\SellerLoginIdentityService::class)->resolve((string) $request['email']);
+        $data = ['id' => $seller?->id, 'password' => $request['password']];
 
         $passwordMatches = $seller && Hash::check($request['password'], $seller['password']);
 
@@ -63,7 +47,18 @@ class LoginController extends Controller
             ], 401);
         }
 
-        if ($passwordMatches && $seller['status'] == 'approved' && auth('seller')->attempt($data)) {
+        if ($passwordMatches && in_array($seller['status'], ['approved', 'pending'], true) && auth('seller')->attempt($data)) {
+            if (isset($seller->shop) && empty($seller->shop->setup_guide_app)) {
+                Shop::where(['seller_id' => $seller['id']])->update([
+                    'setup_guide_app' => json_encode([
+                        'shop_setup' => 0,
+                        'add_new_product' => Product::where(['added_by' => 'seller', 'user_id' => $seller['id']])->exists() ? 1 : 0,
+                        'order_setup' => 0,
+                        'withdraw_setup' => 0,
+                        'payment_information' => 0,
+                    ]),
+                ]);
+            }
             $token = Str::random(50);
             Seller::where(['id' => auth('seller')->id()])->update(['auth_token' => $token]);
             if (SellerWallet::where('seller_id', $seller['id'])->first() == false) {
@@ -79,7 +74,11 @@ class LoginController extends Controller
                     'updated_at' => now(),
                 ]);
             }
-            return response()->json(['token' => $token], 200);
+            if (!$seller->registration_reference) {
+                $seller->registration_reference = (string) Str::uuid();
+                $seller->save();
+            }
+            return response()->json(['token' => $token, 'registration_reference' => $seller->registration_reference], 200);
         } elseif ($passwordMatches && $seller['status'] == 'pending') {
             $errors = [];
             $errors[] = ['code' => 'auth-001', 'message' => translate('your_account_is_in_review_process').'. '.translate('please_wait_for_admin_approval')];

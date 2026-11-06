@@ -142,4 +142,12 @@
 
 @push('script')
     <script src="{{ dynamicAsset(path: 'public/assets/backend/admin/js/products/products-management.js') }}"></script>
+    @if(request()->integer('edit_category_id'))
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const panel = document.getElementById('categoryEditOffcanvas-{{ request()->integer('edit_category_id') }}');
+                if (panel) bootstrap.Offcanvas.getOrCreateInstance(panel).show();
+            });
+        </script>
+    @endif
 @endpush

@@ -22,13 +22,6 @@
         </li>
 
         <li class="nav-item">
-            <a class="nav-link {{ Request::is('admin/third-party/recaptcha') ?'active':'' }}"
-               href="{{ route('admin.third-party.captcha') }}">
-                {{ translate('recaptcha') }}
-            </a>
-        </li>
-
-        <li class="nav-item">
             <a class="nav-link {{ Request::is('admin/third-party/map-api') ?'active':'' }}"
                href="{{ route('admin.third-party.map-api') }}">
                 {{ translate('Google_Map_APIs') }}

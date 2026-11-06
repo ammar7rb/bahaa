@@ -58,6 +58,7 @@ Route::group(['namespace' => 'RestAPI\v2', 'prefix' => 'v2', 'middleware' => ['a
                 Route::post('add', 'add_new');
                 Route::get('list', 'list');
                 Route::get('stock-out-list', 'stock_out_list');
+                Route::get('stock-violations', 'stock_violations');
                 Route::get('status-update', 'status_update');
                 Route::get('edit/{id}', 'edit');
                 Route::put('update/{id}', 'update');
@@ -192,4 +193,3 @@ Route::group(['namespace' => 'RestAPI\v2', 'prefix' => 'v2', 'middleware' => ['a
 
     });
 });
-

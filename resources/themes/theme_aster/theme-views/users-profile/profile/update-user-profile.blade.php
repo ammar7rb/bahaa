@@ -22,20 +22,26 @@
                                         <div class="col-sm-6">
                                             <div class="form-group">
                                                 <label class="text-capitalize" for="f_name2">{{translate('first_name')}}</label>
-                                                <input type="text" id="f_name" class="form-control" value="{{$customerDetail['f_name']}}" name="f_name" placeholder="{{translate('ex').':'.translate('jhon')}}" data-required-msg="{{ translate('first_name_is_required') }}" required>
+                                                <input type="text" id="f_name" class="form-control" value="{{$customerDetail['f_name']}}" name="f_name" placeholder="{{translate('ex').':'.translate('jhon')}}" data-required-msg="{{ translate('first_name_is_required') }}">
                                             </div>
                                         </div>
                                         <div class="col-sm-6">
                                             <div class="form-group">
                                                 <label class="text-capitalize" for="l_name2">{{translate('last_name')}}</label>
-                                                <input type="text" id="l_name" class="form-control" value="{{$customerDetail['l_name']}}" name="l_name" data-required-msg="{{ translate('last_name_is_required') }}" placeholder="{{translate('ex').':'.translate('doe')}}" required>
+                                                <input type="text" id="l_name" class="form-control" value="{{$customerDetail['l_name']}}" name="l_name" data-required-msg="{{ translate('last_name_is_required') }}" placeholder="{{translate('ex').':'.translate('doe')}}">
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="form-group mb-3">
+                                                <label for="organization-name">{{ getLanguageCode(country_code: getDefaultLanguage()) === 'ar' ? 'اسم المؤسسة' : 'Organization name' }}</label>
+                                                <input type="text" class="form-control" id="organization-name" name="organization_name" maxlength="255" value="{{ old('organization_name', $customerDetail['organization_name'] ?? '') }}">
                                             </div>
                                         </div>
                                         <div class="col-sm-6">
                                             <div class="form-group">
                                                 <label for="phone2">{{translate('phone')}}</label>
                                                 <div class="position-relative d-flex align-items-center">
-                                                    <input type="tel" id="phone" class="form-control" value="{{$customerDetail['phone']}}" placeholder="{{translate('ex').':'.'01xxxxxxxxx'}}" {{ $customerDetail['is_phone_verified'] ? 'disabled' : '' }} name="phone">
+                                                    <input data-egypt-phone type="tel" id="phone" class="form-control" value="{{$customerDetail['phone']}}" placeholder="{{translate('ex').':'.'01xxxxxxxxx'}}"  name="phone" required>
 
                                                     @if($customerDetail['phone'] && getLoginConfig(key: 'phone_verification'))
                                                         @if($customerDetail['is_phone_verified'])
@@ -81,11 +87,10 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-sm-6">
-                                            <div class="form-group">
-                                                <label for="password2">{{translate('password')}}</label>
+<div class="col-12"><label for="current-password">كلمة المرور الحالية</label><input class="form-control" type="password" id="current-password" name="current_password" autocomplete="current-password"><small>لتغيير كلمة المرور، أدخل الحالية أو التي أعطتها لك الإدارة. اترك حقول كلمة المرور فارغة لتعديل بياناتك فقط.</small></div>
+                                        <div class="col-sm-6"><div class="form-group"><label for="password">كلمة المرور الجديدة</label>
                                                 <div class="input-inner-end-ele">
-                                                    <input type="password" minlength="6" id="password" class="form-control" name="password" placeholder="{{translate('ex').':'.'7+'.translate('character')}}">
+                                                    <input type="password" minlength="8" id="password" class="form-control" name="password" autocomplete="new-password" placeholder="8 أحرف على الأقل">
                                                     <i class="bi bi-eye-slash-fill togglePassword"></i>
                                                 </div>
                                                 <span class="text-danger mx-1 password-error"></span>
@@ -95,7 +100,7 @@
                                             <div class="form-group">
                                                 <label class="text-capitalize" for="confirm_password2">{{translate('confirm_password')}}</label>
                                                 <div class="input-inner-end-ele">
-                                                    <input type="password" minlength="6" id="confirm-password" name="confirm_password" class="form-control" placeholder="{{translate('ex').':'.'7+'.translate('character')}}">
+                                                    <input type="password" minlength="8" id="confirm-password" name="confirm_password" class="form-control" placeholder="8 أحرف على الأقل">
                                                     <i class="bi bi-eye-slash-fill togglePassword"></i>
                                                 </div>
                                             </div>

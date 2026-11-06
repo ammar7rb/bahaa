@@ -33,6 +33,8 @@ class LogUserBrowsingNavigationMiddleware
                 'vendor/*',
                 'login/*',
                 'customer/auth/*',
+                'account-photos/*',
+                'customer/communication*',
                 'customer/reward-points/*',
                 'g-recaptcha-session-store*',
                 'vendor/auth/*',

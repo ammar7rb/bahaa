@@ -12,6 +12,7 @@
 
 @section('content')
     <div class="content container-fluid">
+        @include('vendor-views.product.partials._workspace-notice')
         <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
             <h2 class="h1 mb-0 d-flex align-items-center gap-2 flex-grow-1">
                 {{ translate(request('product-gallery')==1 ?'product_Add' :'product_Edit') }}
@@ -34,14 +35,10 @@
 
             @include('vendor-views.product.update._basic-setup')
             @include("vendor-views.product.update._general-setup")
+            @include('vendor-views.product.partials._seller-product-specification', ['product' => $product])
             @include("vendor-views.product.update._pricing-others")
             @include("vendor-views.product.update._product-variation-setup")
-            <div class="row product-image-wrapper gx-2 gy-3 mt-0">
-                @include("vendor-views.product.update._additional-images")
-                @include("vendor-views.product.update._digital-product-file")
-            </div>
-            @include("vendor-views.product.update._product-video")
-            @include("vendor-views.product.update._seo-section")
+            <input type="hidden" name="product_type" value="physical">
 
             @include('vendor-views.product.partials.ai-sidebar')
 
@@ -65,7 +62,7 @@
 
             <div class="d-flex justify-content-end mt-3">
                 <button type="button" class="btn btn--primary px-5 product-add-requirements-check">
-                    @if($product->request_status == 2)
+                    @if(!config('vendor_product_workspace.enabled') && $product->request_status == 2)
                         {{ translate('resubmit') }}
                     @else
                         {{ translate(request('product-gallery') ? 'submit' : 'update') }}
@@ -98,6 +95,8 @@
     <span id="system-session-direction" data-value="{{ Session::get('direction') }}"></span>
 
     <span id="message-file-size-too-big" data-text="{{ translate('file_size_too_big') }}"></span>
+    <span id="message-seller-product-pieces-per-unit-required" data-text="{{ translate('seller_product_pieces_per_unit_required') }}"></span>
+    <span id="message-seller-product-measurement-invalid" data-text="{{ translate('seller_product_measurement_invalid') }}"></span>
     <span id="product-gallery-page" data-page="{{ request('product-gallery') ? 'product-gallery' : '' }}"></span>
 @endsection
 
@@ -107,7 +106,7 @@
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/plugins/summernote/summernote.min.js') }}"></script>
 
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor.js') }}"></script>
-    <script src="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor-init.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor-init.js') }}?v={{ filemtime(public_path('assets/back-end/libs/quill-editor/quill-editor-init.js')) }}"></script>
 
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/file-upload/pdf.min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/file-upload/pdf-worker.min.js') }}"></script>
@@ -344,7 +343,7 @@
                             <label style='border-radius: 3px; cursor: pointer; text-align: center; overflow: hidden; position : relative; display: flex; align-items: center; margin: auto; justify-content: center; flex-direction: column;'>
                                 <span class="upload--icon product-image-edit-icon" style="background: ${value}">
                                 <i class="tio-edit"></i>
-                                    <input type="file" name="` + color + `" id="` + value_id + `" class="d-none" accept=".jpg, .webp, .png, .jpeg, .gif" required="">
+                                    <input type="file" name="` + color + `" id="` + value_id + `" class="d-none" accept=".jpg, .webp, .png, .jpeg, .gif">
                                 </span>
 
                                 <div class="h-100 top-0 aspect-1 w-100 d-flex align-content-center justify-content-center overflow-hidden">
@@ -382,18 +381,16 @@
         })
 
 
-        $(document).ready(function () {
-            setTimeout(function () {
-                let category = $("#category_id").val();
-                let sub_category = $("#sub-category-select").attr("data-id");
-                let sub_sub_category = $("#sub-sub-category-select").attr("data-id");
-                getRequestFunctionality('{{ route('vendor.products.get-categories') }}?parent_id=' + category + '&sub_category=' + sub_category, 'sub-category-select', 'select');
-                getRequestFunctionality('{{ route('vendor.products.get-categories') }}?parent_id=' + sub_category + '&sub_category=' + sub_sub_category, 'sub-sub-category-select', 'select');
-            }, 100)
-        });
+            $(document).ready(function () {
+                setTimeout(function () {
+                    let category = $("#category_id").val();
+                    let sub_category = $("#sub-category-select").attr("data-id");
+                    getRequestFunctionality('{{ route('vendor.products.get-categories') }}?parent_id=' + category + '&sub_category=' + sub_category, 'sub-category-select', 'select');
+                }, 100)
+            });
 
         updateProductQuantity();
     </script>
 
-    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/product-add-colors-img.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/product-add-colors-img.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor/product-add-colors-img.js')) }}"></script>
 @endpush

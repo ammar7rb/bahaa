@@ -7,7 +7,7 @@
                     {{ translate('Here_you_can_add_color_wise_product_image.') }}
                     <span class="text-info">
                         {{ translate('JPG,_JPEG,_PNG_Image_size') . ' : ' . translate('Max') .' '. getFileUploadMaxSize(). ' MB' }}
-                        ({{ THEME_RATIO[theme_root_path()]['Product Image'] }})
+                        ({{ (THEME_RATIO[theme_root_path()]['Product Image'] ?? THEME_RATIO['default']['Product Image']) }})
                     </span>
                 </p>
             </div>

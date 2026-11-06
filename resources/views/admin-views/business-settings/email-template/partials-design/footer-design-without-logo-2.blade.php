@@ -29,13 +29,15 @@
     </div>
     <div class="d-flex gap-4 justify-content-center align-items-center mb-3 fs-16 social-media-icon" id="selected-social-media">
         @foreach($socialMedia as $key=>$media)
+            {{-- Legacy platform social links are redirected to the configured WhatsApp support contact. --}}
+            @php($socialLink = (str_contains(strtolower((string) $media['link']), '6valley') || str_contains(strtolower((string) $media['link']), '6amtech') || str_contains(strtolower((string) $media['link']), 'codecanyon')) ? 'https://wa.me/201064174547' : $media['link'])
             @if(!empty($template['social_media']))
-                <a class="{{$media['name']}} {{in_array($media['name'],$template['social_media']) ? '' : 'd-none'}}" href="{{$media['link']}}" target="_blank">
+                <a class="{{$media['name']}} {{in_array($media['name'],$template['social_media']) ? '' : 'd-none'}}" href="{{$socialLink}}" target="_blank">
                     <img src="{{dynamicAsset(path: 'public/assets/back-end/img/'.$media['name'].'.png') }}"
                         width="16" alt="">
                 </a>
             @else
-                <a class="{{$media['name']}}" href="{{$media['link']}}" target="_blank">
+                <a class="{{$media['name']}}" href="{{$socialLink}}" target="_blank">
                     <img src="{{dynamicAsset(path: 'public/assets/back-end/img/'.$media['name'].'.png') }}"
                         width="16" alt="">
                 </a>

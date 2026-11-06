@@ -25,13 +25,18 @@ class VendorRequest extends FormRequest
      *
      * @return array
      */
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['phone' => app(\App\Services\EgyptPhoneService::class)->normalizeLocal($this->input('phone'))]);
+    }
+
     public function rules():array
     {
         return [
             'f_name' => 'required',
             'l_name' => 'required',
             'image' => 'mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
-            'phone'  => 'required|max:20|min:4|unique:sellers,phone,'.$this->id,
+            'phone'  => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueSellerPhone((int) $this->id)],
         ];
     }
 
@@ -45,6 +50,7 @@ class VendorRequest extends FormRequest
             'l_name.required' =>translate('last_name_is_required').'!',
             'image.mimes' => translate('The_image_type_must_be').'.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',
             'phone.required' =>translate('phone_number_is_required').'!',
+            'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'phone.max' => translate('please_ensure_your_phone_number_is_valid_and_does_not_exceed_20_characters'),
             'phone.min' => translate('phone_number_with_a_minimum_length_requirement_of_4_characters'),
         ];

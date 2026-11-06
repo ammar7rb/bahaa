@@ -173,7 +173,8 @@ We may release future updates so it will overwrite this file. it's better and sa
             $(".theme-bar button").removeClass("active");
             $(this).addClass("active");
             $("body").attr("theme", themeName);
-            localStorage.setItem("theme", themeName);
+            document.documentElement.setAttribute("data-ba-storefront-theme", themeName);
+            localStorage.setItem("ba_storefront_theme", themeName);
         });
     }
     themeSwitcher(".light_button", "light");
@@ -191,7 +192,7 @@ We may release future updates so it will overwrite this file. it's better and sa
     rtlSwitcher(".rtl_button", "rtl");
 
     $(window).on("load", function () {
-        let themeName = localStorage.getItem("theme");
+        let themeName = localStorage.getItem("ba_storefront_theme");
         $(".dir-bar button").removeClass("active");
         if (themeName == "dark") {
             $(".light_button").removeClass("active");

@@ -134,6 +134,83 @@ $(document).ready(function () {
             },
 
         });
+
+        /*
+         * Spartan creates one native file input per preview slot.  Keep those
+         * inputs (and the existing form contract of images[]) intact, but add a
+         * separate multi-file chooser for the empty upload slot.  Selecting a
+         * group of files then fills the individual Spartan slots in one action.
+         */
+        if ($picker.data("batch-selection") === true || $picker.data("batch-selection") === "true") {
+            const $batchInput = $("<input>", {
+                type: "file",
+                accept: "image/*",
+                multiple: true,
+                class: "spartan_batch_image_input",
+                tabindex: -1,
+            }).css("display", "none");
+
+            $picker.append($batchInput);
+
+            const getEmptySpartanInput = function () {
+                return $picker.find(".spartan_image_input").filter(function () {
+                    const $input = $(this);
+                    const index = $input.data("spartanindexinput");
+                    const hasPreview = $picker.find('img[data-spartanindeximage="' + index + '"]').is(":visible");
+
+                    return (!this.files || this.files.length === 0) && !hasPreview;
+                }).first();
+            };
+
+            $picker.on("click.batchImageSelection", ".spartan_item_wrapper .file_upload", function (event) {
+                const $slotInput = $(this).find(".spartan_image_input");
+
+                // Replacing an existing image remains the regular single-file
+                // Spartan behavior. Batch selection is only for an empty slot.
+                if (!$slotInput.length || ($slotInput[0].files && $slotInput[0].files.length > 0)) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                $batchInput.trigger("click");
+            });
+
+            $batchInput.on("change", function () {
+                const selectedFiles = Array.prototype.slice.call(this.files || []);
+                this.value = "";
+
+                if (!selectedFiles.length || typeof DataTransfer === "undefined") {
+                    return;
+                }
+
+                const configuredMaximum = Number($picker.data("max-count"));
+                const selectedCount = $picker.find(".spartan_image_input").filter(function () {
+                    return this.files && this.files.length > 0;
+                }).length;
+                const availableSlots = Number.isFinite(configuredMaximum)
+                    ? Math.max(configuredMaximum - selectedCount, 0)
+                    : selectedFiles.length;
+                const filesToAdd = selectedFiles.slice(0, availableSlots);
+
+                filesToAdd.forEach(function (file) {
+                    const $targetInput = getEmptySpartanInput();
+                    if (!$targetInput.length) {
+                        return;
+                    }
+
+                    const transfer = new DataTransfer();
+                    transfer.items.add(file);
+                    $targetInput[0].files = transfer.files;
+                    $targetInput.trigger("change");
+                });
+
+                if (selectedFiles.length > filesToAdd.length && typeof toastMagic !== "undefined" && toastMagic.error) {
+                    toastMagic.error("Maximum " + configuredMaximum + " images can be selected.");
+                }
+            });
+        }
+
         function getMultipleImageUploadSizeError(picker) {
             return $(picker).data('validation-error-msg');
         }

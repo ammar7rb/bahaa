@@ -63,6 +63,7 @@
                             <th>{{ translate('Product_Listings') }}</th>
                             <th>{{ translate('Featured_Search') }}</th>
                             <th>{{ translate('Homepage_Featured') }}</th>
+                            <th>Coupons</th>
                             <th>{{ translate('Subscriptions') }}</th>
                             <th class="text-center">{{ translate('Status') }}</th>
                             <th class="text-center">{{ translate('Action') }}</th>
@@ -92,14 +93,21 @@
                                         <span class="text-muted">{{ translate('Not_Included') }}</span>
                                     @endif
                                 </td>
-                                <td>
-                                    @if($package->homepage_promotion_limit > 0)
+                            <td>
+                                @if($package->homepage_promotion_limit > 0)
                                         <strong>{{ $package->homepage_promotion_limit }}</strong> {{ translate('promotions') }}
                                         <div class="fs-12 text-muted">{{ $package->homepage_promotion_duration_days }} {{ translate('days_each') }}</div>
                                     @else
                                         <span class="text-muted">{{ translate('Not_Included') }}</span>
-                                    @endif
-                                </td>
+                                @endif
+                            </td>
+                            <td>
+                                @if($package->coupon_limit > 0)
+                                    <strong>{{ $package->coupon_limit }}</strong> coupons
+                                @else
+                                    <span class="text-muted">{{ translate('Not_Included') }}</span>
+                                @endif
+                            </td>
                                 <td>
                                     <span class="badge badge-soft-dark">{{ $package->subscriptions_count }}</span>
                                     <div class="fs-12 text-muted">{{ $package->active_subscriptions_count }} {{ translate('active') }}</div>
@@ -136,7 +144,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="8" class="text-center text-muted py-4">{{ translate('No_data_found') }}</td></tr>
+                            <tr><td colspan="9" class="text-center text-muted py-4">{{ translate('No_data_found') }}</td></tr>
                         @endforelse
                         </tbody>
                     </table>

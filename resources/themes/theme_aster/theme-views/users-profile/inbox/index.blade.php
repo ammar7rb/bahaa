@@ -34,12 +34,12 @@
                                         @if(false)
                                         <li class="nav-item" role="presentation">
                                             <a class="{{Request::is('chat/vendor')?'active':''}}"
-                                               href="{{route('chat', ['type' => 'vendor'])}}">{{translate('vendor')}}</a>
+                                               href="{{ route('account-tickets') }}">{{translate('vendor')}}</a>
                                         </li>
                                         @endif
                                         <li class="nav-item">
                                             <a class="{{Request::is('chat/delivery-man')?'active':''}}"
-                                               href="{{route('chat', ['type' => 'delivery-man'])}}">{{translate('delivery_man')}}</a>
+                                               href="{{ route('account-tickets') }}">{{translate('delivery_man')}}</a>
                                         </li>
                                     </ul>
                                 </div>
@@ -297,7 +297,7 @@
         </div>
     </main>
     <span id="chatting-post-url"
-          data-url="{{ Request::is('chat/vendor') ? route('messages').'?vendor_id=' : route('messages').'?delivery_man_id=' }}"></span>
+          data-url="{{ route('account-tickets') }}"></span>
     <span id="get-file-icon" data-default-icon="{{theme_asset("assets/img/default-icon.png")}}"
           data-word-icon="{{theme_asset("assets/img/default-icon.png")}}"></span>
     <span id="message-media-error" data-text="{{ translate('File_size_is_too_large') }} {{ translate('Please_upload_a_smaller_file') }}"></span>

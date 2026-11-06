@@ -126,6 +126,30 @@ class SellerQuotaAdjustmentService
                 'sort_order' => $sortOrder,
                 'metadata' => $metadata,
             ];
+            if ($action === 'update_order') {
+                if ($sortOrder < 1) {
+                    throw new DomainException('invalid_advertising_position');
+                }
+                $hasConflict = SellerProductPromotion::query()
+                    ->where('id', '!=', $promotion->id)
+                    ->where('status', SellerProductPromotion::STATUS_ACTIVE)
+                    ->whereIn('approval_status', [SellerProductPromotion::APPROVAL_APPROVED, SellerProductPromotion::APPROVAL_LEGACY])
+                    ->where('placement_scope', $promotion->placement_scope)
+                    ->where('approved_position', $sortOrder)
+                    ->when(
+                        $promotion->placement_key === null,
+                        fn ($query) => $query->whereNull('placement_key'),
+                        fn ($query) => $query->where('placement_key', $promotion->placement_key)
+                    )
+                    ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', $promotion->starts_at ?: now()))
+                    ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<', $promotion->expires_at ?: now()->addYears(20)))
+                    ->lockForUpdate()
+                    ->exists();
+                if ($hasConflict) {
+                    throw new DomainException('advertising_placement_conflicts_with_an_existing_campaign');
+                }
+                $data['approved_position'] = $sortOrder;
+            }
             if ($action === 'cancel') {
                 $data['status'] = SellerProductPromotion::STATUS_CANCELLED;
                 $data['cancelled_at'] = now();
@@ -159,11 +183,6 @@ class SellerQuotaAdjustmentService
     private function quotaConfig(string $quotaType): array
     {
         return match ($quotaType) {
-            SellerPackageTransaction::QUOTA_PRODUCT => [
-                'limit_column' => 'product_limit',
-                'used_column' => 'used_product_limit',
-                'adjustment_column' => 'product_adjustment_limit',
-            ],
             SellerPackageTransaction::QUOTA_SEARCH_PROMOTION => [
                 'limit_column' => 'search_promotion_limit',
                 'used_column' => 'used_search_promotion_limit',
@@ -173,6 +192,11 @@ class SellerQuotaAdjustmentService
                 'limit_column' => 'homepage_promotion_limit',
                 'used_column' => 'used_homepage_promotion_limit',
                 'adjustment_column' => 'homepage_promotion_adjustment_limit',
+            ],
+            SellerPackageTransaction::QUOTA_COUPON => [
+                'limit_column' => 'coupon_limit',
+                'used_column' => 'used_coupon_limit',
+                'adjustment_column' => 'coupon_adjustment_limit',
             ],
             default => throw new DomainException('invalid_seller_quota_type'),
         };

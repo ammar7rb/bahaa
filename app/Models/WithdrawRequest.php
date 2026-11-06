@@ -26,6 +26,13 @@ use Illuminate\Support\Carbon;
  */
 class WithdrawRequest extends Model
 {
+    public function getTransactionNumberAttribute(): string
+    {
+        return $this->seller_id ? \App\Services\AdministrativeReferenceService::format('seller_payment', (int) $this->id) : (string) $this->id;
+    }
+
+    protected $appends = ['transaction_number'];
+
 
     /**
      * The attributes that are mass assignable.
@@ -34,10 +41,13 @@ class WithdrawRequest extends Model
      */
     protected $fillable = [
         'seller_id',
+        'source_bucket', 'reviewed_at', 'reviewed_by_admin_id', 'processed_by_admin_id', 'payout_due_at', 'payout_reference',
+        'request_key',
         'delivery_man_id',
         'admin_id',
         'amount',
         'withdrawal_method_id',
+        'vendor_withdraw_method_info_id',
         'withdrawal_method_fields',
         'transaction_note',
         'approved',
@@ -53,6 +63,7 @@ class WithdrawRequest extends Model
     protected $casts = [
         'withdrawal_method_fields' => 'array',
         'approved' => 'integer',
+        'reviewed_at' => 'datetime', 'payout_due_at' => 'datetime',
         'request_method_type' => 'string',
     ];
 
@@ -71,5 +82,10 @@ class WithdrawRequest extends Model
     public function withdrawMethod(): BelongsTo
     {
         return $this->belongsTo(WithdrawalMethod::class, 'withdrawal_method_id');
+    }
+
+    public function vendorWithdrawMethodInfo(): BelongsTo
+    {
+        return $this->belongsTo(VendorWithdrawMethodInfo::class, 'vendor_withdraw_method_info_id');
     }
 }

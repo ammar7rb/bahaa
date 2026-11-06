@@ -8,6 +8,7 @@
 
   const ROOT = document.querySelector('.app-v2');
   if (!ROOT) return; // not on a v1 page — bail out completely
+  const interactionScriptUrl = document.currentScript?.src || new URL('/assets/back-end/js/admin-v2.js', location.origin).href;
 
   const LS = {
     get: (k, f) => { try { const v = localStorage.getItem(k); return v == null ? f : JSON.parse(v); } catch { return f; } },
@@ -206,6 +207,9 @@
   }
 
   function pickActiveSectionFromURL() {
+    if (location.pathname.startsWith('/admin/orders/logistics') && $root('[data-item="order-tracking"]')) return 'operations';
+    if (/^\/admin\/operations\/(medical-devices|homepage-sections)(\/|$)/.test(location.pathname)) return 'operations';
+    if (location.pathname === '/admin/operations/shipping' && $root('[data-item="shipping-setup"]')) return 'operations';
     const url = window.location.pathname;
     let best = null;
     $$root('.v2-ctx-section').forEach(sec => {
@@ -225,7 +229,9 @@
       const activeItem = $root('.v2-ctx-section .v2-nav-item.v2-is-active, .v2-ctx-section .v2-nav-child.v2-is-on');
       if (activeItem) section = activeItem.closest('.v2-ctx-section')?.dataset.section;
     }
-    if (!section) section = state.activeSection;
+    if (!section && $$root('.v2-ctx-section').some(s => s.dataset.section === state.activeSection)) {
+      section = state.activeSection;
+    }
     if (!section) {
       const firstVisible = $$root('.v2-rail-btn[data-section]')[0];
       section = firstVisible?.dataset.section || 'home';
@@ -409,144 +415,10 @@
   // children can be pinned independently from their parent. Idempotent:
   // re-running is a no-op.
   function injectChildPinButtons() {
-    $$root('.v2-nav-child').forEach(child => {
-      if (child.querySelector(':scope > .v2-pin-btn')) return;
-      const href = child.getAttribute('href') || '';
-      if (!href || href.startsWith('javascript:') || href === '#') return;
-      const pinId = 'child:' + href;
-      child.dataset.pin = pinId;
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'v2-pin-btn v2-pin-btn-child';
-      btn.dataset.pin = pinId;
-      btn.setAttribute('aria-label', 'Pin');
-      // Insert BEFORE the count badge so the count always sits at the
-      // inline-end edge of the row. Pin button is invisible by default
-      // (CSS opacity:0) but reserves space, fades in on row hover.
-      const count = child.querySelector(':scope > .v2-nav-child-count');
-      if (count) child.insertBefore(btn, count);
-      else child.appendChild(btn);
-    });
+    window.AdminSidebarPresentation.injectChildPinButtons(ROOT);
   }
   function applyPins() {
-    // Refresh pin button visual state across nav-items, nav-children,
-    // AND clones inside the pinned section.
-    document.querySelectorAll('.v2-pin-btn').forEach(btn => {
-      btn.classList.toggle('v2-is-on', state.pins.includes(btn.dataset.pin));
-    });
-    $$root('.v2-ctx-section').forEach(sec => {
-      const pinGroup = sec.querySelector('.v2-ctx-group.v2-is-pinned');
-      if (!pinGroup) return;
-      const host = pinGroup.querySelector('.v2-ctx-group-body');
-      if (!host) return;
-      host.innerHTML = '';
-      // Pre-compute which parent ids are pinned (with children). When
-      // both a parent AND one of its children are pinned, the parent's
-      // cloned subtree already includes that child — so we skip the
-      // standalone child clone to avoid duplicates.
-      const pinnedParentIds = new Set();
-      state.pins.forEach(id => {
-        const p = sec.querySelector(`.v2-nav-item.v2-has-children[data-item="${CSS.escape(id)}"]`);
-        if (p) pinnedParentIds.add(id);
-      });
-      // For pinned children whose parent is NOT pinned, render the
-      // parent row + a fresh .v2-nav-children container holding ONLY
-      // the pinned children — same dropdown UX as the menu, but only
-      // the pinned subset. Track containers so siblings of the same
-      // parent slot in the same dropdown.
-      const childGroupContainers = new Map();
-      let any = false;
-      state.pins.forEach(id => {
-        // Try parent (.v2-nav-item) first.
-        const parent = sec.querySelector(`.v2-nav-item[data-item="${CSS.escape(id)}"]`);
-        if (parent && !parent.closest('.v2-ctx-group.v2-is-pinned')) {
-          const cloneParent = parent.cloneNode(true);
-          cloneParent.dataset.v2Pinned = '1';
-          host.appendChild(cloneParent);
-          // If the parent has children, also clone the matching
-          // .v2-nav-children container right after. Same URL-driven
-          // expand rule as the main-section dropdowns: open ONLY when
-          // the parent is v2-is-active or one of its children matches
-          // the current page (.v2-nav-child.v2-is-on). Otherwise it
-          // starts collapsed — the user can click the chevron to peek
-          // at the full submenu like any other dropdown.
-          if (parent.classList.contains('v2-has-children')) {
-            const kids = sec.querySelector(`.v2-nav-children[data-children-for="${CSS.escape(id)}"]`);
-            if (kids) {
-              const cloneKids = kids.cloneNode(true);
-              cloneKids.dataset.v2Pinned = '1';
-              // Mark every cloned child too — without this the
-              // :not([data-v2-pinned]) lookup in togglePin returns the
-              // cloned child first and then can't walk up to the
-              // original .v2-nav-children, leaving parentId null and
-              // breaking the parent-auto-unpin sync.
-              cloneKids.querySelectorAll('.v2-nav-child').forEach(c => c.dataset.v2Pinned = '1');
-              host.appendChild(cloneKids);
-              const hasActiveChild = parent.classList.contains('v2-is-active') ||
-                !!cloneKids.querySelector('.v2-nav-child.v2-is-on');
-              cloneKids.classList.toggle('v2-is-collapsed', !hasActiveChild);
-              const chev = cloneParent.querySelector('.v2-nav-chev');
-              if (chev) chev.classList.toggle('v2-is-open', hasActiveChild);
-            }
-          }
-          any = true;
-          return;
-        }
-        // Then try child (.v2-nav-child) by injected pin id.
-        const child = sec.querySelector(`.v2-nav-child[data-pin="${CSS.escape(id)}"]`)
-                   || sec.querySelector(`.v2-nav-child:has(> .v2-pin-btn[data-pin="${CSS.escape(id)}"])`);
-        if (child && !child.closest('.v2-ctx-group.v2-is-pinned')) {
-          // If this child's parent is also pinned, the parent's cloned
-          // subtree already shows the child — skip the standalone clone
-          // to prevent the same row from appearing twice.
-          const kidsContainer = child.closest('.v2-nav-children');
-          const parentItemId = kidsContainer ? kidsContainer.dataset.childrenFor : null;
-          if (!parentItemId) return;
-          if (pinnedParentIds.has(parentItemId)) return;
-
-          // Render the parent row as a dropdown header the FIRST time
-          // we see a pinned child of this parent. Defaults to collapsed;
-          // the post-loop pass below opens it when any pinned child
-          // matches the current page. Subsequent pinned children of the
-          // same parent slot into the existing dropdown container.
-          let groupChildren = childGroupContainers.get(parentItemId);
-          if (!groupChildren) {
-            const parentItem = sec.querySelector(`.v2-nav-item[data-item="${CSS.escape(parentItemId)}"]`);
-            if (!parentItem) return;
-            const cloneParent = parentItem.cloneNode(true);
-            cloneParent.dataset.v2Pinned = '1';
-            const chev = cloneParent.querySelector('.v2-nav-chev');
-            if (chev) chev.classList.remove('v2-is-open');
-            host.appendChild(cloneParent);
-
-            groupChildren = document.createElement('div');
-            groupChildren.className = 'v2-nav-children v2-is-collapsed';
-            groupChildren.dataset.childrenFor = parentItemId;
-            groupChildren.dataset.v2Pinned = '1';
-            host.appendChild(groupChildren);
-            childGroupContainers.set(parentItemId, groupChildren);
-          }
-
-          const cloneChild = child.cloneNode(true);
-          cloneChild.dataset.v2Pinned = '1';
-          groupChildren.appendChild(cloneChild);
-          any = true;
-        }
-      });
-      // URL-driven expansion for child-pinned dropdowns: open the
-      // container only when one of the pinned children inside it
-      // matches the current page; otherwise leave it collapsed.
-      childGroupContainers.forEach((kids) => {
-        const hasActiveChild = !!kids.querySelector('.v2-nav-child.v2-is-on');
-        kids.classList.toggle('v2-is-collapsed', !hasActiveChild);
-        const cloneParent = kids.previousElementSibling;
-        if (cloneParent) {
-          const chev = cloneParent.querySelector('.v2-nav-chev');
-          if (chev) chev.classList.toggle('v2-is-open', hasActiveChild);
-        }
-      });
-      pinGroup.style.display = any ? '' : 'none';
-    });
+    window.AdminSidebarPresentation.applyPins(ROOT, state.pins);
 
     // Mirror the change into the rail flyout (collapsed-sidebar pop-out).
     // The flyout lives OUTSIDE .app-v2, so the $$root scan above misses it.
@@ -798,11 +670,23 @@
 
   /* -------------------- header dropdowns -------------------- */
   function closeAllDropdowns(except) {
-    $$root('.v2-dropdown.v2-is-open').forEach(d => { if (d !== except) d.classList.remove('v2-is-open'); });
+    $$root('.v2-dropdown.v2-is-open').forEach(d => { if (d !== except) { d.classList.remove('v2-is-open'); d.querySelector('[data-v2-dropdown-toggle]')?.setAttribute('aria-expanded', 'false'); } });
   }
   function positionDropdownMenu(btn) {
     const menu = btn.closest('.v2-dropdown')?.querySelector(':scope > .v2-dropdown-menu');
     if (!menu) return;
+    if (menu.classList.contains('admin-inbox')) {
+      const r = btn.getBoundingClientRect();
+      const width = menu.getBoundingClientRect().width;
+      const rtl = getComputedStyle(document.documentElement).direction === 'rtl';
+      const top = window.innerWidth <= 900 ? btn.closest('.v2-header').getBoundingClientRect().bottom + 8 : r.bottom + 8;
+      menu.style.insetInlineEnd = 'auto';
+      menu.style.right = 'auto';
+      menu.style.left = Math.max(12, Math.min(rtl ? r.left : r.right - width, window.innerWidth - width - 12)) + 'px';
+      menu.style.top = top + 'px';
+      menu.style.maxHeight = Math.max(100, Math.min(480, window.innerHeight - top - 12)) + 'px';
+      return;
+    }
     // Orders menu on mobile uses full-width CSS positioning — skip JS override.
     if (menu.classList.contains('v2-orders-menu') && isMobileViewport()) return;
     const r = btn.getBoundingClientRect();
@@ -817,6 +701,7 @@
     }
   }
   function bindDropdowns() {
+    window.addEventListener('resize', () => $$root('.v2-dropdown.v2-is-open > [data-v2-dropdown-toggle]').forEach(positionDropdownMenu));
     $$root('.v2-dropdown > [data-v2-dropdown-toggle]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -827,6 +712,7 @@
         if (!isOpen) {
           positionDropdownMenu(btn);
           parent.classList.add('v2-is-open');
+          btn.setAttribute('aria-expanded', 'true');
           // On mobile/tablet the off-canvas sidebar overlaps the header
           // dropdowns visually — close the overlay so the popup isn't
           // hidden behind the sliding rail/ctxpanel.
@@ -837,6 +723,7 @@
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.v2-dropdown')) closeAllDropdowns();
     });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllDropdowns(); });
   }
 
   /* -------------------- command palette (⌘K) -------------------- */
@@ -1465,6 +1352,16 @@
     scroller.scrollTop = Math.max(0, target);
   }
 
+  /* -------------------- unified navigation icons --------------------
+     Every contextual-menu row gets a semantic icon tile. Static core
+     routes use a specific icon, while addon-provided/dynamic routes get
+     a safe generic icon so no row is left visually inconsistent. Icons
+     are injected before pinned/flyout clones are built, therefore every
+     representation of the same route keeps exactly the same treatment. */
+  function decorateNavigationIcons() {
+    window.AdminSidebarPresentation.decorateNavigationIcons(ROOT);
+  }
+
   /* -------------------- boot -------------------- */
   function boot() {
     applyTheme();
@@ -1476,6 +1373,7 @@
     disableParentHrefs();
     hydrateActive();
     autoExpandActive();
+    decorateNavigationIcons();
     injectChildPinButtons();
     applyPins();
     buildPaletteIndex();
@@ -1491,10 +1389,23 @@
     }));
   }
 
+  function startInteractions() {
+    if (window.AdminSidebarPresentation) { boot(); return; }
+    // A page received just before deployment can still have the previous HTML shell.
+    // Load its matching presentation dependency rather than leaving that tab broken.
+    const source = new URL('admin-sidebar-presentation.js', interactionScriptUrl);
+    source.search = new URL(interactionScriptUrl).search;
+    const script = document.createElement('script');
+    script.src = source.href;
+    script.addEventListener('load', boot, {once: true});
+    script.addEventListener('error', () => console.error('Admin sidebar presentation could not be loaded.'));
+    document.head.appendChild(script);
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
+    document.addEventListener('DOMContentLoaded', startInteractions);
   } else {
-    boot();
+    startInteractions();
   }
 
   // If the page is restored from bfcache (browser back/forward), re-hydrate

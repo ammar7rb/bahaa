@@ -1,0 +1,20 @@
+<?php
+return [
+    'more_filters'=>'More filters',
+    'refund_available'=>'Refund balance available','completed'=>'Completed',
+    'unnamed_package'=>'Package name not recorded','date_error'=>'End date must be on or after the start date.',
+    'incoming'=>'Incoming','incoming_intro'=>'One register for customer and vendor payments and wallet funding. External collections stay separate from spending an existing wallet balance.',
+    'accounts'=>'Customer and vendor accounts','accounts_intro'=>'Each account with its balance and package. Open the statement icon to review payments, deposits and movements together.',
+    'account_search'=>'Search name, phone or account ID','account_id'=>'Account ID','all_activity'=>'Complete activity register','account_summary'=>'Account, current balance and package','wallet'=>'Wallet balance','payments_wallet'=>'Vendor payments balance','package'=>'Current / latest package','no_package'=>'No package recorded','credit_not_cash'=>'Purchasing permission, not cash','close'=>'Close account statement','retry'=>'Try again','load_error'=>'Could not load the statement. Try again or check that you are signed in.',
+    'category'=>'Operation','movement'=>'Financial effect','payment_state'=>'Payment confirmation','confirmed'=>'Confirmed / approved','unconfirmed'=>'Unconfirmed / not approved','search'=>'Search account, order or reference','recorded_balance'=>'Balance recorded after entry','refund_direction'=>'Funds returned to account',
+    'period_note'=>'Leave both dates empty for all available history. Dates use the record or saved approval date, not necessarily the bank transfer date. Latest records appear first.',
+    'directory_note'=>'Balances are current; package terms come from saved subscriptions. Vendor wallet and payments balances are separate. Customer purchasing limits are permission, not cash.',
+    'statement_note'=>'The balances and package above are current, not period closing balances. A payment and its linked wallet posting can appear as distinct records; the posting is not another collection. Do not add movements to determine company profit.',
+    'no_profit'=>'Incoming funds are not company profit: wallet funding and vendor entitlements can be part of collections. Vendor-collected and unclassified receipts are excluded from company external collections.',
+    'receipt_rules'=>'The original payment record is used once, without adding its gateway request or wallet posting again. Wallet purchases are internal payments. Original order payments use saved original terms; edit payments remain separate. Missing historical original amounts are not guessed from edited order totals. Pending and rejected records are not confirmed collections.',
+    'unknown_amounts'=>':count records lack a saved original amount. They remain visible and are excluded from totals.',
+    'totals'=>['external'=>'Confirmed company external collections','internal'=>'Confirmed payments from wallet balances'],
+    'total_notes'=>['external'=>'Approved external payments, grouped by stored currency and all selected filters.','internal'=>'Spending funds already held; never added to external collections a second time.'],
+    'movements'=>['external'=>'External collection','internal'=>'Internal wallet spending','vendor_collected'=>'Collected by vendor','unclassified'=>'Collection destination / method unknown','adjustment'=>'Administrative balance credit','ledger'=>'Balance entry — not a new payment','refund'=>'Refund / returned funds'],
+    'categories'=>['deposits'=>'Customer wallet funding','vendor_deposits'=>'Vendor payments funding','customer_packages'=>'Customer package payment','vendor_packages'=>'Vendor package payment','extra_ads'=>'Extra advertisements','orders'=>'Original order payment','order_edits'=>'Order edit payment','wallet_funding'=>'Recorded wallet funding','wallet'=>'Customer wallet posting','vendor_ledger'=>'Vendor ledger entry','refunds'=>'Purchase refund','settlements'=>'Vendor entitlement settlement','withdrawals'=>'Vendor withdrawal request','refund_admin'=>'Administrative refund','refund_ledger'=>'Post-payment refund','refund_edits'=>'Order edit return'],
+];

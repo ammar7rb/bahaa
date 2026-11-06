@@ -39,6 +39,7 @@ class TransactionReportController extends Controller
 
     public function order_transaction_list(Request $request) : ViewResponse
     {
+        $request->validate(['record_id' => 'nullable|integer|min:1']);
         $search = $request['search'];
         $from = $request['from'];
         $to = $request['to'];
@@ -49,6 +50,7 @@ class TransactionReportController extends Controller
         $payment_status = $request['payment_status'] ?? 'all';
 
         $transactions = self::order_transaction_table_data_filter($request);
+        if ($request->filled('record_id')) $transactions->where('id', (int) $request->input('record_id'));
 
         $totalStores = $transactions->get()->unique(function ($item) {
             return $item->seller_id . '_' . $item->seller_is;

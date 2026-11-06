@@ -36,7 +36,8 @@ class UpdateController extends Controller
         Helpers::setEnvironmentValue('PURCHASE_CODE', $purchaseKey);
         Helpers::setEnvironmentValue('SOFTWARE_VERSION', SOFTWARE_VERSION);
         Helpers::setEnvironmentValue('APP_MODE', 'live');
-        Helpers::setEnvironmentValue('APP_NAME', '6valley' . time());
+        // Keep future software updates from restoring the legacy platform identity.
+        Helpers::setEnvironmentValue('APP_NAME', 'Baha' . time());
         Helpers::setEnvironmentValue('SESSION_LIFETIME', '60');
 
         $response = $this->getRequestConfig(

@@ -1,124 +1,52 @@
-<div class="col-12 col-md-6 col-xl-3">
-    <a class="business-analytics border card" href="{{ route('admin.orders.list', ['all']) }}">
-        <h4 class="business-analytics__subtitle">{{ translate('total_Order') }}</h4>
-        <h3 class="h2">{{ $data['order'] }}</h3>
-        <img  src="{{ dynamicAsset(path: 'public/assets/back-end/img/all-orders.png') }}" width="30" height="30" class="position-absolute end-3 top-3" alt="">
-    </a>
-</div>
-<div class="col-12 col-md-6 col-xl-3">
-    <a class="business-analytics border get-view-by-onclick card" href="{{ route('admin.vendors.vendor-list') }}">
-        <h4>{{ translate('total_Stores') }}</h4>
-        <h3 class="h2">{{ $data['store'] }}</h3>
-        <img width="30" src="{{ dynamicAsset(path: 'public/assets/back-end/img/total-stores.png') }}" class="position-absolute end-3 top-3" alt="">
-    </a>
-</div>
-<div class="col-12 col-md-6 col-xl-3">
-    <a class="business-analytics border card">
-        <h4 class="business-analytics__subtitle">{{ translate('Total_Products') }}</h4>
-        <h3 class="h2">{{ $data['product'] }}</h3>
-        <img width="30" src="{{ dynamicAsset(path: 'public/assets/back-end/img/total-product.png') }}" class="position-absolute end-3 top-3" alt="">
-    </a>
-</div>
-<div class="col-12 col-md-6 col-xl-3">
-    <a class="business-analytics border card" href="{{ route('admin.customer.list') }}">
-        <h4 class="business-analytics__subtitle">{{ translate('Total_Customers') }}</h4>
-        <h3 class="h2">{{ $data['customer'] }}</h3>
-        <img width="30" src="{{ dynamicAsset(path: 'public/assets/back-end/img/total-customer.png') }}" class="position-absolute end-3 top-3" alt="">
-    </a>
-</div>
+@php
+    $analyticsSummary = [
+        ['label' => 'total_Order', 'value' => $data['order'], 'live' => 'order', 'route' => route('admin.orders.list', ['all']), 'icon' => 'fi fi-sr-shopping-cart', 'color' => '#3b82f6'],
+        ['label' => 'total_Stores', 'value' => $data['store'], 'live' => 'store', 'route' => route('admin.vendors.vendor-list'), 'icon' => 'fi fi-sr-shop', 'color' => '#8b5cf6'],
+        ['label' => 'Total_Products', 'value' => $data['product'], 'live' => 'product', 'route' => route('admin.products.list', ['type' => 'all']), 'icon' => 'fi fi-sr-box-open', 'color' => '#f59e0b'],
+        ['label' => 'Total_Customers', 'value' => $data['customer'], 'live' => 'customer', 'route' => route('admin.customer.list'), 'icon' => 'fi fi-sr-users', 'color' => '#10b981'],
+    ];
 
-<div class="col-12 col-md-6 col-xl-3">
-    <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded" href="{{ route('admin.orders.list',['pending'])}}">
-        <div class="d-flex gap-3 align-items-center">
-            <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/pending.png') }}" alt="">
-            <h4 class="mb-0">{{ translate('Pending') }}</h4>
-        </div>
-        <span class="h3 mb-0">
-            {{ $data['pending']}}
-        </span>
-    </a>
-</div>
+    $orderStatuses = [
+        ['label' => 'Pending', 'value' => $data['pending'], 'live' => 'pending', 'status' => 'pending', 'icon' => 'fi fi-sr-time-past', 'color' => '#f59e0b'],
+        ['label' => 'Confirmed', 'value' => $data['confirmed'], 'live' => 'confirmed', 'status' => 'confirmed', 'icon' => 'fi fi-sr-badge-check', 'color' => '#22c55e'],
+        ['label' => 'Packaging', 'value' => $data['processing'], 'live' => 'processing', 'status' => 'processing', 'icon' => 'fi fi-sr-package', 'color' => '#8b5cf6'],
+        ['label' => 'Out_For_Delivery', 'value' => $data['out_for_delivery'], 'live' => 'out_for_delivery', 'status' => 'out_for_delivery', 'icon' => 'fi fi-sr-truck-moving', 'color' => '#06b6d4'],
+        ['label' => 'Delivered', 'value' => $data['delivered'], 'live' => 'delivered', 'status' => 'delivered', 'icon' => 'fi fi-sr-check-circle', 'color' => '#10b981'],
+        ['label' => 'Canceled', 'value' => $data['canceled'], 'live' => 'canceled', 'status' => 'canceled', 'icon' => 'fi fi-sr-cross-circle', 'color' => '#ef4444'],
+        ['label' => 'Returned', 'value' => $data['returned'], 'live' => 'returned', 'status' => 'returned', 'icon' => 'fi fi-sr-undo', 'color' => '#f97316'],
+        ['label' => 'Failed_To_Delivery', 'value' => $data['failed'], 'live' => 'failed', 'status' => 'failed', 'icon' => 'fi fi-sr-circle-xmark', 'color' => '#e11d48'],
+    ];
+@endphp
 
-<div class="col-12 col-md-6 col-xl-3">
-    <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_confirmed" href="{{ route('admin.orders.list',['confirmed'])}}">
-        <div class="d-flex gap-3 align-items-center">
-            <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/confirmed.png') }}" alt="">
-            <h4 class="mb-0">{{ translate('Confirmed') }}</h4>
-        </div>
-        <span class="h3 mb-0">
-            {{ $data['confirmed']}}
-        </span>
-    </a>
-</div>
-
-<div class="col-12 col-md-6 col-xl-3">
-    <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_packaging" href="{{ route('admin.orders.list',['processing'])}}">
-        <div class="d-flex gap-3 align-items-center">
-            <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/packaging.png') }}" alt="">
-            <h4 class="mb-0">{{ translate('Packaging') }}</h4>
-        </div>
-        <span class="h3 mb-0">
-            {{ $data['processing']}}
-        </span>
-    </a>
-</div>
-
-<div class="col-12 col-md-6 col-xl-3">
-    <a class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_out-for-delivery" href="{{ route('admin.orders.list',['out_for_delivery'])}}">
-        <div class="d-flex gap-3 align-items-center">
-            <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/out-of-delivery.png') }}" alt="">
-            <h4 class="mb-0">{{ translate('Out_For_Delivery') }}</h4>
-        </div>
-        <span class="h3 mb-0">
-            {{ $data['out_for_delivery']}}
-        </span>
-    </a>
-</div>
-
-<div class="col-12 col-md-6 col-xl-3">
-    <div class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_delivered cursor-pointer get-view-by-onclick" data-link="{{ route('admin.orders.list',['delivered'])}}">
-        <div class="d-flex gap-3 align-items-center">
-            <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/delivered.png') }}" alt="">
-            <h4 class="mb-0">{{ translate('Delivered') }}</h4>
-        </div>
-        <span class="h3 mb-0">
-            {{ $data['delivered'] }}
-        </span>
+@foreach($analyticsSummary as $summary)
+    <div class="col-12 col-sm-6 col-xl-3">
+        <a class="dashboard-analytics-summary" href="{{ $summary['route'] }}"
+           style="--analytics-accent: {{ $summary['color'] }}">
+            <span class="dashboard-analytics-summary-icon" aria-hidden="true">
+                <i class="{{ $summary['icon'] }}"></i>
+            </span>
+            <span class="dashboard-analytics-summary-content">
+                <span class="dashboard-analytics-summary-label">{{ translate($summary['label']) }}</span>
+                <strong class="dashboard-analytics-summary-value" data-live-metric="{{ $summary['live'] }}">
+                    {{ number_format($summary['value']) }}
+                </strong>
+            </span>
+            <i class="fi fi-rr-arrow-small-left dashboard-analytics-card-arrow" aria-hidden="true"></i>
+        </a>
     </div>
-</div>
+@endforeach
 
-<div class="col-12 col-md-6 col-xl-3">
-    <div class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_canceled cursor-pointer get-view-by-onclick" data-link="{{ route('admin.orders.list',['canceled'])}}">
-        <div class="d-flex gap-3 align-items-center">
-            <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/canceled.png') }}" alt="">
-            <h4 class="mb-0">{{ translate('Canceled') }}</h4>
-        </div>
-        <span class="h3 mb-0">
-            {{ $data['canceled'] }}
-        </span>
+@foreach($orderStatuses as $orderStatus)
+    <div class="col-12 col-sm-6 col-xl-3">
+        <a class="dashboard-order-status-card" href="{{ route('admin.orders.list', [$orderStatus['status']]) }}"
+           style="--analytics-accent: {{ $orderStatus['color'] }}">
+            <span class="dashboard-order-status-icon" aria-hidden="true">
+                <i class="{{ $orderStatus['icon'] }}"></i>
+            </span>
+            <span class="dashboard-order-status-label">{{ translate($orderStatus['label']) }}</span>
+            <strong class="dashboard-order-status-value" data-live-metric="{{ $orderStatus['live'] }}">
+                {{ number_format($orderStatus['value']) }}
+            </strong>
+        </a>
     </div>
-</div>
-
-<div class="col-12 col-md-6 col-xl-3">
-    <div class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_returned cursor-pointer get-view-by-onclick" data-link="{{ route('admin.orders.list',['returned'])}}">
-        <div class="d-flex gap-3 align-items-center">
-            <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/returned.png') }}" alt="">
-            <h4 class="mb-0">{{ translate('Returned') }}</h4>
-        </div>
-        <span class="h3 mb-0">
-            {{ $data['returned'] }}
-        </span>
-    </div>
-</div>
-
-<div class="col-12 col-md-6 col-xl-3">
-    <div class="d-flex gap-3 align-items-center justify-content-between p-20 bg-section rounded order-stats_failed cursor-pointer get-view-by-onclick" data-link="{{ route('admin.orders.list',['failed'])}}">
-        <div class="d-flex gap-3 align-items-center">
-            <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/failed-to-deliver.png') }}" alt="">
-            <h4 class="mb-0">{{ translate('Failed_To_Delivery') }}</h4>
-        </div>
-        <span class="h3 mb-0">
-            {{ $data['failed'] }}
-        </span>
-    </div>
-</div>
+@endforeach

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\API\v1;
 
 use App\Models\WithdrawalMethod;
+use App\Services\EgyptPhoneService;
 use App\Traits\ResponseHandler;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -32,19 +33,23 @@ class UpdateProfileApiRequest extends FormRequest
         $userId = $this->user()->id;
 
         return [
-            'f_name' => ['required', 'string', 'max:255'],
-            'l_name' => ['required', 'string', 'max:255'],
+            'f_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'l_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'organization_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'phone' => [
                 'required',
                 'string',
-                Rule::unique('users', 'phone')->ignore($userId),
+                'regex:/^01[0125][0-9]{8}$/',
+                new \App\Rules\UniqueCustomerPhone((int) $userId),
             ],
             'email' => [
                 'nullable',
                 'email',
                 Rule::unique('users', 'email')->ignore($userId),
             ],
-            'password' => ['nullable', 'string', 'min:6'],
+            'password' => ['nullable', 'string', 'min:8','max:255'],
+            'current_password' => ['required_with:password','nullable','string','max:255'],
+            'password_confirmation' => ['required_with:password','nullable','string','same:password'],
             'image' => getRulesStringForImageValidation(
                 rules: ['nullable','image'],
                 skipMimes: ['.svg','.gif'],
@@ -54,16 +59,24 @@ class UpdateProfileApiRequest extends FormRequest
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
+        ]);
+    }
+
     public function messages(): array
     {
         return [
-            'f_name.required' => translate('First name is required!'),
-            'l_name.required' => translate('Last name is required!'),
             'phone.required' => translate('Phone is required!'),
+            'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'phone.unique' => translate('Phone_already_exists'),
             'email.email' => translate('Invalid_email_format'),
             'email.unique' => translate('Email_already_exists'),
-            'password.min' => translate('Password_must_be_at_least_6_characters'),
+            'password.min' => 'كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف.',
+            'current_password.required_with'=>'أدخل كلمة المرور الحالية لتغييرها.',
+            'password_confirmation.same'=>'تأكيد كلمة المرور لا يطابق الجديدة.',
             'image.image' => translate('Invalid_image_file'),
             'image.max' => translate('Image_size_must_not_exceed') . ' ' . getFileUploadMaxSize() . ' MB.',
             'image.mimes' => translate('Invalid_image_format_type_must_be') . getFileUploadFormats(skip: ['.svg','.gif'], asMessage: true),

@@ -2,6 +2,7 @@
 
 namespace App\Utils;
 
+use App\Models\AccountActivationCase;
 use Carbon\Carbon;
 use App\Models\User;
 use App\Models\Wishlist;
@@ -19,15 +20,30 @@ class CustomerManager
 {
     public static function create_support_ticket($data)
     {
+        abort_if(($data['type'] ?? null) === 'account_activation', 410);
         $support = new SupportTicket();
         $support->customer_id = $data['customer_id'];
         $support->subject = $data['subject'];
         $support->type = $data['type'];
+        $support->purpose = $data['type'] === 'account_activation' ? 'account_activation' : null;
+        $support->review_status = $data['type'] === 'account_activation' ? 'pending' : null;
         $support->priority = $data['priority'];
         $support->description = $data['description'];
         $support->attachment = $data['attachment'];
         $support->status = $data['status'];
         $support->save();
+
+        if ($support->purpose === 'account_activation') {
+            AccountActivationCase::query()->updateOrCreate([
+                'subject_type' => AccountActivationCase::SUBJECT_CUSTOMER,
+                'subject_id' => $support->customer_id,
+            ], [
+                'source_type' => 'support_ticket',
+                'source_id' => $support->id,
+                'status' => AccountActivationCase::STATUS_PENDING,
+                'metadata' => ['created_from' => 'customer_api'],
+            ]);
+        }
 
         return $support;
     }
@@ -35,16 +51,27 @@ class CustomerManager
     /**create_wallet_transaction -> function on Customer trait -> createWalletTransaction*/
     public static function create_wallet_transaction($user_id, float $amount, $transaction_type, $reference, $payment_data = [])
     {
+        app(\App\Services\CustomerPurchaseWalletPolicyService::class)->assertTransactionAllowed((string) $transaction_type);
         if (BusinessSetting::where('type', 'wallet_status')->first()->value != 1) return false;
+        if ($transaction_type === 'order_place' && !empty($payment_data['order_ids'])) {
+            return app(\App\Services\CustomerOrderWalletPaymentService::class)->debit(
+                (int) $user_id, (float) Convert::usd($amount), $payment_data['order_ids'], $payment_data['payment_method'] ?? 'wallet_balance'
+            );
+        }
         $user = User::find($user_id);
         $current_balance = $user->wallet_balance;
 
         $wallet_transaction = new WalletTransaction();
         $wallet_transaction->user_id = $user->id;
-        $wallet_transaction->transaction_id = \Str::uuid();
+        $wallet_transaction->transaction_id = $transaction_type === 'add_fund' && $reference === 'add_funds_to_wallet' && !empty($payment_data['id'])
+            ? 'd' . $payment_data['id']
+            : (string) \Str::uuid();
         $wallet_transaction->reference = $reference;
         $wallet_transaction->transaction_type = $transaction_type;
         $wallet_transaction->payment_method = isset($payment_data['payment_method']) ? $payment_data['payment_method'] : null;
+        if (\Illuminate\Support\Facades\Schema::hasColumn('wallet_transactions','order_ids') && isset($payment_data['order_ids'])) {
+            $wallet_transaction->order_ids = array_values(array_map('intval',$payment_data['order_ids']));
+        }
 
         $debit = 0.0;
         $credit = 0.0;
@@ -71,7 +98,7 @@ class CustomerManager
         $debit_amount = Convert::usd($debit);
         $wallet_transaction->credit = $credit_amount;
         $wallet_transaction->debit = $debit_amount;
-        $wallet_transaction->balance = $current_balance + $credit_amount - $debit_amount;
+        $wallet_transaction->balance = $current_balance + $add_fund_to_wallet_bonus + $credit_amount - $debit_amount;
         $wallet_transaction->created_at = now();
         $wallet_transaction->updated_at = now();
         $user->wallet_balance = $current_balance + $add_fund_to_wallet_bonus + $credit_amount - $debit_amount;
@@ -201,6 +228,8 @@ class CustomerManager
 
     public static function getReferralDiscountAmount($user = null, $couponDiscount = null)
     {
+        // Customer checkout uses catalogue prices without checkout discount mechanisms.
+        if (!auth('admin')->check() && !auth('seller')->check()) return 0;
         if ($user && isset($user['id'])) {
             $cart = CartManager::getCartListQuery(type: 'checked');
             $totalAmount = 0;

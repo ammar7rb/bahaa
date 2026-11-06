@@ -4,8 +4,8 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 
-if (!function_exists('translate')) {
-    function translate($key = null): string|null
+if (! function_exists('translate')) {
+    function translate($key = null): ?string
     {
         $local = getDefaultLanguage();
         if ($key) {
@@ -13,68 +13,92 @@ if (!function_exists('translate')) {
             $key = getOrPutTranslateMessageValueByKey(local: $local, key: $key);
         }
         App::setLocale(getLanguageCode(country_code: $local));
+
         return $key;
     }
 
     function getOrPutTranslateMessageValueByKey(string $local, string $key): array|string|null
     {
         try {
-            $translatedMessagesArray = include(base_path('resources/lang/' . $local . '/messages.php'));
-            $newMessagesArray = include(base_path('resources/lang/' . $local . '/new-messages.php'));
-            $key = str_replace('"', '', $key);
+            $translatedMessagesArray = include base_path('resources/lang/'.$local.'/messages.php');
+            if (in_array($local, ['ar', 'sa', 'en'], true)) {
+                $translatedMessagesArray = array_replace($translatedMessagesArray,
+                    require base_path('resources/lang/'.($local === 'sa' ? 'ar' : $local).'/second-invoice.php'));
+            }
+            $newMessagesArray = include base_path('resources/lang/'.$local.'/new-messages.php');
+            $originalKey = str_replace('"', '', $key);
+            $key = $originalKey;
             $key = str_replace(' ', '_', $key);
             $processedKey = ucfirst(str_replace('_', ' ', removeSpecialCharacters($key)));
 
-            if (!array_key_exists($key, $translatedMessagesArray) && !array_key_exists($key, $newMessagesArray)) {
+            if (array_key_exists($originalKey, $translatedMessagesArray)) {
+                // Some reviewed copy is a complete sentence and contains
+                // punctuation. Resolve it directly before the legacy
+                // space-to-underscore normalisation loses that key.
+                $message = $translatedMessagesArray[$originalKey];
+            } elseif (array_key_exists($originalKey, $newMessagesArray)) {
+                $message = $newMessagesArray[$originalKey];
+            } elseif (! array_key_exists($key, $translatedMessagesArray) && ! array_key_exists($key, $newMessagesArray)) {
+                // Arabic is a maintained first-party locale. Do not silently
+                // send new Arabic UI text through the automatic translator or
+                // overwrite its curated catalogue. A missing key stays as a
+                // readable source label until it is reviewed manually.
+                if ($local === 'ar') {
+                    return $processedKey;
+                }
+
                 $newMessagesArray[$key] = $processedKey;
 
                 $languageFileContents = "<?php\n\nreturn [\n";
                 foreach ($newMessagesArray as $languageKey => $value) {
-                    $languageFileContents .= "\t\"" . $languageKey . "\" => \"" . $value . "\",\n";
+                    $languageFileContents .= "\t\"".$languageKey.'" => "'.$value."\",\n";
                 }
                 $languageFileContents .= "];\n";
 
-                $targetPath = base_path('resources/lang/' . $local . '/new-messages.php');
+                $targetPath = base_path('resources/lang/'.$local.'/new-messages.php');
                 file_put_contents($targetPath, $languageFileContents);
                 $message = $processedKey;
             } elseif (array_key_exists($key, $translatedMessagesArray)) {
-                $message = __('messages.' . $key);
+                $message = __('messages.'.$key);
             } elseif (array_key_exists($key, $newMessagesArray)) {
-                $message = __('new-messages.' . $key);
+                $message = __('new-messages.'.$key);
             } else {
-                $message = __('messages.' . $key);
+                $message = __('messages.'.$key);
             }
         } catch (Exception $exception) {
             $message = ucfirst(str_replace('_', ' ', removeSpecialCharacters(str_replace("\'", "'", $key))));
         }
+
         return $local == 'en' ? ucfirst($message) : $message;
     }
 }
 
-if (!function_exists('getDirectoriesByGivenPath')) {
+if (! function_exists('getDirectoriesByGivenPath')) {
     function getDirectoriesByGivenPath(string $path): array
     {
         $directories = [];
         $items = scandir($path);
         foreach ($items as $item) {
-            if ($item == '..' || $item == '.')
+            if ($item == '..' || $item == '.') {
                 continue;
-            if (is_dir($path . '/' . $item))
+            }
+            if (is_dir($path.'/'.$item)) {
                 $directories[] = $item;
+            }
         }
+
         return $directories;
     }
 }
 
-
-if (!function_exists('removeSpecialCharacters')) {
-    function removeSpecialCharacters(string|null $text): string|null
+if (! function_exists('removeSpecialCharacters')) {
+    function removeSpecialCharacters(?string $text): ?string
     {
         return str_ireplace(['\'', '"', ';', '<', '>', '?', '“', '”'], ' ', preg_replace('/\s\s+/', ' ', $text));
     }
 }
 
-if (!function_exists('getDefaultLanguage')) {
+if (! function_exists('getDefaultLanguage')) {
     function getDefaultLanguage(): string
     {
         if (strpos(url()->current(), '/api')) {
@@ -97,11 +121,12 @@ if (!function_exists('getDefaultLanguage')) {
             Session::put('direction', $direction);
             $lang = $code;
         }
+
         return $lang;
     }
 }
 
-if (!function_exists('getLanguageName')) {
+if (! function_exists('getLanguageName')) {
     function getLanguageName(string $key): string
     {
         $values = getWebConfig('language');
@@ -110,11 +135,12 @@ if (!function_exists('getLanguageName')) {
                 $key = $value['name'];
             }
         }
+
         return $key;
     }
 }
 
-if (!function_exists('getLanguageCode')) {
+if (! function_exists('getLanguageCode')) {
     function getLanguageCodeList(): array
     {
         return [
@@ -378,14 +404,21 @@ if (!function_exists('getLanguageCode')) {
             'sm-WS',
             'fr-YT',
             'en-ZM',
-            'en-ZW'
+            'en-ZW',
         ];
     }
 }
 
-if (!function_exists('getLanguageCode')) {
+if (! function_exists('getLanguageCode')) {
     function getLanguageCode(string $country_code): string
     {
+        // Arabic is a language code, not a country code. Without this explicit
+        // mapping, "ar" is mistakenly resolved as Argentina (es-AR), which
+        // makes the language selector render Arabic strings inconsistently.
+        if (strtolower($country_code) === 'ar') {
+            return 'ar';
+        }
+
         $scripts = [];
         if (Str::contains($country_code, '-')) {
             $countryCodeArr = explode('-', $country_code);
@@ -396,26 +429,46 @@ if (!function_exists('getLanguageCode')) {
             $localeRegion = explode('-', $locale);
             if (strtoupper($country_code) === strtoupper(end($localeRegion))) {
                 if (Str::contains($country_code, '-')) {
-                    return $localeRegion[0] . '-' . end($scripts);
+                    return $localeRegion[0].'-'.end($scripts);
                 }
+
                 return $localeRegion[0];
             }
         }
-        return "en";
+
+        return 'en';
     }
 }
 
-if (!function_exists('autoTranslatorBatchedMode')) {
+if (! function_exists('getLanguageFlagCode')) {
+    function getLanguageFlagCode(string $languageCode): string
+    {
+        $languageCode = strtolower($languageCode);
+
+        // The generic ar.png in the legacy asset bundle is Argentina's flag.
+        // Arabic in this Egypt-focused platform is deliberately represented by
+        // the Egyptian flag in every language selector.
+        if ($languageCode === 'ar' || str_starts_with($languageCode, 'ar-')) {
+            return 'eg';
+        }
+
+        return Str::contains($languageCode, '-')
+            ? strtolower(explode('-', $languageCode)[0])
+            : $languageCode;
+    }
+}
+
+if (! function_exists('autoTranslatorBatchedMode')) {
     function autoTranslatorBatchedMode(string $text, string $sourceLang, string $targetLang): string
     {
         $apiTargetLang = ($targetLang === 'sr-Latn') ? 'sr' : $targetLang;
 
-        $url = "https://translate.googleapis.com/translate_a/single?client=gtx&ie=UTF-8&oe=UTF-8&dt=t"
-            . "&sl={$sourceLang}&tl={$apiTargetLang}&q=" . urlencode($text);
+        $url = 'https://translate.googleapis.com/translate_a/single?client=gtx&ie=UTF-8&oe=UTF-8&dt=t'
+            ."&sl={$sourceLang}&tl={$apiTargetLang}&q=".urlencode($text);
 
-//        $cleanText = urlencode(str_replace('_', ' ', $text));
-//        $url = "https://translate.googleapis.com/translate_a/single?client=gtx&ie=UTF-8&oe=UTF-8&dt=t&sl="
-//            . $sourceLang . "&tl=" . $apiTargetLang . "&q=" . $cleanText;
+        //        $cleanText = urlencode(str_replace('_', ' ', $text));
+        //        $url = "https://translate.googleapis.com/translate_a/single?client=gtx&ie=UTF-8&oe=UTF-8&dt=t&sl="
+        //            . $sourceLang . "&tl=" . $apiTargetLang . "&q=" . $cleanText;
 
         $response = @file_get_contents($url);
         if ($response === false) {
@@ -423,7 +476,7 @@ if (!function_exists('autoTranslatorBatchedMode')) {
         }
 
         $data = json_decode($response, true);
-        if (!isset($data[0])) {
+        if (! isset($data[0])) {
             return '';
         }
 
@@ -436,19 +489,20 @@ if (!function_exists('autoTranslatorBatchedMode')) {
         if (needsTransliteration($targetLang)) {
             $translated = transliterateCyrillicToLatin($translated, $targetLang);
         }
+
         return trim($translated);
     }
 }
 
-if (!function_exists('autoTranslator')) {
+if (! function_exists('autoTranslator')) {
     function autoTranslator(string $text, string $sourceLang, string $targetLang): array|string
     {
         // Map sr-Latn to sr for translation
         $apiTargetLang = ($targetLang === 'sr-Latn') ? 'sr' : $targetLang;
 
         $cleanText = urlencode(str_replace('_', ' ', $text));
-        $url = "https://translate.googleapis.com/translate_a/single?client=gtx&ie=UTF-8&oe=UTF-8&dt=t&sl="
-            . $sourceLang . "&tl=" . $apiTargetLang . "&q=" . $cleanText;
+        $url = 'https://translate.googleapis.com/translate_a/single?client=gtx&ie=UTF-8&oe=UTF-8&dt=t&sl='
+            .$sourceLang.'&tl='.$apiTargetLang.'&q='.$cleanText;
 
         $response = file_get_contents($url);
         $data = json_decode($response);

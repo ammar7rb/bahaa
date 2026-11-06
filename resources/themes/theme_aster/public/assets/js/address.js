@@ -1,4 +1,5 @@
 "use strict";
+const egyptMapBounds = {north: 31.7, south: 22.0, east: 36.9, west: 24.7};
 $(document).ready(function () {
     $('.select-picker').select2();
     $(document).on("keydown", "input", function (e) {
@@ -8,8 +9,14 @@ $(document).ready(function () {
     });
 });
 async function initAutoComplete() {
-    let latitude = $('#address-latitude').data('latitude')
-    let longitude = $('#address-longitude').data('longitude')
+    let latitude = parseFloat($('#address-latitude').data('latitude'))
+    let longitude = parseFloat($('#address-longitude').data('longitude'))
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)
+        || latitude < egyptMapBounds.south || latitude > egyptMapBounds.north
+        || longitude < egyptMapBounds.west || longitude > egyptMapBounds.east) {
+        latitude = 30.0444;
+        longitude = 31.2357;
+    }
     let myLatLng = {
         lat: latitude,
         lng: longitude,
@@ -19,7 +26,8 @@ async function initAutoComplete() {
     const map = new google.maps.Map(document.getElementById("location_map_canvas"), {
         center: myLatLng,
         zoom: 13,
-        mapId: 'roadmap'
+        mapId: 'roadmap',
+        restriction: {latLngBounds: egyptMapBounds, strictBounds: true}
     });
 
     let marker = new AdvancedMarkerElement({
@@ -71,6 +79,11 @@ async function initAutoComplete() {
         const bounds = new google.maps.LatLngBounds();
         places.forEach((place) => {
             if (!place.geometry || !place.geometry.location) {
+                return;
+            }
+            const country = (place.address_components || []).find(component => component.types.includes('country'));
+            if (!country || country.short_name.toUpperCase() !== 'EG') {
+                input.value = '';
                 return;
             }
             var mrkr = new AdvancedMarkerElement({

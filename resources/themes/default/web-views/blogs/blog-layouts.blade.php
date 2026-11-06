@@ -95,7 +95,7 @@
 <span id="message-sorry-the-minimum-order-quantity-not-match" data-text="{{ translate('sorry_the_minimum_order_quantity_does_not_match') }}"></span>
 <span id="message-cart" data-text="{{ translate('cart') }}"></span>
 
-<span id="route-messages-store" data-url="{{ route('messages') }}"></span>
+<span id="route-messages-store" data-url="{{ route('account-tickets') }}" data-support-only="true"></span>
 <span id="route-address-update" data-url="{{ route('address-update') }}"></span>
 <span id="route-coupon-apply" data-url="{{ route('coupon.apply') }}"></span>
 <span id="route-cart-add" data-url="{{ route('cart.add') }}"></span>

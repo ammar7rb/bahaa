@@ -37,6 +37,7 @@ class PaymentInfoApiRequest extends FormRequest
                 Rule::unique('vendor_withdraw_method_infos', 'method_name')->ignore($this->input('id')),
             ],
             'withdraw_method_id' => 'required|exists:withdrawal_methods,id',
+            'method_type' => 'nullable|in:bank,instapay,vodafone_cash',
         ];
 
         if ($this->input('id')) {
@@ -70,7 +71,7 @@ class PaymentInfoApiRequest extends FormRequest
                     );
                 }
 
-                foreach ($fields['method_fields'] as $field) {
+                foreach (($fields['method_fields'] ?? []) as $field) {
                     if (isset($field['is_required']) && $field['is_required'] == 1)
                         if (!isset($this['method_info'][$field['input_name']]) || empty($this['method_info'][$field['input_name']])) {
                             $validator->errors()->add(

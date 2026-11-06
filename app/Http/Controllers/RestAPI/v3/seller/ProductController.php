@@ -36,8 +36,10 @@ use App\Models\StockClearanceProduct;
 use App\Models\Tag;
 use App\Models\Translation;
 use App\Repositories\DigitalProductPublishingHouseRepository;
+use App\Services\CustomerThreeStepShippingService;
 use App\Services\ProductService;
 use App\Services\SellerProductEntitlementService;
+use App\Services\SellerProductContentPolicyService;
 use App\Traits\CacheManagerTrait;
 use App\Traits\FileManagerTrait;
 use App\Traits\ProductTrait;
@@ -80,6 +82,15 @@ class ProductController extends Controller
     {
     }
 
+    public function stockViolations(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        $seller = $request->input('seller');
+        abort_unless($seller instanceof \App\Models\Seller, 401);
+        $violations = \App\Models\SellerStockViolation::where('seller_id', $seller->id)->latest('id')->paginate(20);
+
+        return response()->json($violations);
+    }
+
     public function getProductList(Request $request): JsonResponse
     {
         $seller = $request->seller;
@@ -87,6 +98,9 @@ class ProductController extends Controller
                 return $query->active();
             }])
             ->withCount('reviews')
+            ->withCount(['orderDetails as seller_orders_count' => function ($query) {
+                $query->whereNotIn('delivery_status', ['canceled', 'failed', 'returned']);
+            }])
             ->where(['added_by' => 'seller', 'user_id' => $seller['id']])
             ->when(isset($request['filter_category_ids']) && !empty($request['filter_category_ids']) && is_array($request['filter_category_ids']) && count($request['filter_category_ids']) > 0,
                 function ($query) use ($request) {
@@ -102,7 +116,7 @@ class ProductController extends Controller
                 return $query->where('status', $request['status']);
             })
             ->when(isset($request['request_status']), function ($query) use ($request) {
-                return $query->where('request_status', $request['request_status']);
+                return $query->reviewRequestStatus($request['request_status']);
             })
             ->when(isset($request['filter_sort_by']) && $request['filter_sort_by'] == 'latest', function ($query) use ($request) {
                 return $query->orderBy('id', 'desc');
@@ -144,6 +158,7 @@ class ProductController extends Controller
 
     public function getVendorAllProducts($seller_id, Request $request): JsonResponse
     {
+        abort_unless($request->seller && (int) $request->seller->id === (int) $seller_id, 404);
         $brandIds = json_decode($request['brand_ids'] ?? '', true);
         $categoryIds = json_decode($request['category_ids'] ?? '', true);
         $publishingHouseIds = json_decode($request['publishing_house_ids'] ?? '', true);
@@ -256,7 +271,7 @@ class ProductController extends Controller
                 return $query->whereIn('status', $filterProductStatus);
             })
             ->when(isset($request['request_status']), function ($query) use ($request) {
-                return $query->where('request_status', $request['request_status']);
+                return $query->reviewRequestStatus($request['request_status']);
             })
             ->when(isset($request['filter_sort_by']) && $request['filter_sort_by'] == 'latest', function ($query) use ($request) {
                 return $query->orderBy('id', 'desc');
@@ -389,6 +404,7 @@ class ProductController extends Controller
 
     public function editOrderVendorAllProducts($seller_id, Request $request): JsonResponse
     {
+        abort_unless($request->seller && (int) $request->seller->id === (int) $seller_id, 404);
         $brandIds = json_decode($request['brand_ids'] ?? '', true);
         $categoryIds = json_decode($request['category_ids'] ?? '', true);
         $publishingHouseIds = json_decode($request['publishing_house_ids'] ?? '', true);
@@ -501,7 +517,7 @@ class ProductController extends Controller
                 return $query->whereIn('status', $filterProductStatus);
             })
             ->when(isset($request['request_status']), function ($query) use ($request) {
-                return $query->where('request_status', $request['request_status']);
+                return $query->reviewRequestStatus($request['request_status']);
             })
             ->when(isset($request['filter_sort_by']) && $request['filter_sort_by'] == 'latest', function ($query) use ($request) {
                 return $query->orderBy('id', 'desc');
@@ -654,7 +670,9 @@ class ProductController extends Controller
         ->find($id);
 
         if (isset($product)) {
+            $viewCount = app(\App\Services\ProductViewCountService::class)->totals((int) $product->id)['total'];
             $product = Helpers::product_data_formatting($product, false);
+            $product['product_view_count'] = $viewCount;
         }
         return response()->json($product, 200);
     }
@@ -767,33 +785,53 @@ class ProductController extends Controller
 
     public function add_new(Request $request): JsonResponse
     {
+        $request->merge(['discount' => 0, 'discount_type' => 'flat']);
+        app(\App\Services\VendorAdvertisingAccessService::class)->assertCanCreate((int) $request->seller->id);
         $seller = $request->seller;
-
-        try {
-            $this->sellerProductEntitlementService->assertCanReserve($seller);
-        } catch (DomainException $exception) {
-            return response()->json([
-                'errors' => [[
-                    'code' => $exception->getMessage(),
-                    'message' => translate($exception->getMessage()),
-                ]],
-            ], 403);
+        if ($policyResponse = $this->guardProductPolicy($request, $seller)) {
+            return $policyResponse;
         }
+        // When admin owns shipping, a seller must not be required to submit a product price for it.
+        $isAdminManagedShipping = app(CustomerThreeStepShippingService::class)->isEnabled();
 
+        $request->merge(['no_production_expiry_dates' => ($request->boolean('no_production_expiry_dates') || (!$request->filled('production_date') && !$request->filled('expiry_date'))) ? 1 : 0]);
+        if ($request->boolean('no_production_expiry_dates')) $request->merge(['production_date' => null, 'expiry_date' => null]);
+        if ($request->category_id === 'other') $request->merge(['sub_category_id' => null, 'sub_sub_category_id' => null]);
         $validator = Validator::make($request->all(), [
-            'name' => 'required',
-            'category_id' => 'required',
+            'name' => ['required', function ($attribute, $value, $fail) use ($request) {
+                $names = is_string($value) ? json_decode($value, true) : $value;
+                $languages = json_decode((string) $request->input('lang'), true);
+                $index = is_array($languages) ? array_search(Helpers::default_lang(), $languages, true) : false;
+                $index = $index === false ? 0 : $index;
+                if (!is_array($names) || !isset($names[$index]) || !is_string($names[$index]) || trim($names[$index]) === '') $fail(translate('Product name is required!'));
+            }],
+            'category_id' => ['nullable', function ($attribute, $value, $fail) use ($request) { foreach (app(\App\Services\SellerProductCategoryService::class)->validate($request->all(), true) as $message) $fail(translate($message)); }],
+            'sub_category_id' => 'nullable|prohibited_without:category_id',
+            'sub_sub_category_id' => 'nullable|prohibited_without:sub_category_id',
             'product_type' => 'required',
-            'unit' => 'required_if:product_type,==,physical',
-            'images' => 'required',
-            'thumbnail' => 'required',
+            'unit' => 'nullable|string|max:50',
+            'brand_name' => 'nullable|string|max:100',
+            'images' => 'nullable|json',
+            'thumbnail' => 'nullable|string',
+            'color_image' => 'nullable|json',
             'discount_type' => 'required|in:percent,flat',
             'lang' => 'required',
             'unit_price' => 'required|min:1',
             'discount' => 'required|gt:-1',
-            'shipping_cost' => 'required_if:product_type,==,physical|gt:-1',
+            'shipping_cost' => $isAdminManagedShipping ? 'nullable|numeric|min:0' : 'required_if:product_type,==,physical|gt:-1',
             'code' => 'required|min:6|max:20|regex:/^[a-zA-Z0-9]+$/|unique:products',
             'minimum_order_qty' => 'required|numeric|min:1',
+            'sale_unit_type' => 'nullable|in:piece,package,box',
+            'pieces_per_unit' => 'nullable|integer|min:1|required_if:sale_unit_type,package,box',
+            'length' => 'nullable|numeric|gt:0',
+            'width' => 'nullable|numeric|gt:0',
+            'height' => 'nullable|numeric|gt:0',
+            'dimension_unit' => 'nullable|in:cm,m',
+            'weight' => 'nullable|numeric|gt:0',
+            'weight_unit' => 'nullable|in:g,kg',
+            'no_production_expiry_dates' => 'boolean',
+            'production_date' => 'nullable|date',
+            'expiry_date' => ['nullable', 'date', 'after:today', \Illuminate\Validation\Rule::when($request->filled('production_date'), ['after_or_equal:production_date'])],
         ], [
             'name.required' => translate('Product name is required!'),
             'unit.required_if' => translate('Unit is required!'),
@@ -883,26 +921,39 @@ class ProductController extends Controller
         $requestLanguage = json_decode($request['lang'], true);
         $requestName = json_decode($request['name'], true);
         $requestDescription = json_decode($request['description'], true);
-        $requestColors = json_decode($request['colors'], true);
-        $requestImages = json_decode($request['images'], true);
-        $requestColorImages = json_decode($request['color_image'], true);
+        $requestColors = json_decode($request['colors'] ?? '[]', true) ?: [];
+        $requestImages = json_decode($request['images'] ?? '[]', true) ?: [];
+        $requestColorImages = json_decode($request['color_image'] ?? '[]', true) ?: [];
         $requestTags = json_decode($request['tags'], true);
         $requestChoiceArray = json_decode($request['choice'], true);
         $requestChoiceNo = json_decode($request['choice_no'], true);
         $requestChoiceAttributes = json_decode($request['choice_attributes'], true);
         $storage = config('filesystems.disks.default') ?? 'public';
+        $resolvedBrandId = $this->resolveSellerBrandId($request);
         $productArray = [
             'user_id' => $seller->id,
             'shop_id' => Shop::where('seller_id', $seller->id)->first()->id ?? null,
             'added_by' => "seller",
             'name' => $requestName[array_search(Helpers::default_lang(), $requestLanguage)],
             'slug' => Str::slug($requestName[array_search(Helpers::default_lang(), $requestLanguage)], '-') . '-' . Str::random(6),
-            'category_ids' => json_encode($category),
-            'category_id' => $request['category_id'],
+            'category_ids' => json_encode($request->category_id === 'other' ? [] : $category),
+            'category_review_required' => $request['category_id'] === 'other' || !$request->filled('category_id'),
+            'category_id' => $request['category_id'] === 'other' ? null : $request['category_id'],
             'sub_category_id' => $request['sub_category_id'],
             'sub_sub_category_id' => $request['sub_sub_category_id'],
-            'brand_id' => $request['product_type'] == "physical" ? ( $request['brand_id'] ?? null) : null,
+            'brand_id' => $request['product_type'] == "physical" ? $resolvedBrandId : null,
             'unit' => $request['product_type'] == 'physical' ? $request['unit'] : null,
+            'sale_unit_type' => in_array($request->input('sale_unit_type'), ['package', 'box'], true) ? 'package' : 'piece',
+            'pieces_per_unit' => in_array($request->input('sale_unit_type'), ['package', 'box'], true) ? (int) $request->input('pieces_per_unit') : null,
+            'length' => $request->filled('length') ? (float) $request->input('length') : null,
+            'width' => $request->filled('width') ? (float) $request->input('width') : null,
+            'height' => $request->filled('height') ? (float) $request->input('height') : null,
+            'dimension_unit' => $request->filled('dimension_unit') ? $request->input('dimension_unit') : null,
+            'weight' => $request->filled('weight') ? (float) $request->input('weight') : null,
+            'weight_unit' => $request->filled('weight_unit') ? $request->input('weight_unit') : null,
+            'no_production_expiry_dates' => $request->boolean('no_production_expiry_dates'),
+            'production_date' => $request->input('production_date'),
+            'expiry_date' => $request->input('expiry_date'),
             'product_type' => $request['product_type'],
             'digital_product_type' => $request['product_type'] == 'digital' ? $request['digital_product_type'] : null,
             'code' => $request['code'],
@@ -1027,31 +1078,25 @@ class ProductController extends Controller
 
             'video_provider' => 'youtube',
             'video_url' => $request['video_url'],
-            'request_status' => getWebConfig(name: 'new_product_approval') == 1 ? 0 : 1,
-            'status' => 0,
-            'shipping_cost' => $request['product_type'] == 'physical' ? Convert::usd($request['shipping_cost']) : 0,
-            'multiply_qty' => ($request['product_type'] == 'physical') ? ($request['multiplyQTY'] == 1 ? 1 : 0) : 0,
+            // Completion makes the product active for the seller, while the
+            // public catalogue remains closed until admin approval.
+            'request_status' => 0,
+            'status' => 1,
+            'seller_review_status' => \App\Services\SellerProductReviewService::SUBMITTED,
+            'seller_submitted_at' => now(),
+            'seller_reviewed_at' => null,
+            'seller_reviewed_by' => null,
+            // Product shipping is zeroed because checkout uses admin three-step shipping methods.
+            'shipping_cost' => $request['product_type'] == 'physical' ? ($isAdminManagedShipping ? 0 : Convert::usd($request['shipping_cost'])) : 0,
+            'multiply_qty' => ($request['product_type'] == 'physical') ? ($isAdminManagedShipping ? 0 : ($request['multiplyQTY'] == 1 ? 1 : 0)) : 0,
             'digital_product_file_types' => $request->has('extensions_type') ? json_decode($request['extensions_type'], true) : [],
             'digital_product_extensions' => $digitalFileCombinations,
             'preview_file' => $previewFile,
             'preview_file_storage_type' => $request->has('preview_file') ? $storage : null,
         ];
 
-        try {
-            $product = DB::transaction(function () use ($productArray, $seller) {
-                $product = Product::create($productArray);
-                $this->sellerProductEntitlementService->reserveForProduct($product, $seller);
-
-                return $product;
-            });
-        } catch (DomainException $exception) {
-            return response()->json([
-                'errors' => [[
-                    'code' => $exception->getMessage(),
-                    'message' => translate($exception->getMessage()),
-                ]],
-            ], 403);
-        }
+        $product = Product::create($productArray);
+        app(\App\Services\SellerProductReviewService::class)->submit($product);
 
         $this->updateProductAuthorAndPublishingHouse(request: $request, product: $product);
         $digitalFileArray = self::getAddProductDigitalVariationData(request: $request, product: $product);
@@ -1100,7 +1145,40 @@ class ProductController extends Controller
             taxIds: json_decode($request['tax_ids'], true)
         );
 
-        return response()->json(['message' => translate('successfully product added!'), 'request' => $request->all()], 200);
+        return response()->json([
+            'message' => translate('product_added_successfully'),
+            'review_status' => \App\Services\SellerProductReviewService::SUBMITTED,
+            'seller_display_status' => 'active',
+            'request_status' => 0,
+            'product_id' => (int) $product->id,
+        ], 200);
+    }
+
+    private function resolveSellerBrandId(Request $request): ?int
+    {
+        if ($request->filled('brand_id') && (int) $request->input('brand_id') > 0) {
+            return (int) $request->input('brand_id');
+        }
+
+        $brandName = trim((string) $request->input('brand_name', ''));
+        if ($brandName === '') {
+            return null;
+        }
+
+        $brand = $this->brandRepo->getFirstWhere(['name' => $brandName]);
+        if (! $brand) {
+            $brand = $this->brandRepo->add([
+                'name' => $brandName,
+                'slug' => Str::slug($brandName) . '-' . Str::lower(Str::random(5)),
+                'image' => 'def.png',
+                'image_storage_type' => 'public',
+                // A seller-created brand is available for product assignment,
+                // while administration keeps control of public activation.
+                'status' => 0,
+            ]);
+        }
+
+        return (int) $brand->id;
     }
 
     public function updateProductAuthorAndPublishingHouse(object|array $request, object|array $product): void
@@ -1201,7 +1279,7 @@ class ProductController extends Controller
 
     public function edit(Request $request, $id)
     {
-        $product = Product::withoutGlobalScopes()->with('translations', 'tags', 'digitalVariation', 'seoInfo')->withCount('reviews')->find($id);
+        $product = Product::withoutGlobalScopes()->where('added_by', 'seller')->where('user_id', $request->seller->id)->with('translations', 'tags', 'digitalVariation', 'seoInfo')->withCount('reviews')->findOrFail($id);
         $product = Helpers::product_data_formatting($product);
 
         return response()->json($product, 200);
@@ -1209,8 +1287,11 @@ class ProductController extends Controller
 
     public function updateProduct(Request $request, $id): JsonResponse
     {
+        $request->merge(['discount' => 0, 'discount_type' => 'flat']);
         $storage = config('filesystems.disks.default') ?? 'public';
         $seller = $request->seller;
+        // This protects updates even if a client bypasses the hidden Flutter fields.
+        $isAdminManagedShipping = app(CustomerThreeStepShippingService::class)->isEnabled();
         $product = Product::with(['digitalVariation', 'seoInfo'])
             ->withCount('reviews')
             ->where(['added_by' => 'seller', 'user_id' => $seller->id])
@@ -1218,32 +1299,43 @@ class ProductController extends Controller
         if (! $product) {
             return response()->json(['message' => translate('seller_product_not_found')], 404);
         }
-        $wasRejected = (int) $product->request_status === 2;
-        if ($wasRejected) {
-            try {
-                $this->sellerProductEntitlementService->assertCanReserve($seller);
-            } catch (DomainException $exception) {
-                return response()->json([
-                    'errors' => [[
-                        'code' => $exception->getMessage(),
-                        'message' => translate($exception->getMessage()),
-                    ]],
-                ], 403);
-            }
+        if ($policyResponse = $this->guardProductPolicy($request, $seller, (int) $product->id)) {
+            return $policyResponse;
         }
+        $wasRejected = (int) $product->request_status === 2;
         $oldProductData = $product;
+        $request->merge(['no_production_expiry_dates' => ($request->boolean('no_production_expiry_dates') || (!$request->filled('production_date') && !$request->filled('expiry_date'))) ? 1 : 0]);
+        if ($request->boolean('no_production_expiry_dates')) $request->merge(['production_date' => null, 'expiry_date' => null]);
+        if ($request->category_id === 'other') $request->merge(['sub_category_id' => null, 'sub_sub_category_id' => null]);
         $validator = Validator::make($request->all(), [
             'name' => 'required',
-            'category_id' => 'required',
+            'category_id' => ['nullable', function ($attribute, $value, $fail) use ($request) { foreach (app(\App\Services\SellerProductCategoryService::class)->validate($request->all(), true) as $message) $fail(translate($message)); }],
+            'sub_category_id' => 'nullable|prohibited_without:category_id',
+            'sub_sub_category_id' => 'nullable|prohibited_without:sub_category_id',
             'product_type' => 'required',
-            'unit' => 'required_if:product_type,==,physical',
+            'unit' => 'nullable|string|max:50',
+            'brand_name' => 'nullable|string|max:100',
+            'images' => 'nullable|json',
+            'color_image' => 'nullable|json',
+            'thumbnail' => 'nullable|string',
             'discount_type' => 'required|in:percent,flat',
             'lang' => 'required',
             'unit_price' => 'required|min:1',
             'discount' => 'required|gt:-1',
-            'shipping_cost' => 'required_if:product_type,==,physical|gt:-1',
+            'shipping_cost' => $isAdminManagedShipping ? 'nullable|numeric|min:0' : 'required_if:product_type,==,physical|gt:-1',
             'minimum_order_qty' => 'required|numeric|min:1',
             'code' => 'required|min:6|max:20|regex:/^[a-zA-Z0-9]+$/|unique:products,code,' . $product->id,
+            'sale_unit_type' => 'nullable|in:piece,package,box',
+            'pieces_per_unit' => 'nullable|integer|min:1|required_if:sale_unit_type,package,box',
+            'length' => 'nullable|numeric|gt:0',
+            'width' => 'nullable|numeric|gt:0',
+            'height' => 'nullable|numeric|gt:0',
+            'dimension_unit' => 'nullable|in:cm,m',
+            'weight' => 'nullable|numeric|gt:0',
+            'weight_unit' => 'nullable|in:g,kg',
+            'no_production_expiry_dates' => 'boolean',
+            'production_date' => 'nullable|date',
+            'expiry_date' => ['nullable', 'date', 'after:today', \Illuminate\Validation\Rule::when($request->filled('production_date'), ['after_or_equal:production_date'])],
         ], [
             'name.required' => 'Product name is required!',
             'category_id.required' => 'category  is required!',
@@ -1332,9 +1424,13 @@ class ProductController extends Controller
         $requestLanguage = json_decode($request['lang'], true);
         $requestName = json_decode($request['name'], true);
         $requestDescription = json_decode($request['description'], true);
-        $requestColors = json_decode($request['colors'], true);
-        $requestImages = json_decode($request['images'], true);
-        $requestColorImages = json_decode($request['color_image'], true);
+        $requestColors = json_decode($request['colors'] ?? '[]', true) ?: [];
+        $requestImages = $request->has('images')
+            ? (json_decode($request['images'] ?? '[]', true) ?: [])
+            : (json_decode($product->images ?? '[]', true) ?: []);
+        $requestColorImages = $request->has('color_image')
+            ? (json_decode($request['color_image'] ?? '[]', true) ?: [])
+            : (json_decode($product->color_image ?? '[]', true) ?: []);
         $requestTags = json_decode($request['tags'], true);
         $requestChoiceArray = json_decode($request['choice'], true);
         $requestChoiceNo = json_decode($request['choice_no'], true);
@@ -1373,6 +1469,7 @@ class ProductController extends Controller
             ];
         }
 
+        $resolvedBrandId = $this->resolveSellerBrandId($request);
         $productArray = [
             'user_id' => $seller->id,
             'added_by' => 'seller',
@@ -1400,12 +1497,24 @@ class ProductController extends Controller
         }
 
         $productArray += [
-            'category_ids' => json_encode($category),
-            'category_id' => $request['category_id'],
+            'category_ids' => json_encode($request->category_id === 'other' ? [] : $category),
+            'category_review_required' => $request['category_id'] === 'other' || !$request->filled('category_id'),
+            'category_id' => $request['category_id'] === 'other' ? null : $request['category_id'],
             'sub_category_id' => $request['sub_category_id'],
             'sub_sub_category_id' => $request['sub_sub_category_id'],
-            'brand_id' => $request['product_type'] == "physical" ? ($request['brand_id'] ?? null) : null,
+            'brand_id' => $request['product_type'] == "physical" ? $resolvedBrandId : null,
             'unit' => $request['product_type'] == 'physical' ? $request['unit'] : null,
+            'sale_unit_type' => in_array($request->input('sale_unit_type'), ['package', 'box'], true) ? 'package' : 'piece',
+            'pieces_per_unit' => in_array($request->input('sale_unit_type'), ['package', 'box'], true) ? (int) $request->input('pieces_per_unit') : null,
+            'length' => $request->filled('length') ? (float) $request->input('length') : null,
+            'width' => $request->filled('width') ? (float) $request->input('width') : null,
+            'height' => $request->filled('height') ? (float) $request->input('height') : null,
+            'dimension_unit' => $request->filled('dimension_unit') ? $request->input('dimension_unit') : null,
+            'weight' => $request->filled('weight') ? (float) $request->input('weight') : null,
+            'weight_unit' => $request->filled('weight_unit') ? $request->input('weight_unit') : null,
+            'no_production_expiry_dates' => $request->boolean('no_production_expiry_dates'),
+            'production_date' => $request->input('production_date'),
+            'expiry_date' => $request->input('expiry_date'),
             'product_type' => $request['product_type'],
             'digital_product_type' => $request['product_type'] == 'digital' ? $request['digital_product_type'] : null,
             'code' => $request->code,
@@ -1413,8 +1522,8 @@ class ProductController extends Controller
             'details' => $requestDescription[array_search(Helpers::default_lang(), $requestLanguage)],
             'images' => json_encode($allImagesData),
             'color_image' => json_encode($modifiedColorImages),
-            'thumbnail' => $request->thumbnail,
-            'thumbnail_storage_type' => $product->thumbnail == $request->thumbnail ? $product->thumbnail_storage_type : $storage,
+            'thumbnail' => $request->input('thumbnail') ?: $product->thumbnail,
+            'thumbnail_storage_type' => !$request->filled('thumbnail') || $product->thumbnail == $request->thumbnail ? $product->thumbnail_storage_type : $storage,
         ];
 
         if ($request->product_type == 'digital') {
@@ -1548,14 +1657,15 @@ class ProductController extends Controller
             'current_stock' => $request->product_type == 'physical' ? $request->current_stock : 999999999,
             'meta_title' => '',
             'meta_description' => '',
-            'shipping_cost' => $request->product_type == 'physical' ? (getWebConfig(name: 'product_wise_shipping_cost_approval') == 1 ? $product->shipping_cost : Convert::usd($request->shipping_cost)) : 0,
-            'multiply_qty' => ($request->product_type == 'physical') ? ($request->multiplyQTY == 1 ? 1 : 0) : 0,
+            // Preserve zero product shipping while the admin configuration controls checkout cost.
+            'shipping_cost' => $request->product_type == 'physical' ? ($isAdminManagedShipping ? 0 : (getWebConfig(name: 'product_wise_shipping_cost_approval') == 1 ? $product->shipping_cost : Convert::usd($request->shipping_cost))) : 0,
+            'multiply_qty' => ($request->product_type == 'physical') ? ($isAdminManagedShipping ? 0 : ($request->multiplyQTY == 1 ? 1 : 0)) : 0,
 
             'digital_product_file_types' => $request->has('extensions_type') ? json_decode($request['extensions_type'], true) : [],
             'digital_product_extensions' => $digitalFileCombinations,
         ];
 
-        if (getWebConfig(name: 'product_wise_shipping_cost_approval') == 1 && ($product->shipping_cost != Convert::usd($request->shipping_cost)) && ($request->product_type == 'physical')) {
+        if (!$isAdminManagedShipping && getWebConfig(name: 'product_wise_shipping_cost_approval') == 1 && ($product->shipping_cost != Convert::usd($request->shipping_cost)) && ($request->product_type == 'physical')) {
             $productArray += [
                 'temp_shipping_cost' => Convert::usd($request->shipping_cost),
                 'is_shipping_cost_updated' => 0,
@@ -1580,13 +1690,30 @@ class ProductController extends Controller
             'video_url' => $request['video_url'] ?? '',
         ];
 
-        if ($product['request_status'] == 2) {
+        if ($wasRejected) {
             $productArray += [
+                // A corrected product must be approved again before it can
+                // be shown to customers or returned to search.
                 'request_status' => 0,
+                'status' => 1,
+                'is_homepage_visible' => 0,
+                'seller_review_status' => \App\Services\SellerProductReviewService::SUBMITTED,
+                'seller_review_reason' => null,
+                'denied_note' => null,
+                'seller_submitted_at' => now(),
+                'seller_reviewed_at' => null,
+                'seller_reviewed_by' => null,
             ];
         }
 
+        if (config('vendor_product_workspace.enabled')) {
+            $draft = app(\App\Services\VendorProductWorkspaceService::class)->saveSellerDraft($product, $productArray);
+            return response()->json(['message' => translate('product_updated_successfully'), 'review_status' => $draft->review_state]);
+        }
         Product::where('id', $id)->update($productArray);
+        if ($wasRejected) {
+            app(\App\Services\SellerProductReviewService::class)->submit($product->fresh());
+        }
 
         $this->updateProductAuthorAndPublishingHouse(request: $request, product: $product);
         self::getDigitalProductUpdateProcess($request, $product);
@@ -1647,22 +1774,12 @@ class ProductController extends Controller
             oldTaxIds: $taxVatIds
         );
 
-        if ($wasRejected) {
-            try {
-                $this->sellerProductEntitlementService->reserveForProduct($product->fresh(), $seller);
-            } catch (DomainException $exception) {
-                $product->update(['request_status' => 2, 'status' => 0]);
-
-                return response()->json([
-                    'errors' => [[
-                        'code' => $exception->getMessage(),
-                        'message' => translate($exception->getMessage()),
-                    ]],
-                ], 403);
-            }
-        }
-
-        return response()->json(['message' => translate('Successfully_product_updated!')], 200);
+        return response()->json([
+            'message' => translate($wasRejected ? 'seller_product_resubmitted_under_review' : 'Successfully_product_updated!'),
+            'review_status' => $wasRejected ? SellerProductReviewService::SUBMITTED : null,
+            'seller_display_status' => $wasRejected ? 'active' : null,
+            'request_status' => $wasRejected ? 0 : null,
+        ], 200);
     }
     public function updateStockClearanceProduct($product): void
     {
@@ -1799,16 +1916,9 @@ class ProductController extends Controller
         if (!$product) {
             return response()->json(['message' => translate('invalid_prodcut')], 403);
         }
-        if ((int) $request->status === 1) {
-            try {
-                $entitlement = $this->sellerProductEntitlementService->activateForPublication($product, $seller);
-            } catch (DomainException $exception) {
-                return response()->json([
-                    'errors' => [[
-                        'code' => $exception->getMessage(),
-                        'message' => translate($exception->getMessage()),
-                    ]],
-                ], 403);
+        if ((int) $request->status === 1 && (int) $product->request_status === 1) {
+            if (!$product->no_production_expiry_dates && (! $product->expiry_date || ! $product->expiry_date->isFuture())) {
+                return response()->json(['errors' => [['code' => 'product_is_expired', 'message' => translate('product_is_expired')]]], 403);
             }
         }
         $product->status = (int) $request->status;
@@ -1816,10 +1926,7 @@ class ProductController extends Controller
 
         return response()->json([
             'success' => translate('status_update_successfully'),
-            'publication' => isset($entitlement) ? [
-                'starts_at' => $entitlement->starts_at,
-                'expires_at' => $entitlement->expires_at,
-            ] : null,
+            'publication' => ['source' => 'product_approval', 'expires_at' => null],
         ], 200);
     }
 
@@ -2039,10 +2146,15 @@ class ProductController extends Controller
                 $this->deleteFile('/product/' . $request['name']);
             }
         }
-        Product::withCount('reviews')->where('id', $request['id'])->update([
+        $updateData = [
             'images' => json_encode($array),
             'color_image' => json_encode($color_image_arr),
-        ]);
+        ];
+        if (config('vendor_product_workspace.enabled')) {
+            app(\App\Services\VendorProductWorkspaceService::class)->saveSellerDraft($product, $updateData);
+        } else {
+            Product::withCount('reviews')->where('id', $request['id'])->update($updateData);
+        }
         return response()->json(translate('product_image_removed_successfully'), 200);
     }
 
@@ -2101,7 +2213,8 @@ class ProductController extends Controller
         $filters = [
             'added_by' => 'seller',
             'seller_id' => $seller->id,
-            'category_id' => $request['category_id'],
+            'category_review_required' => $request['category_id'] === 'other',
+            'category_id' => $request['category_id'] === 'other' ? null : $request['category_id'],
             'brand_ids' => $request['brand_ids'] ? json_decode($request['brand_ids']) : [],
         ];
 
@@ -2131,6 +2244,25 @@ class ProductController extends Controller
             'offset' => (int)$request['offset'],
             'data' => $restockProducts->items(),
         ], 200);
+    }
+
+    private function guardProductPolicy(Request $request, $seller, ?int $productId = null): ?JsonResponse
+    {
+        $policy = app(SellerProductContentPolicyService::class);
+        $violations = $policy->inspect($request->only([
+            'name', 'description', 'meta_title', 'meta_description', 'video_link',
+        ]));
+
+        if ($violations !== []) {
+            $policy->record($seller, $violations, $productId);
+
+            return response()->json(['errors' => [[
+                'code' => 'seller_product_content_policy_violation',
+                'message' => translate('seller_product_content_policy_violation'),
+            ]]], 422);
+        }
+
+        return null;
     }
 
     public function deleteRestockRequest(Request $request): JsonResponse

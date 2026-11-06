@@ -67,7 +67,7 @@
                     class="bring_change_amount_details row justify-content-start align-items-center rounded-10 g-2 px-3 py-12 m-0">
                     <div class="col-12">
                         <label class="fs-12 fw-bold mb-1" for="">
-                            {{ translate('Change Amount') }} ($)
+                            {{ translate('Change Amount') }} ({{ getCurrencySymbol(type: 'web') }})
                         </label>
                         <p class="text-muted fs-12 mb-2">{{ translate('insert_amount_of_you_need_deliveryman_to_bring') }}</p>
                         <input type="text" class="form-control only-integer-input-field"
@@ -183,5 +183,4 @@
         <button type="submit" class="btn btn--primary w-100 payment-proceed-btn">{{ translate('Proceed') }}</button>
     </div>
 </form>
-
 

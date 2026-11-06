@@ -14,6 +14,8 @@ use App\Models\OrderTransaction;
 use App\Models\Product;
 use App\Models\RefundTransaction;
 use App\Models\Seller;
+use App\Models\SellerInsurance;
+use App\Models\SellerPackageSubscription;
 use App\Models\SellerWallet;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -49,6 +51,15 @@ class ReportController extends Controller
             }
             return $item;
         })->toArray());
+        $generalFinancialSummary = $this->getGeneralFinancialSummary($request);
+        // Reuse the existing report's shipping calculation (it already
+        // separates platform-earned shipping from seller/delivery costs).
+        $generalFinancialSummary['shipping'] = (float) $earningData['total_shipping_earn'];
+        $generalFinancialSummary['platform_net'] = $generalFinancialSummary['commissions']
+            + $generalFinancialSummary['shipping']
+            + $generalFinancialSummary['package_revenue']
+            + $generalFinancialSummary['insurance_revenue']
+            - $generalFinancialSummary['refunds'];
 
         return view('admin-views.report.admin-earning', [
             'earning_data' => $earningData,
@@ -58,7 +69,126 @@ class ReportController extends Controller
             'date_type' => $dateType,
             'payment_data' => $this->getAdminEarningPaymentFormattedData(request: $request),
             'totalEarningStatisticsLabel' => $totalEarningStatisticsLabel,
+            'general_financial_summary' => $generalFinancialSummary,
         ]);
+    }
+
+    public function exportGeneralFinancialSummary(Request $request)
+    {
+        $summary = $this->getGeneralFinancialSummary($request);
+        $dateType = $request->input('date_type', 'this_year');
+        $filterData = self::earningReportCommonFilter('admin', $dateType, $request->input('from'), $request->input('to'));
+        $earningData = $this->getInhouseEarningFormattedData($request, $filterData)['statistics'];
+        $summary['shipping'] = (float) $earningData['total_shipping_earn'];
+        $summary['platform_net'] = $summary['commissions']
+            + $summary['shipping']
+            + $summary['package_revenue']
+            + $summary['insurance_revenue']
+            - $summary['refunds'];
+        $rows = [
+            [translate('metric'), translate('amount')],
+            [translate('gross_sales'), $summary['sales']],
+            [translate('shipping_revenue'), $summary['shipping']],
+            [translate('vendor_package_revenue'), $summary['vendor_package_revenue']],
+            [translate('customer_insurance_revenue'), $summary['customer_insurance_revenue']],
+            [translate('vendor_insurance_revenue'), $summary['vendor_insurance_revenue']],
+            [translate('platform_commissions'), $summary['commissions']],
+            [translate('refunds_total'), $summary['refunds']],
+            [translate('forfeited_insurance'), $summary['forfeited_insurance']],
+            [translate('platform_net_result'), $summary['platform_net']],
+        ];
+
+        return response()->streamDownload(function () use ($rows) {
+            $stream = fopen('php://output', 'wb');
+            fwrite($stream, "\xEF\xBB\xBF");
+            foreach ($rows as $row) {
+                fputcsv($stream, $row);
+            }
+            fclose($stream);
+        }, 'general-financial-summary.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Consolidated platform totals for P-05. Existing order earnings remain
+     * the source of truth; package/insurance revenue is read from their
+     * paid records and never rewrites historical ledger values.
+     */
+    public function getGeneralFinancialSummary(Request $request): array
+    {
+        [$from, $to] = $this->resolveFinancialDateRange($request);
+        $period = fn ($query, string $column = 'created_at') => $query->whereBetween($column, [$from, $to]);
+
+        $sales = (float) $period(
+            Order::query()->where('order_status', 'delivered'),
+        )->sum('order_amount');
+        $shipping = (float) $period(
+            Order::query()->where('order_status', 'delivered'),
+        )->sum('shipping_cost');
+        $commissions = (float) $period(
+            Order::query()->where('order_status', 'delivered')->where('seller_is', 'seller'),
+        )->sum('admin_commission');
+        $refunds = (float) $period(
+            RefundTransaction::query()->where('payment_status', 'paid'),
+        )->sum('amount');
+
+        // Customer packages are legacy/read-only and are excluded from current operations.
+        $customerPackageRevenue = 0.0;
+        // The retired activation insurance is excluded as well. Current
+        // customer order insurance is reconciled from its dedicated ledger.
+        $customerInsuranceRevenue = 0.0;
+
+        $vendorPackageRevenue = (float) SellerPackageSubscription::query()
+            ->where('payment_status', 'paid')
+            ->where(function ($query) use ($from, $to) {
+                $query->whereBetween('activated_at', [$from, $to])
+                    ->orWhere(function ($fallback) use ($from, $to) {
+                        $fallback->whereNull('activated_at')->whereBetween('created_at', [$from, $to]);
+                    });
+            })
+            ->sum('paid_package_price');
+        $vendorInsuranceRevenue = (float) $period(
+            SellerInsurance::query()->where('payment_status', 'paid')->where('status', SellerInsurance::STATUS_PAID),
+            'paid_at'
+        )->sum('amount');
+        $forfeitedInsurance = (float) $period(
+            SellerInsurance::query()->where('status', SellerInsurance::STATUS_FORFEITED),
+            'forfeited_at'
+        )->sum('amount');
+
+        $packageRevenue = $customerPackageRevenue + $vendorPackageRevenue;
+        $insuranceRevenue = $customerInsuranceRevenue + $vendorInsuranceRevenue;
+        $platformNet = $commissions + $shipping + $packageRevenue + $insuranceRevenue - $refunds;
+
+        return [
+            'from' => $from,
+            'to' => $to,
+            'sales' => $sales,
+            'shipping' => $shipping,
+            'commissions' => $commissions,
+            'refunds' => $refunds,
+            'vendor_package_revenue' => $vendorPackageRevenue,
+            'package_revenue' => $packageRevenue,
+            'customer_insurance_revenue' => $customerInsuranceRevenue,
+            'vendor_insurance_revenue' => $vendorInsuranceRevenue,
+            'insurance_revenue' => $insuranceRevenue,
+            'forfeited_insurance' => $forfeitedInsurance,
+            'platform_net' => $platformNet,
+        ];
+    }
+
+    private function resolveFinancialDateRange(Request $request): array
+    {
+        $type = $request->input('date_type', 'this_year');
+        return match ($type) {
+            'today' => [now()->startOfDay(), now()->endOfDay()],
+            'this_week' => [now()->startOfWeek(), now()->endOfWeek()],
+            'this_month' => [now()->startOfMonth(), now()->endOfMonth()],
+            'custom_date' => [
+                Carbon::parse($request->input('from', now()->startOfYear()->toDateString()))->startOfDay(),
+                Carbon::parse($request->input('to', now()->endOfYear()->toDateString()))->endOfDay(),
+            ],
+            default => [now()->startOfYear(), now()->endOfYear()],
+        };
     }
 
     public function getInhouseEarningFormattedData($request, $filter_data): array

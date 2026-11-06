@@ -74,6 +74,7 @@ class ProfileController extends BaseController
      */
     public function update(VendorRequest $request, string|int $id): JsonResponse
     {
+        abort_unless((int) auth('seller')->id() === (int) $id, 403);
         $vendor = $this->vendorRepo->getFirstWhere(['id' => $id]);
         $this->vendorRepo->update(id: $id, data: $this->vendorService->getVendorDataForUpdate(request: $request, vendor: $vendor));
         return response()->json(['message' => translate('profile_updated_successfully')]);
@@ -86,6 +87,7 @@ class ProfileController extends BaseController
      */
     public function updatePassword(VendorPasswordRequest $request, string|int $id): JsonResponse
     {
+        abort_unless((int) auth('seller')->id() === (int) $id, 403);
         $this->vendorRepo->update(id: $id, data: $this->vendorService->getVendorPasswordData(request: $request));
         return response()->json(['message' => translate('password_updated_successfully')]);
     }
@@ -112,6 +114,7 @@ class ProfileController extends BaseController
      */
     public function updateBankInfo(VendorBankInfoRequest $request, string|int $id): RedirectResponse
     {
+        abort_unless((int) auth('seller')->id() === (int) $id, 403);
         $vendor = $this->vendorRepo->getFirstWhere(['id' => $id]);
         $this->vendorRepo->update(id: $vendor['id'], data: $this->vendorService->getVendorBankInfoData(request: $request));
         ToastMagic::success(translate('Bank_info_updated_successfully') . '!!');

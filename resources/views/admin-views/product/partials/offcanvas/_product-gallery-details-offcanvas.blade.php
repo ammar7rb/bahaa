@@ -104,13 +104,6 @@
                 <h4 class="mb-2">{{ translate('General_Information') }}</h4>
                 <table class="fs-12">
                     <tbody>
-                    <tr>
-                        <td class="py-1 text-nowrap min-w-120">{{ translate('Product_Type') }}</td>
-                        <td class="py-1 px-2">:</td>
-                        <td class="py-1 text-dark fw-medium overflow-wrap-anywhere">
-                            {{ translate($product->product_type) }}
-                        </td>
-                    </tr>
                     @if (!empty($product->category?->default_name))
                         <tr>
                             <td class="py-1 text-nowrap min-w-120">{{ translate('Category') }}</td>

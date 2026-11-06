@@ -84,9 +84,29 @@ class ContactController extends BaseController
         return response()->json(['success' => 'Your_Message_Send_Successfully']);
     }
 
+    public function resetAccountPassword(Request $request, int $id, \App\Services\ContactPasswordResetService $service): RedirectResponse
+    {
+        $data = $request->validate([
+            'account_type' => 'required|in:customer,seller',
+            'password' => 'required|string|min:8|max:72|confirmed',
+            'identity_verified' => 'required|accepted',
+        ]);
+        $service->reset(\App\Models\Contact::findOrFail($id), $data['account_type'], $data['password'], (int) auth('admin')->id());
+        ToastMagic::success(translate('admin_password_reset_saved'));
+        return back();
+    }
+
     public function sendMail(Request $request, $id, ContactService $contactService): RedirectResponse
     {
         $contact = $this->contactRepo->getFirstWhere(params: ['id' => $id]);
+        abort_unless($contact, 404);
+        $request->merge(['subject' => translate('contact_technical_support')]);
+        $request->validate(['mail_body' => 'required|string|max:5000', 'subject' => 'nullable|string|max:255']);
+        \Illuminate\Support\Facades\DB::table('contact_conversation_messages')->insert([
+            'contact_id' => $contact->id, 'sender' => 'admin', 'body' => $request->input('mail_body'),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        ToastMagic::success(translate('conversation_reply_saved'));
         $data = array('body' => $request['mail_body']);
 
         $emailServices_smtp = getWebConfig(name: 'mail_config');
@@ -104,7 +124,7 @@ class ContactController extends BaseController
                 ToastMagic::info(translate('please_go_to_3rd_Party') . ' > ' . translate('Mail_Config') . ',' . translate('and_check_if_you_have_enabled_and_saved_your_settings_properly'));
             }
         } else {
-            ToastMagic::error(translate('Configure_your_mail_setup_first'));
+            ToastMagic::info(translate('conversation_email_optional_notice'));
         }
         return back();
     }

@@ -35,6 +35,16 @@ class DeliveryManController extends Controller
 {
     use CommonTrait;
 
+    public function order_list_date_filter(Request $request): JsonResponse
+    {
+        $request->validate([
+            'date_type' => 'nullable|in:today,this_week,this_month,this_year,custom_date',
+            'start_date' => 'required_if:date_type,custom_date|date',
+            'end_date' => 'required_if:date_type,custom_date|date|after_or_equal:start_date',
+        ]);
+        return $this->get_all_orders($request);
+    }
+
     public function __construct(
         private Order $order,
     )
@@ -141,6 +151,9 @@ class DeliveryManController extends Controller
 
         $order = Order::with(['customer', 'deliveryMan', 'latestEditHistory'])->where(['delivery_man_id' => $deliveryMan['id'], 'id' => $request['order_id']])->first();
 
+        if ($order?->customer_checkout_operation_id && in_array($request['status'], ['confirmed','processing','out_for_delivery','delivered'], true)) {
+            app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
+        }
         if ($order->order_status == 'delivered') {
             return response()->json(['success' => 0, 'message' => 'order is already delivered.'], 200);
         }

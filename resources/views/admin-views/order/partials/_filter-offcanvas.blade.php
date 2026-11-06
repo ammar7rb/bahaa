@@ -11,10 +11,6 @@
             <div class="p-12 p-sm-20 bg-section rounded mb-3 mb-sm-20 overflow-wrap-anywhere">
                 <div class="row g-4">
                     <div class="col-12">
-                        @if (request('delivery_man_id'))
-                            <input type="hidden" name="delivery_man_id" value="{{ request('delivery_man_id') }}">
-                        @endif
-
                         <label for="" class="form-label">{{ translate('Date_Type') }}</label>
                         <div class="select-wrapper">
                             <select class="form-select" name="date_type" id="date_type">
@@ -89,7 +85,7 @@
                         </div>
                     </div>
 
-                    @if (($status == 'all' || $status == 'delivered') && !request()->has('delivery_man_id'))
+                    @if ($status == 'all' || $status == 'delivered')
                         <div class="p-12 p-sm-20 bg-section rounded d-flex justify-content-between align-items-center flex-wrap gap-3 mt-20">
                             <div class="d-flex gap-2 flex-grow-1">
                                 <input class="form-check-input checkbox--input m-0 cursor-pointer" type="checkbox"
@@ -296,7 +292,7 @@
         <div class="offcanvas-footer shadow-popup">
             <div class="d-flex justify-content-center gap-3 bg-white px-4 py-3">
                 <a class="btn btn-secondary w-100"
-                   href="{{ route('admin.orders.list', ['status' => request('status'), 'delivery_man_id' => request('delivery_man_id')]) }}">
+                   href="{{ route('admin.orders.list', ['status' => request('status')]) }}">
                     {{ translate('Clear_Filter') }}
                 </a>
                 <button type="submit" class="btn btn-primary w-100">

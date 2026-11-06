@@ -72,6 +72,7 @@
                                     <div>{{ translate('Products') }}: <strong>{{ max(0, $subscription->product_limit + $subscription->product_adjustment_limit - $subscription->used_product_limit) }}</strong></div>
                                     <div>{{ translate('Search') }}: <strong>{{ max(0, $subscription->search_promotion_limit + $subscription->search_promotion_adjustment_limit - $subscription->used_search_promotion_limit) }}</strong></div>
                                     <div>{{ translate('Homepage') }}: <strong>{{ max(0, $subscription->homepage_promotion_limit + $subscription->homepage_promotion_adjustment_limit - $subscription->used_homepage_promotion_limit) }}</strong></div>
+                                    <div>Coupons: <strong>{{ max(0, $subscription->coupon_limit + $subscription->coupon_adjustment_limit - $subscription->used_coupon_limit) }}</strong></div>
                                 @else - @endif
                             </td>
                             <td class="fs-12">

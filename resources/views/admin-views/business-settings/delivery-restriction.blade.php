@@ -11,6 +11,16 @@
         </div>
         @include('admin-views.business-settings.business-setup-inline-menu')
 
+        <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3" role="alert">
+            <div>
+                <strong>{{ translate('Delivery_Zone') }}</strong>
+                <span class="d-block fs-12">{{ translate('egypt_shipping_zone_rates_help') }}</span>
+            </div>
+            <a class="btn btn-outline-primary btn-sm" href="{{ route('admin.business-settings.shipping-method.index') }}#egypt-shipping-zone-rates">
+                {{ translate('manage_egypt_shipping_zones') }}
+            </a>
+        </div>
+
         <div class="row g-4">
             <div class="col-lg-6">
                 <div class="card mb-3">

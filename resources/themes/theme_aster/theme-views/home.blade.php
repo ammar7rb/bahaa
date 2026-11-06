@@ -12,7 +12,9 @@
         ?>
         @include("theme-views.partials._order-success-modal",['orderSuccessIds' => $orderSuccessIds, 'isNewCustomerInSession' => $isNewCustomerInSession])
 
-        @include('theme-views.partials._main-banner')
+        <div data-homepage-section="main_banner">
+            @include('theme-views.partials._main-banner')
+        </div>
 
         @if ($flashDeal['flashDeal'] && $flashDeal['flashDealProducts']  && count($flashDeal['flashDealProducts']) > 0)
             @include('theme-views.partials._flash-deals')
@@ -24,18 +26,13 @@
 
         @include('theme-views.partials._clearance-sale', ['clearanceSaleProducts' => $clearanceSaleProducts])
 
-        @if ($web_config['business_mode'] == 'multi' && count($topVendorsList) > 0 && $topVendorsListSectionShowingStatus)
-            @include('theme-views.partials._top-stores')
-        @endif
+        {{-- Seller and store discovery is intentionally hidden from customers. --}}
 
         @if (getFeaturedDealsProductList()->count() > 0)
             @include('theme-views.partials._featured-deals')
         @endif
 
         @include('theme-views.partials._recommended-product')
-        @if($web_config['business_mode'] == 'multi')
-            @include('theme-views.partials._more-stores')
-        @endif
 
         @include('theme-views.partials._top-rated-products')
 
@@ -115,4 +112,3 @@
         @php(Cookie::queue('popup_banner', 'off', 1))
     @endif
 @endpush
-

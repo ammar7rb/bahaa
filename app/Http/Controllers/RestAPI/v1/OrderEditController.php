@@ -126,17 +126,27 @@ class OrderEditController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
-        $order = Order::with(['latestEditHistory'])->where('id', $request['order_id'])->first();
+        $order = Order::with(['latestEditHistory'])->where('customer_id', $request->user('api')->id)->where('is_guest',0)->where('id', $request['order_id'])->first();
         if (!$order) {
             return response()->json(['message' => translate('Order_not_found')], 401);
         }
 
+        if (!$order->latestEditHistory || $order->latestEditHistory->order_due_payment_status === 'paid' || $order->latestEditHistory->order_due_amount <= 0) {
+            return response()->json(['message'=>'لا توجد قيمة مستحقة لهذا الطلب.'],422);
+        }
         $offlinePaymentInfo = [];
-        $method = OfflinePaymentMethod::where(['id' => $request['method_id'], 'status' => 1])->first();
+        $method = OfflinePaymentMethod::where(['id' => $request['method_id'], 'status' => 1])->whereIn('payment_channel',['wallet','instapay'])->first();
 
         if (isset($method)) {
-            $fields = array_column($method->method_informations, 'customer_input');
-            $values = (array)json_decode(base64_decode($request['method_informations']));
+            $values = json_decode(base64_decode((string)$request->input('method_informations'),true) ?: '',true) ?: [];
+            $modern = ($values['transfer_schema'] ?? null) === 'sender_v2';
+            $fields = $modern ? [] : array_column($method->method_informations ?? [], 'customer_input');
+            if ($modern) {
+                $offlinePaymentInfo = app(\App\Services\CustomerTransferInformationService::class)->sender($values);
+                $request->validate(['payment_proof'=>'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
+                $offlinePaymentInfo['payment_proof'] = ['image_name'=>$this->upload(dir:'offline-payment/order-proof/',format:'webp',image:$request->file('payment_proof')), 'storage'=>config('filesystems.disks.default') ?? 'public'];
+                $offlinePaymentInfo['transferred_amount'] = (string)$order->latestEditHistory->order_due_amount;
+            }
             $offlinePaymentInfo['method_id'] = $request['method_id'];
             $offlinePaymentInfo['method_name'] = $method->method_name;
             foreach ($fields as $field) {
@@ -146,6 +156,7 @@ class OrderEditController extends Controller
             }
         }
 
+        if (!$method) return response()->json(['message'=>'وسيلة الدفع غير متاحة.'],422);
         OrderEditHistory::where('id', $order?->latestEditHistory?->id)->update([
             'order_due_payment_method' => 'offline_payment',
             'order_due_payment_info' => $offlinePaymentInfo,

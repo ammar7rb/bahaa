@@ -17,10 +17,15 @@ trait ModelsWithRoutesTrait
                 'model' => 'App\Models\User',
                 'translationable_type' => 'App\Models\User',
                 'type' => 'users',
-                'column' => ['id', 'name', 'f_name', 'l_name', 'phone'],
+                'column' => ['id', 'name', 'f_name', 'l_name', 'phone', 'email'],
                 'routes' => ['admin/customer/list', 'admin/customer/view/{id}'],
                 'access_type' => ['admin', 'vendor'],
                 'relations' => [
+                    'addresses' => [
+                        'columns' => ['id', 'customer_id', 'contact_person_name', 'phone', 'address'],
+                        'admin_routes' => [],
+                        'vendor_routes' => [],
+                    ],
                     'orders' => [
                         'columns' => ['id', 'customer_id', 'order_group_id', 'order_amount', 'payment_status', 'order_status'],
                         'admin_routes' => [
@@ -38,7 +43,14 @@ trait ModelsWithRoutesTrait
                 'type' => 'sellers',
                 'column' => ['id', 'f_name', 'l_name','phone','email'],
                 'routes' => ['admin/vendors/list', 'admin/vendors/view/{id}'],
-                'access_type' => ['admin', 'vendor']
+                'access_type' => ['admin', 'vendor'],
+                'relations' => [
+                    'shop' => [
+                        'columns' => ['id', 'seller_id', 'name', 'contact', 'address'],
+                        'admin_routes' => [],
+                        'vendor_routes' => [],
+                    ],
+                ],
             ],
             'categories' => [
                 'model' => 'App\Models\Category',

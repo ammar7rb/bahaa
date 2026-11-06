@@ -6,15 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\User;
+use App\Services\SellerCouponEntitlementService;
 use App\Utils\Convert;
 use App\Utils\Helpers;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class CouponController extends Controller
 {
+    public function __construct(
+        private readonly SellerCouponEntitlementService $couponEntitlementService,
+    ) {}
+
     public function list(Request $request): JsonResponse
     {
         $seller = $request->seller;
@@ -35,6 +41,8 @@ class CouponController extends Controller
         $data['limit'] = $request['limit'];
         $data['offset'] = $request['offset'];
         $data['coupons'] = $coupons->items();
+        // The app uses this to disable coupon creation before an unnecessary submission.
+        $data['coupon_entitlement'] = $this->couponEntitlementService->getSummary($seller);
 
         return response()->json($data, 200);
     }
@@ -67,26 +75,35 @@ class CouponController extends Controller
             return response()->json(['message' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
-        $coupon = new Coupon();
-        $coupon->added_by = 'seller';
-        $coupon->coupon_type = $request->coupon_type;
-        $coupon->title = $request->title;
-        $coupon->code = $request->code;
-        $coupon->start_date = $request->start_date;
-        $coupon->expire_date = $request->expire_date;
-        $coupon->status = 1;
-        $coupon->coupon_bearer = 'seller';
-        $coupon->seller_id = $seller->id;
-        $coupon->customer_id = $request->customer_id;
-        $coupon->limit = $request->limit;
-        $coupon->min_purchase = Convert::usd($request->min_purchase);
+        try {
+            DB::transaction(function () use ($seller, $request) {
+                $this->couponEntitlementService->consumeCouponQuota($seller);
 
-        if ($request->coupon_type == 'discount_on_purchase') {
-            $coupon->discount_type = $request->discount_type;
-            $coupon->discount = $request->discount_type == 'amount' ? Convert::usd($request->discount) : $request['discount'];
-            $coupon->max_discount = Convert::usd($request->max_discount != null ? $request->max_discount : $request->discount);
+                // Create only after consuming a locked package quota to prevent parallel API bypasses.
+                $coupon = new Coupon();
+                $coupon->added_by = 'seller';
+                $coupon->coupon_type = $request->coupon_type;
+                $coupon->title = $request->title;
+                $coupon->code = $request->code;
+                $coupon->start_date = $request->start_date;
+                $coupon->expire_date = $request->expire_date;
+                $coupon->status = 1;
+                $coupon->coupon_bearer = 'seller';
+                $coupon->seller_id = $seller->id;
+                $coupon->customer_id = $request->customer_id;
+                $coupon->limit = $request->limit;
+                $coupon->min_purchase = Convert::usd($request->min_purchase);
+
+                if ($request->coupon_type == 'discount_on_purchase') {
+                    $coupon->discount_type = $request->discount_type;
+                    $coupon->discount = $request->discount_type == 'amount' ? Convert::usd($request->discount) : $request['discount'];
+                    $coupon->max_discount = Convert::usd($request->max_discount != null ? $request->max_discount : $request->discount);
+                }
+                $coupon->save();
+            });
+        } catch (\DomainException $exception) {
+            return response()->json(['message' => translate($exception->getMessage())], 403);
         }
-        $coupon->save();
 
         return response()->json(['message' => translate('coupon_added_successfully')], 200);
 

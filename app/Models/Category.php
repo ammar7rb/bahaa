@@ -31,10 +31,12 @@ class Category extends Model
         'name',
         'slug',
         'icon',
+        'medical_icon',
         'icon_storage_type',
         'parent_id',
         'position',
         'home_status',
+        'is_active',
         'priority',
     ];
 
@@ -42,10 +44,12 @@ class Category extends Model
         'name' => 'string',
         'slug' => 'string',
         'icon' => 'string',
+        'medical_icon' => 'string',
         'icon_storage_type' => 'string',
         'parent_id' => 'integer',
         'position' => 'integer',
         'home_status' => 'integer',
+        'is_active' => 'boolean',
         'priority' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -118,6 +122,10 @@ class Category extends Model
 
     public function getIconFullUrlAttribute():array
     {
+        $libraryAsset = config('medical_category_icons.' . $this->medical_icon . '.asset');
+        if ($this->medical_icon && $libraryAsset && is_file(base_path($libraryAsset))) {
+            return ['key' => $this->medical_icon, 'path' => dynamicAsset($libraryAsset), 'status' => 200];
+        }
         $value = $this->icon;
         return $this->storageLink('category',$value,$this->icon_storage_type ?? 'public');
     }

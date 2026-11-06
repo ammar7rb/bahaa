@@ -32,6 +32,8 @@ class Contact extends Model
     ];
 
     protected $fillable = [
+        'sender_type',
+        'mobile_support_token_hash',
         'name',
         'email',
         'mobile_number',
@@ -43,4 +45,5 @@ class Contact extends Model
     ];
 
     protected $table = 'contacts';
+    protected $hidden = ['mobile_support_token_hash'];
 }

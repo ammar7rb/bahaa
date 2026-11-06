@@ -44,6 +44,20 @@
                             @error('purchase_limit') <div class="text-danger fs-12 mt-1">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-6 col-lg-4">
+                            <label class="form-label">{{ translate('Duration_Unit') }}</label>
+                            <select name="duration_unit" class="form-select">
+                                <option value="">{{ translate('Lifetime') }}</option>
+                                @foreach(['days' => 'Days', 'months' => 'Months', 'years' => 'Years', 'lifetime' => 'Lifetime'] as $unit => $label)
+                                    <option value="{{ $unit }}" {{ old('duration_unit') === $unit ? 'selected' : '' }}>{{ translate($label) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6 col-lg-4">
+                            <label class="form-label">{{ translate('Duration_Value') }}</label>
+                            <input type="number" name="duration_value" class="form-control" min="1" max="100000"
+                                   value="{{ old('duration_value') }}">
+                        </div>
+                        <div class="col-md-6 col-lg-4">
                             <label class="form-label">{{ translate('Sort_Order') }}</label>
                             <input type="number" name="sort_order" class="form-control" min="0"
                                    value="{{ old('sort_order', 0) }}" placeholder="{{ translate('Ex') }} : 1">
@@ -138,6 +152,7 @@
                             <th>{{ translate('Package') }}</th>
                             <th>{{ translate('Type') }}</th>
                             <th class="text-center">{{ translate('Package_Price') }}</th>
+                            <th class="text-center">{{ translate('Duration') }}</th>
                             <th class="text-center">{{ translate('Purchase_Limit') }}</th>
                             <th class="text-center">{{ translate('Assigned_Customers') }}</th>
                             <th class="text-center">{{ translate('Status') }}</th>
@@ -165,6 +180,9 @@
                                     @endif
                                 </td>
                                 <td class="text-center">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $package->package_price)) }}</td>
+                                <td class="text-center">
+                                    {{ $package->duration_unit === 'lifetime' || !$package->duration_unit ? translate('Lifetime') : $package->duration_value . ' ' . translate($package->duration_unit) }}
+                                </td>
                                 <td class="text-center">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $package->purchase_limit)) }}</td>
                                 <td class="text-center">
                                     <span class="badge badge-info text-bg-info">{{ $package->subscriptions_count }}</span>

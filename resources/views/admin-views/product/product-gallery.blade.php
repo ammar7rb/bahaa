@@ -31,16 +31,16 @@
                     </div>
 
                     <div class="position-relative">
-                        <buton type="btn"
-                               @if(!empty(request('filter_sort_by')) || !empty(request('filter_product_types')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
+                        <button type="button"
+                               @if(!empty(request('filter_sort_by')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
                                    class="btn btn-primary px-4"
                                @else
                                    class="btn btn-outline-primary px-4"
                                @endif
                                data-bs-toggle="offcanvas" data-bs-target="#offcanvasProductGalleryFilter">
                             <i class="fi fi-sr-settings-sliders d-flex"></i> {{ translate('Filter') }}
-                        </buton>
-                        @if(!empty(request('filter_sort_by')) || !empty(request('filter_product_types')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
+                        </button>
+                        @if(!empty(request('filter_sort_by')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
                             <div
                                 class="position-absolute top-n1 inset-inline-end-n1 btn-circle bg-danger border border-white border-2"
                                 style="--size: 12px;"></div>
@@ -126,13 +126,6 @@
                                         <h4 class="text-capitalize mb-2">{{ translate('General_Information') }}</h4>
                                         <table class="fs-12">
                                             <tbody>
-                                            <tr>
-                                                <td class="text-nowrap">{{ translate('Product_Type') }}</td>
-                                                <td class="px-2">:</td>
-                                                <td class="text-dark fw-medium overflow-wrap-anywhere">
-                                                    {{ translate($product->product_type) }}
-                                                </td>
-                                            </tr>
                                             <tr>
                                                 <td class="text-nowrap">{{ translate('Category') }}</td>
                                                 <td class="px-2">:</td>

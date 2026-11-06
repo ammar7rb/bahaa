@@ -4,21 +4,21 @@ function initializePhoneInput(selector, outputSelector) {
     const phoneInput = document.querySelector(selector);
     const phoneNumber = phoneInput.value;
     const countryCodeMatch = phoneNumber.replace(/[^0-9]/g, "");
-    const initialCountry = countryCodeMatch
-        ? `+${countryCodeMatch}`
-        : $(".system-default-country-code").data("value").toLowerCase();
+    const initialCountry = "eg";
 
     let phoneInputInit = window.intlTelInput(phoneInput, {
         initialCountry: initialCountry.toLowerCase(),
+        onlyCountries: ["eg"],
+        allowDropdown: false,
         showSelectedDialCode: true,
         useFullscreenPopup: false,
     });
     if (!phoneInputInit.selectedCountryData.dialCode) {
         phoneInputInit.destroy();
         phoneInputInit = window.intlTelInput(phoneInput, {
-            initialCountry: $(".system-default-country-code")
-                .data("value")
-                .toLowerCase(),
+            initialCountry: "eg",
+            onlyCountries: ["eg"],
+            allowDropdown: false,
             showSelectedDialCode: true,
             useFullscreenPopup: false,
         });

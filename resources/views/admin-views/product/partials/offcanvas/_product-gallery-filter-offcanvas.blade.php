@@ -9,7 +9,7 @@
         </div>
         <div class="offcanvas-body">
             @include("admin-views.partials._product-filters-sections", [
-                'filterSection' => ['product_type', 'store', 'brand', 'category'],
+                'filterSection' => ['store', 'brand', 'category'],
                 'productBrands' => $productBrands,
                 'productCategories' => $productCategories,
                 'productStores' => $productStores,

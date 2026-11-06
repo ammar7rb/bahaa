@@ -550,6 +550,7 @@ $orderTotalPriceSummary = \App\Utils\OrderManager::getOrderTotalPriceSummary(ord
             <td class="text-left" colspan="2">
                 <table>
                     <tbody>
+                    <tr><td class="px-2 pt-1 pb-1">{{ translate('invoice') }}</td><td class="px-2 pt-1 pb-1">: <bdi>{{ \App\Services\AdministrativeReferenceService::format('invoice', (int) $order->id) }}</bdi></td></tr>
                     <tr>
                         <td class="px-2 pt-1 pb-1">{{ translate('Order_Id') }}</td>
                         <td class="px-2 pt-1 pb-1">: <span class="text-dark">#{{ $order->id }}</span></td>
@@ -927,6 +928,19 @@ $orderTotalPriceSummary = \App\Utils\OrderManager::getOrderTotalPriceSummary(ord
                                             </td>
                                         </tr>
                                     @endif
+                                    @if($order->insurance)
+                                        <tr>
+                                            <td class="px-2 pt-1 pb-1 text-left">{{ translate($order->commerce_flow_version === config('order_commerce.new_flow_version') ? 'separate_order_insurance_not_included_in_purchase_invoice' : 'order_insurance') }}
+                                                @if(($order->insurance->discount_amount ?? 0) > 0)
+                                                    <small class="d-block text-muted">{{ translate('Insurance_Original_Amount') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->insurance->original_amount), currencyCode: getCurrencyCode()) }} · {{ translate('Promotional_Discount') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->insurance->discount_amount), currencyCode: getCurrencyCode()) }}</small>
+                                                @endif
+                                                <small class="d-block text-muted">{{ translate('insurance_balance_is_for_insurance_only_and_cannot_be_withdrawn') }}</small>
+                                            </td>
+                                            <td class="px-2 pt-1 pb-1 text-right">
+                                                <span class="text-dark">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->insurance->amount), currencyCode: getCurrencyCode()) }}</span>
+                                            </td>
+                                        </tr>
+                                    @endif
                                     <tr>
                                         <td colspan="2" class="border-bottom px-2 pb-2"></td>
                                     </tr>
@@ -943,7 +957,7 @@ $orderTotalPriceSummary = \App\Utils\OrderManager::getOrderTotalPriceSummary(ord
                                                         </h5>
                                                     </td>
                                                     <td class="px-2 pt-1 pb-1 text-right">
-                                                        <h5 class="m-0">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $orderTotalPriceSummary['totalAmount']), currencyCode: getCurrencyCode()) }}</h5>
+                                                        <h5 class="m-0">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->commerce_flow_version === config('order_commerce.new_flow_version') ? $order->order_amount : $orderTotalPriceSummary['totalAmount']), currencyCode: getCurrencyCode()) }}</h5>
                                                     </td>
                                                 </tr>
                                                 @if ($order->order_type == 'POS' || $order->order_type == 'pos')

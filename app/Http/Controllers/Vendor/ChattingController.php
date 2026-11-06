@@ -155,6 +155,8 @@ class ChattingController extends BaseController
      */
     public function getMessageByUser(Request $request): JsonResponse
     {
+        return $this->directChatBlockedResponse();
+
         $vendorId = auth('seller')->id();
         $data = [];
         if ($request->has(key: 'delivery_man_id')) {
@@ -193,6 +195,8 @@ class ChattingController extends BaseController
      */
     public function addVendorMessage(ChattingRequest $request): JsonResponse
     {
+        return $this->directChatBlockedResponse();
+
         if($request->hasFile('file')){
             foreach ($request->file('file') as $file) {
                 $extension = strtolower($file->getClientOriginalExtension());
@@ -255,6 +259,14 @@ class ChattingController extends BaseController
             $data = self::getRenderMessagesView(user: $customer, message: $chattingMessages, type: 'customer');
         }
         return response()->json($data);
+    }
+
+    private function directChatBlockedResponse(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => translate('direct_chat_is_disabled_use_admin_support'),
+        ], 403);
     }
 
     /**

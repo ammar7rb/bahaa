@@ -23,10 +23,17 @@ use App\Utils\CustomerManager;
 use App\Utils\Helpers;
 use App\Utils\ImageManager;
 use App\Utils\OrderManager;
+use App\Services\OrderLogisticsService;
+use App\Services\OrderWorkflowService;
+use App\Services\SellerOrderInsuranceService;
+use App\Services\OrderCommerceContractService;
+use App\Support\Commerce\OrderCommerceState;
+use DomainException;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Ramsey\Uuid\Uuid;
 
@@ -40,6 +47,7 @@ class OrderController extends Controller
         private DeliveryZipCode                   $delivery_zip_code,
         private Order                             $order,
         private readonly OrderRepositoryInterface $orderRepo,
+        private readonly SellerOrderInsuranceService $sellerOrderInsuranceService,
     )
     {
     }
@@ -47,6 +55,7 @@ class OrderController extends Controller
     public function list(Request $request): JsonResponse
     {
         $seller = $request->seller;
+        app(OrderWorkflowService::class)->refreshSellerQueue((int) $seller['id']);
         $status = $request->status;
 
         $dateType = $request['date_type'];
@@ -62,6 +71,9 @@ class OrderController extends Controller
             'customer_id' => $request['customer_id'],
             'seller_id' => $seller['id'],
             'seller_is' => 'seller',
+            'seller_visible_only' => true,
+            'exclude_seller_insurance_pending' => $status !== 'all',
+            'seller_disputed_only' => $request->boolean('seller_disputed_only'),
             'whereIn_order_status' => $orderStatus,
         ];
         $orderAmountSettlement = json_decode($request['order_amount_settlement'] ?? '');
@@ -90,7 +102,19 @@ class OrderController extends Controller
             offset: $request['offset'],
         );
 
-        $orders?->map(function ($data) {
+        $orders->setCollection($orders->getCollection()->sortBy(
+            fn ($order) => in_array($order->order_status, OrderWorkflowService::ACTIVE_QUEUE_STATUSES, true)
+                ? (int) ($order->seller_queue_position ?? PHP_INT_MAX)
+                : PHP_INT_MAX
+        )->values());
+        $orders->setCollection($orders->getCollection()->map(function ($data) {
+            if ($this->mustReturnRestrictedOrder($data)) {
+                $data->loadMissing('sellerOrderInsurance');
+                return app(OrderCommerceContractService::class)->restrictedSellerPayload($data, $data->sellerOrderInsurance);
+            }
+            $this->sanitizeShippingDecisionForSeller($data);
+            $data->setAttribute('shipping_decision_required', ($data->shipping_assignment_status ?? 'pending') !== 'assigned');
+            $data->setAttribute('queue_state', app(OrderWorkflowService::class)->queueState($data));
             if (isset($data['offlinePayments'])) {
                 $data['offlinePayments']->payment_info = $data->offlinePayments->payment_info;
             }
@@ -107,7 +131,7 @@ class OrderController extends Controller
             $data['total_product_price'] = $totalProductPrice;
             $data['total_product_discount'] = $totalProductDiscount;
             return $data;
-        });
+        }));
 
         return response()->json([
             'total_size' => $orders->total(),
@@ -117,9 +141,123 @@ class OrderController extends Controller
         ], 200);
     }
 
+    /**
+     * Latest orders for the seller dashboard/order inbox.
+     */
+    public function recent(Request $request): JsonResponse
+    {
+        return $this->sellerOrderWindowResponse($request, false);
+    }
+
+    /**
+     * Current-month order history for the seller. Older records remain available
+     * to administration through the existing order APIs and reports.
+     */
+    public function history(Request $request): JsonResponse
+    {
+        return $this->sellerOrderWindowResponse($request, true);
+    }
+
+    /** A dedicated inbox that never selects or serializes customer, address or product relations. */
+    public function insurancePending(Request $request): JsonResponse
+    {
+        $seller = $request->seller;
+        $limit = min(max((int) $request->input('limit', 10), 1), 50);
+        $page = max((int) $request->input('offset', 1), 1);
+        $orders = Order::query()
+            ->select(['id', 'seller_id', 'seller_is', 'order_amount', 'commerce_flow_version', 'commerce_flow_status', 'created_at'])
+            ->with('sellerOrderInsurance')
+            ->where(['seller_id' => $seller->id, 'seller_is' => 'seller'])
+            ->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION])
+            ->whereIn('commerce_flow_status', [OrderCommerceState::SELLER_INSURANCE_PENDING, OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW])
+            ->latest('id')->paginate($limit, ['*'], 'page', $page);
+
+        return response()->json([
+            'total_size' => $orders->total(), 'limit' => $limit, 'offset' => $page,
+            'orders' => $orders->getCollection()->map(fn (Order $order) => app(OrderCommerceContractService::class)
+                ->restrictedSellerPayload($order, $order->sellerOrderInsurance))->values(),
+        ]);
+    }
+
+    private function sellerOrderWindowResponse(Request $request, bool $currentMonth): JsonResponse
+    {
+        $seller = $request->seller;
+        app(OrderWorkflowService::class)->refreshSellerQueue((int) $seller['id']);
+        $limit = min(max((int) ($request->input('limit', 10) ?: 10), 1), 50);
+        $offset = max((int) ($request->input('offset', 1) ?: 1), 1);
+
+        $filters = [
+            'seller_id' => $seller['id'],
+            'seller_is' => 'seller',
+            'seller_visible_only' => true,
+            'exclude_seller_insurance_pending' => true,
+        ];
+        if ($currentMonth) {
+            $filters['date_type'] = 'this_month';
+        }
+
+        $orders = $this->orderRepo->getListWhereIn(
+            orderBy: ['id' => 'desc'],
+            searchValue: $request->input('search_value'),
+            filters: $filters,
+            relations: ['customer', 'shipping', 'deliveryMan', 'orderDetails', 'offlinePayments'],
+            dataLimit: $limit,
+            offset: $offset,
+        );
+
+        $orders->setCollection($orders->getCollection()->map(function ($order) {
+            if ($this->mustReturnRestrictedOrder($order)) {
+                $order->loadMissing('sellerOrderInsurance');
+                return app(OrderCommerceContractService::class)->restrictedSellerPayload($order, $order->sellerOrderInsurance);
+            }
+            $this->sanitizeShippingDecisionForSeller($order);
+            $order->setAttribute('shipping_decision_required', ($order->shipping_assignment_status ?? 'pending') !== 'assigned');
+            $order->setAttribute('queue_state', app(OrderWorkflowService::class)->queueState($order));
+            return $order;
+        }));
+
+        $total = $orders->total();
+        return response()->json([
+            'total_size' => $total,
+            'limit' => $limit,
+            'offset' => $offset,
+            'period' => $currentMonth ? 'current_month' : 'recent',
+            'orders' => $orders->items(),
+            'empty_message' => $total === 0 ? translate('no_order_found') : null,
+        ], 200);
+    }
+
     public function details(Request $request, $id): JsonResponse
     {
         $seller = $request->seller;
+        $order = $this->resolveSellerOrderReference($seller->id, (string) $id);
+        if (! $order) return response()->json(['message' => translate('Order_not_found')], 404);
+        $id = $order->id;
+        if (in_array($order->admin_order_review_status, ['pending_admin_review', 'assignment_in_progress', 'waiting_customer_post_purchase_payment'], true)) {
+            return response()->json(['message' => translate('Order_not_found')], 404);
+        }
+        if (in_array($order->commerce_flow_version, [config('order_commerce.new_flow_version'), \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION], true)
+            && ! in_array($order->commerce_flow_status, [
+                OrderCommerceState::SELLER_INSURANCE_PENDING,
+                OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW,
+                OrderCommerceState::RELEASED_TO_SELLER,
+                OrderCommerceState::FULFILLMENT_IN_PROGRESS,
+                OrderCommerceState::COMPLETED,
+                OrderCommerceState::CANCELLED,
+            ], true)) {
+            return response()->json(['message' => translate('Order_not_found')], 404);
+        }
+        try {
+            $insurance = $this->sellerOrderInsuranceService->getOrCreate($order, $seller);
+            if ($insurance && ! $this->sellerOrderInsuranceService->canViewDetails($insurance)) {
+                return response()->json([
+                    'message' => translate('seller_order_insurance_payment_required_before_order_details'),
+                    'restricted_order' => app(OrderCommerceContractService::class)->restrictedSellerPayload($order, $insurance),
+                ], 423);
+            }
+        } catch (DomainException $exception) {
+            return response()->json(['message' => translate($exception->getMessage())], 422);
+        }
         $detailsList = OrderDetail::with(['order.offlinePayments', 'order.customer', 'order.deliveryMan', 'verificationImages', 'latestEditHistory', 'orderEditHistory' => function ($query) {
             return $query->orderBy('updated_at', 'desc');
         }])->where(['seller_id' => $seller['id'], 'order_id' => $id])->get();
@@ -140,7 +278,7 @@ class OrderController extends Controller
         $paymentInfo = collect()->merge($filteredEditPaymentHistory)->merge($unpaidDue)->values();
 
         $firstDetails = $detailsList->first();
-        if ($firstDetails?->init_order_amount <= 0) {
+        if ($firstDetails && $firstDetails->order && $firstDetails->init_order_amount <= 0) {
             Order::where('id', $firstDetails->order?->id)->update(['init_order_amount' => $firstDetails->order['order_amount']]);
         }
 
@@ -195,7 +333,100 @@ class OrderController extends Controller
             $detail['edit_order_payment_histories'] = $paymentInfo;
         }
 
+        if ($firstDetails?->order) {
+            $this->sanitizeShippingDecisionForSeller($firstDetails->order);
+            $firstDetails->order->setAttribute('queue_state', app(OrderWorkflowService::class)->queueState($firstDetails->order));
+        }
+
         return response()->json($detailsList, 200);
+    }
+
+    private function mustReturnRestrictedOrder(Order $order): bool
+    {
+        return !app(\App\Services\SellerOrderVisibilityService::class)->canSellerView($order);
+    }
+
+    private function sanitizeShippingDecisionForSeller(?Order $order): void
+    {
+        if (!$order) {
+            return;
+        }
+        if (($order->shipping_assignment_status ?? 'pending') === 'assigned') {
+            $decision = $order->shippingDecisions()->latest('id')->first();
+            $responsible = $order->shipping_fulfillment_mode === 'seller_shipping' ? 'seller' : 'company';
+            $transitions = OrderWorkflowService::TRANSITIONS[(string) $order->order_status] ?? [];
+            if ($responsible === 'company') {
+                $transitions = array_values(array_intersect($transitions, ['confirmed', 'processing', 'canceled']));
+            }
+            $order->setAttribute('shipping_assignment', [
+                'status' => 'assigned', 'responsible_party' => $responsible,
+                'mode' => $order->shipping_fulfillment_mode,
+                'seller_cost' => (float) (($order->seller_shipping_allocation ?? 0) > 0
+                    ? $order->seller_shipping_allocation
+                    : ($order->shipping_seller_cost ?? 0)),
+                'customer_paid' => (float) ($order->shipping_customer_cost ?? $order->shipping_cost ?? 0),
+                'seller_entitlement' => (float) ($order->shipping_seller_entitlement ?? 0),
+                'service_name' => $decision?->service_name ?: $order->delivery_service_name,
+                'tracking_number' => $decision?->tracking_number ?: $order->third_party_delivery_tracking_id,
+                'expected_delivery_date' => $decision?->expected_delivery_date?->format('Y-m-d')
+                    ?: ($order->expected_delivery_date ? (string) $order->expected_delivery_date : null),
+                'instructions' => $decision?->instructions,
+                'sales_due_at' => $order->sales_settlement_due_at?->toIso8601String(),
+                'shipping_due_at' => $order->shipping_settlement_due_at?->toIso8601String(),
+                'shipping_due_separated' => (bool) $order->shipping_due_separated,
+                'shipping_workflow_status' => $order->shipping_workflow_status ?: 'pending',
+                'proof_upload_endpoint' => url("api/v3/seller/orders/{$order->id}/shipping-proofs"),
+                'allowed_seller_statuses' => $transitions,
+                'seller_can_manage_delivery' => $responsible === 'seller',
+                'seller_shipping_response' => [
+                    'status' => $order->seller_shipping_response_status,
+                    'required' => in_array($order->seller_shipping_response_status, ['pending', 'overdue'], true),
+                    'due_at' => $order->seller_shipping_response_due_at?->toIso8601String(),
+                    'rejection_reason' => $order->seller_shipping_rejection_reason,
+                    'decision_endpoint' => url("api/v3/seller/orders/{$order->id}/shipping-response"),
+                ],
+            ]);
+            return;
+        }
+
+        // Until the admin saves a decision, do not expose a final method or charge.
+        foreach ([
+            'shipping_responsibility',
+            'shipping_cost',
+            'shipping_customer_cost',
+            'shipping_seller_cost',
+            'shipping_seller_entitlement',
+            'delivery_service_name',
+            'third_party_delivery_tracking_id',
+            'expected_delivery_date',
+        ] as $attribute) {
+            $order->setAttribute($attribute, null);
+        }
+        $order->setAttribute('shipping_fulfillment_mode', 'pending');
+    }
+
+    private function resolveSellerOrderReference(int $sellerId, string $reference): ?Order
+    {
+        return Order::query()->where(['seller_id' => $sellerId, 'seller_is' => 'seller'])
+            ->where(function ($query) use ($reference): void {
+                if (ctype_digit($reference)) {
+                    $query->whereKey((int) $reference);
+                } else {
+                    $query->where('seller_restricted_access_token', $reference);
+                }
+            })->first();
+    }
+
+    private function requiresShippingDecision(?Order $order): bool
+    {
+        if (!$order) {
+            return false;
+        }
+
+        return $order->details->contains(function ($detail): bool {
+            $snapshot = json_decode($detail->product_details ?? '', true);
+            return ($detail->product?->product_type ?? $snapshot['product_type'] ?? 'physical') === 'physical';
+        });
     }
 
     public function assign_delivery_man(Request $request): JsonResponse
@@ -211,6 +442,9 @@ class OrderController extends Controller
 
         $seller = $request->seller;
         $order = Order::with('deliveryMan')->where(['seller_id' => $seller['id'], 'id' => $request['order_id']])->first();
+        if (!$order || $order->shipping_fulfillment_mode !== 'seller_shipping') {
+            return response()->json(['success' => 0, 'message' => translate('shipping_status_is_managed_by_company')], 422);
+        }
 
         if ($order['delivery_man_id'] != $request['delivery_man_id']) {
             $order->deliveryman_assigned_at = Carbon::now();
@@ -220,6 +454,7 @@ class OrderController extends Controller
         $order->delivery_service_name = null;
         $order->third_party_delivery_tracking_id = null;
         $order->save();
+        app(OrderLogisticsService::class)->recordOrderStatus($order, $request['order_status'], 'seller', $seller->id);
         OrderStatusEvent::dispatch('new_order_assigned_message', 'delivery_man', $order);
         return response()->json(['success' => 1, 'message' => translate('order_deliveryman_assigned_successfully')], 200);
     }
@@ -277,6 +512,30 @@ class OrderController extends Controller
     {
         $seller = $request->seller;
         $order = Order::with(['customer', 'seller.shop', 'deliveryMan', 'latestEditHistory'])->find($request['id']);
+        if (!$order || (int) $order->seller_id !== (int) $seller->id || $order->seller_is !== 'seller') {
+            return response()->json(['status' => 0, 'message' => translate('Order_not_found')], 404);
+        }
+        if (in_array($order->commerce_flow_version, [config('order_commerce.new_flow_version'), \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION], true)) {
+            $insurance = $order->sellerOrderInsurance;
+            if ($insurance && !$this->sellerOrderInsuranceService->canViewDetails($insurance)) {
+                return response()->json(['status' => 0, 'message' => translate('seller_order_insurance_payment_required_before_order_details')], 423);
+            }
+        }
+        if ($order->shipping_fulfillment_mode === 'admin_shipping'
+            && in_array($request['order_status'], ['out_for_delivery', 'delivered', 'returned', 'failed'], true)) {
+            return response()->json(['status' => 0, 'message' => translate('shipping_status_is_managed_by_company')], 422);
+        }
+        if ($this->requiresShippingDecision($order) && ($order->shipping_assignment_status ?? 'pending') !== 'assigned') {
+            return response()->json([
+                'status' => 0,
+                'message' => translate('admin_shipping_decision_required_before_processing_order'),
+            ], 202);
+        }
+        if (in_array($order->commerce_flow_version, [config('order_commerce.new_flow_version'), \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION], true)
+            && in_array($order->seller_shipping_response_status, ['pending', 'overdue'], true)
+            && $request['order_status'] !== 'canceled') {
+            return response()->json(['status' => 0, 'message' => translate('accept_or_reject_shipping_terms_before_processing')], 422);
+        }
         if (!$order->is_guest && empty($order->customer)) {
             return response()->json(['success' => 0, 'message' => translate("Customer_account_has_been_deleted") . ' ' . translate("you_cant_update_status")], 202);
         }
@@ -297,6 +556,14 @@ class OrderController extends Controller
             return response()->json(['status' => 0, 'message' => translate('Please mark as paid before delivered this order.')], 202);
         }
 
+        $sellerHandlesShipping = $order->shipping_fulfillment_mode === 'seller_shipping'
+            || $order->shipping_responsibility === 'sellerwise_shipping';
+        if ($request['order_status'] === 'delivered' && $sellerHandlesShipping
+            && (!Schema::hasTable('order_shipping_proofs')
+                || !$order->shippingProofs()->where('shipping_status', 'delivered')->exists())) {
+            return response()->json(['status' => 0, 'message' => 'يجب رفع إثبات التسليم لإتمام الطلب.'], 422);
+        }
+
         $walletStatus = getWebConfig(name: 'wallet_status');
         $loyaltyPointStatus = getWebConfig(name: 'loyalty_point_status');
 
@@ -304,6 +571,15 @@ class OrderController extends Controller
             return response()->json(['success' => 0, 'message' => translate('order is already delivered')], 200);
         }
 
+        try {
+            app(OrderWorkflowService::class)->assertTransition((string) $order->order_status, (string) $request['order_status'], 'seller');
+        } catch (DomainException) {
+            return response()->json(['success' => 0, 'message' => translate('order_status_transition_not_allowed')], 422);
+        }
+        if ($order->customer_checkout_operation_id && in_array($request['order_status'], ['confirmed','processing','out_for_delivery','delivered'], true)) {
+            app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
+        }
+        $previousStatus = (string) $order->order_status;
         event(new OrderStatusEvent(key: $request['order_status'], type: 'customer', order: $order));
         if ($request->order_status == 'canceled') {
             event(new OrderStatusEvent(key: 'canceled', type: 'delivery_man', order: $order));
@@ -322,6 +598,7 @@ class OrderController extends Controller
         }
 
         $order->save();
+        app(OrderLogisticsService::class)->recordOrderStatus($order, $request['order_status'], 'seller', $seller->id, $previousStatus);
 
         if ($order->delivery_man_id && $request->order_status == 'delivered') {
             $deliverymanWallet = DeliverymanWallet::where('delivery_man_id', $order->delivery_man_id)->first();
@@ -594,6 +871,12 @@ class OrderController extends Controller
                     return response()->json(['success' => 0, 'message' => translate('order_is_already_delivered')], 200);
                 }
 
+                try {
+                    app(OrderWorkflowService::class)->assertTransition((string) $order->order_status, (string) $request['order_status'], 'seller');
+                } catch (DomainException) {
+                    return response()->json(['success' => 0, 'message' => translate('order_status_transition_not_allowed')], 422);
+                }
+                $previousStatus = (string) $order->order_status;
                 event(new OrderStatusEvent(key: $request['order_status'], type: 'customer', order: $order));
                 if ($request['order_status'] == 'canceled') {
                     event(new OrderStatusEvent(key: 'canceled', type: 'delivery_man', order: $order));
@@ -607,6 +890,13 @@ class OrderController extends Controller
                     ]);
                     OrderDetail::where('order_id', $order->id)->update(['delivery_status' => 'delivered', 'payment_status' => 'paid']);
                 }
+                app(OrderLogisticsService::class)->recordOrderStatus(
+                    Order::query()->findOrFail($request['order_id']),
+                    $request['order_status'],
+                    'seller',
+                    $seller->id,
+                    $previousStatus,
+                );
                 OrderManager::getStockUpdateOnOrderStatusChange($order, $request['order_status']);
                 if ($request['order_status'] == 'delivered' && $order['seller_id'] != null) {
                     OrderManager::getWalletManageOnOrderStatusChange($order, 'seller');

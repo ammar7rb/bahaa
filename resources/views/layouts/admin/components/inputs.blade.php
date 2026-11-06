@@ -2655,7 +2655,7 @@
                         </div>
                         <div>
                             <div class="input-group border rounded trans3">
-                                <span class="input-group-text custom flex-grow-1 flex-xl-grow-0">https://6valley.6amtech.com/login/</span>
+                                <span class="input-group-text custom flex-grow-1 flex-xl-grow-0">{{ url('/login/') }}</span>
                                 <input type="text" class="form-control" name="url" value="Admin">
                                 <input type="hidden" class="form-control" name="type" value="">
                             </div>
@@ -2680,7 +2680,7 @@
                                 <div class="component-snippets-code-container">
 <pre><code><div>
     <div class="input-group border rounded trans3">
-        <span class="input-group-text custom flex-grow-1 flex-xl-grow-0">https://6valley.6amtech.com/login/</span>
+        <span class="input-group-text custom flex-grow-1 flex-xl-grow-0">{{ url('/login/') }}</span>
         <input type="text" class="form-control" name="url" value="Admin">
         <input type="hidden" class="form-control" name="type" value="">
     </div>

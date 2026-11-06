@@ -11,6 +11,8 @@ class CustomerPurchasePackageSubscription extends Model
 {
     use HasFactory;
 
+    protected $appends = ['remaining_days', 'duration_status', 'duration_label'];
+
     protected $fillable = [
         'customer_id',
         'customer_purchase_package_id',
@@ -25,7 +27,10 @@ class CustomerPurchasePackageSubscription extends Model
         'payment_status',
         'payment_method',
         'payment_reference',
+        'duration_unit',
+        'duration_value',
         'starts_at',
+        'started_at',
         'expires_at',
         'activated_at',
         'cancelled_at',
@@ -42,6 +47,9 @@ class CustomerPurchasePackageSubscription extends Model
         'extra_credit_limit' => 'float',
         'admin_adjustment_limit' => 'float',
         'available_purchase_limit' => 'float',
+        'duration_value' => 'integer',
+        'starts_at' => 'datetime',
+        'started_at' => 'datetime',
         'metadata' => 'array',
         'starts_at' => 'datetime',
         'expires_at' => 'datetime',
@@ -64,5 +72,22 @@ class CustomerPurchasePackageSubscription extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(CustomerPurchaseLimitTransaction::class);
+    }
+
+    public function getRemainingDaysAttribute(): ?int
+    {
+        return $this->expires_at ? max(0, now()->diffInDays($this->expires_at, false)) : null;
+    }
+
+    public function getDurationStatusAttribute(): string
+    {
+        $unit = $this->duration_unit ?: 'lifetime';
+        return $unit === 'lifetime' ? 'lifetime' : ($this->expires_at?->lte(now()) ? 'expired' : 'active');
+    }
+
+    public function getDurationLabelAttribute(): string
+    {
+        $unit = $this->duration_unit ?: 'lifetime';
+        return $unit === 'lifetime' ? 'lifetime' : sprintf('%d_%s', (int) $this->duration_value, $unit);
     }
 }

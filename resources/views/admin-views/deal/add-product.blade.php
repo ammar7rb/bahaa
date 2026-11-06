@@ -55,6 +55,19 @@
                                     </div>
                                 </div>
                             </div>
+                            @if($deal->deal_type === 'flash_deal')
+                                <div class="row g-3 my-3">
+                                    <div class="col-md-4"><label class="form-label" for="flash-discount-type">نوع خصم الفلاش سيل</label>
+                                        <select class="form-control" id="flash-discount-type" name="discount_type" required>
+                                            <option value="percent">نسبة مئوية</option><option value="flat">مبلغ ثابت</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4"><label class="form-label" for="flash-discount">قيمة خصم الفلاش سيل للمنتجات المختارة</label>
+                                        <input class="form-control" id="flash-discount" type="number" name="discount" min="0.01" step="0.01" value="{{ old('discount') }}" required>
+                                        @error('discount') <span class="text-danger" role="alert">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            @endif
                             <div class="d-flex gap-3 justify-content-end">
                                 <button type="button" class="btn btn-secondary fw-bold px-4 reset-selected-products">{{ translate('reset') }}</button>
                                 <button type="submit" class="btn btn-primary fw-bold px-4">{{ translate('add') }}</button>

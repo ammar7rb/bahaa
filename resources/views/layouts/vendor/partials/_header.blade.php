@@ -67,11 +67,7 @@
                                     >
                                         @foreach(json_decode($lang['value'],true) as $data)
                                                 <?php
-                                                $langFlagCode = $data['code'];
-                                                if (\Illuminate\Support\Str::contains($data['code'], '-')) {
-                                                    $countryCodeArr = explode('-', $data['code']);
-                                                    $langFlagCode = $countryCodeArr[0];
-                                                }
+                                                $langFlagCode = getLanguageFlagCode($data['code']);
                                                 ?>
                                             @if($data['code']==$local)
                                                 <img width="20"
@@ -83,11 +79,7 @@
                                     <ul class="dropdown-menu position-absolute">
                                         @foreach(json_decode($lang['value'],true) as $key =>$data)
                                                 <?php
-                                                $langFlagCode = $data['code'];
-                                                if (\Illuminate\Support\Str::contains($data['code'], '-')) {
-                                                    $countryCodeArr = explode('-', $data['code']);
-                                                    $langFlagCode = $countryCodeArr[0];
-                                                }
+                                                $langFlagCode = getLanguageFlagCode($data['code']);
                                                 ?>
                                             @if($data['status']==1)
                                                 <li class="change-language" data-action="{{route('change-language')}}"
@@ -119,7 +111,7 @@
                                    }' title="{{translate('Notifications')}}" data-toggle="tooltip"
                                data-custom-class="header-icon-title">
                                 <i class="fi fi-sr-bells"></i>
-                                @php($notification=App\Models\Notification::whereBetween('created_at', [auth('seller')->user()->created_at, Carbon::now()])->where('sent_to', 'seller')->whereDoesntHave('notificationSeenBy')->count())
+                                @php($notification=App\Models\Notification::whereBetween('created_at', [auth('seller')->user()->created_at, Carbon::now()])->where('sent_to', 'seller')->where(fn($q) => $q->where('seller_id', auth('seller')->id())->orWhereNull('seller_id'))->whereDoesntHave('notificationSeenBy')->count())
                                 @if($notification != 0)
                                     <span
                                         class="btn-status btn-sm-status btn-status-danger notification_data_new_count">{{ $notification }}</span>
@@ -127,7 +119,7 @@
                             </a>
                             <div id="notificationDropdown"
                                  class="hs-unfold-content dropdown-unfold dropdown-menu dropdown-menu-right navbar-dropdown-menu navbar-dropdown-account py-0 overflow-hidden width--20rem">
-                                @php($notification_data=App\Models\Notification::whereBetween('created_at', [auth('seller')->user()->created_at, Carbon::now()])->where('sent_to', 'seller')->with('notificationSeenBy')->latest()->get())
+                                @php($notification_data=App\Models\Notification::whereBetween('created_at', [auth('seller')->user()->created_at, Carbon::now()])->where('sent_to', 'seller')->where(fn($q) => $q->where('seller_id', auth('seller')->id())->orWhereNull('seller_id'))->with('notificationSeenBy')->latest()->get())
                                 @foreach ($notification_data as $item)
                                     <button class="dropdown-item position-relative notification-data-view"
                                             data-id="{{ $item->id }}">
@@ -148,57 +140,12 @@
 
                     <li class="nav-item">
                         <div class="hs-unfold">
-                            <a
-                                class="js-hs-unfold-invoker btn btn-icon btn-ghost-secondary rounded-circle media align-items-center gap-3 navbar-dropdown-account-wrapper dropdown-toggle-left-arrow dropdown-toggle-empty"
-                                href="javascript:"
-                                data-hs-unfold-options='{
-                                     "target": "#messageDropdown",
-                                     "type": "css-animation"
-                                   }'
-                                title="{{translate('Inbox')}}" data-toggle="tooltip"
-                                data-custom-class="header-icon-title"
-                            >
-                                <i class="fi fi-sr-comment-alt-dots fs-18"></i>
-                                @php($message=\App\Models\Chatting::where(['seen_by_seller'=>0, 'seller_id'=>auth('seller')->id()])->count())
-                                @if($message!=0)
-                                    <span class="btn-status btn-sm-status btn-status-danger">{{ $message }}</span>
-                                @endif
-                            </a>
-                            <div id="messageDropdown"
-                                 class="hs-unfold-content width--16rem dropdown-unfold dropdown-menu dropdown-menu-right navbar-dropdown-menu navbar-dropdown-account">
-                                <a class="dropdown-item position-relative"
-                                   href="{{route('vendor.messages.index', ['type' => 'customer'])}}">
-                                    <span class="text-truncate pr-2"
-                                          title="Settings">{{translate('customer')}}</span>
-                                    @php($messageCustomer=\App\Models\Chatting::where(['seen_by_seller'=>0, 'seller_id'=>auth('seller')->id()])->whereNotNull(['user_id'])->count())
-                                    @if($messageCustomer > 0)
-                                        <span
-                                            class="btn-status btn-sm-status-custom btn-status-danger">{{$messageCustomer}}</span>
-                                    @endif
-                                </a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item position-relative"
-                                   href="{{route('vendor.messages.index', ['type' => 'delivery-man'])}}">
-                                    <span class="text-truncate pr-2"
-                                          title="Settings">{{translate('delivery_man')}}</span>
-                                    @php($messageDeliveryMan =\App\Models\Chatting::where(['seen_by_seller'=>0, 'seller_id'=>auth('seller')->id()])->whereNotNull(['delivery_man_id'])->count())
-                                    @if($messageDeliveryMan > 0)
-                                        <span
-                                            class="btn-status btn-sm-status-custom btn-status-danger">{{ $messageDeliveryMan }}</span>
-                                    @endif
-                                </a>
-                            </div>
-                        </div>
-                    </li>
-
-                    <li class="nav-item">
-                        <div class="hs-unfold">
                             <a class="js-hs-unfold-invoker btn btn-icon btn-ghost-secondary rounded-circle"
                                href="{{route('vendor.orders.list',['pending'])}}"
                                title="{{translate('pending_Orders')}}" data-toggle="tooltip"
                                data-custom-class="header-icon-title">
                                 <i class="fi fi-sr-shopping-cart fs-18"></i>
-                                @php($order=\App\Models\Order::where(['seller_is'=>'seller','seller_id'=>auth('seller')->id(), 'order_status'=>'pending'])->count())
+                                @php($order=\App\Models\Order::sellerAccessible()->where(['seller_is'=>'seller','seller_id'=>auth('seller')->id(), 'order_status'=>'pending'])->count())
                                 @if($order!=0)
                                     <span class="btn-status btn-sm-status btn-status-danger">{{ $order }}</span>
                                 @endif
@@ -323,29 +270,6 @@
                                 fill="#073B74"/>
                         </svg>
                         {{translate('view_website')}}
-                    </a>
-                </div>
-                <div class="bg-white p-1 rounded mt-2">
-                    <a class="p-2  title-color"
-                       href="{{route('vendor.messages.index', ['type' => 'customer'])}}"
-                       title="{{translate('message')}}" data-toggle="tooltip" data-custom-class="header-icon-title">
-                        <svg width="20" height="21" viewBox="0 0 20 21" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <g clip-path="url(#clip0_5926_1152)">
-                                <path
-                                    d="M16.6666 2.16699H3.33329C2.41663 2.16699 1.67496 2.91699 1.67496 3.83366L1.66663 18.8337L4.99996 15.5003H16.6666C17.5833 15.5003 18.3333 14.7503 18.3333 13.8337V3.83366C18.3333 2.91699 17.5833 2.16699 16.6666 2.16699ZM4.99996 8.00033H15V9.66699H4.99996V8.00033ZM11.6666 12.167H4.99996V10.5003H11.6666V12.167ZM15 7.16699H4.99996V5.50033H15V7.16699Z"
-                                    fill="#073B74"/>
-                            </g>
-                            <defs>
-                                <clipPath id="clip0_5926_1152">
-                                    <rect width="20" height="20" fill="white" transform="translate(0 0.5)"/>
-                                </clipPath>
-                            </defs>
-                        </svg>
-                        {{translate('message')}}
-                        @php($message=\App\Models\Chatting::where(['seen_by_seller'=>1,'seller_id'=>auth('seller')->id()])->count())
-                        @if($message!=0)
-                            <span>({{ $message }})</span>
-                        @endif
                     </a>
                 </div>
                 <div class="bg-white p-1 rounded mt-2">

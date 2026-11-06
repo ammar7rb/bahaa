@@ -116,49 +116,12 @@ class CustomerPurchasePackageController extends BaseController
 
     public function destroy(Request $request, int|string $id): RedirectResponse
     {
-        $package = CustomerPurchasePackage::query()->withCount('subscriptions')->find($id);
-
-        if (!$package) {
-            ToastMagic::error(translate('customer_purchase_package_not_found'));
-            return redirect()->back();
-        }
-
-        if ($package->subscriptions_count > 0) {
-            ToastMagic::error(translate('cannot_delete_package_assigned_to_customers'));
-            return redirect()->back();
-        }
-
-        $package->delete();
-
-        ToastMagic::success(translate('customer_purchase_package_deleted_successfully'));
-        return redirect()->back();
+        return app(MonthlyPackageController::class)->delete((int)$id);
     }
 
-    public function offlinePaymentReviews(Request $request): View
+    public function offlinePaymentReviews(Request $request): RedirectResponse
     {
-        $query = CustomerActivationInvoice::query()
-            ->with(['customer:id,f_name,l_name,email,phone', 'package:id,name'])
-            ->where('payment_method', 'offline_payment')
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->get('status')))
-            ->when(!$request->filled('status'), fn ($query) => $query->whereIn('status', ['pending_offline_review', 'paid']))
-            ->when($request->filled('searchValue'), function ($query) use ($request) {
-                $search = $request->get('searchValue');
-                $query->where(function ($query) use ($search) {
-                    $query->where('invoice_no', 'like', "%{$search}%")
-                        ->orWhere('order_group_id', 'like', "%{$search}%")
-                        ->orWhereHas('customer', function ($query) use ($search) {
-                            $query->where('f_name', 'like', "%{$search}%")
-                                ->orWhere('l_name', 'like', "%{$search}%")
-                                ->orWhere('email', 'like', "%{$search}%")
-                                ->orWhere('phone', 'like', "%{$search}%");
-                        });
-                });
-            })
-            ->latest('id');
-
-        $invoices = $query->paginate(getWebConfig(name: 'pagination_limit'))->appends($request->query());
-
-        return view('admin-views.customer.purchase-package.offline-payment-reviews', compact('invoices'));
+        return redirect()->route('admin.payment-reviews.index');
     }
 
     public function approveOfflinePayment(Request $request, int|string $id, CustomerActivationInvoiceService $activationInvoiceService): RedirectResponse
@@ -249,6 +212,10 @@ class CustomerPurchasePackageController extends BaseController
             'is_custom' => $isCustom,
             'status' => $request->get('status', 1),
             'sort_order' => $request->get('sort_order', 0),
+            'duration_unit' => $request->get('duration_unit') ?: null,
+            'duration_value' => $request->get('duration_unit') === 'lifetime'
+                ? null
+                : ($request->filled('duration_value') ? (int) $request->get('duration_value') : null),
             'updated_by_admin_id' => auth('admin')->id(),
         ];
 

@@ -16,7 +16,7 @@
                     <div class="card-body text-start">
                         <div class="text-capitalize d-flex align-items-center justify-content-between gap-2 border-bottom pb-2 mb-4">
                             <h3 class="text-capitalize">
-                                {{translate('vendor_withdraw_information')}}
+                                {{translate('vendor_withdraw_information')}} <bdi>{{ $withdrawRequest->transaction_number }}</bdi>
                             </h3>
                             <i class="fi fi-rr-wallet fs-3"></i>
                         </div>

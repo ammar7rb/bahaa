@@ -237,10 +237,6 @@
                                                         </div>
                                                         <span>({{ count($product->reviews) }})</span>
                                                     </div>
-                                                    <div class="cursor-pointer" id="review_tab_trigger">
-                                                        <span class="text-primary fw-semibold">{{ count($product->reviews) }}</span>
-                                                        <span class="text-muted">{{ translate('Reviews') }}</span>
-                                                    </div>
                                                     <div class="opacity-50 d-none d-sm-block">|</div>
                                                     @if(($product['product_type'] == 'physical') && ($product['current_stock']<=0))
                                                         <p class="fw-semibold text-muted mb-0">{{translate('out_of_stock')}}</p>
@@ -501,9 +497,6 @@
                                             data-bs-target="#product-details" role="tab"
                                             aria-controls="product-details"
                                             aria-selected="true">{{translate('product_details')}}</h2>
-                                    <h2 class="tab_link fs-16 cursor-pointer" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews"
-                                            role="tab" aria-controls="reviews"
-                                            aria-selected="false">{{translate("reviews")}}</h2>
                                 </div>
                             </nav>
                             <div class="product-details-tab-content tab-content mt-3" id="nav-tabContent">
@@ -546,6 +539,8 @@
                                         <button class="btn btn-outline-primary see-more-details">{{translate('see_more')}}</button>
                                     </div>
                                 </div>
+                                {{-- Public product reviews are intentionally not displayed in the storefront. --}}
+                                @if(false)
                                 <div class="tab-pane fade" id="reviews" role="tabpanel" aria-labelledby="reviews-tab"
                                      tabindex="0">
                                     <div class="details-content-wrap ov-hidden show-more--content">
@@ -727,12 +722,14 @@
                                         @endif
                                     </div>
                                 </div>
+                                @endif
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-lg-4 col-xl-3 d-flex flex-column gap-3">
-                    @if (count($moreProductFromSeller)>0)
+                    {{-- Products grouped by seller are intentionally hidden from customers. --}}
+                    @if(false)
                     <div class="card order-1 order-sm-0">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -799,6 +796,8 @@
                     </div>
                     @endif
 
+                    {{-- Seller profile, logo, and chat controls are hidden on customer product pages. --}}
+                    @if(false)
                     @if($product->added_by=='seller')
                         @if(isset($product->seller->shop))
                             <div class="card order-0 order-sm-1">
@@ -857,13 +856,16 @@
                                             @if (auth('customer')->id() == '')
                                                 <div class="btn-circle chat-btn size-2-5rem"
                                                      data-bs-toggle="modal" data-bs-target="#loginModal">
-                                                    <i class="bi bi-headset"></i>
+                                                    <i class="bi bi-chat-square-dots"></i>
                                                 </div>
                                             @else
-                                                <a href="{{ route('account-tickets') }}"
-                                                   class="btn-circle chat-btn size-2-5rem">
-                                                    <i class="bi bi-headset"></i>
-                                                </a>
+                                                <div class="btn-circle chat-btn size-2-5rem"
+                                                     data-bs-toggle="modal" data-bs-target="#contact_sellerModal"
+                                                     @if(checkVendorAbility(type: 'vendor', status: 'temporary_close', vendor: $product?->seller?->shop))
+                                                         disabled
+                                                    @endif>
+                                                    <i class="bi bi-chat-square-dots"></i>
+                                                </div>
                                             @endif
                                         </div>
 
@@ -874,6 +876,8 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <a class="btn btn-primary" href="{{ route('account-tickets') }}">{{ translate('contact_technical_support') }}</a>
                         @endif
                     @else
                         <div class="card  order-0 order-sm-1">
@@ -935,13 +939,16 @@
                                         @if (auth('customer')->id() == '')
                                             <div class="btn-circle chat-btn size-2-5rem"
                                                  data-bs-toggle="modal" data-bs-target="#loginModal">
-                                                <i class="bi bi-headset"></i>
+                                                <i class="bi bi-chat-square-dots"></i>
                                             </div>
                                         @else
-                                            <a href="{{ route('account-tickets') }}"
-                                               class="btn-circle chat-btn size-2-5rem">
-                                                <i class="bi bi-headset"></i>
-                                            </a>
+                                            <div class="btn-circle chat-btn size-2-5rem"
+                                                 data-bs-toggle="modal" data-bs-target="#contact_sellerModal"
+                                                 @if(checkVendorAbility(type: 'inhouse', status: 'temporary_close'))
+                                                     disabled
+                                                @endif>
+                                                <i class="bi bi-chat-square-dots"></i>
+                                            </div>
                                         @endif
                                     </div>
                                     <a href="{{ route('vendor-shop',['slug' => getInHouseShopConfig(key:'slug')]) }}"
@@ -951,17 +958,16 @@
                                 </div>
                             </div>
                         </div>
+
+                        <a class="btn btn-primary" href="{{ route('account-tickets') }}">{{ translate('contact_technical_support') }}</a>
+                    @endif
                     @endif
                 </div>
             </div>
             @if (count($relatedProducts)>0)
                 <div class="py-4 mt-3">
                     <div class="d-flex justify-content-between gap-3 mb-4">
-                        @if($web_config['business_mode'] == 'multi')
-                            <h2 class="text-capitalize">{{translate('similar_products_from_other_stores')}}</h2>
-                        @else
-                            <h2 class="text-capitalize">{{translate('similar_products')}}</h2>
-                        @endif
+                        <h2 class="text-capitalize">{{translate('similar_products')}}</h2>
                         <div class="swiper-nav d-flex gap-2 align-items-center">
                             <div class="swiper-button-prev top-rated-nav-prev position-static rounded-10"></div>
                             <div class="swiper-button-next top-rated-nav-next position-static rounded-10"></div>
@@ -1006,20 +1012,6 @@
         getVariantPrice(".add-to-cart-details-form");
         getVariantPrice(".add-to-cart-sticky-form");
 
-        $(document).ready(function () {
-            $('#review_tab_trigger').on('click', function() {
-                $('#reviews-tab').tab('show');
-
-                const target = document.querySelector('#scroll-into-view-wrapper');
-                const offset = 150;
-                const topPos = target.getBoundingClientRect().top + window.scrollY - offset;
-
-                window.scrollTo({
-                    top: topPos,
-                    behavior: 'smooth'
-                });
-            });
-        });
 
     </script>
 @endpush

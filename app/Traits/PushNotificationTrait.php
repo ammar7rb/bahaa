@@ -71,6 +71,13 @@ trait PushNotificationTrait
             /**for seller */
             if ($type == 'seller') {
                 $sellerFcmToken = $order->seller?->cm_firebase_token;
+                if ($sellerFcmToken && $order instanceof Order && app(\App\Services\VendorFulfillmentEligibilityService::class)->hasRestrictions($order)) {
+                    $this->sendPushNotificationToDevice($sellerFcmToken, [
+                        'title' => 'طلب تنفيذ محول إليك', 'description' => \App\Services\VendorFulfillmentEligibilityService::MESSAGE,
+                        'order_id' => $order->id, 'image' => '', 'type' => 'order', 'message_key' => $key,
+                    ]);
+                    return;
+                }
                 if ($sellerFcmToken) {
                     $lang = $order->seller?->app_language ?? $lang;
                     $value_seller = $this->pushNotificationMessage($key, 'seller', $lang);
@@ -302,10 +309,25 @@ trait PushNotificationTrait
                 'customer_unblock_message' => 'customer_unblock_message',
                 'your_referred_customer_has_been_place_order' => 'your_referred_customer_has_been_place_order',
                 'your_referred_customer_order_has_been_delivered' => 'your_referred_customer_order_has_been_delivered',
+                'customer_insurance_payment_required' => 'customer_insurance_payment_required',
+                'customer_insurance_offline_payment_under_review' => 'customer_insurance_offline_payment_under_review',
+                'customer_insurance_offline_payment_rejected' => 'customer_insurance_offline_payment_rejected',
+                'customer_insurance_paid_waiting_admin_review' => 'customer_insurance_paid_waiting_admin_review',
+                'customer_insurance_payment_deadline_reminder' => 'customer_insurance_payment_deadline_reminder',
+                'customer_insurance_expired_refund_scheduled' => 'customer_insurance_expired_refund_scheduled',
+                'customer_purchase_refund_completed' => 'customer_purchase_refund_completed',
+                'admin_order_released_to_seller' => 'admin_order_released_to_seller',
             ];
+            $messageKey = $notificationKey[$key] ?? null;
+            if (! $messageKey) {
+                return false;
+            }
             $data = NotificationMessage::with(['translations' => function ($query) use ($lang) {
                 $query->where('locale', $lang);
-            }])->where(['key' => $notificationKey[$key], 'user_type' => $userType])->first() ?? ["status" => 0, "message" => "", "translations" => []];
+            }])->where(['key' => $messageKey, 'user_type' => $userType])->first();
+            if (! $data) {
+                return translate($messageKey);
+            }
             if ($data) {
                 if ($data['status'] == 0) {
                     return false;

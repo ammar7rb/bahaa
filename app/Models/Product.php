@@ -46,11 +46,18 @@ use Modules\TaxModule\app\Models\Taxable;
  * @property int $featured_status
  * @property int $refundable
  * @property int $featured
+ * @property int $is_homepage_visible
  * @property int $flash_deal
  * @property int $seller_id
  * @property float $purchase_price
  * @property string $denied_note
  * @property float $shipping_cost
+ * @property float $same_day_shipping_cost
+ * @property float $next_day_shipping_cost
+ * @property float $normal_shipping_cost
+ * @property float $same_day_shipping_cost
+ * @property float $next_day_shipping_cost
+ * @property float $normal_shipping_cost
  * @property int $multiply_qty
  * @property float $temp_shipping_cost
  * @property string $thumbnail
@@ -65,6 +72,41 @@ use Modules\TaxModule\app\Models\Taxable;
  */
 class Product extends Model
 {
+    public bool $workspacePublicationWrite = false;
+
+    // Product-level discounts are retired; keep stored values for historical audit.
+    public function getDiscountAttribute($value): float
+    {
+        return app(\App\Services\FlashSalePriceService::class)->forProduct($this)['amount'] ?? 0.0;
+    }
+
+    public function getDiscountTypeAttribute($value): ?string
+    {
+        return app(\App\Services\FlashSalePriceService::class)->forProduct($this)['type'] ?? $value;
+    }
+
+    public function setDiscountAttribute($value): void
+    {
+        $this->attributes['discount'] = 0;
+    }
+
+    public function save(array $options = [])
+    {
+        if (config('vendor_product_workspace.enabled') && !$this->exists && $this->added_by === 'seller') {
+            return DB::transaction(function () use ($options) {
+                \App\Models\Seller::whereKey($this->user_id)->lockForUpdate()->firstOrFail();
+                return parent::save($options);
+            });
+        }
+        return parent::save($options);
+    }
+    public function getAdministrativeReferenceAttribute(): string
+    {
+        $workspace = app(\App\Services\VendorProductWorkspaceService::class);
+        if ($workspace->enabled() && $workspace->sellerId()) return 'AD-'.($workspace->state($this)?->private_reference ?? '');
+        return \App\Services\AdministrativeReferenceService::format('product', (int) $this->id);
+    }
+
     use StorageTrait, CacheManagerTrait;
 
     protected $fillable = [
@@ -80,6 +122,17 @@ class Product extends Model
         'sub_sub_category_id',
         'brand_id',
         'unit',
+        'pieces_per_unit',
+        'length',
+        'width',
+        'height',
+        'dimension_unit',
+        'weight',
+        'weight_unit',
+        'production_date',
+        'no_production_expiry_dates',
+        'category_review_required',
+        'expiry_date',
         'digital_product_type',
         'product_type',
         'details',
@@ -103,9 +156,16 @@ class Product extends Model
         'status',
         'featured_status',
         'featured',
+        'is_homepage_visible',
         'request_status',
         'denied_note',
         'shipping_cost',
+        'same_day_shipping_cost',
+        'next_day_shipping_cost',
+        'normal_shipping_cost',
+        'same_day_shipping_cost',
+        'next_day_shipping_cost',
+        'normal_shipping_cost',
         'multiply_qty',
         'color_image',
         'images',
@@ -137,6 +197,15 @@ class Product extends Model
         'sub_sub_category_id' => 'integer',
         'brand_id' => 'integer',
         'unit' => 'string',
+        'pieces_per_unit' => 'integer',
+        'length' => 'float',
+        'width' => 'float',
+        'height' => 'float',
+        'weight' => 'float',
+        'no_production_expiry_dates' => 'boolean',
+        'category_review_required' => 'boolean',
+        'production_date' => 'date:Y-m-d',
+        'expiry_date' => 'date:Y-m-d',
         'digital_product_type' => 'string',
         'product_type' => 'string',
         'details' => 'string',
@@ -152,9 +221,11 @@ class Product extends Model
         'minimum_order_qty' => 'integer',
         'free_shipping' => 'integer',
         'request_status' => 'integer',
+        'seller_review_changes' => 'array',
         'featured_status' => 'integer',
         'refundable' => 'integer',
         'featured' => 'integer',
+        'is_homepage_visible' => 'integer',
         'flash_deal' => 'integer',
         'seller_id' => 'integer',
         'purchase_price' => 'float',
@@ -162,6 +233,12 @@ class Product extends Model
         'updated_at' => 'datetime',
         'denied_note' => 'string',
         'shipping_cost' => 'float',
+        'same_day_shipping_cost' => 'float',
+        'next_day_shipping_cost' => 'float',
+        'normal_shipping_cost' => 'float',
+        'same_day_shipping_cost' => 'float',
+        'next_day_shipping_cost' => 'float',
+        'normal_shipping_cost' => 'float',
         'multiply_qty' => 'integer',
         'temp_shipping_cost' => 'float',
         'thumbnail' => 'string',
@@ -177,15 +254,43 @@ class Product extends Model
         'digital_file_ready_storage_type' => 'string',
     ];
 
-    protected $appends = ['is_shop_temporary_close', 'thumbnail_full_url', 'preview_file_full_url', 'color_images_full_url', 'meta_image_full_url', 'images_full_url', 'digital_file_ready_full_url'];
+    protected $appends = ['is_shop_temporary_close', 'thumbnail_full_url', 'preview_file_full_url', 'color_images_full_url', 'meta_image_full_url', 'images_full_url', 'digital_file_ready_full_url', 'administrative_reference', 'vendor_workspace'];
+
+    public function getVendorWorkspaceAttribute(): ?array
+    {
+        $workspace = app(\App\Services\VendorProductWorkspaceService::class);
+        if (!$workspace->enabled() || !$workspace->sellerId() || (int) $this->user_id !== $workspace->sellerId()) return null;
+        $state = $workspace->state($this);
+        if (!$state) return null;
+        return ['private_reference' => $state->private_reference,
+            'legacy_exempt' => $state->legacy_exempt, 'revision' => $state->revision,
+            'advertising_visible' => $workspace->vendorActive($state)];
+    }
 
     public function translations(): MorphMany
     {
-        return $this->morphMany('App\Models\Translation', 'translationable');
+        return $this->morphMany('App\Models\Translation', 'translationable')
+            ->when(config('vendor_product_workspace.enabled') && app(\App\Services\VendorProductWorkspaceService::class)->sellerId() && !request()->attributes->get('vendor_workspace_financial_context'), fn ($query) => $query->whereRaw('1 = 0'));
+    }
+
+    public function scopeReviewRequestStatus($query, $status)
+    {
+        if (!config('vendor_product_workspace.enabled')) return $query->where('request_status', $status);
+        $states = match ((int) $status) {
+            0 => ['submitted', 'under_review'],
+            2 => ['rejected'],
+            default => ['approved_published', 'suspended'],
+        };
+        return $query->where(function ($q) use ($states, $status) {
+            $q->whereExists(fn ($w) => $w->selectRaw('1')->from('vendor_product_workspaces as review_workspace')
+                ->whereColumn('review_workspace.product_id', 'products.id')->whereIn('review_workspace.review_state', $states))
+                ->orWhere(fn ($fallback) => $fallback->where('request_status', $status)->whereNotExists(fn ($w) => $w->selectRaw('1')->from('vendor_product_workspaces as review_workspace')->whereColumn('review_workspace.product_id', 'products.id')));
+        });
     }
 
     public function scopeActive($query)
     {
+        app(\App\Services\VendorAdvertisingAccessService::class)->constrain($query);
         $brandSetting = getWebConfig(name: 'product_brand');
         $digitalProductSetting = getWebConfig(name: 'digital_product');
         $businessMode = getWebConfig(name: 'business_mode');
@@ -226,16 +331,7 @@ class Product extends Model
             ->where(function ($query) {
                 $query->where('added_by', 'admin')
                     ->orWhere(function ($query) {
-                        $query->where('added_by', 'seller')
-                            ->where(function ($query) {
-                                $query->whereDoesntHave('sellerProductEntitlements')
-                                    ->orWhereHas('sellerProductEntitlements', function ($query) {
-                                        $query->where('status', SellerProductEntitlement::STATUS_ACTIVE)
-                                            ->where(function ($query) {
-                                                $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
-                                            });
-                                    });
-                            });
+                        $query->where('added_by', 'seller');
                     });
             })
             ->SellerApproved()
@@ -249,6 +345,15 @@ class Product extends Model
         })->orWhere(function ($query) {
             $query->where(['added_by' => 'admin', 'status' => 1]);
         });
+    }
+
+    /**
+     * A product may be approved and searchable without being eligible for a
+     * storefront-homepage section.
+     */
+    public function scopeHomepageVisible(Builder $query): Builder
+    {
+        return $query->where('is_homepage_visible', 1);
     }
 
     public function stocks(): HasMany
@@ -327,6 +432,11 @@ class Product extends Model
         return $this->hasMany(SellerProductPromotion::class);
     }
 
+    public function reviewDecisions(): HasMany
+    {
+        return $this->hasMany(ProductReviewDecision::class)->latest('id');
+    }
+
     public function activeSearchPromotion(): HasOne
     {
         return $this->hasOne(SellerProductPromotion::class)
@@ -395,7 +505,8 @@ class Product extends Model
 
     public function seoInfo(): BelongsTo
     {
-        return $this->belongsTo(ProductSeo::class, 'id', 'product_id');
+        return $this->belongsTo(ProductSeo::class, 'id', 'product_id')
+            ->when(config('vendor_product_workspace.enabled') && app(\App\Services\VendorProductWorkspaceService::class)->sellerId(), fn ($query) => $query->whereRaw('1 = 0'));
     }
 
     //old relation: order_delivered
@@ -451,6 +562,7 @@ class Product extends Model
 
     public function getNameAttribute($name): string|null
     {
+        if (app(\App\Services\VendorProductWorkspaceService::class)->sellerId()) return $name;
         $segment = request()->segment(1);
         if ($segment === 'api') {
             return $this->translations[0]->value ?? $name;
@@ -463,6 +575,7 @@ class Product extends Model
 
     public function getDetailsAttribute($detail): string|null
     {
+        if (app(\App\Services\VendorProductWorkspaceService::class)->sellerId()) return $detail;
         $segment = request()->segment(1);
         if ($segment === 'api') {
             return $this->translations[1]->value ?? $detail;
@@ -529,6 +642,45 @@ class Product extends Model
     protected static function boot(): void
     {
         parent::boot();
+
+        static::retrieved(function ($product) {
+            app(\App\Services\VendorProductWorkspaceService::class)->projectForSeller($product);
+        });
+        static::created(function ($product) {
+            if (config('vendor_product_workspace.enabled') && $product->added_by === 'seller') {
+                app(\App\Services\VendorProductWorkspaceService::class)->capture($product);
+            }
+            app(\App\Services\VendorSlotReservationService::class)->attachCreated($product);
+        });
+
+        static::creating(function ($model) {
+            if ($model->added_by === 'seller') {
+                app(\App\Services\VendorAdvertisingAccessService::class)->assertCanCreate((int) $model->user_id);
+                app(\App\Services\VendorSlotReservationService::class)->assertCreation((int) $model->user_id);
+            }
+        });
+
+        static::updating(function ($model) {
+            $workspace = app(\App\Services\VendorProductWorkspaceService::class);
+            if ($workspace->enabled() && $workspace->sellerId() && !request()->attributes->get('vendor_workspace_financial_context') && $model->added_by === 'seller') {
+                $protected = array_intersect(array_keys($model->getDirty()), \App\Services\VendorProductWorkspaceService::CONTENT);
+                $protected = array_diff($protected, ['current_stock']);
+                if ($protected) throw \Illuminate\Validation\ValidationException::withMessages(['product' => 'تعديلات المحتوى تُرسل للمراجعة من نموذج تعديل المنتج.']);
+            }
+            if ($workspace->enabled() && !$workspace->sellerId() && request()->segment(1) === 'admin' && $model->added_by === 'seller' && !$model->workspacePublicationWrite) {
+                $protected = array_diff(array_intersect(array_keys($model->getDirty()), \App\Services\VendorProductWorkspaceService::CONTENT), ['current_stock']);
+                if ($protected) throw \Illuminate\Validation\ValidationException::withMessages(['product' => 'احفظ نسخة التحرير من نموذج المنتج قبل اعتماد النشر.']);
+            }
+
+            if ((config('vendor_advertising.enabled') || config('vendor_product_workspace.enabled')) && $model->added_by === 'seller' && $model->isDirty('status') && (int) $model->status === 1) {
+                if ($workspace->enabled() && $workspace->sellerId() && ($workspace->state($model)?->publication_suspended || in_array($workspace->state($model)?->review_state, ['suspended', 'rejected', 'deleted'], true))) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['publication' => 'يلزم اعتماد الإدارة قبل إعادة نشر هذا الإعلان.']);
+                }
+                if ((int) $model->request_status !== 1 || !app(\App\Services\VendorAdvertisingAccessService::class)->visible($model)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['publication' => 'يلزم اعتماد الإدارة ومساحة إعلانية سارية لنشر المنتج.']);
+                }
+            }
+        });
 
         static::saved(function ($model) {
             cacheRemoveByType(type: 'products');

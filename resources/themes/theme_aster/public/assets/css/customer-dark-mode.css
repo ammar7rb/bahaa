@@ -1,0 +1,342 @@
+/* Customer storefront dark mode. No global transition is used to keep switching instant. */
+.customer-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 0 !important;
+    border-radius: 50%;
+    background: #f1f5fb !important;
+    color: #1b7fed !important;
+    font-size: 1.35rem;
+    line-height: 1;
+    box-shadow: none !important;
+}
+
+.customer-theme-toggle:hover,
+.customer-theme-toggle:focus-visible {
+    color: #1d4ed8;
+    outline: 2px solid #73a5ff;
+    outline-offset: 2px;
+}
+
+:root[data-ba-storefront-theme="dark"] {
+    color-scheme: dark;
+    --ba-aster-bg: #0d1424;
+    --ba-aster-surface: #18233a;
+    --ba-aster-surface-raised: #202e49;
+    --ba-aster-field: #101a2d;
+    --ba-aster-border: #35496b;
+    --ba-aster-text: #f0f5ff;
+    --ba-aster-muted: #bdcbe2;
+    --ba-aster-hover: #293b5a;
+}
+
+:root[data-ba-storefront-theme="dark"] body,
+:root[data-ba-storefront-theme="dark"] [theme="dark"] {
+    background: var(--ba-aster-bg) !important;
+    color: var(--ba-aster-text);
+}
+
+/* The supplied wordmark has dark lettering; render it white on dark surfaces. */
+:root[data-ba-storefront-theme="dark"] .ba-platform-logo {
+    filter: brightness(0) invert(1);
+}
+
+:root[data-ba-storefront-theme="dark"] .header,
+:root[data-ba-storefront-theme="dark"] .header-top,
+:root[data-ba-storefront-theme="dark"] .header-middle,
+:root[data-ba-storefront-theme="dark"] .header-main,
+:root[data-ba-storefront-theme="dark"] footer,
+:root[data-ba-storefront-theme="dark"] .footer,
+:root[data-ba-storefront-theme="dark"] .card,
+:root[data-ba-storefront-theme="dark"] .bg-white,
+:root[data-ba-storefront-theme="dark"] .bg-light,
+:root[data-ba-storefront-theme="dark"] .modal-content,
+:root[data-ba-storefront-theme="dark"] .dropdown-menu,
+:root[data-ba-storefront-theme="dark"] .offcanvas,
+:root[data-ba-storefront-theme="dark"] .accordion-item,
+:root[data-ba-storefront-theme="dark"] .list-group-item,
+:root[data-ba-storefront-theme="dark"] .search-result-box,
+:root[data-ba-storefront-theme="dark"] .app-bar {
+    background-color: var(--ba-aster-surface) !important;
+    color: var(--ba-aster-text) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .card,
+:root[data-ba-storefront-theme="dark"] .border,
+:root[data-ba-storefront-theme="dark"] .border-top,
+:root[data-ba-storefront-theme="dark"] .border-bottom,
+:root[data-ba-storefront-theme="dark"] .border-start,
+:root[data-ba-storefront-theme="dark"] .border-end,
+:root[data-ba-storefront-theme="dark"] .dropdown-menu,
+:root[data-ba-storefront-theme="dark"] .modal-content,
+:root[data-ba-storefront-theme="dark"] .table,
+:root[data-ba-storefront-theme="dark"] .list-group-item,
+:root[data-ba-storefront-theme="dark"] .accordion-item {
+    border-color: var(--ba-aster-border) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] h1,
+:root[data-ba-storefront-theme="dark"] h2,
+:root[data-ba-storefront-theme="dark"] h3,
+:root[data-ba-storefront-theme="dark"] h4,
+:root[data-ba-storefront-theme="dark"] h5,
+:root[data-ba-storefront-theme="dark"] h6,
+:root[data-ba-storefront-theme="dark"] p,
+:root[data-ba-storefront-theme="dark"] label,
+:root[data-ba-storefront-theme="dark"] .text-dark,
+:root[data-ba-storefront-theme="dark"] .text-body,
+:root[data-ba-storefront-theme="dark"] .dropdown-item,
+:root[data-ba-storefront-theme="dark"] .table,
+:root[data-ba-storefront-theme="dark"] .table td,
+:root[data-ba-storefront-theme="dark"] .table th,
+:root[data-ba-storefront-theme="dark"] .main-menu > li > a,
+:root[data-ba-storefront-theme="dark"] .header a {
+    color: var(--ba-aster-text) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .text-muted,
+:root[data-ba-storefront-theme="dark"] small,
+:root[data-ba-storefront-theme="dark"] .text-secondary,
+:root[data-ba-storefront-theme="dark"] .form-text,
+:root[data-ba-storefront-theme="dark"] .header-top,
+:root[data-ba-storefront-theme="dark"] .header-top a {
+    color: var(--ba-aster-muted) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .form-control,
+:root[data-ba-storefront-theme="dark"] .form-select,
+:root[data-ba-storefront-theme="dark"] select,
+:root[data-ba-storefront-theme="dark"] textarea,
+:root[data-ba-storefront-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+:root[data-ba-storefront-theme="dark"] .select2-selection,
+:root[data-ba-storefront-theme="dark"] .select2-dropdown,
+:root[data-ba-storefront-theme="dark"] .select-wrap {
+    background-color: var(--ba-aster-field) !important;
+    color: var(--ba-aster-text) !important;
+    border-color: var(--ba-aster-border) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .form-control::placeholder,
+:root[data-ba-storefront-theme="dark"] textarea::placeholder,
+:root[data-ba-storefront-theme="dark"] input::placeholder {
+    color: #a2b1ca !important;
+    opacity: 1;
+}
+
+:root[data-ba-storefront-theme="dark"] .form-control:focus,
+:root[data-ba-storefront-theme="dark"] .form-select:focus,
+:root[data-ba-storefront-theme="dark"] input:focus,
+:root[data-ba-storefront-theme="dark"] textarea:focus {
+    border-color: #73a5ff !important;
+    box-shadow: 0 0 0 .2rem rgba(115, 165, 255, .2) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .table > :not(caption) > * > *,
+:root[data-ba-storefront-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: transparent !important;
+    color: var(--ba-aster-text) !important;
+    box-shadow: inset 0 0 0 9999px transparent !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .dropdown-item:hover,
+:root[data-ba-storefront-theme="dark"] .dropdown-item:focus,
+:root[data-ba-storefront-theme="dark"] .list-group-item-action:hover,
+:root[data-ba-storefront-theme="dark"] .nav-tabs .nav-link.active {
+    color: var(--ba-aster-text) !important;
+    background-color: var(--ba-aster-hover) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .alert-warning {
+    background-color: #3d2c15 !important;
+    border-color: #906b2f !important;
+    color: #ffe4ae !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .alert-info {
+    background-color: #103647 !important;
+    border-color: #2b7899 !important;
+    color: #bbf0ff !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .alert-success {
+    background-color: #123b2c !important;
+    border-color: #2e8967 !important;
+    color: #c1f4d9 !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .alert-danger {
+    background-color: #48232c !important;
+    border-color: #aa5262 !important;
+    color: #ffd2da !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .btn-light,
+:root[data-ba-storefront-theme="dark"] .btn-secondary,
+:root[data-ba-storefront-theme="dark"] .btn-outline-secondary,
+:root[data-ba-storefront-theme="dark"] .btn:disabled,
+:root[data-ba-storefront-theme="dark"] .btn.disabled {
+    background-color: #2b3b5b !important;
+    border-color: #4a5f88 !important;
+    color: #dde8fa !important;
+    opacity: 1;
+}
+
+:root[data-ba-storefront-theme="dark"] .customer-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 0 !important;
+    border-radius: 50%;
+    background: #243555 !important;
+    color: #78aaff !important;
+    line-height: 1;
+}
+
+:root[data-ba-storefront-theme="dark"] .customer-theme-toggle:hover,
+:root[data-ba-storefront-theme="dark"] .customer-theme-toggle:focus-visible {
+    background: var(--ba-aster-hover) !important;
+    color: #ffe39b !important;
+    outline: 2px solid #73a5ff;
+    outline-offset: 2px;
+}
+
+/* Keep account navigation and product filters readable in the storefront dark theme. */
+:root[data-ba-storefront-theme="dark"] .profile-sidebar-sticky,
+:root[data-ba-storefront-theme="dark"] .profile-menu-aside,
+:root[data-ba-storefront-theme="dark"] .profile-menu,
+:root[data-ba-storefront-theme="dark"] .filter-toggle-aside,
+:root[data-ba-storefront-theme="dark"] .filter-toggle-aside .card-body {
+    background-color: var(--ba-aster-surface) !important;
+    border-color: var(--ba-aster-border) !important;
+    color: var(--ba-aster-text) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .profile-menu li a,
+:root[data-ba-storefront-theme="dark"] .profile-menu li a i,
+:root[data-ba-storefront-theme="dark"] .product-view-sort-by > button,
+:root[data-ba-storefront-theme="dark"] .filter-on-product-filter > button,
+:root[data-ba-storefront-theme="dark"] .product-view-sort-by .dropdown-toggle,
+:root[data-ba-storefront-theme="dark"] .filter-on-product-filter .dropdown-toggle {
+    color: var(--ba-aster-muted) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .profile-menu li.active a,
+:root[data-ba-storefront-theme="dark"] .product-view-sort-by .dropdown-menu .selected,
+:root[data-ba-storefront-theme="dark"] .filter-on-product-filter .dropdown-menu .selected {
+    background-color: var(--ba-aster-hover) !important;
+    color: #83b1ff !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .product-view-sort-by .dropdown-menu,
+:root[data-ba-storefront-theme="dark"] .filter-on-product-filter .dropdown-menu,
+:root[data-ba-storefront-theme="dark"] #sort-by-list,
+:root[data-ba-storefront-theme="dark"] .filter-toggle-aside .accordion-item,
+:root[data-ba-storefront-theme="dark"] .filter-toggle-aside .accordion-button,
+:root[data-ba-storefront-theme="dark"] .filter-toggle-aside .accordion-body,
+:root[data-ba-storefront-theme="dark"] .filter-toggle-aside .form-check,
+:root[data-ba-storefront-theme="dark"] .filter-toggle-aside .form-check-label {
+    background-color: var(--ba-aster-surface-raised) !important;
+    border-color: var(--ba-aster-border) !important;
+    color: var(--ba-aster-text) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .product-view-sort-by .dropdown-menu label,
+:root[data-ba-storefront-theme="dark"] .filter-on-product-filter .dropdown-menu label {
+    color: var(--ba-aster-text) !important;
+}
+
+/* Product listing: keep every filter control on the same dark surface. */
+:root[data-ba-storefront-theme="dark"] .product-list-filter > .card,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside .card-body,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .product-list-header,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .products_aside_categories,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .products_aside_brands,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .product-type-physical-section {
+    background-color: var(--ba-aster-surface) !important;
+    color: var(--ba-aster-text) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .product-list-filter .border.rounded,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .select-wrap,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .form-select,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .bg-black-09,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .products_aside_categories li,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .products_aside_brands li,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .bg-badge {
+    background-color: var(--ba-aster-surface-raised) !important;
+    border-color: var(--ba-aster-border) !important;
+    color: var(--ba-aster-text) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .product-list-filter .product-view-sort-by > button,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-on-product-filter > button,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .product-view-sort-by .dropdown-toggle,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-on-product-filter .dropdown-toggle,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .product-view-sort-by .dropdown-menu,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-on-product-filter .dropdown-menu,
+:root[data-ba-storefront-theme="dark"] .product-list-filter #sort-by-list,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .dropdown-menu li,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .dropdown-menu label {
+    background-color: var(--ba-aster-surface-raised) !important;
+    color: var(--ba-aster-text) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .product-list-filter .dropdown-menu li:hover,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .dropdown-menu li:focus-within,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .dropdown-menu .selected,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .categories-form-check-inner:hover,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .products_aside_brands li:hover {
+    background-color: var(--ba-aster-hover) !important;
+    color: var(--ba-aster-text) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside h1,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside h2,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside h3,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside h4,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside h5,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside h6,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside label,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside span,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside li,
+:root[data-ba-storefront-theme="dark"] .product-list-filter .filter-toggle-aside .text-dark {
+    color: var(--ba-aster-text) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .product-list-filter .bg-badge {
+    color: var(--ba-aster-muted) !important;
+}
+
+/* Reusable storefront panels that previously kept their light-mode fill. */
+:root[data-ba-storefront-theme="dark"] .widget-cart-item,
+:root[data-ba-storefront-theme="dark"] .cart-dropdown-mobile-view,
+:root[data-ba-storefront-theme="dark"] .cart-dropdown-mobile-view .dropdown-menu,
+:root[data-ba-storefront-theme="dark"] .product-details-tab-content .table-light,
+:root[data-ba-storefront-theme="dark"] .product-details-tab-content .table-light > th,
+:root[data-ba-storefront-theme="dark"] .product-details-tab-content .table-light > td,
+:root[data-ba-storefront-theme="dark"] .delivery-reliability,
+:root[data-ba-storefront-theme="dark"] .delivery-reliability > * {
+    background-color: var(--ba-aster-surface) !important;
+    color: var(--ba-aster-text) !important;
+    border-color: var(--ba-aster-border) !important;
+}
+
+:root[data-ba-storefront-theme="dark"] .widget-cart-item .btn-link,
+:root[data-ba-storefront-theme="dark"] .cart-dropdown-mobile-view .btn-link,
+:root[data-ba-storefront-theme="dark"] .cart-dropdown-mobile-view h1,
+:root[data-ba-storefront-theme="dark"] .cart-dropdown-mobile-view h2,
+:root[data-ba-storefront-theme="dark"] .cart-dropdown-mobile-view h3,
+:root[data-ba-storefront-theme="dark"] .cart-dropdown-mobile-view h4,
+:root[data-ba-storefront-theme="dark"] .cart-dropdown-mobile-view h5,
+:root[data-ba-storefront-theme="dark"] .cart-dropdown-mobile-view h6,
+:root[data-ba-storefront-theme="dark"] .cart-dropdown-mobile-view p {
+    color: var(--ba-aster-text) !important;
+}

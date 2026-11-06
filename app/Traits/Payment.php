@@ -11,6 +11,19 @@ trait Payment
 {
     public static function generate_link(object $payer, object $payment_info, object $receiver): Application|bool|string|UrlGenerator|\Illuminate\Contracts\Foundation\Application
     {
+        $operationId = $payment_info->getAdditionalData()['customer_checkout_operation_id'] ?? null;
+        if (!$operationId) return self::generateCustomerSafePaymentLink($payer, $payment_info, $receiver);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($payer, $payment_info, $receiver, $operationId) {
+            \App\Models\User::lockForUpdate()->findOrFail($payment_info->getPayerId());
+            $operation = \Illuminate\Support\Facades\DB::table('customer_checkout_operations')->where('id', $operationId)
+                ->where('customer_id', $payment_info->getPayerId())->lockForUpdate()->first();
+            if (!$operation || $operation->consumed_at) throw \Illuminate\Validation\ValidationException::withMessages(['payment' => 'تم تقديم عملية الشراء بالفعل. تابع طلبك من صفحة الطلبات.']);
+            return self::generateCustomerSafePaymentLink($payer, $payment_info, $receiver);
+        }, 3);
+    }
+
+    private static function generateCustomerSafePaymentLink(object $payer, object $payment_info, object $receiver): Application|bool|string|UrlGenerator|\Illuminate\Contracts\Foundation\Application
+    {
         if ($payment_info->getPaymentAmount() <= 0) {
             throw new InvalidArgumentException(translate('Payment amount can not be 0'));
         }
@@ -19,7 +32,17 @@ trait Payment
             throw new InvalidArgumentException(translate('Additional data should be in a valid array'));
         }
 
-        $payment = new PaymentRequest();
+        $operationId = $payment_info->getAdditionalData()['customer_checkout_operation_id'] ?? null;
+        $existing = $operationId ? PaymentRequest::where('payer_id', $payment_info->getPayerId())
+            ->where('additional_data->customer_checkout_operation_id', $operationId)->first() : null;
+        if ($existing && $existing->is_paid) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['payment' => 'تم تأكيد الدفع بالفعل. تابع الطلب أو تواصل مع الدعم؛ لا تدفع مرة أخرى.']);
+        }
+        if ($existing && $existing->payment_method !== $payment_info->getPaymentMethod()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['payment' => 'تابع عملية الدفع المحفوظة باستخدام نفس طريقة الدفع.']);
+        }
+        $payment = $existing ?? new PaymentRequest();
+        if (!$existing) {
         $payment->payment_amount = $payment_info->getPaymentAmount();
         $payment->success_hook = $payment_info->getSuccessHook();
         $payment->failure_hook = $payment_info->getFailureHook();
@@ -35,6 +58,7 @@ trait Payment
         $payment->attribute_id = $payment_info->getAttributeId();
         $payment->payment_platform = $payment_info->getPaymentPlatForm();
         $payment->save();
+        }
 
         $routes = [
             'ssl_commerz' => 'payment/sslcommerz/pay',

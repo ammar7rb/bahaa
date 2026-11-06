@@ -100,7 +100,7 @@
                                 </div>
                                 <p class="fs-10 mb-0 text-center">
                                     {{ getFileUploadFormats(skip: '.svg,.gif', asBladeMessage: true).' '. translate('Image_size'). ' : '. translate('Max').' '. getFileUploadMaxSize() . 'MB' }}
-                                    <span class="text-dark fw-semibold">{{ THEME_RATIO[theme_root_path()]['Meta Thumbnail'] }}</span>
+                                    <span class="text-dark fw-semibold">{{ (THEME_RATIO[theme_root_path()]['Meta Thumbnail'] ?? THEME_RATIO['default']['Meta Thumbnail']) }}</span>
                                 </p>
                             </div>
                         </div>

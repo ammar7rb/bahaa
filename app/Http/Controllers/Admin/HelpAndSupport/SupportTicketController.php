@@ -13,6 +13,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Devrabiul\ToastMagic\Facades\ToastMagic;
+use App\Models\SupportTicket;
+use App\Services\CustomerActivationService;
 
 class SupportTicketController extends BaseController
 {
@@ -37,7 +39,7 @@ class SupportTicketController extends BaseController
         $tickets = $this->supportTicketRepo->getListWhere(
             orderBy: ['updated_at' => 'desc'],
             searchValue: $request->get('searchValue'),
-            filters: ['priority' => $request['priority'], 'status' => $request['status']],
+            filters: ['priority' => $request['priority'], 'status' => $request['status'], 'purpose' => $request['purpose'], 'archived' => $request->input('archived', 'active')],
             relations: ['customer'],
             dataLimit: getWebConfig('pagination_limit')
         );
@@ -47,8 +49,13 @@ class SupportTicketController extends BaseController
     public function updateStatus(Request $request): JsonResponse
     {
         $ticket = $this->supportTicketRepo->getFirstWhere(params:['id' => $request['id']]);
+        abort_unless($ticket, 404);
         $status = $ticket['status'] == 'open' ? 'close' : 'open';
-        $this->supportTicketRepo->update(id: $ticket['id'], data: ['status' => $status]);
+        $this->supportTicketRepo->update(id: $ticket['id'], data: [
+            'status' => $status,
+            'closed_at' => $status === 'close' ? now() : null,
+            'archived_at' => $status === 'open' ? null : $ticket->archived_at,
+        ]);
 
         return response()->json(['message' => translate('Support_ticket_status_updated')]);
     }
@@ -56,11 +63,46 @@ class SupportTicketController extends BaseController
     public function getView($id): View
     {
         $supportTicket = $this->supportTicketRepo->getListWhere(filters: ['id'=>$id], relations: ['conversations'], dataLimit: 'all');
+        abort_if($supportTicket->isEmpty(), 404);
+        $ticket = $supportTicket->first();
+        app(\App\Services\AdminWorkspaceService::class)->markTicketRead((int) $ticket->id, (int) ($ticket->conversations->max('id') ?? 0));
         return view('admin-views.support-ticket.singleView', compact('supportTicket'));
     }
 
-    public function reply(SupportTicketRequest $request, SupportTicketService $supportTicketService): RedirectResponse
+    /** Polling endpoint used by the administrative support workspace. */
+    public function messages(int $id): JsonResponse
     {
+        $ticket = SupportTicket::query()->with(['conversations' => fn ($query) => $query->orderBy('id')])->findOrFail($id);
+        app(\App\Services\AdminWorkspaceService::class)->markTicketRead((int) $ticket->id, (int) ($ticket->conversations->max('id') ?? 0));
+
+        return response()->json([
+            'ticket_id' => $ticket->id,
+            'status' => $ticket->status,
+            'messages' => $ticket->conversations->map(fn ($conversation) => [
+                'id' => $conversation->id,
+                'sender_type' => $conversation->admin_id ? 'admin' : 'customer',
+                'body' => $conversation->admin_message ?: $conversation->customer_message,
+                'created_at' => optional($conversation->created_at)->format('Y-m-d H:i'),
+            ])->values(),
+        ]);
+    }
+
+    public function print(int $id): View
+    {
+        $ticket = SupportTicket::query()
+            ->with(['customer', 'conversations.adminInfo'])
+            ->findOrFail($id);
+
+        return view('admin-views.support-ticket.print', compact('ticket'));
+    }
+
+    public function reply(SupportTicketRequest $request, SupportTicketService $supportTicketService): RedirectResponse|JsonResponse
+    {
+        $ticket = $this->supportTicketRepo->getFirstWhere(params: ['id' => $request['id']]);
+        if (!$ticket || $ticket->archived_at) {
+            ToastMagic::warning(translate('Invalid_ticket'));
+            return back();
+        }
         if ($request['media'] == null && $request['replay'] == null) {
             ToastMagic::warning(translate('type_something').'!');
             return back();
@@ -69,9 +111,31 @@ class SupportTicketController extends BaseController
             ToastMagic::warning(translate('you_cannot_send_more_than_189_characters_text_!'));
             return back();
         }
+        $request->merge(['adminId' => (int) auth('admin')->id()]);
         $dataArray = $supportTicketService->getAddData(request: $request);
         $this->supportTicketConvRepo->add(data: $dataArray);
-        $this->supportTicketRepo->update(id: $request['id'], data: ['status' => 'open']);
+        $this->supportTicketRepo->update(id: $request['id'], data: ['status' => 'open', 'closed_at' => null, 'archived_at' => null]);
+        if ($request->expectsJson()) {
+            return $this->messages((int) $request['id']);
+        }
+        return back();
+    }
+
+    public function activationDecision(Request $request, int $id, CustomerActivationService $service): RedirectResponse
+    {
+        $data = $request->validate([
+            'decision' => 'required|in:approve,reject,request_completion',
+            'note' => 'nullable|string|max:1000',
+        ]);
+
+        $service->decide(
+            SupportTicket::query()->with('customer')->findOrFail($id),
+            $data['decision'],
+            $data['note'] ?? null,
+            (int) auth('admin')->id(),
+        );
+
+        ToastMagic::success(translate('customer_activation_decision_saved'));
         return back();
     }
 

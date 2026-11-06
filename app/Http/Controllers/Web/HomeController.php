@@ -19,6 +19,7 @@ use App\Models\Product;
 use App\Models\Seller;
 use App\Models\Review;
 use App\Utils\ProductManager;
+use App\Services\HomepageSectionBuilderService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -38,6 +39,7 @@ class HomeController extends Controller
         private readonly Review       $review,
         private readonly DealOfTheDay $dealOfTheDay,
         private readonly Banner       $banner,
+        private readonly HomepageSectionBuilderService $homepageBuilder,
     )
     {
     }
@@ -45,7 +47,7 @@ class HomeController extends Controller
 
     public function index(): View
     {
-        $themeName = theme_root_path();
+        $themeName = theme_base_path();
         return match ($themeName) {
             'default' => self::default_theme(),
             'theme_aster' => self::theme_aster(),
@@ -56,7 +58,7 @@ class HomeController extends Controller
     public function default_theme(): View
     {
         $homepagePromotedProducts = ProductManager::markHomepagePromotedProducts(
-            ProductManager::getHomepagePromotedProductsQuery()->limit(12)->get()
+            ProductManager::getHomepagePromotedProductsQuery('homepage_featured')->limit(12)->get()
         );
         $brands = $this->cachePriorityWiseBrandList();
         $homeCategories = $this->cacheHomeCategoriesList();
@@ -97,12 +99,22 @@ class HomeController extends Controller
             ->first();
 
         $robotsMetaContentData = \App\Models\RobotsMetaContent::where('page_name', 'default')->first();
+        $homepageLayout = $this->homepageBuilder->layout('default');
+        $homepagePromotedProducts = $this->homepageBuilder->resolveProducts('default', 'paid_ads', $homepagePromotedProducts, $homepageLayout);
+        $featuredProductsList = $this->homepageBuilder->resolveProducts('default', 'featured_products', collect($featuredProductsList), $homepageLayout);
+        $newArrivalProducts = $this->homepageBuilder->resolveProducts('default', 'latest_products', collect($newArrivalProducts), $homepageLayout);
+        $latestProductsList = $newArrivalProducts;
+        $bestSellProduct = $this->homepageBuilder->resolveProducts('default', 'best_selling', collect($bestSellProduct), $homepageLayout);
+        $topRatedProducts = $this->homepageBuilder->resolveProducts('default', 'top_rated', collect($topRatedProducts), $homepageLayout);
+        $bannerTypeMainBanner = $this->homepageBuilder->resolveBanners('default', 'main_banner', collect($bannerTypeMainBanner), $homepageLayout);
+        $bannerTypeMainSectionBanner = $this->homepageBuilder->resolveBanners('default', 'main_section_banner', collect($bannerTypeMainSectionBanner ? [$bannerTypeMainSectionBanner] : []), $homepageLayout)->first();
+        $bannerTypeFooterBanner = $this->homepageBuilder->resolveBanners('default', 'footer_banners', collect($bannerTypeFooterBanner), $homepageLayout);
 
         return view(VIEW_FILE_NAMES['home'],
             compact(
                 'flashDeal', 'homepagePromotedProducts', 'featuredProductsList', 'topRatedProducts', 'bestSellProduct', 'latestProductsList', 'categories', 'brands',
                 'dealOfTheDay', 'topVendorsList', 'homeCategories', 'bannerTypeMainBanner', 'bannerTypeMainSectionBanner',
-                'current_date', 'recommendedProduct', 'bannerTypeFooterBanner', 'newArrivalProducts', 'clearanceSaleProducts', 'robotsMetaContentData'
+                'current_date', 'recommendedProduct', 'bannerTypeFooterBanner', 'newArrivalProducts', 'clearanceSaleProducts', 'robotsMetaContentData', 'homepageLayout'
             )
         );
     }
@@ -110,7 +122,7 @@ class HomeController extends Controller
     public function theme_aster(): View
     {
         $homepagePromotedProducts = ProductManager::markHomepagePromotedProducts(
-            ProductManager::getHomepagePromotedProductsQuery()->limit(12)->get()
+            ProductManager::getHomepagePromotedProductsQuery('homepage_featured')->limit(12)->get()
         );
         $moreVendors = $this->cacheHomePageMoreVendorsList();
         $homeCategories = $this->cacheHomeCategoriesList();
@@ -339,13 +351,23 @@ class HomeController extends Controller
         }
 
         $robotsMetaContentData = \App\Models\RobotsMetaContent::where('page_name', 'default')->first();
+        $homepageLayout = $this->homepageBuilder->layout(theme_root_path());
+        $careSavingsProducts = theme_root_path() === 'theme_sigma_care'
+            ? $this->homepageBuilder->resolveProducts(theme_root_path(), 'featured_deals', collect(), $homepageLayout) : collect();
+        $homepagePromotedProducts = $this->homepageBuilder->resolveProducts(theme_root_path(), 'paid_ads', $homepagePromotedProducts, $homepageLayout);
+        $featuredProductsList = $this->homepageBuilder->resolveProducts(theme_root_path(), 'featured_products', collect($featuredProductsList), $homepageLayout);
+        $latestProductsList = $this->homepageBuilder->resolveProducts(theme_root_path(), 'latest_products', collect($latestProductsList), $homepageLayout);
+        $bestSellProduct = $this->homepageBuilder->resolveProducts(theme_root_path(), 'best_selling', collect($bestSellProduct), $homepageLayout);
+        $topRatedProducts = $this->homepageBuilder->resolveProducts(theme_root_path(), 'top_rated', collect($topRatedProducts), $homepageLayout);
+        $bannerTypeMainBanner = $this->homepageBuilder->resolveBanners(theme_root_path(), 'main_banner', collect($bannerTypeMainBanner), $homepageLayout);
+        $bannerTypeMainSectionBanner = $this->homepageBuilder->resolveBanners(theme_root_path(), 'main_section_banner', collect($bannerTypeMainSectionBanner ? [$bannerTypeMainSectionBanner] : []), $homepageLayout)->first();
 
         return view(VIEW_FILE_NAMES['home'],
             compact(
-                'flashDeal', 'homepagePromotedProducts', 'topRatedProducts', 'bestSellProduct', 'latestProductsList', 'featuredProductsList', 'dealOfTheDay', 'topVendorsList',
+                'flashDeal', 'careSavingsProducts', 'homepagePromotedProducts', 'topRatedProducts', 'bestSellProduct', 'latestProductsList', 'featuredProductsList', 'dealOfTheDay', 'topVendorsList',
                 'homeCategories', 'bannerTypeMainBanner', 'bannerTypeFooterBanner', 'randomSingleProduct', 'decimal_point_settings', 'justForYouProducts', 'moreVendors',
                 'final_category', 'category_slider', 'order_again', 'bannerTypeSidebarBanner', 'bannerTypeMainSectionBanner', 'random_coupon', 'bannerTypeTopSideBanner',
-                'categories', 'topVendorsListSectionShowingStatus', 'clearanceSaleProducts', 'recommendedProduct', 'robotsMetaContentData'
+                'categories', 'topVendorsListSectionShowingStatus', 'clearanceSaleProducts', 'recommendedProduct', 'robotsMetaContentData', 'homepageLayout'
             )
         );
     }

@@ -13,8 +13,15 @@
         </div>
         <div class="row">
             <div class="col-sm-12 col-lg-12 mb-3 mb-lg-2">
+                @php($couponCreationAllowed = $couponEntitlement['allowed'] ?? false)
                 <div class="card">
                     <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                            <strong>{{ translate('Coupon_Package_Quota') }}</strong>
+                            <span class="badge badge-soft-{{ $couponCreationAllowed ? 'success' : 'warning' }}">
+                                {{ $couponEntitlement['remaining'] ?? 0 }} {{ translate('Remaining') }}
+                            </span>
+                        </div>
                         <form action="{{ route('vendor.coupon.add') }}" method="post">
                             @csrf
                             <div class="row">
@@ -126,7 +133,7 @@
                                 <button class="btn btn-secondary px-4" type="reset">
                                     {{ translate('reset') }}
                                 </button>
-                                <button type="submit" class="btn btn--primary px-4">
+                                <button type="submit" class="btn btn--primary px-4" {{ $couponCreationAllowed ? '' : 'disabled' }}>
                                     {{ translate('submit') }}
                                 </button>
                             </div>
@@ -391,4 +398,3 @@
         });
     </script>
 @endpush
-

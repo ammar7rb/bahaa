@@ -63,7 +63,7 @@ class ShopViewController extends Controller
 
     public function seller_shop(Request $request, $slug): View|JsonResponse|Redirector|RedirectResponse
     {
-        $themeName = theme_root_path();
+        $themeName = theme_base_path();
         $shop = Shop::where('slug', $slug)->first();
 
         if (!$shop) {

@@ -2,8 +2,28 @@
 
 @section('title', translate('product_Preview'))
 
+@push('css_or_js')
+<link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-product-sigma.css') }}?v=20261023-1">
+@endpush
+
 @section('content')
-    <div class="content container-fluid text-start">
+@if($product->category_review_required)<div class="alert alert-warning m-3" role="alert">{{ translate('other_category_review') }} · {{ translate('category_assignment_required_before_publish') }}</div>@endif
+    <div class="content container-fluid text-start sigma-product">
+        @if($product->added_by === 'seller')
+            @php
+                $viewCounts = app(\App\Services\ProductViewCountService::class)->totals((int) $product->id);
+            @endphp
+            <div class="card mb-3"><div class="card-body">
+                <h3 class="fs-16">مشاهدات المنتج</h3>
+                <p>المسجلة: {{ $viewCounts['actual'] }} · المضافة: {{ $viewCounts['added'] }} · الظاهرة للتاجر: {{ $viewCounts['total'] }}</p>
+                <form method="post" action="{{ route('admin.products.view-adjustments', $product->id) }}" class="d-flex flex-wrap gap-2 align-items-end">
+                    @csrf
+                    <label>عدد المشاهدات للإضافة <input class="form-control" type="number" name="amount" min="1" max="1000000" required></label>
+                    <button type="submit" class="btn btn-primary">إضافة مشاهدات</button>
+                </form>
+                @error('amount') <div class="text-danger" role="alert">{{ $message }}</div> @enderror
+            </div></div>
+        @endif
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
             <div class="flex-grow-1">
                 <h2 class="h1 text-capitalize mb-1">
@@ -14,20 +34,6 @@
                 </p>
             </div>
             <div class="d-flex align-items-stretch justify-content-end flex-wrap gap-3">
-                @if ($product['added_by'] == 'seller' && ($product['request_status'] == 0 || $product['request_status'] == 1))
-                <button class="btn btn-danger min-w-120" data-bs-toggle="modal" data-bs-target="#publishNoteModal">
-                    <i class="fi fi-sr-cross-circle"></i>
-                    {{ translate('denied') }}
-                </button>
-                @endif
-                @if ($product['request_status'] == 0)
-                <button class="btn btn-success min-w-120 update-status" data-id="{{ $product['id'] }}"
-                    data-redirect-route="{{ route('admin.products.list', ['vendor', 'status' => $product['request_status']]) }}"
-                    data-message="{{ translate('want_to_approve_this_product_request') . '?' }}" data-status="1">
-                    <i class="fi fi-sr-check-circle"></i>
-                    {{ translate('approve') }}
-                </button>
-                @endif
                 @if ($product['added_by'] == 'seller' && $product['request_status'] == 2)
                 <div class="bg-danger bg-opacity-10 fs-12 px-2 py-1 rounded max-w-500">
                     <span>
@@ -37,7 +43,7 @@
                 </div>
                 @endif
                     <button type="button"
-                            class="btn border text-danger bg-white icon-btn delete-data"
+                            class="btn border text-danger bg-white icon-btn delete-data" aria-label="حذف المنتج"
                             data-id="product-{{ $product['id'] }}"
                             style="--size: 45px;">
                         <i class="fi fi-rr-trash d-flex"></i>
@@ -75,11 +81,51 @@
                     </label>
                     </form>
                 @php
-                    $buttonText = $product['request_status'] == 1 ? translate('Edit') : translate('Edit_&_Approved');
+                    $buttonText = $product['added_by'] === 'seller' ? 'تعديل نسخة العميل' : ($product['request_status'] == 1 ? translate('Edit') : translate('Edit_&_Approved'));
                 @endphp
                 <a href="{{ route('admin.products.update', [$product['id']]) }}" class="btn btn-primary min-w-120"><i class="fi fi-sr-pencil"></i>{{$buttonText}}</a>
             </div>
         </div>
+        @if(session('editorial_confirmed'))<div class="alert alert-success" role="status">تم تأكيد التحرير. يمكنك الآن اعتماد ونشر المنتج.</div>@endif
+        <?php $sigmaWorkspace = app(\App\Services\VendorProductWorkspaceService::class)->state($product); ?>
+        @if($product['added_by'] === 'seller')
+            <div class="card mb-4" id="seller-product-review">
+                <div class="card-header"><h3 class="mb-0"><i class="fi fi-rr-shield-check" aria-hidden="true"></i> بيانات التاجر ونشر المنتج</h3></div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('seller_identifier') }}</span><a href="{{ route('admin.vendors.view', $product->user_id) }}" class="fw-bold">M{{ $product->user_id }}</a></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('shop') }}</span><strong>{{ $product->seller?->shop?->name ?? translate('shop_not_found') }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('phone') }}</span><strong>{{ $product->seller?->phone ?? '—' }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('account_status') }}</span><strong>{{ translate($product->seller?->status ?? 'unknown') }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">سعر التاجر الأصلي</span><strong>{{ webCurrencyConverter($sigmaWorkspace?->seller_content['unit_price'] ?? $product->unit_price) }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">{{ translate('quantity') }}</span><strong>{{ $product->current_stock }}</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">سعر البيع للعميل</span><strong>{{ webCurrencyConverter($product->unit_price) }}</strong></div>
+                        @if($product->production_date)<div class="col-md-3"><span class="text-muted d-block">{{ translate('production_date') }}</span><strong>{{ optional($product->production_date)->format('Y-m-d') ?? '—' }}</strong></div>@endif
+                        @if($product->expiry_date)<div class="col-md-3"><span class="text-muted d-block">{{ translate('expiry_date') }}</span><strong>{{ optional($product->expiry_date)->format('Y-m-d') ?? '—' }}</strong></div>@endif
+                    </div>
+                    <form method="post" action="{{ route('admin.products.review-decision') }}" class="row g-3 align-items-end">
+                        @csrf
+                        <input type="hidden" name="product_id" value="{{ $product->id }}">
+                        <input type="hidden" name="decision" value="approve">
+                        <div class="col-12 order-last"><button class="btn btn-primary" type="submit"><i class="fi fi-rr-check" aria-hidden="true"></i> <span data-review-submit-label>اعتماد ونشر المنتج</span></button></div>
+                        <div class="col-12">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="show-on-homepage" name="show_on_homepage" value="1" @checked((int) $product->is_homepage_visible === 1)>
+                                <label class="form-check-label fw-semibold" for="show-on-homepage">{{ translate('show_product_on_homepage') }}</label>
+                                <div class="text-muted fs-12">{{ translate('product_search_visibility_note') }}</div>
+                            </div>
+                        </div>
+                    </form>
+                    @if($product->reviewDecisions->isNotEmpty())
+                        <details class="sigma-history mt-3"><summary><i class="fi fi-rr-time-past" aria-hidden="true"></i> سجل قرارات المراجعة ({{ $product->reviewDecisions->count() }})</summary><div class="table-responsive mt-3"><table class="table"><thead><tr><th>{{ translate('decision') }}</th><th>{{ translate('reason') }}</th><th>{{ translate('employee') }}</th><th>{{ translate('date') }}</th></tr></thead><tbody>@foreach($product->reviewDecisions as $item)<tr><td>{{ translate($item->decision) }}</td><td>{{ $item->reason ?: '—' }}</td><td>{{ $item->admin?->name ?? ('#'.$item->admin_id) }}</td><td>{{ $item->created_at }}</td></tr>@endforeach</tbody></table></div></details>
+                    @endif
+                </div>
+            </div>
+        @endif
+        @if($product->added_by === 'seller' && $product->product_type === 'physical')
+            @include('admin-views.product.partials._sigma-detail')
+    </div>
+        @else
         <div class="row g-4">
             <div class="col-12">
                 <div class="card card-top-bg-element">
@@ -449,11 +495,6 @@
                                             </div>
                                         @endif
 
-                                        <div>
-                                            <span class="key text-capitalize">{{ translate('product_type') }}</span>
-                                            <span>:</span>
-                                            <span class="value">{{ translate($product->product_type) }}</span>
-                                        </div>
                                         @if ($product->product_type == 'physical')
                                             <div>
                                                 <span class="key text-capitalize">{{ translate('product_unit') }}</span>
@@ -1102,6 +1143,7 @@
             </div>
         </div>
     </div>
+        @endif
     <span id="get-update-status-route" data-action="{{ route('admin.products.approve-status') }}"></span>
 
     @include('admin-views.product.partials.modal._video-view-modal')

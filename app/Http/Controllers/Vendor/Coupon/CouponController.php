@@ -11,13 +11,16 @@ use App\Http\Controllers\BaseController;
 use App\Http\Requests\Vendor\CouponRequest;
 use App\Http\Requests\Vendor\CouponUpdateRequest;
 use App\Services\CouponService;
+use App\Services\SellerCouponEntitlementService;
 use Devrabiul\ToastMagic\Facades\ToastMagic;
+use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -32,6 +35,7 @@ class CouponController extends BaseController
         private readonly CouponRepositoryInterface   $couponRepo,
         private readonly CustomerRepositoryInterface $customerRepo,
         private readonly VendorRepositoryInterface   $vendorRepo,
+        private readonly SellerCouponEntitlementService $couponEntitlementService,
     )
     {
     }
@@ -62,7 +66,9 @@ class CouponController extends BaseController
             dataLimit: getWebConfig(name: 'pagination_limit')
         );
         $customers = $this->customerRepo->getListWhereNotIn([0]);
-        return view(Coupon::INDEX[VIEW], compact('coupons', 'customers', 'searchValue'));
+        $seller = $this->vendorRepo->getFirstWhere(['id' => $vendorId]);
+        $couponEntitlement = $seller ? $this->couponEntitlementService->getSummary($seller) : null;
+        return view(Coupon::INDEX[VIEW], compact('coupons', 'customers', 'searchValue', 'couponEntitlement'));
     }
 
     /**
@@ -76,7 +82,20 @@ class CouponController extends BaseController
         if (!$couponService->checkConditions(request: $request)) {
             return redirect()->back();
         }
-        $this->couponRepo->add($couponService->getCouponData(request: $request, addedBy: 'seller'));
+        try {
+            DB::transaction(function () use ($couponService) {
+                $seller = $this->vendorRepo->getFirstWhere(['id' => auth('seller')->id()]);
+                if (! $seller) {
+                    throw new DomainException('seller_not_found');
+                }
+                $this->couponEntitlementService->consumeCouponQuota($seller);
+                // Coupon is persisted only after its package quota is locked and consumed.
+                $this->couponRepo->add($couponService->getCouponData(request: request(), addedBy: 'seller'));
+            });
+        } catch (DomainException $exception) {
+            ToastMagic::warning(translate($exception->getMessage()));
+            return redirect()->back();
+        }
         ToastMagic::success(translate('coupon_added_successfully'));
         return redirect()->back();
     }

@@ -10,6 +10,16 @@ class ImageManager
 {
     public static function upload(string $dir, string $format, $image, $file_type = 'image'): string
     {
+        if ($image !== null && in_array($dir, ['profile/', 'seller/'], true)) {
+            $name = \Illuminate\Support\Str::uuid().'.webp';
+            $encoded = Image::make($image)->orientate()->encode('webp', 85);
+            if (!Storage::disk('local')->put('private-account-photos/'.$dir.$name, (string) $encoded)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['image' => 'تعذر حفظ صورة الحساب.']);
+            }
+
+            return $name;
+        }
+
         $storage = config('filesystems.disks.default') ?? 'public';
         if ($image != null) {
             if (!Storage::disk($storage)->exists($dir)) {
@@ -55,6 +65,10 @@ class ImageManager
 
     public static function update(string $dir, $old_image, string $format, $image, $file_type = 'image'): string
     {
+        if ($file_type === 'image' && $image !== null && in_array($dir, ['profile/', 'seller/'], true)) {
+            return self::upload($dir, $format, $image);
+        }
+
         if (self::checkFileExists(filePath: $dir.$old_image)['status']) {
             Storage::disk(self::checkFileExists(filePath: $dir . $old_image)['disk'])->delete($dir . $old_image);
         }
@@ -64,6 +78,9 @@ class ImageManager
 
     public static function delete($full_path): array
     {
+        if (preg_match('~\A(?:profile|seller)/[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+\z~', $full_path)) {
+            Storage::disk('local')->delete('private-account-photos/'.$full_path);
+        }
         if (self::checkFileExists(filePath: $full_path)['status']) {
             Storage::disk(self::checkFileExists(filePath: $full_path)['disk'])->delete($full_path);
         }

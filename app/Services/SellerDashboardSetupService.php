@@ -9,7 +9,6 @@ class SellerDashboardSetupService
 {
     public function __construct(
         private readonly SellerRegistrationVerificationService $registrationVerificationService,
-        private readonly SellerInsuranceService $sellerInsuranceService,
         private readonly SellerPackagePurchaseService $sellerPackagePurchaseService,
         private readonly SellerProductEntitlementService $sellerProductEntitlementService,
         private readonly SellerProductPromotionService $sellerProductPromotionService,
@@ -19,7 +18,6 @@ class SellerDashboardSetupService
     public function getSummary(Seller $seller): array
     {
         $registration = $this->registrationVerificationService->getEligibility($seller);
-        $insurance = $this->sellerInsuranceService->getSummary($seller);
         $package = $this->sellerPackagePurchaseService->getSummary($seller);
         $products = $this->sellerProductEntitlementService->getSummary($seller);
         $searchPromotions = $this->sellerProductPromotionService->getSearchSummary($seller);
@@ -34,21 +32,6 @@ class SellerDashboardSetupService
 
         $steps = [
             [
-                'key' => 'account',
-                'completed' => $registration['can_login'],
-                'state' => $registration['next_step'],
-            ],
-            [
-                'key' => 'insurance',
-                'completed' => $insurance['active'],
-                'state' => $insurance['pending_review'] ? 'pending_review' : ($insurance['active'] ? 'active' : 'required'),
-            ],
-            [
-                'key' => 'package',
-                'completed' => (bool) $package['active_subscription'],
-                'state' => $package['pending_review'] ? 'pending_review' : ($package['active_subscription'] ? 'active' : 'required'),
-            ],
-            [
                 'key' => 'products',
                 'completed' => $publishedProducts > 0,
                 'state' => $publishedProducts > 0 ? 'published' : 'not_published',
@@ -57,8 +40,8 @@ class SellerDashboardSetupService
 
         return [
             'registration' => $registration,
-            'insurance' => $insurance,
             'package' => $package,
+            'advertising_package_optional' => !config('vendor_advertising.enabled'),
             'products' => $products,
             'search_promotions' => $searchPromotions,
             'homepage_promotions' => $homepagePromotions,
@@ -69,9 +52,6 @@ class SellerDashboardSetupService
             'completion_percentage' => (int) round(collect($steps)->where('completed', true)->count() / count($steps) * 100),
             'next_step' => $this->resolveNextStep(
                 registration: $registration,
-                insurance: $insurance,
-                package: $package,
-                products: $products,
                 publishedProducts: $publishedProducts,
             ),
         ];
@@ -79,25 +59,13 @@ class SellerDashboardSetupService
 
     private function resolveNextStep(
         array $registration,
-        array $insurance,
-        array $package,
-        array $products,
         int $publishedProducts,
     ): string {
         if (! $registration['can_login']) {
             return $registration['next_step'];
         }
-        if (! $insurance['active']) {
-            return $insurance['pending_review'] ? 'insurance_pending_review' : 'activate_insurance';
-        }
-        if (! $package['active_subscription']) {
-            return $package['pending_review'] ? 'package_pending_review' : 'choose_package';
-        }
-        if ($publishedProducts === 0 && $products['can_add_product']) {
+        if ($publishedProducts === 0) {
             return 'add_first_product';
-        }
-        if (! $products['can_add_product']) {
-            return 'product_limit_reached';
         }
 
         return 'manage_products';

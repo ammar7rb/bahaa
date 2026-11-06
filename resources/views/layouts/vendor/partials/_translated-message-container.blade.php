@@ -24,7 +24,6 @@
 <span id="message-you-will-not-be-able-to-revert-this"
       data-text="{{ translate('you_will_not_be_able_to_revert_this') }}"></span>
 <span id="exceeds10MBSizeLimit" data-text="{{ translate('File_exceeds_10MB_size_limit') }}"></span>
-<span id="getChattingNewNotificationCheckRoute" data-route="{{ route('vendor.messages.new-notification') }}"></span>
 <span id="get-search-vendor-product-for-clearance-route"
       data-action="{{route('vendor.clearance-sale.search-product-for-clearance')}}"></span>
 <span id="get-multiple-clearance-product-details-route"

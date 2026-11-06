@@ -16,6 +16,12 @@ use RuntimeException;
 
 class CustomerPurchaseLimitService
 {
+    /** Customer packages are suspended; historical records remain unchanged. */
+    public function isFeatureEnabled(): bool
+    {
+        return false;
+    }
+
     private function getCustomerId(mixed $customer): ?int
     {
         if (is_object($customer)) {
@@ -71,6 +77,20 @@ class CustomerPurchaseLimitService
 
     public function getLimitSummary(mixed $customer): array
     {
+        if (!$this->isFeatureEnabled()) {
+            return [
+                'has_active_package' => true,
+                'feature_enabled' => false,
+                'subscription' => null,
+                'package_limit' => 0.0,
+                'used_limit' => 0.0,
+                'extra_credit_limit' => 0.0,
+                'admin_adjustment_limit' => 0.0,
+                'total_limit' => 0.0,
+                'available_limit' => 0.0,
+            ];
+        }
+
         $subscription = $this->getActiveSubscription($customer);
 
         if (!$subscription) {
@@ -131,7 +151,7 @@ class CustomerPurchaseLimitService
         $cartProductTotal = is_null($cartList)
             ? $this->getCheckedCartProductTotal()
             : $this->getCartProductTotal($cartList);
-        $shortage = max($cartProductTotal - $summary['available_limit'], 0);
+        $shortage = $this->isFeatureEnabled() ? max($cartProductTotal - $summary['available_limit'], 0) : 0.0;
 
         return [
             'customer_id' => $this->getCustomerId($customer),
@@ -145,14 +165,23 @@ class CustomerPurchaseLimitService
             'total_limit' => $summary['total_limit'],
             'available_limit' => $summary['available_limit'],
             'shortage' => $shortage,
-            'can_checkout' => $summary['has_active_package'] && $shortage <= 0,
-            'extra_credit' => $this->calculateExtraCreditSuggestion($shortage),
+            'can_checkout' => !$this->isFeatureEnabled() || ($summary['has_active_package'] && $shortage <= 0),
+            'extra_credit' => $this->isFeatureEnabled() ? $this->calculateExtraCreditSuggestion($shortage) : $this->calculateExtraCreditSuggestion(0),
         ];
     }
 
     public function validateCheckoutAccess(mixed $customer, Collection|EloquentCollection|array|null $cartList = null): array
     {
         $assessment = $this->getCheckoutLimitAssessment(customer: $customer, cartList: $cartList);
+
+        if (!$this->isFeatureEnabled()) {
+            return [
+                'status' => 1,
+                'code' => 'customer_purchase_packages_suspended',
+                'message' => translate('purchase_limit_available'),
+                'assessment' => $assessment,
+            ];
+        }
 
         if (!$assessment['has_active_package']) {
             return [
@@ -326,6 +355,10 @@ class CustomerPurchaseLimitService
 
     public function debitOrderLimit(Order $order): array
     {
+        if (!$this->isFeatureEnabled()) {
+            return ['status' => 1, 'message' => 'customer_purchase_packages_suspended'];
+        }
+
         if ((int) $order->is_guest === 1 || !$order->customer_id) {
             return ['status' => 0, 'message' => 'guest_order'];
         }
@@ -399,6 +432,7 @@ class CustomerPurchaseLimitService
 
     public function returnOrderLimit(Order $order, string $transactionType = 'order_cancel_return', ?string $reference = null, ?float $amount = null, array $metadata = []): array
     {
+        if (app(CustomerMonthlyAllowanceService::class)->enabled() && DB::table('customer_monthly_limit_entries')->where('order_id',$order->id)->exists()) return app(CustomerMonthlyAllowanceService::class)->restoreOrder($order, $amount, $transactionType.':'.($reference ?: $order->id));
         if ((int) $order->is_guest === 1 || !$order->customer_id) {
             return ['status' => 0, 'message' => 'guest_order'];
         }

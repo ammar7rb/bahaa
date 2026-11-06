@@ -38,6 +38,7 @@ use App\Models\OrderTransaction;
 use App\Models\ReferralCustomer;
 use App\Models\WalletTransaction;
 use App\Services\CustomerPurchaseLimitService;
+use App\Services\CustomerThreeStepShippingService;
 use Illuminate\Support\Facades\DB;
 use App\Models\DigitalProductVariation;
 use Modules\TaxModule\app\Traits\VatTaxManagement;
@@ -57,7 +58,12 @@ class OrderManager
     public static function getOrderSummaryBeforePlaceOrder($cart, $coupon_discount): array
     {
         $coupon_code = session()->has('coupon_code') ? session('coupon_code') : 0;
-        $coupon = Coupon::where(['code' => $coupon_code])->where('status', 1)->first();
+        $customerCheckout = !auth('admin')->check() && !auth('seller')->check();
+        if ($customerCheckout) {
+            session()->forget(['coupon_code','coupon_discount','coupon_type','coupon_bearer','coupon_seller_id']);
+            $coupon_discount = 0;
+        }
+        $coupon = $customerCheckout ? null : Coupon::where(['code' => $coupon_code])->where('status', 1)->first();
 
         $subTotal = 0;
         $totalDiscountOnProduct = 0;
@@ -82,6 +88,7 @@ class OrderManager
     public static function getStockUpdateOnOrderStatusChange($order, $status): void
     {
         if ($status == 'returned' || $status == 'failed' || $status == 'canceled') {
+            app(\App\Services\OrderFinancialAuditService::class)->holdForReview($order, $status);
             foreach ($order->details as $detail) {
                 if ($detail['is_stock_decreased'] == 1) {
                     $product = Product::find($detail['product_id']);
@@ -140,11 +147,22 @@ class OrderManager
 
     public static function getWalletManageOnOrderStatusChange($order, $received_by): void
     {
+        $model = Order::findOrFail($order['id']);
+        app(\App\Services\SellerDeliveredEarningService::class)->record($model, fn () => self::calculateLegacyDeliveredWallet($order, $received_by));
+    }
+
+    private static function calculateLegacyDeliveredWallet($order, $received_by): void
+    {
         $order = Order::find($order['id']);
         $order_summary = OrderManager::getOrderTotalAndSubTotalAmountSummary($order);
         $order_amount = $order_summary['subtotal'] - $order_summary['total_discount_on_product'] - $order['discount_amount'];
         $commission = $order['admin_commission'];
         $shipping_model = $order->shipping_responsibility;
+        // Under the post-purchase contract, tax belongs exclusively to the
+        // second customer invoice. It must never be posted to a seller
+        // transaction or seller wallet when the order is later delivered.
+        $isPostPurchaseInvoiceOrder = $order->commerce_flow_version === \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION;
+        $sellerTax = $isPostPurchaseInvoiceOrder ? 0.0 : (float) $order_summary['total_tax'];
 
         OrderManager::getCheckOrCreateAdminWallet();
 
@@ -284,7 +302,7 @@ class OrderManager
                 'received_by' => $received_by,
                 'status' => 'disburse',
                 'delivery_charge' => $order['shipping_cost'] - ($order['is_shipping_free'] ? $order['extra_discount'] : 0),
-                'tax' => $order_summary['total_tax'],
+                'tax' => $sellerTax,
                 'delivered_by' => $received_by,
                 'payment_method' => $order['payment_method'],
                 'created_at' => now(),
@@ -304,11 +322,11 @@ class OrderManager
                 if ($shipping_model === 'sellerwise_shipping' && !$order['is_shipping_free']) {
                     $wallet->delivery_charge_earned += $order['shipping_cost'];
                 }
-                $wallet->total_tax_collected += $order_summary['total_tax'];
+                $wallet->total_tax_collected += $sellerTax;
             } else {
                 $wallet = SellerWallet::where('seller_id', $order['seller_id'])->first();
                 $wallet->commission_given += $commission;
-                $wallet->total_tax_collected += $order_summary['total_tax'];
+                $wallet->total_tax_collected += $sellerTax;
 
                 if ($shipping_model == 'sellerwise_shipping') {
                     if (!$order['is_shipping_free']) {
@@ -332,7 +350,7 @@ class OrderManager
                         $wallet->total_earning += ($currentOrderAmount - $commission);
                     }
                 } else {
-                    $wallet->total_earning += ($order_amount - $commission) + $order_summary['total_tax'];
+                    $wallet->total_earning += ($order_amount - $commission) + $sellerTax;
                 }
             }
             $wallet->save();
@@ -375,7 +393,7 @@ class OrderManager
                     if (!$order['is_shipping_free']) {
                         $wallet->delivery_charge_earned += $order['shipping_cost'];
                     }
-                    $currentOrderAmount = ($order_amount - $commission) + $order_summary['total_tax'] + ($order['is_shipping_free'] ? 0 : $order['shipping_cost']);
+                    $currentOrderAmount = ($order_amount - $commission) + $sellerTax + ($order['is_shipping_free'] ? 0 : $order['shipping_cost']);
                     $editHistoryAmount = OrderEditHistory::where([
                         'order_id' => $order->id,
                         'order_due_payment_status' => 'paid',
@@ -385,16 +403,17 @@ class OrderManager
 
                     $wallet->total_earning += $currentOrderAmount;
                 } else {
-                    $wallet->total_earning += ($order_amount - $commission) + $order_summary['total_tax'];
+                    $wallet->total_earning += ($order_amount - $commission) + $sellerTax;
                 }
             }
-            $wallet->total_tax_collected += $order_summary['total_tax'];
+            $wallet->total_tax_collected += $sellerTax;
             $wallet->save();
         }
     }
 
     public static function getOrderAddressId(string|null $type = 'shipping_address', int|null $id = null): int|null
     {
+        if (request()->is('api/*') && $id !== null) return $type === 'billing_address' && !getWebConfig('billing_input_by_customer') ? null : $id;
         $addressId = 0;
         if ($type == 'shipping_address') {
             $addressId = session('address_id') ? session('address_id') : 0;
@@ -421,6 +440,9 @@ class OrderManager
 
     public static function getTotalCouponAmount($request, $couponCode): array
     {
+        if (!auth('admin')->check() && !auth('seller')->check()) {
+            return ['status' => false, 'discount' => 0, 'total_cart_amount' => 0, 'messages' => 'أزيلت القسائم من سلة المشتريات.'];
+        }
         $user = Helpers::getCustomerInformation($request);
         if ($user == 'offline') {
             return [
@@ -800,6 +822,8 @@ class OrderManager
         $totalCouponDiscount = $totalCouponDiscountInfo['discount'] ?? 0;
 
         $vendorWiseCartList = [];
+        $shippingAddressId = $data['address_id'] ?? session('address_id');
+        $shippingAddress = $shippingAddressId ? ShippingAddress::find($shippingAddressId) : null;
         foreach ($cartListQueryGroup as $groupId => $cartListQueryGroupItem) {
 
             $couponInfo = OrderManager::getGroupWiseCouponArray(
@@ -811,6 +835,15 @@ class OrderManager
                 cartListGroup: $cartListQueryGroup
             );
             $shippingCost = CartManager::get_shipping_cost(groupId: $groupId, type: 'checked');
+            $cartShippingMethod = CartShipping::where(['cart_group_id' => $groupId])->first();
+            $threeStepShipping = app(CustomerThreeStepShippingService::class);
+            $shippingBreakdown = null;
+            if ($threeStepShipping->isEnabled() && $cartShippingMethod) {
+                $selectedMethod = $threeStepShipping->resolveSelectableMethod($cartShippingMethod->shipping_method_id);
+                $shippingBreakdown = $selectedMethod
+                    ? $threeStepShipping->getCartGroupShippingBreakdown($groupId, $selectedMethod, $shippingAddress)
+                    : null;
+            }
             $freeDelivery = OrderManager::getFreeDeliveryOrderAmountArray($groupId);
             $isShippingFree = 0;
             $freeShippingDiscount = 0;
@@ -833,8 +866,7 @@ class OrderManager
                 $shippingType = ShippingType::where(['seller_id' => $firstCartItem['seller_id']])->first();
             }
 
-            $shippingMethod = CartShipping::where(['cart_group_id' => $groupId])->first();
-            $shippingMethodId = isset($shippingMethod) ? $shippingMethod->shipping_method_id : 0;
+            $shippingMethodId = isset($cartShippingMethod) ? $cartShippingMethod->shipping_method_id : 0;
             $cartGroupOrderAmount = $cartGroupGrandTotal - ($couponInfo['discount'] ?? 0) - $freeShippingDiscount;
 
             $referAndEarnDiscount = OrderManager::redeemReferralDiscount(
@@ -853,6 +885,10 @@ class OrderManager
                 'coupon_discount' => $couponInfo['discount'] ?? 0,
                 'discount_type' => $couponInfo['discount'] == 0 ? null : 'coupon_discount',
                 'shipping_cost' => $shippingCost,
+                // Preserve the calculation per seller group for the order-review screen.
+                'shipping_quantity' => $shippingBreakdown['shipping_quantity'] ?? null,
+                'shipping_product_subtotal' => $shippingBreakdown['shipping_product_subtotal'] ?? null,
+                'shipping_quantity_surcharge' => $shippingBreakdown['shipping_quantity_surcharge'] ?? null,
                 'shipping_address_id' => OrderManager::getOrderAddressId(type: 'shipping_address', id: $data['address_id'] ?? null),
                 'billing_address_id' => OrderManager::getOrderAddressId(type: 'billing_address', id: $data['billing_address_id'] ?? null),
                 'shipping_type' => isset($shippingType?->shipping_type) ? $shippingType->shipping_type : 'order_wise',
@@ -870,15 +906,34 @@ class OrderManager
         return $vendorWiseCartList;
     }
 
+    public static function checkoutAddressIds(array|object|null $data): array
+    {
+        $input = $data['requestObj'] ?? null;
+        $ids = ['address_id' => $data['address_id'] ?? data_get($input, 'address_id') ?? session('address_id'),
+            'billing_address_id' => $data['billing_address_id'] ?? data_get($input, 'billing_address_id') ?? session('billing_address_id')];
+        $ids = \Illuminate\Support\Facades\Validator::make($ids, ['address_id'=>'nullable|integer|min:0', 'billing_address_id'=>'nullable|integer|min:0'])->validate();
+        foreach ($ids as $key => $id) $ids[$key] = $id ? (int)$id : null;
+        if ($input instanceof \Illuminate\Http\Request && $input->is('api/*')) {
+            $customer = Helpers::getCustomerInformation($input);
+            $guest = $customer === 'offline';
+            $customerId = $guest ? (int)$input->input('guest_id', session('guest_id', 0)) : (int)$customer->id;
+            foreach ($ids as $id) if ($id) {
+                abort_unless($customerId > 0 && ShippingAddress::where('customer_id', $customerId)->where('is_guest', $guest)->whereKey($id)->exists(), 404);
+            }
+        }
+        return $ids;
+    }
+
     public static function processOrderGenerateData(array|object|null $data = []): array
     {
         $taxConfig = self::getTaxSystemType();
         $cartItemsArray = [];
+        $addressIds = self::checkoutAddressIds($data);
 
         $vendorWiseCartList = OrderManager::getVendorWiseCartList(data: [
             'coupon_code' => $data['coupon_code'] ?? (session('coupon_code') ?? ''),
-            'address_id' => $data['address_id'] ?? session('address_id'),
-            'billing_address_id' => $data['billing_address_id'] ?? session('billing_address_id'),
+            'address_id' => $addressIds['address_id'],
+            'billing_address_id' => $addressIds['billing_address_id'],
             'requestObj' => $data['requestObj'] ?? null,
         ]);
 
@@ -901,6 +956,8 @@ class OrderManager
                 }
             }
 
+            $secondStage = app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled();
+            $taxForCustomer = $secondStage && getWebConfig(name: 'customer_second_invoice_tax_enabled') == 1;
             $vendorWiseCartAppliedTax = 0;
             $vendorWiseCart['applied_tax_cart_list'] = [];
             foreach ($vendorWiseCart['cart_list'] as $cartItem) {
@@ -927,6 +984,17 @@ class OrderManager
                         totalDiscountedPrice: $totalDiscountPrice,
                         applicableShippingAmount: $totalApplicableShippingAmount,
                     );
+                    if ($secondStage) {
+                        $appliedTaxAmount = $taxForCustomer
+                            ? self::customerProductTaxAmount(
+                                $totalDiscountPrice,
+                                $totalDiscountProductPrice,
+                                $vendorWiseCart['coupon_discount'] + $vendorWiseCart['refer_and_earn_discount'],
+                            ) : 0;
+                        $appliedShippingTaxAmount = 0;
+                        $appliedTaxIds = [];
+                        $appliedShippingTaxIds = [];
+                    }
 
                     $vendorWiseCartAppliedTax += $appliedTaxAmount;
                     $vendorWiseCartAppliedTax += $cartItem?->product?->product_type == 'digital' ? 0 : $appliedShippingTaxAmount;
@@ -949,19 +1017,57 @@ class OrderManager
                     ];
                 }
             }
+            $vendorWiseCartAppliedTax = round($vendorWiseCartAppliedTax, 4);
             $vendorWiseCart['total_tax_amount'] = $vendorWiseCartAppliedTax;
+            $vendorWiseCart['customer_tax_applied'] = $taxForCustomer;
             $vendorWiseCart['order_amount_with_tax'] = $vendorWiseCart['order_amount'] + $vendorWiseCartAppliedTax;
+            // Under the v3 contract, tax is deliberately not part of the
+            // first checkout payment. It is snapshotted into the second
+            // post-purchase invoice after merchandise payment succeeds.
+            $vendorWiseCart['first_payment_amount'] = $secondStage
+                ? max(0, $vendorWiseCart['order_amount'] - $vendorWiseCart['refer_and_earn_discount'])
+                : max(0, $vendorWiseCart['order_amount_with_tax'] - $vendorWiseCart['refer_and_earn_discount']);
             $modifiedVendorWiseCartList[] = $vendorWiseCart;
         }
 
         return $modifiedVendorWiseCartList;
     }
 
+    public static function customerProductTaxAmount(float $lineAmount, float $productSubtotal, float $couponAndReferralDiscount): float
+    {
+        if ($lineAmount <= 0 || $productSubtotal <= 0) return 0.0;
+
+        $discountShare = max(0, $couponAndReferralDiscount) * $lineAmount / $productSubtotal;
+        return round(max(0, $lineAmount - $discountShare) * 0.14, 4);
+    }
+
+    /** New vendor orders stay private until paid and administratively forwarded.
+     * The admin queue separately filters confirmed payments, including later confirmations.
+     */
+    public static function vendorReviewCreationFields(string $sellerIs): array
+    {
+        if ($sellerIs !== 'seller') return [];
+        return [
+            'commerce_flow_version' => config('order_commerce.new_flow_version'),
+            'commerce_flow_status' => \App\Support\Commerce\OrderCommerceState::PENDING_ADMIN_REVIEW,
+            'commerce_flow_status_updated_at' => now(),
+            'admin_order_review_status' => 'pending_admin_review',
+            'order_status' => 'pending',
+            'operational_blocked_by' => 'admin_review',
+            'operational_block_reason' => 'paid_order_requires_admin_assignment',
+        ];
+    }
+
     public static function getOrderAddData(int $orderId, string $orderGroupId, object|array $customerData = [], object|array $cartData = [], object|array $orderData = [], object|array $totalTax = []): array
     {
         $taxConfig = self::getTaxSystemType();
+        $postPurchaseInvoiceService = app(\App\Services\PostPurchaseInvoiceService::class);
+        $usesPostPurchaseInvoice = $postPurchaseInvoiceService->isEnabled();
         $adminCommission = (float)str_replace(",", "", Helpers::sales_commission_before_order($cartData['cart_group_id'], $cartData['coupon_discount']));
-        return [
+        $shippingPromise = app(\App\Services\ShippingPromiseService::class)
+            ->orderDatabaseSnapshot($cartData['shipping_method_id'] ?? null);
+
+        return array_replace([
             'id' => $orderId,
             'verification_code' => rand(100000, 999999),
             'customer_id' => $customerData['customer_id'],
@@ -970,7 +1076,9 @@ class OrderManager
             'seller_is' => $cartData['seller_is'],
             'customer_type' => 'customer',
             'payment_status' => $orderData['payment_status'],
-            'order_status' => $orderData['order_status'],
+            // A v3 order is kept in the administrative queue even if the
+            // merchandise payment itself is successful.
+            'order_status' => $usesPostPurchaseInvoice ? 'pending' : $orderData['order_status'],
             'activation_status' => $orderData['activation_status'] ?? 'not_required',
             'activation_pending_at' => $orderData['activation_pending_at'] ?? null,
             'activation_completed_at' => $orderData['activation_completed_at'] ?? null,
@@ -983,11 +1091,13 @@ class OrderManager
             'discount_type' => $cartData['discount_type'],
             'coupon_code' => $cartData['coupon_code'],
             'coupon_discount_bearer' => $cartData['coupon_bearer'],
-            'order_amount' => $cartData['order_amount_with_tax'] - $cartData['refer_and_earn_discount'],
-            'init_order_amount' => $cartData['order_amount_with_tax'] - $cartData['refer_and_earn_discount'],
+            // Keep the paid merchandise value on the order. The tax remains
+            // in total_tax_amount and is collected in PostPurchaseInvoice.
+            'order_amount' => $cartData['first_payment_amount'] ?? ($cartData['order_amount_with_tax'] - $cartData['refer_and_earn_discount']),
+            'init_order_amount' => $cartData['first_payment_amount'] ?? ($cartData['order_amount_with_tax'] - $cartData['refer_and_earn_discount']),
             'total_tax_amount' => $cartData['total_tax_amount'],
-            'tax_type' => $taxConfig['SystemTaxVatType'],
-            'tax_model' => $taxConfig['is_included'] ? 'include' : 'exclude',
+            'tax_type' => ! empty($cartData['customer_tax_applied']) ? 'customer_product_14' : $taxConfig['SystemTaxVatType'],
+            'tax_model' => ! empty($cartData['customer_tax_applied']) ? 'exclude' : ($taxConfig['is_included'] ? 'include' : 'exclude'),
             'bring_change_amount' => $orderData['payment_method'] == 'cash_on_delivery' ? $orderData['bring_change_amount'] ?? 0 : null,
             'bring_change_amount_currency' => $orderData['bring_change_amount_currency'] ?? null,
             'admin_commission' => $adminCommission,
@@ -997,17 +1107,35 @@ class OrderManager
             'billing_address_data' => getWebConfig('billing_input_by_customer') ? ShippingAddress::find($cartData['billing_address_id']) : null,
             'shipping_responsibility' => getWebConfig(name: 'shipping_method'),
             'shipping_cost' => $cartData['shipping_cost'],
+            'commerce_flow_version' => $usesPostPurchaseInvoice
+                ? \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION
+                : 'legacy_v1',
+            'post_purchase_status' => $usesPostPurchaseInvoice
+                ? (($orderData['payment_status'] ?? 'unpaid') === 'paid'
+                    ? \App\Services\PostPurchaseInvoiceService::ORDER_STATUS_AWAITING_PAYMENT
+                    : 'awaiting_first_payment')
+                : 'legacy',
+            'shipping_quantity' => $cartData['shipping_quantity'] ?? null,
+            'shipping_product_subtotal' => $cartData['shipping_product_subtotal'] ?? null,
+            'shipping_quantity_surcharge' => $cartData['shipping_quantity_surcharge'] ?? null,
             'extra_discount' => $cartData['free_delivery_discount'],
             'extra_discount_type' => $cartData['extra_discount_type'],
             'refer_and_earn_discount' => $cartData['refer_and_earn_discount'],
             'free_delivery_bearer' => $cartData['free_delivery_bearer'],
             'is_shipping_free' => $cartData['is_shipping_free'],
             'shipping_method_id' => $cartData['shipping_method_id'],
+            'shipping_promise_key' => $shippingPromise['shipping_promise_key'],
+            'shipping_eta_from' => $shippingPromise['shipping_eta_from'],
+            'shipping_eta_to' => $shippingPromise['shipping_eta_to'],
+            'shipping_duration_snapshot' => $shippingPromise['shipping_duration_snapshot'],
+            'sales_settlement_due_at' => $shippingPromise['sales_settlement_due_at'],
+            'shipping_settlement_due_at' => $shippingPromise['shipping_settlement_due_at'],
+            'shipping_due_separated' => $shippingPromise['shipping_due_separated'],
             'shipping_type' => $cartData['shipping_type'],
             'created_at' => now(),
             'updated_at' => now(),
-            'order_note' => $orderData['order_note'] ?? session('order_note'),
-        ];
+            'order_note' => auth('admin')->check() ? ($orderData['order_note'] ?? session('order_note')) : null,
+        ], self::vendorReviewCreationFields($cartData['seller_is']));
     }
 
     public static function addOrderDetailsData(int $orderId, object|array|null $vendorCart = []): void
@@ -1100,6 +1228,7 @@ class OrderManager
             Product::where(['id' => $product['id']])->update([
                 'current_stock' => $product['current_stock'] - $cartSingleItem['quantity']
             ]);
+            $orderDetails = app(\App\Services\VendorProductWorkspaceService::class)->snapshotOrderLine($orderDetails);
             $orderDetailsId = DB::table('order_details')->insertGetId($orderDetails);
 
             foreach ($vendorCart['applied_tax_cart_list'] as $cartItem) {
@@ -1223,6 +1352,50 @@ class OrderManager
 
     public static function generateOrder(object|array|null $data = []): array
     {
+        $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+        if (!$eligibility->enabled()) return self::generateCustomerOrderInternal($data);
+        return DB::transaction(function () use ($data, $eligibility) {
+            $info = self::getCustomerInfoForOrder(data: [
+                'is_guest' => $data['is_guest'] ?? null, 'guest_id' => $data['guest_id'] ?? null,
+                'customer_id' => $data['customer_id'] ?? null, 'requestObj' => $data['requestObj'] ?? null,
+            ]);
+            if ($info['is_guest'] || !$info['customer_id']) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['customer_eligibility' => 'أنشئ حسابًا أو سجل الدخول لإتمام الشراء.']);
+            }
+            if (!empty($data['customer_checkout_operation_id'])) {
+                $groups = [];
+                $operation = $eligibility->reserve((int) $info['customer_id'], '', $data['customer_checkout_operation_id'], $data['payment_method'] ?? '');
+            } else {
+                $groups = self::processOrderGenerateData(data: ['requestObj' => $data['requestObj'] ?? null, 'coupon_code' => $data['coupon_code'] ?? session('coupon_code')]);
+                $fingerprint = hash('sha256', json_encode($groups));
+                $operation = $eligibility->reserve((int) $info['customer_id'], $fingerprint, null, $data['payment_method'] ?? '', json_decode(json_encode($groups), true));
+            }
+            if ($operation->consumed_at) return json_decode($operation->order_ids, true) ?: [];
+            if (empty($data['customer_checkout_operation_id']) && \App\Models\PaymentRequest::where('payer_id', $info['customer_id'])->where('additional_data->customer_checkout_operation_id', $operation->id)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['payment' => 'تابع عملية الدفع الإلكتروني المحفوظة لتجنب تحصيل المبلغ مرتين.']);
+            }
+            if (!$groups && empty($operation->cart_snapshot)) throw \Illuminate\Validation\ValidationException::withMessages(['cart' => 'السلة فارغة. أضف المنتجات للمتابعة.']);
+            $data['customer_checkout_operation_id'] = $operation->id;
+            $data['customer_checkout_cart_snapshot'] = isset($operation->cart_snapshot) ? json_decode($operation->cart_snapshot, true) : null;
+            $ids = self::generateCustomerOrderInternal($data);
+            if ($operation->first_exception && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'customer_initial_payment_review_status')) {
+                DB::table('orders')->whereIn('id', $ids)->update(['customer_initial_payment_review_status' => 'pending', 'order_status' => 'pending']);
+            }
+            if (!$operation->first_exception && app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+                foreach ($ids as $id) {
+                    if (!app(\App\Services\CustomerMonthlyAllowanceService::class)->reserveOrder(Order::findOrFail($id))) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['purchasing_limit' => 'الحد الائتماني غير كافٍ. أعد مراجعة سلة المشتريات.']);
+                    }
+                }
+            }
+            DB::table('customer_checkout_operations')->where('id', $operation->id)->update(['consumed_at' => now(), 'order_ids' => json_encode($ids), 'updated_at' => now()]);
+            $eligibility->reevaluateCustomer((int) $info['customer_id']);
+            return $ids;
+        }, 3);
+    }
+
+    private static function generateCustomerOrderInternal(object|array|null $data = []): array
+    {
         $taxConfig = self::getTaxSystemType();
         $orderPlacedIds = [];
         $orderPlacedNotificationEvents = [];
@@ -1236,12 +1409,18 @@ class OrderManager
             'requestObj' => $data['requestObj'] ?? null,
         ]);
         $orderGroupId = OrderManager::generateUniqueOrderID();
-        $vendorWiseCartList = OrderManager::processOrderGenerateData(data: [
+        $vendorWiseCartList = $data['customer_checkout_cart_snapshot'] ?? OrderManager::processOrderGenerateData(data: [
             'coupon_code' => $data['coupon_code'] ?? (session('coupon_code') ?? ''),
             'address_id' => $data['address_id'] ?? session('address_id'),
             'billing_address_id' => $data['billing_address_id'] ?? session('billing_address_id'),
             'requestObj' => $data['requestObj'] ?? null,
         ]);
+
+        if (($data['payment_method'] ?? null) === 'offline_payment' && isset($data['offline_payment_submitted_amount'])) {
+            $amountService = app(\App\Services\CheckoutTransferAmountService::class);
+            $amountService->assertSubmitted($data['offline_payment_submitted_amount'],
+                (float) webCurrencyConverterOnlyDigit($amountService->total($vendorWiseCartList)));
+        }
 
         foreach ($vendorWiseCartList as $vendorWiseGroupId => $vendorWiseCart) {
             $order_id = OrderManager::generateNewOrderID();
@@ -1294,10 +1473,19 @@ class OrderManager
                 cartData: $vendorWiseCart,
                 orderData: $data
             );
+            if (!empty($data['customer_checkout_operation_id'])) {
+                $ordersData['customer_checkout_operation_id'] = $data['customer_checkout_operation_id'];
+                $ordersData['customer_fulfillment_status'] = 'pending_requirements';
+                $ordersData['order_status'] = 'pending';
+            }
             DB::table('orders')->insertGetId($ordersData);
 
             if ($data['payment_method'] == 'offline_payment') {
-                OfflinePayments::insert(['order_id' => $order_id, 'payment_info' => json_encode($data['offline_payment_info']), 'created_at' => Carbon::now()]);
+                $paymentInfo = app(\App\Services\CheckoutTransferAmountService::class)->snapshot(
+                    $data['offline_payment_info'] ?? [], (float) $ordersData['order_amount'],
+                    (float) $ordersData['shipping_cost']
+                );
+                OfflinePayments::insert(['order_id' => $order_id, 'payment_info' => json_encode($paymentInfo), 'created_at' => Carbon::now()]);
             }
 
             self::add_order_status_history($order_id, $getCustomerInfo['customer_id'], $ordersData['order_status'] == 'confirmed' ? 'confirmed' : 'pending', 'customer');
@@ -1308,11 +1496,7 @@ class OrderManager
             );
 
             $order = Order::with('customer', 'seller.shop', 'details')->find($order_id);
-            $offlinePaymentPendingReview = $order
-                && $order->payment_method === 'offline_payment'
-                && $order->payment_status !== 'paid';
-
-            if ($order?->activation_status !== 'activation_pending' && !$offlinePaymentPendingReview) {
+            if ($order?->activation_status !== 'activation_pending') {
                 app(CustomerPurchaseLimitService::class)->debitOrderLimit($order);
             }
             OrderManager::getAddOrderTransactionsOnGenerateOrder(order: $order, ordersData: $ordersData);
@@ -1359,10 +1543,17 @@ class OrderManager
         }
 
 
+        // Paid v3 orders receive a second tax/insurance invoice before they
+        // can be passed to the seller. This call is idempotent and leaves
+        // historical/legacy orders untouched.
+        app(\App\Services\PostPurchaseInvoiceService::class)->createForPaidOrderGroup($orderPlacedIds);
+
         foreach ($orderPlacedNotificationEvents as $orderPlacedEventGroup) {
             foreach ($orderPlacedEventGroup as $orderPlacedEvent) {
                 if (!empty($orderPlacedEvent)) {
-                    event(new OrderPlacedEvent(notification: $orderPlacedEvent['notificationData']));
+                    DB::afterCommit(function () use ($orderPlacedEvent) {
+                        try { event(new OrderPlacedEvent(notification: $orderPlacedEvent['notificationData'])); } catch (\Throwable $exception) { report($exception); }
+                    });
                 }
             }
         }
@@ -1370,7 +1561,9 @@ class OrderManager
         foreach ($orderPlacedMailEvents as $orderPlacedMailEventGroup) {
             foreach ($orderPlacedMailEventGroup as $orderPlacedMailEvent) {
                 try {
-                    event(new OrderPlacedEvent(email: $orderPlacedMailEvent['email'], data: $orderPlacedMailEvent['data']));
+                    DB::afterCommit(function () use ($orderPlacedMailEvent) {
+                        try { event(new OrderPlacedEvent(email: $orderPlacedMailEvent['email'], data: $orderPlacedMailEvent['data'])); } catch (\Throwable $exception) { report($exception); }
+                    });
                 } catch (Exception $exception) {
                 }
             }
@@ -1428,7 +1621,10 @@ class OrderManager
     {
         if ($ordersData['payment_method'] != 'cash_on_delivery' && $ordersData['payment_method'] != 'offline_payment') {
             $orderSummary = OrderManager::getOrderTotalAndSubTotalAmountSummary($order);
-            $orderAmount = $orderSummary['subtotal'] + $orderSummary['total_tax'] - $orderSummary['total_discount_on_product'] - $order['discount'];
+            $isPostPurchaseInvoiceOrder = $order->commerce_flow_version === \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION;
+            $orderAmount = $isPostPurchaseInvoiceOrder
+                ? (float) $order->order_amount
+                : $orderSummary['subtotal'] + $orderSummary['total_tax'] - $orderSummary['total_discount_on_product'] - $order['discount'];
 
             $shop = Shop::when($order['seller_is'] == 'admin', function ($query) {
                 return $query->where(['author_type' => 'admin']);
@@ -1449,7 +1645,9 @@ class OrderManager
                 'received_by' => 'admin',
                 'status' => 'hold',
                 'delivery_charge' => $order['shipping_cost'] - $order['extra_discount'],
-                'tax' => $orderSummary['total_tax'],
+                // Tax is an amount owed on the second invoice under v3 and
+                // must not inflate the seller transaction.
+                'tax' => $isPostPurchaseInvoiceOrder ? 0 : $orderSummary['total_tax'],
                 'delivered_by' => 'admin',
                 'payment_method' => $ordersData['payment_method'],
                 'created_at' => now(),
@@ -1464,7 +1662,8 @@ class OrderManager
     public static function getGenerateOrderNotificationInfo(string $vendorType, int $vendorId, object|array $order, mixed $customer): array
     {
         $orderPlacedNotificationEvents = [];
-        if ($vendorType == 'seller') {
+        $isBlockedByPostPurchaseInvoice = !app(\App\Services\SellerOrderVisibilityService::class)->canSellerAccess($order);
+        if ($vendorType == 'seller' && ! $isBlockedByPostPurchaseInvoice) {
             $seller = Seller::find($vendorId);
             if ($seller) {
                 $orderPlacedNotificationEvents[] = [
@@ -1478,7 +1677,16 @@ class OrderManager
             }
         }
         if ($customer != 'offline') {
-            if ($order['payment_method'] != 'cash_on_delivery' && $order['payment_method'] != 'offline_payment') {
+            if ($isBlockedByPostPurchaseInvoice) {
+                $orderPlacedNotificationEvents[] = [
+                    'notification' => true,
+                    'notificationData' => (object)[
+                        'key' => 'pending',
+                        'type' => 'customer',
+                        'order' => $order,
+                    ],
+                ];
+            } elseif ($order['payment_method'] != 'cash_on_delivery' && $order['payment_method'] != 'offline_payment') {
                 $orderPlacedNotificationEvents[] = [
                     'notification' => true,
                     'notificationData' => (object)[
@@ -1540,19 +1748,22 @@ class OrderManager
                 ]
             ];
 
-            $orderPlacedMailEvents[] = [
-                'email' => $vendor['email'],
-                'data' => [
-                    'subject' => translate('new_order_received'),
-                    'title' => translate('new_order_received'),
-                    'userType' => $vendorType == 'admin' ? 'admin' : 'vendor',
-                    'templateName' => 'order-received',
-                    'order' => $order,
-                    'orderId' => $order['id'],
-                    'vendorName' => $vendor?->f_name,
-                    'adminName' => $vendor?->name,
-                ]
-            ];
+            $isBlockedByPostPurchaseInvoice = $vendorType === 'seller' && !app(\App\Services\SellerOrderVisibilityService::class)->canSellerAccess($order);
+            if (! $isBlockedByPostPurchaseInvoice) {
+                $orderPlacedMailEvents[] = [
+                    'email' => $vendor['email'],
+                    'data' => [
+                        'subject' => translate('new_order_received'),
+                        'title' => translate('new_order_received'),
+                        'userType' => $vendorType == 'admin' ? 'admin' : 'vendor',
+                        'templateName' => 'order-received',
+                        'order' => $order,
+                        'orderId' => $order['id'],
+                        'vendorName' => $vendor?->f_name,
+                        'adminName' => $vendor?->name,
+                    ]
+                ];
+            }
         }
         return $orderPlacedMailEvents;
     }
@@ -1621,7 +1832,7 @@ class OrderManager
         $debitAmount = currencyConverter($debit);
         $walletTransaction->credit = $creditAmount;
         $walletTransaction->debit = $debitAmount;
-        $walletTransaction->balance = $currentBalance + $creditAmount - $debitAmount;
+        $walletTransaction->balance = $currentBalance + $addFundToWalletBonus + $creditAmount - $debitAmount;
         $walletTransaction->created_at = now();
         $walletTransaction->updated_at = now();
         $user->wallet_balance = $currentBalance + $addFundToWalletBonus + $creditAmount - $debitAmount;
@@ -2071,7 +2282,26 @@ class OrderManager
     {
         $response['status'] = 1;
         $response['physical_product_view'] = false;
+        $customer = Helpers::getCustomerInformation($request);
+        $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+        if ($customer === 'offline') {
+            return ['status'=>0, 'physical_product_view'=>false, 'registration_required'=>true,
+                'message'=>['أدخل الاسم ورقم الموبايل وكلمة المرور للمتابعة إلى إتمام الشراء.'],
+                'redirect'=>route('customer.auth.checkout-register')];
+        }
+        if ($customer !== 'offline' && $eligibility->enabled()) {
+            $state = $eligibility->status($customer);
+            if (!$state['can_checkout']) return ['status' => 0, 'physical_product_view' => false,
+                'message' => [$state['message']], 'redirect' => route('customer.subscription.index')];
+        }
         $message = [];
+        if (app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+            $limitCustomerId = $customer === 'offline' ? 0 : (int) $customer->id;
+            $provisional = !$limitCustomerId || ($state['initial_order_exception_available'] ?? false) || ($state['can_resume_initial_checkout'] ?? false) || ($state['can_pay_before_subscription'] ?? false);
+            $limitSummary = app(\App\Services\CustomerMonthlyAllowanceService::class)->summary($limitCustomerId,
+                app(\App\Services\CustomerPurchaseLimitService::class)->getCheckedCartProductTotal(), $provisional);
+            if (!$limitSummary['can_checkout']) return ['status' => 0, 'physical_product_view' => false, 'message' => ['الحد الائتماني المتاح '.number_format($limitSummary['available_limit'],2).' ج.م لا يغطي سلة المشتريات.'], 'redirect' => route('shop-cart')];
+        }
 
         $verifyStatus = OrderManager::verifyCartListMinimumOrderAmount($request);
         if ($verifyStatus['status'] == 0) {
@@ -2086,6 +2316,13 @@ class OrderManager
         $cartItemGroupIDsAll = CartManager::get_cart_group_ids($request);
         $cartItemGroupIDs = CartManager::get_cart_group_ids(request: $request, type: 'checked');
         $shippingMethod = getWebConfig(name: 'shipping_method');
+        $threeStepShipping = app(CustomerThreeStepShippingService::class);
+        $shippingAddressId = $request->input('address_id') ?: session('address_id');
+        $shippingAddress = $shippingAddressId ? ShippingAddress::find($shippingAddressId) : null;
+        // The cart's Continue button first saves the optional order note via
+        // the order_note route, then opens checkout-details. Both are before
+        // address-based shipping is selected, so neither may require a quote.
+        $isShippingDetailsPage = $request->routeIs('checkout-details') || $request->routeIs('order_note');
 
         if (count($cartItemGroupIDsAll) <= 0) {
             $response['status'] = 0;
@@ -2141,6 +2378,29 @@ class OrderManager
             }
 
             if ($isPhysicalProductExist) {
+                if ($threeStepShipping->isEnabled()) {
+                    $cartShipping = CartShipping::where('cart_group_id', $groupId)->first();
+                    $selectedMethod = $cartShipping
+                        ? $threeStepShipping->resolveSelectableMethod($cartShipping->shipping_method_id)
+                        : null;
+                    $shippingCost = $selectedMethod
+                        ? $threeStepShipping->calculateCartGroupCost($groupId, $selectedMethod, $shippingAddress)
+                        : null;
+
+                    // Validate every seller group server-side so an old or direct checkout request cannot bypass pricing.
+                    // The address/details page is where the customer picks a
+                    // delivery option, so it must remain reachable before a
+                    // quote exists. Payment and order submission stay blocked.
+                    if ($shippingCost === null && !$isShippingDetailsPage) {
+                        $response['status'] = 0;
+                        $response['errorType'] = 'shipping-rate-missing';
+                        $response['redirect'] = route('checkout-details');
+                        $message[] = $shippingAddress ? 'اختر طريقة الشحن المتاحة لعنوانك قبل متابعة الدفع.' : 'أكمل عنوان الشحن واختر طريقة الشحن قبل متابعة الدفع.';
+                    }
+
+                    continue;
+                }
+
                 foreach ($cartList as $cart) {
                     if ($shippingMethod == 'inhouse_shipping') {
                         $adminShipping = ShippingType::where('seller_id', 0)->first();
@@ -2184,19 +2444,19 @@ class OrderManager
 
                         if ($sellerShippingCount > 0 && $shippingMethod == 'inhouse_shipping' && $inhouseShippingMsgCount < 1) {
                             $cartShipping = CartShipping::where('cart_group_id', $cart->cart_group_id)->first();
-                            if (!isset($cartShipping)) {
+                            if (!isset($cartShipping) && !$isShippingDetailsPage) {
                                 $response['status'] = 0;
                                 $response['errorType'] = 'empty-shipping';
-                                $response['redirect'] = route('shop-cart');
+                                $response['redirect'] = route('checkout-details');
                                 $message[] = translate('select_shipping_method');
                             }
                             $inhouseShippingMsgCount++;
                         } elseif ($sellerShippingCount > 0 && $shippingMethod != 'inhouse_shipping') {
                             $cartShipping = CartShipping::where('cart_group_id', $cart->cart_group_id)->first();
-                            if (!isset($cartShipping)) {
+                            if (!isset($cartShipping) && !$isShippingDetailsPage) {
                                 $response['status'] = 0;
                                 $response['errorType'] = 'empty-shipping';
-                                $response['redirect'] = route('shop-cart');
+                                $response['redirect'] = route('checkout-details');
                                 $shopIdentity = $cart->seller_is == 'admin' ? getInHouseShopConfig(key: 'name') : $cart->seller->shop->name;
                                 $message[] = translate('select') . ' ' . $shopIdentity . ' ' . translate('shipping_method');
                             }
@@ -2322,7 +2582,7 @@ class OrderManager
             ->unique('status')
             ->keyBy('status');
 
-        $order = Order::where('id', $orderId)->select('created_at')->first();
+        $order = Order::where('id', $orderId)->select('created_at', 'updated_at', 'order_status')->first();
 
         if (!$isOrderOnlyDigital) {
             $orderTracking = [
@@ -2367,6 +2627,19 @@ class OrderManager
             }
         }
         unset($statusData);
+
+        // A completed delivery remains authoritative even when an older order
+        // is missing its history entry, or contains an earlier terminal event.
+        if ($order->order_status === 'delivered') {
+            $orderTracking['order_delivered']['status'] = true;
+            $orderTracking['order_delivered']['date_time'] ??= $order->updated_at;
+            foreach (['order_canceled', 'order_returned', 'order_failed'] as $previousTerminal) {
+                if (isset($orderTracking[$previousTerminal])) {
+                    $orderTracking[$previousTerminal]['status'] = false;
+                    $orderTracking[$previousTerminal]['date_time'] = null;
+                }
+            }
+        }
 
         $statusKeys = array_keys($orderTracking);
 

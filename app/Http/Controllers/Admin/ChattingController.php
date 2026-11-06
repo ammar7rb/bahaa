@@ -103,6 +103,11 @@ class ChattingController extends BaseController
                 dataLimit: 'all'
             )->unique('user_id');
 
+            if ($request->filled('customer_id')) {
+                $requestedCustomer = (int) $request->input('customer_id');
+                $allChattingUsers = $allChattingUsers->sortByDesc(fn ($chat) => (int) $chat->user_id === $requestedCustomer)->values();
+            }
+
             if (count($allChattingUsers) > 0) {
                 $lastChatUser = $allChattingUsers[0]->customer;
                 if ($lastChatUser) {

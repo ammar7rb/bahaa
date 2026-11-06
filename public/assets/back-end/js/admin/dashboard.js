@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 let isMonthEarnCheckedForOrderStatistics = false;
 let labelCountForOrderStatistics = 0;
@@ -166,12 +166,10 @@ function UserOverViewChart() {
         series: [
             userOverViewData.data("customer"),
             userOverViewData.data("vendor"),
-            userOverViewData.data("delivery-man"),
         ],
         labels: [
             userOverViewData.data("customer-title"),
             userOverViewData.data("vendor-title"),
-            userOverViewData.data("delivery-man-title"),
         ],
         chart: {
             width: 320,
@@ -180,7 +178,7 @@ function UserOverViewChart() {
         dataLabels: {
             enabled: false,
         },
-        colors: ["#7bc4ff", "#f9b530", "#1c1a93"],
+        colors: ["#7bc4ff", "#f9b530"],
         responsive: [
             {
                 breakpoint: 480,

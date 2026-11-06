@@ -10,7 +10,7 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="cash-on-delivery-section">
-                <form action="{{ route('customer.customer-order-edit-pay-amount') }}" method="POST"
+                <form action="{{ route('customer.customer-order-edit-pay-amount') }}" method="POST" enctype="multipart/form-data"
                       class="needs-validation" id="cash_on_delivery_form">
                     @csrf
                     <input type="hidden" name="payment_method" value="cash_on_delivery" checked>
@@ -81,7 +81,7 @@
                                         class="bring_change_amount_details row justify-content-start align-items-center rounded-10 g-2 px-3 py-12">
                                         <div class="col-12">
                                             <label class="fs-12 fw-bold mb-1" for="">
-                                                {{ translate('Change Amount') }} ($)
+                                                {{ translate('Change Amount') }} ({{ getCurrencySymbol(type: 'web') }})
                                             </label>
                                             <p class="text-muted fs-12 mb-2">{{ translate('insert_amount_of_you_need_deliveryman_to_bring') }}</p>
                                             <input type="text" class="form-control only-integer-input-field"
@@ -215,7 +215,7 @@
                         </div>
                     </div>
                     <div class="modal-body pt-0">
-                        <form action="{{ route('customer.customer-order-edit-pay-amount') }}" method="post"
+                        <form action="{{ route('customer.customer-order-edit-pay-amount') }}" method="post" enctype="multipart/form-data"
                               class="needs-validation form-loading-button-form">
                             @csrf
                             <input type="hidden" name="payment_method" value="offline">

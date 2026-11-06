@@ -44,13 +44,15 @@ class ShopController extends Controller
     {
 
         $seller = $request->seller;
-        $notificationData = Notification::whereBetween('created_at', [$seller->created_at, Carbon::now()])->where('sent_to', 'seller');
+        $notificationData = app(\App\Services\VendorInboxService::class)->notifications($seller);
         $notification = $notificationData->with('notificationSeenBy')
             ->select('id', 'title', 'description', 'image', 'created_at')
             ->latest()->paginate($request['limit'], ['*'], 'page', $request['offset']);
 
-        $notification->map(function ($data) {
-            $data['notification_seen_status'] = $data->notificationSeenBy == null ? 0 : 1;
+        $notification->map(function ($data) use ($seller) {
+            app(\App\Services\VendorInboxService::class)->protectNotification($seller, $data);
+            $data['notification_seen_status'] = \App\Models\NotificationSeen::query()
+                ->where('seller_id', $seller->id)->where('notification_id', $data->id)->exists() ? 1 : 0;
             unset($data->notificationSeenBy);
         });
 
@@ -58,7 +60,9 @@ class ShopController extends Controller
             'total_size' => $notification->total(),
             'limit' => (int)$request['limit'],
             'offset' => (int)$request['offset'],
-            'new_notification' => $notificationData->whereDoesntHave('notificationSeenBy')->count(),
+            'new_notification' => $notificationData->whereDoesntHave('notificationSeenBy', function ($query) use ($seller) {
+                $query->where('seller_id', $seller->id);
+            })->count(),
             'notification' => $notification->items()
         ];
     }
@@ -67,12 +71,19 @@ class ShopController extends Controller
     {
 
         $seller = $request->seller;
+        app(\App\Services\VendorInboxService::class)->notifications($seller)->whereKey($request->id)->firstOrFail();
         NotificationSeen::updateOrInsert(['seller_id' => $seller->id, 'notification_id' => $request->id], [
             'created_at' => Carbon::now(),
         ]);
 
         $notificationCount = Notification::whereBetween('created_at', [$seller->created_at, Carbon::now()])
-            ->where('sent_to', 'seller')->whereDoesntHave('notificationSeenBy')->count();
+            ->where('sent_to', 'seller')
+            ->where(function ($query) use ($seller) {
+                $query->whereNull('seller_id')->orWhere('seller_id', $seller->id);
+            })
+            ->whereDoesntHave('notificationSeenBy', function ($query) use ($seller) {
+                $query->where('seller_id', $seller->id);
+            })->count();
 
         return [
             'notification_count' => $notificationCount,

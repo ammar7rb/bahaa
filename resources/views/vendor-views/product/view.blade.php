@@ -3,7 +3,13 @@
 @section('title', translate('product_Preview'))
 
 @section('content')
+    @php
+        $privateWorkspace = app(\App\Services\VendorProductWorkspaceService::class)->state($product);
+        $advertisingInactive = $privateWorkspace ? !app(\App\Services\VendorProductWorkspaceService::class)->vendorActive($privateWorkspace) : !app(\App\Services\VendorAdvertisingAccessService::class)->visible($product);
+    @endphp
     <div class="content container-fluid text-start">
+        @include('vendor-views.product.partials._workspace-notice')
+        <p class="fw-semibold">مشاهدات المنتج: {{ app(\App\Services\ProductViewCountService::class)->totals((int) $product->id)['total'] }}</p>
         <div class="d-flex align-items-stretch justify-content-end flex-wrap gap-3 mb-3">
             <div class="flex-grow-1">
                 <h2 class="h1 text-capitalize mb-1">
@@ -14,7 +20,34 @@
                 </p>
             </div>
             <div class="d-flex align-items-stretch justify-content-end flex-wrap gap-3">
-                @if ($product['added_by'] == 'seller' && $product['request_status'] == 2)
+                @unless(config('vendor_product_workspace.enabled'))
+                @php
+                    $sellerReviewStatus = $product->seller_review_status ?: match (true) {
+                        (int) $product->request_status === 2 => 'rejected',
+                        (int) $product->request_status === 1 && (int) $product->status === 1 => 'approved_published',
+                        (int) $product->request_status === 1 => 'suspended',
+                        default => 'submitted',
+                    };
+                    $sellerReviewReason = $product->seller_review_reason ?: $product->denied_note;
+                    $sellerVisibleStatus = in_array($sellerReviewStatus, ['submitted', 'under_review'], true) ? 'active' : $sellerReviewStatus;
+                    $sellerReviewStatusClass = match ($sellerVisibleStatus) {
+                        'active' => 'success',
+                        'approved_published' => 'success',
+                        'rejected', 'suspended', 'deleted' => 'danger',
+                        default => 'warning',
+                    };
+                @endphp
+                <div class="alert alert-soft-{{ $sellerReviewStatusClass }} text-body fw-normal fs-12 px-3 py-2 rounded mb-0">
+                    <strong>{{ translate('seller_product_review_status') }}:</strong>
+                    {{ $sellerVisibleStatus === 'active' ? translate('active') : translate('seller_product_review_' . $sellerReviewStatus) }}
+                    @if(in_array($sellerReviewStatus, ['submitted', 'under_review'], true))
+                        <span class="badge badge-soft-warning ms-1">{{ translate('under_admin_review') }}</span>
+                    @endif
+                    @if($sellerReviewReason)
+                        <div class="mt-1"><strong>{{ translate('seller_product_review_reason') }}:</strong> {{ $sellerReviewReason }}</div>
+                    @endif
+                </div>
+                @if ($product['added_by'] == 'seller' && $product['request_status'] == 2 && !$product->seller_review_reason)
                     <div
                         class="alert-danger text-body fw-normal fs-12 px-2 py-1 rounded d-flex justify-content-center align-items-center max-w-500 single-line-text-break">
                     <span>
@@ -24,6 +57,7 @@
                     </div>
                 @endif
 
+                @endunless
                 <button type="button" class="btn border text-danger bg-white icon-btn delete-data" style="--size: 40px;"
                         title="{{ translate('delete') }}" data-id="product-{{ $product['id']}}">
                     <i class="fi fi-rr-trash d-flex"></i>
@@ -33,7 +67,10 @@
                     @csrf @method('delete')
                 </form>
 
-                <form action="{{ route('vendor.products.status-update') }}"
+                @if(config('vendor_advertising.creation_slots_enabled') && (int) $product['status'] !== 1 && !app(\App\Services\VendorProductWorkspaceService::class)->state($product)?->legacy_exempt)
+                                                <a class="btn btn-outline-primary" href="{{ route('vendor.packages.slots') }}">إدارة النشر والمساحات</a>
+                                            @else
+<form action="{{ route('vendor.products.status-update') }}"
                       method="post"
                       data-from="product-status"
                       id="product-status{{ $product['id']}}-form"
@@ -66,6 +103,7 @@
                     </label>
 
                 </form>
+                                            @endif
 
                 <a href="{{ route('vendor.products.update', [$product['id']]) }}"
                    class="btn btn--primary min-w-120 h-40">
@@ -134,7 +172,7 @@
                                                             </div>
                                                             <div class="">
                                                                 <a href="{{ $imagePath }}">
-                                                                    <img class="h-100 aspect-1 rounded min-w-xl-280"
+                                                                    <img class="h-100 aspect-1 rounded min-w-xl-280 {{ $advertisingInactive ? 'vendor-ad-inactive-image' : '' }}"
                                                                          alt="" src="{{ $imagePath }}">
                                                                 </a>
                                                             </div>
@@ -211,7 +249,7 @@
                                                 @endforeach
                                             </ul>
                                             <div class="d-flex flex-column gap-2">
-                                                @if ($product['added_by'] == 'seller' && $product['request_status'] == 2)
+                                                @if (!config('vendor_product_workspace.enabled') && $product['added_by'] == 'seller' && $product['request_status'] == 2)
                                                     <div class="d-flex justify-content-sm-end flex-wrap gap-2 pb-4">
                                                         <div>
                                                             <span>{{ translate('status') . ' : ' }}</span>
@@ -431,6 +469,32 @@
                                                 <span>:</span>
                                                 <span class="value fs-12 text-dark">{{ $product['unit']}}</span>
                                             </div>
+                                            <div>
+                                                <span class="key text-nowrap fs-12">{{ translate('seller_product_sale_unit_type') }}</span>
+                                                <span>:</span>
+                                                <span class="value fs-12 text-dark">{{ translate('seller_product_sale_unit_' . ($product->sale_unit_type === 'box' ? 'package' : ($product->sale_unit_type ?: 'piece'))) }}</span>
+                                            </div>
+                                            @if(in_array($product->sale_unit_type, ['package', 'box'], true))
+                                                <div>
+                                                    <span class="key text-nowrap fs-12">{{ translate('seller_product_pieces_per_unit') }}</span>
+                                                    <span>:</span>
+                                                    <span class="value fs-12 text-dark">{{ $product->pieces_per_unit }}</span>
+                                                </div>
+                                            @endif
+                                            @if($product->length || $product->width || $product->height)
+                                                <div>
+                                                    <span class="key text-nowrap fs-12">{{ translate('seller_product_dimensions') }}</span>
+                                                    <span>:</span>
+                                                    <span class="value fs-12 text-dark">{{ $product->length ?? '-' }} × {{ $product->width ?? '-' }} × {{ $product->height ?? '-' }} {{ $product->dimension_unit }}</span>
+                                                </div>
+                                            @endif
+                                            @if($product->weight)
+                                                <div>
+                                                    <span class="key text-nowrap fs-12">{{ translate('seller_product_weight') }}</span>
+                                                    <span>:</span>
+                                                    <span class="value fs-12 text-dark">{{ $product->weight }} {{ $product->weight_unit }}</span>
+                                                </div>
+                                            @endif
                                             <div>
                                                 <span
                                                     class="key text-nowrap fs-12">{{ translate('current_Stock') }}</span>
@@ -694,6 +758,8 @@
                 </div>
             </div>
 
+            {{-- Product reviews and replies are administered centrally and are not exposed to vendors. --}}
+            @if(false)
             <div class="col-12">
                 <div class="card">
                     @php($vendorReviewReplyStatus = getWebConfig('vendor_review_reply_status') ?? 0)
@@ -1044,6 +1110,7 @@
                     @endif
                 </div>
             </div>
+            @endif
         </div>
     </div>
     <?php

@@ -84,10 +84,6 @@
                                         {{ translate('Price') }} ({{ translate('Low_to_High') }})
                                     @elseif($data['sort_by'] == 'high-low')
                                         {{ translate('Price') }} ({{ translate('High_to_Low') }})
-                                    @elseif($data['sort_by'] == 'rating-low-high')
-                                        {{ translate('Rating') }} ({{ translate('Low_to_High') }})
-                                    @elseif($data['sort_by'] == 'rating-high-low')
-                                        {{ translate('Price') }} ({{ translate('High_to_Low') }})
                                     @elseif($data['sort_by'] == 'a-z')
                                         {{ translate('Alphabetical') }} ({{ 'A '.translate('to').' Z' }})
                                     @elseif($data['sort_by'] == 'z-a')
@@ -115,18 +111,6 @@
                                         <label>
                                             <input type="radio" class="real-time-action-update" name="sort_by" value="high-low" {{ $data['sort_by'] == 'high-low' ? 'checked' : '' }}>
                                             {{ translate('Price') }} ({{ translate('High_to_Low') }})
-                                        </label>
-                                    </li>
-                                    <li class="link-hover-base product-list-filter-on-sort-by" data-value="rating-low-high">
-                                        <label>
-                                            <input type="radio" class="real-time-action-update" name="sort_by" value="rating-low-high" {{ $data['sort_by'] == 'rating-low-high' ? 'checked' : '' }}>
-                                            {{ translate('Rating') }} ({{ translate('Low_to_High') }})
-                                        </label>
-                                    </li>
-                                    <li class="link-hover-base product-list-filter-on-sort-by" data-value="rating-high-low">
-                                        <label>
-                                            <input type="radio" class="real-time-action-update" name="sort_by" value="rating-high-low" {{ $data['sort_by'] == 'rating-high-low' ? 'checked' : '' }}>
-                                            {{ translate('Rating') }} ({{ translate('High_to_Low') }})
                                         </label>
                                     </li>
                                     <li class="link-hover-base product-list-filter-on-sort-by" data-value="a-z">

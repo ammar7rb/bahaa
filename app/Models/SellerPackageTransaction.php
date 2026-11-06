@@ -28,6 +28,8 @@ class SellerPackageTransaction extends Model
 
     public const QUOTA_HOMEPAGE_PROMOTION = 'homepage_promotion';
 
+    public const QUOTA_COUPON = 'coupon';
+
     protected $fillable = [
         'seller_id',
         'seller_package_subscription_id',

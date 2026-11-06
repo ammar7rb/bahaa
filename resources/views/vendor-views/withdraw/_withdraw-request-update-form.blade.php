@@ -41,31 +41,14 @@
                     <optgroup label="My Methods">
                         @foreach ($vendorWithdrawMethods as $vendorWithdrawMethod)
                             <option value="{{ $vendorWithdrawMethod['id'] }}" data-type="custom"
-                                @if($withdrawRequest['request_method_type'] == 'vendor' && $withdrawRequest['withdrawal_method_id'] != null)
-                                    {{ $vendorWithdrawMethod['id'] == $withdrawRequest['withdrawal_method_id'] ? 'selected' : '' }}
+                                @if($withdrawRequest['request_method_type'] == 'vendor' && ($withdrawRequest['vendor_withdraw_method_info_id'] ?? null) != null)
+                                    {{ $vendorWithdrawMethod['id'] == ($withdrawRequest['vendor_withdraw_method_info_id'] ?? null) ? 'selected' : '' }}
                                 @endif
                             >
                                 {{ $vendorWithdrawMethod['method_name'] }}
                             </option>
                         @endforeach
                     </optgroup>
-                @endif
-                @if (count($withdrawalMethods) > 0)
-                    @if (count($vendorWithdrawMethods) > 0)
-                        <optgroup label="Others">
-                    @endif
-                    @foreach ($withdrawalMethods as $withdrawalMethod)
-                        <option value="{{ $withdrawalMethod['id'] }}" data-type="pre-defined"
-                            @if(($withdrawRequest['request_method_type'] == 'system' || ($withdrawRequest['request_method_type'] != 'vendor' && $withdrawRequest['request_method_type'] != null)) && $withdrawRequest['withdrawal_method_id'] != null)
-                                {{ $withdrawalMethod['id'] == $withdrawRequest['withdrawal_method_id'] ? 'selected' : '' }}
-                            @endif
-                            >
-                            {{ $withdrawalMethod['method_name'] }}
-                        </option>
-                    @endforeach
-                    @if (count($vendorWithdrawMethods) > 0)
-                        </optgroup>
-                    @endif
                 @endif
             </select>
 
@@ -87,7 +70,7 @@
 
         <div class="" id="withdraw-request-method-filed-{{ $withdrawRequest['id'] }}">
             @foreach ($vendorWithdrawMethods as $vendorWithdrawMethod)
-                @if($withdrawRequest['request_method_type'] == 'vendor' && $withdrawRequest['withdrawal_method_id'] != null && $vendorWithdrawMethod['id'] == $withdrawRequest['withdrawal_method_id'])
+                @if($withdrawRequest['request_method_type'] == 'vendor' && ($withdrawRequest['vendor_withdraw_method_info_id'] ?? null) != null && $vendorWithdrawMethod['id'] == ($withdrawRequest['vendor_withdraw_method_info_id'] ?? null))
                     <?php
                         $methodInfo = is_array($vendorWithdrawMethod->method_info) ? $vendorWithdrawMethod->method_info : json_decode($vendorWithdrawMethod->method_info, true);
                     ?>
@@ -124,29 +107,6 @@
                     </div>
                 @endif
             @endforeach
-            @foreach($withdrawalMethods as $withdrawalMethod)
-                @if(($withdrawRequest['request_method_type'] == 'system' || ($withdrawRequest['request_method_type'] != 'vendor' && $withdrawRequest['request_method_type'] != null)) &&
-                    $withdrawalMethod['id'] == $withdrawRequest['withdrawal_method_id'])
-                    <?php
-                        $methodInfo = is_array($withdrawRequest?->withdrawal_method_fields) ? $withdrawRequest?->withdrawal_method_fields : json_decode($withdrawRequest?->withdrawal_method_fields, true);
-                    ?>
-                    @foreach ($withdrawalMethod?->method_fields as $methodField)
-                        <div class="form-group">
-                            <label class="form-label text-dark">
-                                {{ translate($methodField['input_name']) }}
-                                <span class="text-danger">{{ $methodField['is_required'] ? '*' : '' }}</span>
-                            </label>
-                            <input type="{{ $methodField['input_type'] == 'phone' ? 'tel' : $methodField['input_type'] }}"
-                                   class="form-control"
-                                   placeholder="{{ translate($methodField['placeholder']) }}"
-                                   name="method_info[{{ $methodField['input_name'] }}]"
-                                   value="{{ $methodInfo[$methodField['input_name']] ?? '' }}"
-                                {{ $methodField['is_required'] ? 'required' : '' }}>
-                        </div>
-                    @endforeach
-                @endif
-            @endforeach
-
             <div class="form-group">
                 <label class="form-label text-dark">
                     {{ translate('Withdraw_Amount ') }}
@@ -154,7 +114,7 @@
                     <span class="text-danger">*</span>
                 </label>
                     <?php
-                    $withdrawalTotalAmount=($vendorWallet?->total_earning ?? 0) + $withdrawRequest['amount'];
+                    $withdrawalTotalAmount=($withdrawableAmount ?? $dashboardData['totalEarning'] ?? $vendorWallet?->total_earning ?? 0) + $withdrawRequest['amount'];
                     ?>
                 <input type="number" class="form-control" name="amount" step="any" min=".01" required
                        placeholder="{{ translate('Ex') }}: {{ usdToDefaultCurrency(amount: $withdrawalTotalAmount) }}"

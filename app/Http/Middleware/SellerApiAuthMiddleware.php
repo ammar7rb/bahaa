@@ -29,7 +29,7 @@ class SellerApiAuthMiddleware
         if (count($token) > 1 && strlen($token[1]) > 30) {
             $seller = Seller::where(['auth_token' => $token['1']])->first();
             if (isset($seller)) {
-                if ($seller->status !== 'approved') {
+                if (!in_array($seller->status, ['approved', 'pending'], true)) {
                     return response()->json([
                         'errors' => [[
                             'code' => 'seller_account_not_approved',
@@ -51,7 +51,8 @@ class SellerApiAuthMiddleware
                 }
 
                 $request['seller'] = $seller;
-                return $next($request);
+                return app(\App\Http\Middleware\VendorOrderBoundary::class)->handle($request,
+                    fn ($request) => app(\App\Http\Middleware\VendorProductWorkspaceBoundary::class)->handle($request, $next, (int) $seller->id), (int) $seller->id);
             }
         }
 

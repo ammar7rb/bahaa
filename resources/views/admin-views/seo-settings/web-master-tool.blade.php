@@ -19,11 +19,6 @@
                         <h2 class="mb-0">{{translate('Webmaster_Tools')}}</h2>
                         <p class="m-0 fs-12">
                             {{ translate('optimize_websites_performance,_indexing_status,_and_search_visibility.') }}
-                            <a href="{{ 'https://6amtech.com/blog/webmaster-tools-verification/' }}"
-                            target="_blank"
-                            class="text-decoration-underline fw-semibold">
-                                {{ translate('Learn_more') }}
-                            </a>
                         </p>
                     </div>
                 </div>

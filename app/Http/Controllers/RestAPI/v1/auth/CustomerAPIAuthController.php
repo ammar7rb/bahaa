@@ -25,6 +25,9 @@ use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
 use GuzzleHttp\Client;
 use Illuminate\Support\Carbon;
+use App\Services\CustomerActivationService;
+use App\Services\PolicyAcceptanceService;
+use App\Services\EgyptPhoneService;
 
 class CustomerAPIAuthController extends Controller
 {
@@ -41,23 +44,27 @@ class CustomerAPIAuthController extends Controller
     {
     }
 
+    public function registrationPolicies(PolicyAcceptanceService $service): JsonResponse
+    {
+        return response()->json(['policies' => $service->requiredFor('customer')]);
+    }
+
     public function register(Request $request): JsonResponse
     {
+        $request->merge(['phone' => app(EgyptPhoneService::class)->normalizeLocal($request->input('phone'))]);
         $validator = Validator::make($request->all(), [
-            'f_name' => 'required',
-            'l_name' => 'required',
-            'email' => 'required|unique:users',
-            'phone' => 'required|min:6|max:20|unique:users',
-            'password' => 'required|min:6',
-            'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
+            'f_name' => 'required|string|max:100',
+            'l_name' => 'nullable|string|max:100',
+            'email' => 'nullable|email|max:255|unique:users',
+            'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueCustomerPhone],
+            'password' => 'required|string|min:6|max:255',
+            'policy_version_ids' => 'nullable|array',
+            'policy_version_ids.*' => 'integer',
         ], [
             'f_name.required' => translate('The first name field is required.'),
             'l_name.required' => translate('The last name field is required.'),
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ]);
 
         if ($validator->fails()) {
@@ -69,18 +76,23 @@ class CustomerAPIAuthController extends Controller
         $temporaryToken = Str::random(40);
 
         $user = $this->customerRepo->add([
-            'name' => $request['f_name'] . ' ' . $request['l_name'],
+            'name' => trim($request['f_name'] . ' ' . ($request['l_name'] ?? '')),
             'f_name' => $request['f_name'],
-            'l_name' => $request['l_name'],
-            'email' => $request['email'],
+            'l_name' => $request['l_name'] ?? null,
+            'email' => $request['email'] ?? null,
             'phone' => $request['phone'],
             'password' => bcrypt($request['password']),
             'temporary_token' => $temporaryToken,
+            'activation_status' => 'active',
+            'onboarding_journey' => 'standard',
+            'canonical_phone' => app(EgyptPhoneService::class)->normalizeLocal($request['phone']),
             'referral_code' => Helpers::generate_referer_code(),
             'referred_by' => $referUser?->id ?? null,
-            'terms_accepted_at' => now(),
-            'privacy_accepted_at' => now(),
+            'terms_accepted_at' => null,
+            'privacy_accepted_at' => null,
         ]);
+        $activationService = app(CustomerActivationService::class);
+        $activationService->ensureTicket($user);
 
         $referralData = getWebConfig(name: 'ref_earning_customer');
         $referralEarningRate = $this->businessSettingRepo->getFirstWhere(params: ['type' => 'ref_earning_exchange_rate']);
@@ -94,7 +106,7 @@ class CustomerAPIAuthController extends Controller
             event(new CustomerRegisteredViaReferralEvent($referralCustomer, $referUser));
         }
 
-        $emailVerification = getLoginConfig(key: 'email_verification') ?? 0;
+        $emailVerification = $user->email && (getLoginConfig(key: 'email_verification') ?? 0);
         $phoneVerification = getLoginConfig(key: 'phone_verification') ?? 0;
 
         if ($phoneVerification && !$user->is_phone_verified) {
@@ -105,7 +117,7 @@ class CustomerAPIAuthController extends Controller
         }
 
         $token = $user->createToken('LaravelAuthApp')->accessToken;
-        return response()->json(['token' => $token], 200);
+        return response()->json(['token' => $token, 'activation' => $activationService->status($user->fresh())], 200);
     }
 
     public function login(Request $request): JsonResponse
@@ -137,14 +149,21 @@ class CustomerAPIAuthController extends Controller
             }
 
             $data = [
-                'email' => $user['email'],
+                'id' => $user['id'],
                 'password' => $request['password'],
             ];
 
             if (auth()->attempt($data)) {
+                if($user->must_change_password && (!$user->temporary_password_expires_at || now()->gte(\Carbon\Carbon::parse($user->temporary_password_expires_at)))) {
+                    auth()->logout();
+                    return response()->json(['errors'=>[['code'=>'temporary_password_expired','message'=>'انتهت صلاحية الكلمة المؤقتة. اطلب الاستعادة عبر الدعم.']]],403);
+                }
                 $temporaryToken = Str::random(40);
                 $phoneVerification = getLoginConfig(key: 'phone_verification') ?? 0;
                 $emailVerification = getLoginConfig(key: 'email_verification') ?? 0;
+                if ($user->onboarding_journey === 'checkout_first' || $user->must_change_password) {
+                    $phoneVerification = $emailVerification = 0;
+                }
                 $emailVerification = !$phoneVerification ? $emailVerification : 0;
 
                 if (
@@ -176,7 +195,7 @@ class CustomerAPIAuthController extends Controller
                     'updated_at' => now()
                 ]);
 
-                return response()->json(['token' => $token, 'status' => true], 200);
+                return response()->json(['token' => $token, 'status' => true, 'must_change_password'=>(bool)$user->must_change_password], 200);
             } else {
                 $code = 'invalid_credentials';
                 $errorMsg = translate('credentials_doesnt_match');
@@ -450,14 +469,11 @@ class CustomerAPIAuthController extends Controller
             'phone' => 'required|min:6|max:20|unique:users',
             'password' => 'required|min:6',
             'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
         ], [
             'f_name.required' => translate('The first name field is required.'),
             'l_name.required' => translate('The last name field is required.'),
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ]);
 
         if ($validator->fails()) {
@@ -630,12 +646,9 @@ class CustomerAPIAuthController extends Controller
             'email' => 'nullable|max:255',
             'phone' => 'required|string|min:6|max:15',
             'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
         ], [
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ]);
 
         if ($validator->fails()) {
@@ -811,12 +824,9 @@ class CustomerAPIAuthController extends Controller
             'email' => 'required|email|unique:users|max:255',
             'phone' => 'required|min:6|max:20',
             'terms_accepted' => 'required|accepted',
-            'privacy_accepted' => 'required|accepted',
         ], [
             'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
             'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
-            'privacy_accepted.required' => translate('you_must_accept_the_privacy_policy'),
-            'privacy_accepted.accepted' => translate('you_must_accept_the_privacy_policy'),
         ]);
 
         if ($validator->fails()) {
@@ -858,6 +868,10 @@ class CustomerAPIAuthController extends Controller
 
     public function passwordResetRequest(Request $request): JsonResponse
     {
+        $request->validate(['email_or_phone'=>'required|string|max:191']);
+        $record=app(\App\Services\CustomerPasswordRecoveryService::class)->request($request->input('email_or_phone'));
+        return response()->json(['message'=>\App\Services\CustomerPasswordRecoveryService::MESSAGE,'support_required'=>true,
+            'conversation_url'=>\Illuminate\Support\Facades\URL::temporarySignedRoute('contact.conversation',now()->addMinutes(30),['contact'=>$record->contact_id])],200);
         $validator = Validator::make($request->all(), [
             'email_or_phone' => 'required',
             'type' => 'required|in:phone,email',
@@ -866,6 +880,12 @@ class CustomerAPIAuthController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
+
+        return response()->json([
+            'message' => translate('password_reset_support_message'),
+            'support_required' => true,
+            'contact_url' => route('contacts', ['subject' => translate('password_reset_support_subject')]),
+        ], 200);
 
         if ($request['type'] == 'phone') {
             $customer = $this->customerRepo->getFirstWhere(params: ['phone' => $request['email_or_phone']]);

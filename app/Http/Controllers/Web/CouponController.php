@@ -19,6 +19,13 @@ class CouponController extends Controller
     {
         self::removeCurrentCouponActivity();
 
+        if (app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+            $message = 'القسائم غير متاحة في سلة المشتريات.';
+            if ($request->ajax() || $request->expectsJson()) return response()->json(['messages'=>[$message]],422);
+            Toastr::error($message);
+            return back();
+        }
+
         $result = OrderManager::getTotalCouponAmount(request: $request, couponCode: $request['code']);
 
         if ($result['status']) {

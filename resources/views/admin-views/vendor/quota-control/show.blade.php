@@ -83,9 +83,10 @@
                             ['label' => 'Product_Listings', 'base' => $subscription->product_limit, 'adjustment' => $subscription->product_adjustment_limit, 'used' => $subscription->used_product_limit],
                             ['label' => 'Featured_Search', 'base' => $subscription->search_promotion_limit, 'adjustment' => $subscription->search_promotion_adjustment_limit, 'used' => $subscription->used_search_promotion_limit],
                             ['label' => 'Homepage_Featured', 'base' => $subscription->homepage_promotion_limit, 'adjustment' => $subscription->homepage_promotion_adjustment_limit, 'used' => $subscription->used_homepage_promotion_limit],
+                            ['label' => 'Coupons', 'base' => $subscription->coupon_limit, 'adjustment' => $subscription->coupon_adjustment_limit, 'used' => $subscription->used_coupon_limit],
                         ] as $quota)
                             @php($total = max(0, $quota['base'] + $quota['adjustment']))
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="border rounded p-3 h-100">
                                     <strong>{{ translate($quota['label']) }}</strong>
                                     <div class="d-flex justify-content-between fs-12 mt-2"><span>{{ translate('Base') }}</span><span>{{ $quota['base'] }}</span></div>
@@ -105,7 +106,7 @@
                     <form action="{{ route('admin.vendors.quota-control.adjust', $seller->id) }}" method="post" class="row g-3">
                         @csrf
                         <input type="hidden" name="request_token" value="{{ $requestToken }}">
-                        <div class="col-md-3"><label class="form-label">{{ translate('Quota_Type') }}</label><select name="quota_type" class="form-control" required><option value="product">{{ translate('Product_Listings') }}</option><option value="search_promotion">{{ translate('Featured_Search') }}</option><option value="homepage_promotion">{{ translate('Homepage_Featured') }}</option></select></div>
+                        <div class="col-md-3"><label class="form-label">{{ translate('Quota_Type') }}</label><select name="quota_type" class="form-control" required><option value="product">{{ translate('Product_Listings') }}</option><option value="search_promotion">{{ translate('Featured_Search') }}</option><option value="homepage_promotion">{{ translate('Homepage_Featured') }}</option><option value="coupon">Coupons</option></select></div>
                         <div class="col-md-2"><label class="form-label">{{ translate('Operation') }}</label><select name="operation" class="form-control" required><option value="add">{{ translate('Add') }}</option><option value="deduct">{{ translate('Deduct') }}</option></select></div>
                         <div class="col-md-2"><label class="form-label">{{ translate('Amount') }}</label><input type="number" name="amount" min="1" max="1000000" class="form-control" required></div>
                         <div class="col-md-5"><label class="form-label">{{ translate('Reason') }}</label><input type="text" name="reason" maxlength="1000" class="form-control" required></div>

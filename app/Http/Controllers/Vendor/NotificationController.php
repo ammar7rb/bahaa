@@ -14,6 +14,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Models\Order;
+use App\Support\Commerce\OrderCommerceState;
 
 class NotificationController extends BaseController
 {
@@ -50,18 +52,36 @@ class NotificationController extends BaseController
         $shop = $this->shopRepo->getFirstWhere(params:['seller_id'=> auth('seller')->id()]);
         $companyName = getWebConfig(name: 'company_name') ?? '';
 
-        $notificationSeenId = $this->notificationSeenRepo->getFirstWhere(params:['seller_id' => auth('seller')->id(), 'notification_id' => $request['id']]);
+        $inbox = app(\App\Services\VendorInboxService::class);
+        $seller = auth('seller')->user();
+        $data = $inbox->notifications($seller)->whereKey($request['id'])->firstOrFail();
+        $inbox->read($seller, 'notification', (string) $data->id);
 
-        $this->notificationSeenRepo->update(id: $notificationSeenId['id'],data: [ 'created_at' => now()]);
+        $actionUrl = null;
+        $actionLabel = null;
+        if ($data && preg_match('/#(\d+)/', (string) $data->description, $matches)) {
+            $order = Order::query()
+                ->whereKey((int) $matches[1])
+                ->where(['seller_id' => auth('seller')->id(), 'seller_is' => 'seller'])
+                ->where('admin_order_review_status', 'approved')
+                ->whereIn('commerce_flow_status', [
+                    OrderCommerceState::SELLER_INSURANCE_PENDING,
+                    OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW,
+                    OrderCommerceState::RELEASED_TO_SELLER,
+                    OrderCommerceState::FULFILLMENT_IN_PROGRESS,
+                ])->first();
+            if ($order) {
+                $restricted = in_array($order->commerce_flow_status, [OrderCommerceState::SELLER_INSURANCE_PENDING, OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW], true);
+                $actionUrl = route('vendor.orders.details', $restricted ? ($order->seller_restricted_access_token ?: $order->id) : $order->id);
+                $actionLabel = $restricted ? translate('continue_to_pay_insurance') : translate('view_order');
+            }
+        }
 
-        $data = $this->notificationRepo->getFirstWhere(params:['id' => $request['id']]);
-
-        $notification = $this->notificationRepo->getListWhereBetween(params:[auth('seller')->user()->created_at, now()],filters: ['sent_to'=>'seller'],relations: 'notificationSeenBy');
-
-        $notificationCount = count($notification);
+        $data = $inbox->protectNotification($seller, $data);
+        $notificationCount = $inbox->snapshot($seller)['counts']['notifications'];
         return response()->json([
             'notification_count' => $notificationCount,
-            'view' => view(Notification::INDEX[VIEW], compact('shop', 'companyName', 'data'))->render(),
+            'view' => view(Notification::INDEX[VIEW], compact('shop', 'companyName', 'data', 'actionUrl', 'actionLabel'))->render(),
         ]);
     }
 }

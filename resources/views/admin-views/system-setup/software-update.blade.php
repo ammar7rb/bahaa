@@ -14,10 +14,10 @@
         <div class="bg-info bg-opacity-10 fs-12 px-12 py-10 text-dark rounded d-flex gap-2 align-items-center mb-3 mb-sm-20">
             <i class="fi fi-sr-lightbulb-on text-info"></i>
             <span>
-                {{ translate('Your_current_version_is') }} {{ SOFTWARE_VERSION }}. {{ translate('To_check_our_new_version') }}
+                {{ translate('Your_current_version_is') }} {{ SOFTWARE_VERSION }}.
                 <a class="text-decoration-underline fw-semibold" target="_blank"
-                   href="{{ 'https://codecanyon.net/item/6valley-multivendor-ecommerce-complete-ecommerce-mobile-app-web-and-admin-panel/31448597' }}">
-                    {{ translate('Click_Here') }}
+                   href="https://wa.me/201064174547">
+                    Contact support
                 </a>
             </span>
         </div>
@@ -44,7 +44,7 @@
                                 <div class="col-lg-6">
                                     <div class="form-group">
                                         <label class="form-label" for="username">
-                                            {{ translate('codecanyon_username') }}
+                                            {{ translate('username') }}
                                             <span class="text-danger">*</span>
                                         </label>
                                         <input type="text" class="form-control" id="username"

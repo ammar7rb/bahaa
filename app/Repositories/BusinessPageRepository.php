@@ -39,7 +39,11 @@ class BusinessPageRepository implements BusinessPageRepositoryInterface
     public function getListWhere(array $orderBy = [], ?string $searchValue = null, array $filters = [], array $relations = [], int|string $dataLimit = DEFAULT_DATA_LIMIT, ?int $offset = null): Collection|LengthAwarePaginator
     {
         $query = $this->businessPage->when($searchValue, function ($query) use ($searchValue) {
-                $query->Where('title', 'like', "%$searchValue%");
+                $query->where(function ($query) use ($searchValue) {
+                    $query->where('title', 'like', "%$searchValue%")
+                        ->orWhere('translations->ar->title', 'like', "%$searchValue%")
+                        ->orWhere('translations->en->title', 'like', "%$searchValue%");
+                });
             })
             ->when(isset($filters['slug']), function ($query) use ($filters) {
                 return $query->where(['slug' => $filters['slug']]);
@@ -61,7 +65,11 @@ class BusinessPageRepository implements BusinessPageRepositoryInterface
     public function getListWhereIn(array $orderBy = [], ?string $searchValue = null, array $filters = [], array $whereIn = [], array $relations = [], array $nullFields = [], int|string $dataLimit = DEFAULT_DATA_LIMIT, ?int $offset = null): Collection|LengthAwarePaginator
     {
         $query = $this->businessPage->when($searchValue, function ($query) use ($searchValue) {
-                $query->Where('title', 'like', "%$searchValue%");
+                $query->where(function ($query) use ($searchValue) {
+                    $query->where('title', 'like', "%$searchValue%")
+                        ->orWhere('translations->ar->title', 'like', "%$searchValue%")
+                        ->orWhere('translations->en->title', 'like', "%$searchValue%");
+                });
             })
             ->when(isset($filters['slug']), function ($query) use ($filters) {
                 return $query->where(['slug' => $filters['slug']]);
@@ -97,7 +105,9 @@ class BusinessPageRepository implements BusinessPageRepositoryInterface
     public function updateWhere(array $params, array $data): bool
     {
         cacheRemoveByType(type: 'business_pages');
-        $this->businessPage->where($params)->update($data);
+        $this->businessPage->where($params)->get()->each(function (BusinessPage $page) use ($data) {
+            $page->update($data);
+        });
         return true;
     }
 

@@ -2707,3 +2707,34 @@ body *::-webkit-scrollbar-thumb {
 .store-item.link-hover-base:hover p {
     color: var(--bs-primary) !important;
 }
+/* Phone numbers remain LTR: keep the country selector on the left in both languages. */
+[dir="rtl"] #customer-form .iti input.iti__tel-input {
+    padding-right: 16px !important;
+    padding-left: 100px !important;
+    direction: ltr !important;
+    text-align: left !important;
+}
+
+[dir="rtl"] #customer-form .iti input.iti__tel-input::placeholder {
+    direction: rtl;
+    text-align: right;
+}
+
+[dir="rtl"] #customer-form .iti__flag-container {
+    right: auto !important;
+    left: 0 !important;
+}
+
+[dir="rtl"] #customer-form .iti__selected-flag,
+[dir="rtl"] #customer-form .iti__selected-dial-code {
+    direction: ltr;
+    unicode-bidi: isolate;
+}
+
+/* Keep validation feedback without drawing check/error glyphs beneath the selector. */
+#customer-form .iti input.iti__tel-input:valid,
+#customer-form .iti input.iti__tel-input:invalid,
+#customer-form .iti input.iti__tel-input.is-valid,
+#customer-form .iti input.iti__tel-input.is-invalid {
+    background-image: none !important;
+}

@@ -5,6 +5,7 @@ namespace App\Http\Requests\API\v3;
 
 use App\Enums\GlobalConstant;
 use App\Rules\DisallowedExtension;
+use App\Services\EgyptPhoneService;
 use App\Traits\ResponseHandler;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -34,6 +35,9 @@ class ShopInfoUpdateRequest extends FormRequest
         $maxFileSize = getFileUploadMaxSize(unit: 'kb');
 
         return [
+            'name' => 'required|string|max:255',
+            'address' => 'required|string',
+            'contact' => ['required', 'regex:/^01[0125][0-9]{8}$/'],
             'logo' =>  getRulesStringForImageValidation(
                 rules: ['nullable'],
                 skipMimes: ['.svg', '.gif'],
@@ -62,10 +66,20 @@ class ShopInfoUpdateRequest extends FormRequest
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('contact')) {
+            $this->merge([
+                'contact' => app(EgyptPhoneService::class)->normalizeLocal($this->input('contact')),
+            ]);
+        }
+    }
+
     public function messages(): array
     {
         return [
             'logo.mimes' => translate('The logo must be a file of type: ') . getFileUploadFormats(skip: ['.svg', '.gif'], asMessage: true),
+            'contact.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
             'banner.mimes' => translate('The banner must be a file of type: ') . getFileUploadFormats(skip: ['.svg'], asMessage: true),
             'bottom_banner.mimes' => translate('The bottom banner must be a file of type: ') . getFileUploadFormats(skip: ['.svg'], asMessage: true),
             'offer_banner.mimes' => translate('The offer banner must be a file of type: ') . getFileUploadFormats(skip: ['.svg'], asMessage: true),

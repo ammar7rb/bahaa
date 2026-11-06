@@ -609,7 +609,7 @@ const GATEWAYS_CURRENCIES = [
     ["code" => "DOP", "symbol" => "RD$", "name" => "Dominican peso"],
     ["code" => "DZD", "symbol" => "دج", "name" => "Algerian dinar"],
     ["code" => "EEK", "symbol" => "KR", "name" => "Estonian kroon"],
-    ["code" => "EGP", "symbol" => "e£", "name" => "Egyptian pound"],
+    ["code" => "EGP", "symbol" => "ج.م", "name" => "Egyptian pound"],
     ["code" => "ERN", "symbol" => "Nfa", "name" => "Eritrean nakfa"],
     ["code" => "ETB", "symbol" => "Br", "name" => "Ethiopian birr"],
     ["code" => "EUR", "symbol" => "€", "name" => "European Euro"],

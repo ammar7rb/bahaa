@@ -21,8 +21,6 @@ use App\Models\Currency;
 use App\Library\Receiver;
 use App\Utils\CartManager;
 use App\Utils\OrderManager;
-use App\Services\CustomerActivationInvoiceService;
-use App\Services\CustomerPurchaseLimitService;
 use App\Models\CartShipping;
 use App\Models\ShippingType;
 use FontLib\Table\Type\name;
@@ -77,17 +75,6 @@ class PaymentController extends Controller
             }
         }
 
-        if (!in_array($request['payment_request_from'], ['app'])) {
-            $purchaseLimitValidation = app(CustomerActivationInvoiceService::class)->validateProductPaymentAccess(
-                auth('customer')->user(),
-                allowActivationInvoice: true
-            );
-            if ($purchaseLimitValidation['status'] == 0) {
-                Toastr::warning($purchaseLimitValidation['message']);
-                return redirect()->route('customer.purchase-package.index');
-            }
-        }
-
         $validator->sometimes('customer_id', 'required', function ($input) {
             return in_array($input->payment_request_from, ['app']);
         });
@@ -134,23 +121,6 @@ class PaymentController extends Controller
         } elseif ($verifyStatus['status'] == 0) {
             Toastr::info('Check the minimum order amount requirement');
             return redirect()->route('shop-cart');
-        }
-
-        if (in_array($request['payment_request_from'], ['app'])) {
-            $purchaseLimitValidation = app(CustomerActivationInvoiceService::class)->validateProductPaymentAccess(
-                $user,
-                $carts,
-                true
-            );
-            if ($purchaseLimitValidation['status'] == 0) {
-                return response()->json([
-                    'errors' => [[
-                        'code' => $purchaseLimitValidation['code'],
-                        'message' => $purchaseLimitValidation['message'],
-                    ]],
-                    'assessment' => $purchaseLimitValidation['assessment'],
-                ], 403);
-            }
         }
 
         if (in_array($request['payment_request_from'], ['app'])) {
@@ -301,6 +271,13 @@ class PaymentController extends Controller
                 }
                 session()->forget('newCustomerRegister');
                 if (auth()->guard('customer')->check()) {
+                    $pendingInsuranceOrder = Order::query()
+                        ->whereIn('id', session('order_success_ids', []))
+                        ->where('commerce_flow_status', 'customer_insurance_pending')
+                        ->first();
+                    if ($pendingInsuranceOrder) {
+                        return redirect()->route('account-order-insurance.show', $pendingInsuranceOrder->id);
+                    }
                     return redirect()->route('account-oder');
                 } else {
                     return redirect()->route('home');
@@ -382,7 +359,29 @@ class PaymentController extends Controller
             'coupon_code' => $couponCode,
             'requestObj' => $request,
         ]);
-        $paymentAmount = collect($vendorWiseCartList)->sum('order_amount_with_tax');
+        $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+        if ($eligibility->enabled()) {
+            if ($customer === 'offline') throw \Illuminate\Validation\ValidationException::withMessages(['customer_eligibility' => 'سجل الدخول لإتمام الشراء.']);
+            $operation = $eligibility->reserve((int) $customer->id, hash('sha256', json_encode($vendorWiseCartList)), null, 'digital_payment', json_decode(json_encode($vendorWiseCartList), true));
+            if ($operation->cart_snapshot) $vendorWiseCartList = json_decode($operation->cart_snapshot, true);
+            $additionalData['customer_checkout_operation_id'] = $operation->id;
+            $additionalData['customer_id'] = $customer->id;
+            $additionalData['is_guest_in_order'] = 0;
+            $additionalData['new_customer_info'] = null;
+        }
+        $postPurchaseInvoiceService = app(\App\Services\PostPurchaseInvoiceService::class);
+        if ($postPurchaseInvoiceService->isEnabled()) {
+            $paymentAmount = collect($vendorWiseCartList)->sum('first_payment_amount');
+        } else {
+            $paymentAmount = collect($vendorWiseCartList)->sum('order_amount_with_tax');
+        }
+        if (! $postPurchaseInvoiceService->isEnabled()
+            && ! app(\App\Services\CustomerPostPurchaseInsuranceService::class)->enabled()) {
+            $paymentAmount += app(\App\Services\OrderInsuranceService::class)->calculateCartList(
+                $vendorWiseCartList,
+                $customer !== 'offline' ? (int) $customer->id : null,
+            )['total'];
+        }
 
         if ($customer == 'offline') {
             $address = ShippingAddress::where(['customer_id' => $request['customer_id'], 'is_guest' => 1])->latest()->first();
@@ -454,9 +453,10 @@ class PaymentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'amount' => 'required',
-            'payment_method' => 'required',
-            'payment_platform' => 'required',
+            'amount' => 'required|numeric|gt:0',
+            'payment_method' => ['required', \Illuminate\Validation\Rule::in(\App\Utils\payment_gateways()->pluck('key_name')->all())],
+            'payment_platform' => 'required|in:web,app',
+            'wallet_type' => 'sometimes|in:purchase',
         ]);
 
         if ($validator->fails()) {
@@ -470,6 +470,10 @@ class PaymentController extends Controller
                 return back();
             }
         }
+
+        $insuranceDeposit = $request->input('wallet_type') === 'insurance';
+        $digitalPayment = getWebConfig(name: 'digital_payment');
+        abort_unless(($digitalPayment['status'] ?? 0) && ($insuranceDeposit || getWebConfig(name: 'wallet_status') == 1), 403);
 
         $paymentAmount = $request['amount'];
         $currency_model = getWebConfig(name: 'currency_model');
@@ -486,7 +490,7 @@ class PaymentController extends Controller
         $minimumAddFundAmount = getWebConfig(name: 'minimum_add_fund_amount') ?? 0;
         $maximumAddFundAmount = getWebConfig(name: 'maximum_add_fund_amount') ?? 0;
 
-        if (!(Convert::usdPaymentModule($request['amount'], $currentCurrency) >= Convert::usdPaymentModule($minimumAddFundAmount, 'USD')) || !(Convert::usdPaymentModule($request['amount'], $currentCurrency) <= Convert::usdPaymentModule($maximumAddFundAmount, 'USD'))) {
+        if (!(Convert::usdPaymentModule($request['amount'], $currentCurrency) >= Convert::usdPaymentModule($minimumAddFundAmount, 'USD')) || ($maximumAddFundAmount > 0 && !(Convert::usdPaymentModule($request['amount'], $currentCurrency) <= Convert::usdPaymentModule($maximumAddFundAmount, 'USD')))) {
             $errors = [
                 'minimum_amount' => $minimumAddFundAmount ?? 0,
                 'maximum_amount' => $maximumAddFundAmount ?? 1000,
@@ -520,7 +524,7 @@ class PaymentController extends Controller
         );
 
         $payment_info = new PaymentInfo(
-            success_hook: 'add_fund_to_wallet_success',
+            success_hook: $insuranceDeposit ? 'customer_insurance_deposit_success' : 'add_fund_to_wallet_success',
             failure_hook: 'add_fund_to_wallet_fail',
             currency_code: $currency_code,
             payment_method: $request->payment_method,
@@ -529,8 +533,8 @@ class PaymentController extends Controller
             receiver_id: '100',
             additional_data: $additional_data,
             payment_amount: $paymentAmount,
-            external_redirect_link: $request->payment_platform == 'web' ? $request->external_redirect_link : null,
-            attribute: 'add_funds_to_wallet',
+            external_redirect_link: $request->payment_platform == 'web' ? ($request->has('wallet_type') ? route('customer-balances') : $request->external_redirect_link) : null,
+            attribute: $insuranceDeposit ? 'customer_insurance_deposit' : 'add_funds_to_wallet',
             attribute_id: idate("U")
         );
 
@@ -567,7 +571,9 @@ class PaymentController extends Controller
         }
 
         $validated = $validator->validated();
-        $order = Order::find($validated['order_id']);
+        $customer = Helpers::getCustomerInformation($request);
+        abort_if($customer === 'offline',401);
+        $order = Order::where('customer_id',$customer->id)->where('is_guest',0)->find($validated['order_id']);
         if (!$order) {
             Toastr::error(translate('Order_not_found'));
             return back();
@@ -592,12 +598,20 @@ class PaymentController extends Controller
             return back();
         }
 
+        if (!$orderEditHistory || $orderEditHistory->order_due_payment_status === 'paid' || $orderEditHistory->order_due_amount <= 0) abort(422,'لا يوجد مبلغ مستحق.');
         if ($validated['payment_method'] === 'offline_payment') {
             $offlinePaymentInfo = [];
-            $method = OfflinePaymentMethod::where(['id' => $validated['method_id'], 'status' => 1])->first();
+            $method = OfflinePaymentMethod::where(['id' => $validated['method_id'], 'status' => 1])->whereIn('payment_channel',['wallet','instapay'])->first();
 
             if (isset($method)) {
-                $fields = array_column($method->method_informations, 'customer_input');
+                $modern = $request->input('transfer_schema') === 'sender_v2';
+                $fields = $modern ? [] : array_column($method->method_informations ?? [], 'customer_input');
+                if ($modern) {
+                    $offlinePaymentInfo = app(\App\Services\CustomerTransferInformationService::class)->sender($request->all());
+                    $request->validate(['payment_proof'=>'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
+                    $offlinePaymentInfo['payment_proof']=['image_name'=>$this->upload(dir:'offline-payment/order-proof/',format:'webp',image:$request->file('payment_proof')),'storage'=>config('filesystems.disks.default') ?? 'public'];
+                    $offlinePaymentInfo['transferred_amount']=(string)$orderEditHistory->order_due_amount;
+                }
                 $values = $request->all();
 
                 $offlinePaymentInfo['method_id'] = $request['method_id'];
@@ -609,30 +623,18 @@ class PaymentController extends Controller
                     }
                 }
             }
+            abort_unless($method,422);
             $orderEditHistory->update([
                 'order_due_payment_method' => 'offline_payment',
                 'order_due_payment_info' => $offlinePaymentInfo,
             ]);
             OrderManager::sendPushNotificationAfterDuePayment(order: $order);
-            Toastr::success(translate('payment_successful'));
+            Toastr::success('الدفع قيد المراجعة');
             return back();
         }
 
         if ($validated['payment_method'] === 'cash_on_delivery') {
-            if ($request->filled('bring_change_amount_input')) {
-                $order->bring_change_amount = $request['bring_change_amount_input'];
-                if (getWebConfig('currency_model') === 'multi_currency') {
-                    $currentCurrency = $request->current_currency_code ?? session('currency_code');
-                    $order->bring_change_amount_currency = $this->getPaymentGatewayCurrencyCode('cash_on_delivery', $currentCurrency);
-                } else {
-                    $defaultCurrency = Currency::find(getWebConfig('system_default_currency'))->code;
-                    $order->bring_change_amount_currency = $defaultCurrency;
-                }
-                $order->save();
-            }
-            $orderEditHistory->update(['order_due_payment_method' => 'cash_on_delivery']);
-            OrderManager::sendPushNotificationAfterDuePayment(order: $order);
-            Toastr::success(translate('payment_method_updated'));
+            Toastr::error(translate('cash_on_delivery_is_not_available'));
             return back();
         }
 

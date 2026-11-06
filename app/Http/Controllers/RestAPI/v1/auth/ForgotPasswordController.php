@@ -32,6 +32,10 @@ class ForgotPasswordController extends Controller
 
     public function reset_password_request(Request $request)
     {
+        $request->validate(['identity'=>'required|string|max:191']);
+        $record=app(\App\Services\CustomerPasswordRecoveryService::class)->request($request->input('identity'));
+        return response()->json(['message'=>\App\Services\CustomerPasswordRecoveryService::MESSAGE,'support_required'=>true,
+            'conversation_url'=>\Illuminate\Support\Facades\URL::temporarySignedRoute('contact.conversation',now()->addMinutes(30),['contact'=>$record->contact_id])],200);
         $validator = Validator::make($request->all(), [
             'identity' => 'required',
         ]);
@@ -39,6 +43,12 @@ class ForgotPasswordController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
+
+        return response()->json([
+            'message' => translate('password_reset_support_message'),
+            'support_required' => true,
+            'contact_url' => route('contacts', ['subject' => translate('password_reset_support_subject')]),
+        ], 200);
 
         $verification_by = getWebConfig(name: 'forgot_password_verification');
         $otp_interval_time = getWebConfig(name: 'otp_resend_time') ?? 1; //second
@@ -148,6 +158,11 @@ class ForgotPasswordController extends Controller
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
 
+        return response()->json(['errors' => [[
+            'code' => 'support-required',
+            'message' => translate('password_reset_support_message'),
+        ]]], 403);
+
         $verificationData = $this->passwordResetRepo->getFirstWhere(params: ['identity' => $request['email_or_phone']]);
         $verifyStatus = $this->checkPasswordResetOTPBlockTimeOrInvalid(verificationData: $verificationData, identity: $request['email_or_phone']);
         if ($verifyStatus['status'] == 1) {
@@ -181,6 +196,11 @@ class ForgotPasswordController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
         }
+
+        return response()->json(['errors' => [[
+            'code' => 'support-required',
+            'message' => translate('password_reset_support_message'),
+        ]]], 403);
 
         $data = DB::table('password_resets')
             ->where('user_type','customer')

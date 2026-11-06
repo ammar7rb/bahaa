@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use App\Utils\CustomerManager;
 use App\Services\FirebaseService;
 use Illuminate\Http\JsonResponse;
-use App\Services\RecaptchaService;
 use Illuminate\Contracts\View\View;
 use App\Http\Controllers\Controller;
 use Brian2694\Toastr\Facades\Toastr;
@@ -40,6 +39,12 @@ class CustomerAuthController extends Controller
 
     public function loginView(): View|RedirectResponse
     {
+        if (theme_root_path() === 'theme_sigma_care') {
+            $this->customerAuthService->storeCustomerAuthReturnURL();
+            return view('theme-views.customer-views.auth.login', [
+                'keepCustomerLoginRedirectUrl' => session('keep_customer_login_redirect_url'),
+            ]);
+        }
         if (theme_root_path() == 'default') {
             $this->customerAuthService->storeCustomerAuthReturnURL();
             $keepCustomerLoginRedirectUrl = session('keep_customer_login_redirect_url');
@@ -52,17 +57,6 @@ class CustomerAuthController extends Controller
 
     public function loginSubmit(Request $request): JsonResponse|RedirectResponse
     {
-        $result = RecaptchaService::verificationStatus(request: $request, session: 'default_recaptcha_id_customer_auth', action: "customer_auth", firebase: true);
-        if ($result && !$result['status']) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'error' => $result['message'],
-                ]);
-            }
-            Toastr::error($result['message']);
-            return back();
-        }
-
         if ($request['keep_customer_login_redirect_url']) {
             session()->put('keep_customer_login_redirect_url', $request['keep_customer_login_redirect_url']);
         } else {
@@ -193,6 +187,12 @@ class CustomerAuthController extends Controller
         }
 
         $remember = (bool)$request['remember'];
+        if($user->must_change_password) {
+            $remember=false;
+            if(!$user->temporary_password_expires_at || now()->gte(\Carbon\Carbon::parse($user->temporary_password_expires_at))) {
+                return redirect()->route('customer.password-recovery.form')->with('recovery_message','انتهت صلاحية الكلمة المؤقتة. اطلب الاستعادة عبر الدعم.');
+            }
+        }
 
         $maxLoginHit = getWebConfig(name: 'maximum_login_hit') ?? 5;
         $tempBlockTime = getWebConfig(name: 'temporary_login_block_time') ?? 5; //seconds
@@ -211,6 +211,9 @@ class CustomerAuthController extends Controller
 
         $phoneVerification = getLoginConfig(key: 'phone_verification');
         $emailVerification = getLoginConfig(key: 'email_verification');
+        if ($user->onboarding_journey === 'checkout_first' || $user->must_change_password) {
+            $phoneVerification = $emailVerification = 0;
+        }
         $emailVerification = !$phoneVerification ? $emailVerification : 0;
 
         if ($phoneVerification && $user['phone'] && !$user['is_phone_verified'] || $emailVerification && $user['email'] && !$user['is_email_verified']) {
@@ -243,6 +246,7 @@ class CustomerAuthController extends Controller
 
             CustomerManager::updateCustomerSessionData(userId: auth('customer')->id());
             CartManager::cartListSessionToDatabase();
+            session()->forget('checkout_login_return');
             $this->customerRepo->updateWhere(params: ['id' => $user['id']], data: $this->customerAuthService->getCustomerLoginDataReset());
 
             if ($request->ajax()) {
@@ -368,16 +372,6 @@ class CustomerAuthController extends Controller
 
     public function verifyAccount(Request $request): View|RedirectResponse|JsonResponse
     {
-        $result = RecaptchaService::verificationStatus(request: $request, session: 'default_recaptcha_id_customer_auth', action: "customer_auth", firebase: true);
-        if ($result && !$result['status']) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'error' => $result['message'],
-                ]);
-            }
-            Toastr::error($result['message']);
-            return back();
-        }
         if (!$request->has('token') || empty($request['token'])) {
             if (request()->ajax()) {
                 return response()->json([
@@ -527,12 +521,6 @@ class CustomerAuthController extends Controller
 
     public function updateInfoSubmit(Request $request): View|RedirectResponse
     {
-        $result = RecaptchaService::verificationStatus(request: $request, session: 'default_recaptcha_id_customer_auth', action: "customer_auth", firebase: true);
-        if ($result && !$result['status']) {
-            Toastr::error($result['message']);
-            return back();
-        }
-
         $checkEmail = $this->customerRepo->getFirstWhere(params: ['email' => $request['email']]);
         if (!empty($request['email']) && $checkEmail) {
             Toastr::error(translate('Email_already_exists'));

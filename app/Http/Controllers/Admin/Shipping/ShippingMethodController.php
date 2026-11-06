@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use App\Services\CategoryShippingCostService;
 use App\Services\ShippingMethodService;
+use App\Models\EgyptShippingZoneRate;
 use Devrabiul\ToastMagic\Facades\ToastMagic;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +24,27 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class ShippingMethodController extends BaseController
 {
+    public function workspace(Request $request): View
+    {
+        $shippingMethods = $this->shippingMethodRepo->getListWhere(
+            orderBy: ['id' => 'desc'], searchValue: $request->order_search,
+            filters: ['creator_type' => 'admin'], dataLimit: getWebConfig(name: 'pagination_limit')
+        );
+        $adminShipping = $this->shippingTypeRepo->getFirstWhere(params: ['seller_id' => 0]);
+        $allCategoryShippingCost = $this->categoryShippingCostRepo->getListWhere(
+            orderBy: ['id' => 'desc'], searchValue: $request->category_search,
+            filters: ['seller_id' => 0], relations: ['category']
+        )->filter(fn ($item) => $item?->category !== null);
+        $egyptZoneRates = EgyptShippingZoneRate::query()
+            ->orderByRaw('governorate IS NULL DESC')->orderBy('governorate')->get();
+        return view('admin-views.shipping-method.index', compact('egyptZoneRates', 'shippingMethods', 'adminShipping', 'allCategoryShippingCost'));
+    }
+
+    public function workspaceRedirect(): RedirectResponse
+    {
+        return redirect()->route('admin.operations.shipping.index');
+    }
+
     /**
      * @param ShippingMethodRepositoryInterface $shippingMethodRepo
      * @param ShippingTypeRepositoryInterface $shippingTypeRepo
@@ -86,7 +108,13 @@ class ShippingMethodController extends BaseController
         )->filter(function ($item) use ($request) {
             return $item?->category != null;
         });
-        return view('admin-views.shipping-method.index', compact('allCategoryShippingCost', 'shippingMethods', 'adminShipping'));
+        $egyptZoneRates = EgyptShippingZoneRate::query()
+            ->orderByRaw('governorate IS NULL DESC')
+            ->orderBy('governorate')
+            ->orderBy('district')
+            ->orderBy('area')
+            ->get();
+        return view('admin-views.shipping-method.index', compact('allCategoryShippingCost', 'shippingMethods', 'adminShipping', 'egyptZoneRates'));
     }
 
 

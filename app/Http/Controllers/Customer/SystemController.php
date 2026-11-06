@@ -8,7 +8,10 @@ use App\Http\Controllers\Controller;
 use App\Models\ShippingAddress;
 use App\Models\ShippingMethod;
 use App\Models\CartShipping;
+use App\Models\Cart;
 use App\Services\CustomerThreeStepShippingService;
+use App\Services\EgyptShippingRateService;
+use App\Services\GoogleMapsShippingLocationService;
 use App\Traits\CommonTrait;
 use App\Utils\CartManager;
 use App\Utils\OrderManager;
@@ -33,7 +36,7 @@ class SystemController extends Controller
     {
         $selected = true;
         if ($request['cart_group_id'] == 'all_cart_group') {
-            foreach (CartManager::get_cart_group_ids() as $groupId) {
+            foreach (CartManager::get_cart_group_ids(request: $request, type: 'checked') as $groupId) {
                 $request['cart_group_id'] = $groupId;
                 $selected = self::insertIntoCartShipping($request) && $selected;
             }
@@ -58,12 +61,28 @@ class SystemController extends Controller
             $shipping = new CartShipping();
         }
         $shipping['cart_group_id'] = $request['cart_group_id'];
-        $method = app(CustomerThreeStepShippingService::class)->resolveSelectableMethod($request['id']);
+        $shippingService = app(CustomerThreeStepShippingService::class);
+        $method = $shippingService->resolveSelectableMethod($request['id']);
         if (!$method) {
             return false;
         }
+        // The selected checkout address is the source of truth for zone pricing.
+        // Keep the session fallback for older cart forms that do not post address_id.
+        $addressId = data_get($request, 'address_id') ?: session('address_id');
+        $shippingAddress = $addressId ? ShippingAddress::where('customer_id', auth('customer')->id() ?? session('guest_id'))->where('is_guest', auth('customer')->check() ? 0 : 1)->find($addressId) : null;
+        if ($addressId && !$shippingAddress) return false;
+        if ($shippingAddress && !app(EgyptShippingRateService::class)->isEgyptAddress($shippingAddress)) {
+            return false;
+        }
+        $shippingCost = $shippingService->isEnabled()
+            ? $shippingService->calculateCartGroupCost($request['cart_group_id'], $method, $shippingAddress)
+            : $method->cost;
+        if ($shippingCost === null) {
+            // A missing product rate is treated as unavailable instead of a free delivery.
+            return false;
+        }
         $shipping['shipping_method_id'] = $method->id;
-        $shipping['shipping_cost'] = $method->cost;
+        $shipping['shipping_cost'] = $shippingCost;
         $shipping->save();
 
         if (session('coupon_code') && session('coupon_discount')) {
@@ -95,11 +114,38 @@ class SystemController extends Controller
 
         parse_str($request['shipping'], $shipping);
         parse_str($request['billing'], $billing);
+        // Billing is deliberately not collected: orders use their delivery
+        // address for the billing reference as well.
+        $request->merge(['billing_addresss_same_shipping' => 'true']);
         $is_guest = !auth('customer')->check();
+
+        $egyptShipping = app(EgyptShippingRateService::class);
+        if (isset($shipping['country']) && !$egyptShipping->isEgyptAddress($shipping)) {
+            return response()->json(['errors' => translate('shipping_address_must_be_in_egypt')], 403);
+        }
+        $shipping['country'] = 'Egypt';
+        if (!empty($billing)) {
+            if (isset($billing['billing_country']) && !$egyptShipping->isEgyptAddress(['country' => $billing['billing_country']])) {
+                return response()->json(['errors' => translate('shipping_address_must_be_in_egypt')], 403);
+            }
+            $billing['billing_country'] = 'Egypt';
+        }
+
+        // New checkout addresses are resolved by the server from text only.
+        // A client can no longer submit its own latitude/longitude or use a map
+        // pin to influence the delivery price.
+        $isNewShippingAddress = empty($shipping['shipping_method_id']) || (int) $shipping['shipping_method_id'] === 0;
+        $shippingLocationFields = [];
+        if ($isNewShippingAddress) {
+            $locationService = app(GoogleMapsShippingLocationService::class);
+            $resolution = $locationService->resolve($shipping);
+            $shippingLocationFields = $locationService->persistedLocationFields($shipping, $resolution);
+            $shipping = array_merge($shipping, $shippingLocationFields);
+        }
 
         if (isset($shipping['save_address']) && $shipping['save_address'] == 'on') {
 
-            if ($shipping['contact_person_name'] == null || $shipping['address'] == null || $shipping['city'] == null || $shipping['zip'] == null || $shipping['country'] == null || ($is_guest && $shipping['email'] == null)) {
+            if ($this->missingStructuredShippingAddress($shipping, $is_guest)) {
                 return response()->json([
                     'errors' => translate('Fill_all_required_fields_of_shipping_address')
                 ], 403);
@@ -115,28 +161,27 @@ class SystemController extends Controller
                 ], 403);
             }
 
-            $address_id = DB::table('shipping_addresses')->insertGetId([
+            $address_id = ShippingAddress::create(array_merge([
                 'customer_id' => auth('customer')->id() ?? ((session()->has('guest_id') ? session('guest_id'):0)),
                 'is_guest' => auth('customer')->check() ? 0 : (session()->has('guest_id') ? 1:0),
                 'contact_person_name' => $shipping['contact_person_name'],
                 'address_type' => $shipping['address_type'],
                 'address' => $shipping['address'],
                 'city' => $shipping['city'],
+                'state' => $shipping['state'] ?? $shipping['city'],
                 'zip' => $shipping['zip'],
                 'country' => $shipping['country'],
                 'phone' => $shipping['phone'],
                 'email' => auth('customer')->check() ? null : $shipping['email'],
-                'latitude' => $shipping['latitude'],
-                'longitude' => $shipping['longitude'],
                 'is_billing' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ], $shippingLocationFields))->id;
 
         }
         else if (isset($shipping['shipping_method_id']) && $shipping['shipping_method_id'] == 0) {
 
-            if ($shipping['contact_person_name'] == null || $shipping['address'] == null || $shipping['city'] == null || $shipping['zip'] == null || $shipping['country'] == null || ($is_guest && $shipping['email'] == null)) {
+            if ($this->missingStructuredShippingAddress($shipping, $is_guest)) {
                 return response()->json([
                     'errors' => translate('Fill_all_required_fields_of_shipping/billing_address')
                 ], 403);
@@ -152,27 +197,29 @@ class SystemController extends Controller
                 ], 403);
             }
 
-            $address_id = DB::table('shipping_addresses')->insertGetId([
+            $address_id = ShippingAddress::create(array_merge([
                 'customer_id' => auth('customer')->id() ?? ((session()->has('guest_id') ? session('guest_id'):0)),
                 'is_guest' => auth('customer')->check() ? 0 : (session()->has('guest_id') ? 1:0),
                 'contact_person_name' => $shipping['contact_person_name'],
                 'address_type' => $shipping['address_type'],
                 'address' => $shipping['address'],
                 'city' => $shipping['city'],
+                'state' => $shipping['state'] ?? $shipping['city'],
                 'zip' => $shipping['zip'],
                 'country' => $shipping['country'],
                 'phone' => $shipping['phone'],
                 'email' => auth('customer')->check() ? null : $shipping['email'],
-                'latitude' => $shipping['latitude'],
-                'longitude' => $shipping['longitude'],
                 'is_billing' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ], $shippingLocationFields))->id;
         }
         else {
             if (isset($shipping['shipping_method_id'])) {
-                $address = ShippingAddress::find($shipping['shipping_method_id']);
+                $address = ShippingAddress::where('customer_id', auth('customer')->id() ?? session('guest_id'))->where('is_guest', $is_guest ? 1 : 0)->find($shipping['shipping_method_id']);
+                if (!$address || !$egyptShipping->isEgyptAddress($address)) {
+                    return response()->json(['errors' => translate('shipping_address_must_be_in_egypt')], 403);
+                }
                 if (!$address->country || !$address->zip) {
                     return response()->json([
                         'errors' => translate('Please_update_country_and_zip_for_this_shipping_address')
@@ -220,6 +267,7 @@ class SystemController extends Controller
                     'address_type' => $billing['billing_address_type'],
                     'address' => $billing['billing_address'],
                     'city' => $billing['billing_city'],
+                    'state' => $billing['billing_state'] ?? $billing['billing_city'],
                     'zip' => $billing['billing_zip'],
                     'country' => $billing['billing_country'],
                     'phone' => $billing['billing_phone'],
@@ -258,6 +306,7 @@ class SystemController extends Controller
                     'address_type' => $billing['billing_address_type'],
                     'address' => $billing['billing_address'],
                     'city' => $billing['billing_city'],
+                    'state' => $billing['billing_state'] ?? $billing['billing_city'],
                     'zip' => $billing['billing_zip'],
                     'country' => $billing['billing_country'],
                     'phone' => $billing['billing_phone'],
@@ -271,6 +320,9 @@ class SystemController extends Controller
             }
             else {
                 $address = ShippingAddress::find($billing['billing_method_id']);
+                if (!$address || !$egyptShipping->isEgyptAddress($address)) {
+                    return response()->json(['errors' => translate('shipping_address_must_be_in_egypt')], 403);
+                }
                 if ($physical_product == 'yes') {
                     if (!$address->country || !$address->zip) {
                         return response()->json([
@@ -295,6 +347,13 @@ class SystemController extends Controller
             $billing_address_id = $address_id;
         }
 
+        if ($physical_product == 'yes') {
+            CartShipping::whereIn('cart_group_id', CartManager::get_cart_group_ids(request: $request, type: 'checked'))->delete();
+        }
+        if ($physical_product == 'yes' && !$this->quoteAutomaticShippingForAddress($address_id, $request)) {
+            return response()->json(['errors' => 'تعذر حساب الشحن. راجع المحافظة وتفاصيل العنوان المكتوبة.'], 403);
+        }
+
         session()->put('address_id', $address_id);
         session()->put('billing_address_id', $billing_address_id);
 
@@ -315,7 +374,29 @@ class SystemController extends Controller
         $shipping = [];
         $billing = [];
         parse_str($request['shipping'], $shipping);
+        $shipping['zip'] = trim((string) ($shipping['zip'] ?? ''));
+        if (!empty($shipping['checkout_draft_key']) && $request->input('physical_product') === 'yes') {
+            return $this->saveCheckoutAddressAndShipping($request, $shipping);
+        }
+        if (!empty($shipping['checkout_draft_key'])) {
+            validator($shipping, ['checkout_draft_key'=>'required|uuid','preferred_shipping_option'=>'required|in:normal,sigma'])->validate();
+        }
         parse_str($request['billing'], $billing);
+        // Billing is deliberately not collected: orders use their delivery
+        // address for the billing reference as well.
+        $request->merge(['billing_addresss_same_shipping' => 'true']);
+
+        $egyptShipping = app(EgyptShippingRateService::class);
+        if (isset($shipping['country']) && !$egyptShipping->isEgyptAddress($shipping)) {
+            return response()->json(['errors' => translate('shipping_address_must_be_in_egypt')], 403);
+        }
+        $shipping['country'] = 'Egypt';
+        if (!empty($billing)) {
+            if (isset($billing['billing_country']) && !$egyptShipping->isEgyptAddress(['country' => $billing['billing_country']])) {
+                return response()->json(['errors' => translate('shipping_address_must_be_in_egypt')], 403);
+            }
+            $billing['billing_country'] = 'Egypt';
+        }
 
         if (!auth('customer')->check()) {
 
@@ -384,71 +465,13 @@ class SystemController extends Controller
         $isGuestCustomer = !auth('customer')->check();
 
         // Shipping start
-        $addressId = $shipping['shipping_method_id'] ?? 0;
-
-        if (isset($shipping['shipping_method_id'])) {
-            if ($shipping['contact_person_name'] == null || !isset($shipping['address_type']) || $shipping['address'] == null || $shipping['city'] == null || !isset($shipping['zip']) || $shipping['zip'] == null || !isset($shipping['country']) || $shipping['country'] == null || $shipping['phone'] == null || ($isGuestCustomer && $shipping['email'] == null)) {
-                return response()->json([
-                    'errors' => translate('Fill_all_required_fields_of_shipping_address')
-                ], 403);
-            } elseif ($countryRestrictStatus && !self::delivery_country_exist_check($shipping['country'])) {
-                return response()->json([
-                    'errors' => translate('Delivery_unavailable_in_this_country.')
-                ], 403);
-            } elseif ($zipRestrictStatus && !self::delivery_zipcode_exist_check($shipping['zip'])) {
-                return response()->json([
-                    'errors' => translate('Delivery_unavailable_in_this_zip_code_area')
-                ], 403);
-            }
+        if ($countryRestrictStatus && !self::delivery_country_exist_check($shipping['country'])) {
+            return response()->json(['errors'=>translate('Delivery_unavailable_in_this_country.')],403);
         }
-
-        if (isset($shipping['save_address']) && $shipping['save_address'] == 'on') {
-            $addressId = ShippingAddress::insertGetId([
-                'customer_id' => auth('customer')->id() ?? ((session()->has('guest_id') ? session('guest_id') : 0)),
-                'is_guest' => auth('customer')->check() ? 0 : (session()->has('guest_id') ? 1 : 0),
-                'contact_person_name' => $shipping['contact_person_name'],
-                'address_type' => $shipping['address_type'],
-                'address' => $shipping['address'],
-                'city' => $shipping['city'],
-                'zip' => $shipping['zip'],
-                'country' => $shipping['country'],
-                'phone' => $shipping['phone'],
-                'latitude' => $shipping['latitude'] ?? "",
-                'longitude' => $shipping['longitude'] ?? "",
-                'email' => auth('customer')->check() ? null : $shipping['email'],
-                'is_billing' => 0,
-            ]);
-
-        } elseif (isset($shipping['update_address']) && $shipping['update_address'] == 'on') {
-            $getShipping = ShippingAddress::find($addressId);
-            $getShipping->contact_person_name = $shipping['contact_person_name'];
-            $getShipping->address_type = $shipping['address_type'];
-            $getShipping->address = $shipping['address'];
-            $getShipping->city = $shipping['city'];
-            $getShipping->zip = $shipping['zip'];
-            $getShipping->country = $shipping['country'];
-            $getShipping->phone = $shipping['phone'];
-            $getShipping->latitude = $shipping['latitude'] ?? "";
-            $getShipping->longitude = $shipping['longitude'] ?? "";
-            $getShipping->save();
-
-        } elseif (isset($shipping['shipping_method_id']) && !isset($shipping['update_address']) && !isset($shipping['save_address'])) {
-            $addressId = ShippingAddress::insertGetId([
-                'customer_id' => auth('customer')->check() ? 0 : ((session()->has('guest_id') ? session('guest_id') : 0)),
-                'is_guest' => auth('customer')->check() ? 0 : (session()->has('guest_id') ? 1 : 0),
-                'contact_person_name' => $shipping['contact_person_name'],
-                'address_type' => $shipping['address_type'],
-                'address' => $shipping['address'],
-                'city' => $shipping['city'],
-                'zip' => $shipping['zip'],
-                'country' => $shipping['country'],
-                'phone' => $shipping['phone'],
-                'email' => auth('customer')->check() ? null : $shipping['email'],
-                'latitude' => $shipping['latitude'] ?? '',
-                'longitude' => $shipping['longitude'] ?? '',
-                'is_billing' => 0,
-            ]);
+        if ($zipRestrictStatus && $shipping['zip'] !== '' && !self::delivery_zipcode_exist_check($shipping['zip'])) {
+            return response()->json(['errors'=>translate('Delivery_unavailable_in_this_zip_code_area')],403);
         }
+        $addressId = app(\App\Services\CustomerCheckoutAddressService::class)->choose((int)(auth('customer')->id() ?? session('guest_id',0)), $isGuestCustomer, $shipping);
         // Shipping End
 
         // Billing Start
@@ -477,6 +500,7 @@ class SystemController extends Controller
                     'address_type' => $billing['billing_address_type'],
                     'address' => $billing['billing_address'],
                     'city' => $billing['billing_city'],
+                    'state' => $billing['billing_state'] ?? $billing['billing_city'],
                     'zip' => $billing['billing_zip'],
                     'country' => $billing['billing_country'],
                     'phone' => $billing['billing_phone'],
@@ -491,6 +515,7 @@ class SystemController extends Controller
                 $getBilling->address_type = $billing['billing_address_type'];
                 $getBilling->address = $billing['billing_address'];
                 $getBilling->city = $billing['billing_city'];
+                $getBilling->state = $billing['billing_state'] ?? $billing['billing_city'];
                 $getBilling->zip = $billing['billing_zip'];
                 $getBilling->country = $billing['billing_country'];
                 $getBilling->phone = $billing['billing_phone'];
@@ -505,6 +530,7 @@ class SystemController extends Controller
                     'address_type' => $billing['billing_address_type'],
                     'address' => $billing['billing_address'],
                     'city' => $billing['billing_city'],
+                    'state' => $billing['billing_state'] ?? $billing['billing_city'],
                     'zip' => $billing['billing_zip'],
                     'country' => $billing['billing_country'],
                     'phone' => $billing['billing_phone'],
@@ -520,12 +546,19 @@ class SystemController extends Controller
             ], 403);
         }
 
+        if ($physicalProduct == 'yes') {
+            CartShipping::whereIn('cart_group_id', CartManager::get_cart_group_ids(request: $request, type: 'checked'))->delete();
+        }
+        if ($physicalProduct == 'yes' && !$this->quoteAutomaticShippingForAddress($addressId, $request)) {
+            return response()->json(['errors' => !empty($shipping['checkout_draft_key']) ? 'تعذر حساب الشحن. راجع المحافظة والمدينة وتفاصيل العنوان.' : translate('select_your_location_on_the_map_to_calculate_shipping')], 403);
+        }
+
         session()->put('address_id', $addressId);
         session()->put('billing_address_id', $billingAddressId);
 
         if ($request['is_check_create_account'] && $isGuestCustomer) {
             if (empty($request['customer_password']) || empty($request['customer_confirm_password'])) {
-                return response()->json([
+        return response()->json([
                     'errors' => translate('The_password_or_confirm_password_can_not_be_empty')
                 ], 403);
             }
@@ -572,7 +605,96 @@ class SystemController extends Controller
             ], 403);
         }
 
+        if (!empty($shipping['checkout_draft_key'])) {
+            try {
+                $address = ShippingAddress::where('customer_id', auth('customer')->id() ?? session('guest_id'))->where('is_guest', $isGuestCustomer)->findOrFail($addressId);
+                app(CustomerThreeStepShippingService::class)->applyCheckoutOption(
+                    CartManager::get_cart_group_ids(request: $request, type: 'checked'), $address, $shipping['preferred_shipping_option']
+                );
+            } catch (\DomainException $exception) {
+                return response()->json(['errors'=>$exception->getMessage()], 422);
+            }
+            $response = ['status'=>1,'address_id'=>(int)$addressId,'shipping_selected'=>true];
+            if ($request->boolean('refresh_summary') && in_array(theme_root_path(), ['theme_aster', 'theme_sigma_care'], true)) {
+                $response['summary_html'] = view('theme-views.partials._order-summery', ['shippingPending'=>false])->render();
+            }
+            return response()->json($response);
+        }
         return response()->json([], 200);
+    }
+
+    private function saveCheckoutAddressAndShipping(Request $request, array $shipping): JsonResponse
+    {
+        abort_unless(auth('customer')->check(), 401);
+        validator($shipping, [
+            'checkout_draft_key' => 'required|uuid',
+            'preferred_shipping_option' => 'nullable|in:normal,sigma',
+            'legacy_shipping_methods' => 'nullable|array',
+            'legacy_shipping_methods.*' => 'integer|min:1',
+        ])->validate();
+        $drafts = session('checkout_address_drafts', []);
+        try {
+            [$addressId, $prices] = DB::transaction(function () use ($request, $shipping) {
+                User::whereKey(auth('customer')->id())->lockForUpdate()->firstOrFail();
+                $addressId = app(\App\Services\CustomerCheckoutAddressService::class)->choose((int) auth('customer')->id(), false, $shipping);
+                $address = ShippingAddress::where('customer_id', auth('customer')->id())->where('is_guest', 0)->findOrFail($addressId);
+                if (getWebConfig('delivery_country_restriction') && !self::delivery_country_exist_check($address->country)) throw new \DomainException('الشحن غير متاح للدولة المحددة.');
+                if (getWebConfig('delivery_zip_code_area_restriction') && (blank($address->zip) || !self::delivery_zipcode_exist_check($address->zip))) throw new \DomainException('أدخل رمزًا بريديًا متاحًا للشحن ضمن المناطق المحددة.');
+                $prices = app(\App\Services\CustomerCheckoutShippingService::class)->apply(
+                    CartManager::get_cart_group_ids(request: $request, type: 'checked'), $address, $shipping
+                );
+                return [$addressId, $prices];
+            }, 3);
+        } catch (\Throwable $exception) {
+            session()->put('checkout_address_drafts', $drafts);
+            session()->forget(['address_id', 'billing_address_id', 'checkout_shipping_option']);
+            if ($exception instanceof \DomainException) return response()->json(['errors' => $exception->getMessage()], 422);
+            throw $exception;
+        }
+        session()->put(['address_id' => $addressId, 'billing_address_id' => $addressId, 'checkout_shipping_option' => $shipping['preferred_shipping_option'] ?? null]);
+        $result = ['status' => 1, 'address_id' => $addressId, 'shipping_selected' => true,
+            'shipping_option_prices' => array_map(fn ($amount) => webCurrencyConverter($amount), $prices)];
+        if ($request->boolean('refresh_summary')) {
+            $view = in_array(theme_root_path(), ['theme_aster', 'theme_sigma_care'], true) ? 'theme-views.partials._order-summery' : 'web-views.partials._order-summary';
+            $result['summary_html'] = view($view, ['shippingPending' => false])->render();
+        }
+        return response()->json($result);
+    }
+
+    private function missingStructuredShippingAddress(array $shipping, bool $isGuest): bool
+    {
+        foreach ([
+            'contact_person_name', 'phone', 'address', 'state', 'city',
+            'country',
+        ] as $field) {
+            if (blank($shipping[$field] ?? null)) {
+                return true;
+            }
+        }
+
+        return $isGuest && blank($shipping['email'] ?? null);
+    }
+
+    private function quoteAutomaticShippingForAddress(int|string|null $addressId, Request $request): bool
+    {
+        $address = $addressId ? ShippingAddress::where('customer_id',auth('customer')->id() ?? session('guest_id'))->where('is_guest',auth('customer')->check() ? 0 : 1)->find($addressId) : null;
+        if (!$address) {
+            return false;
+        }
+
+        $shippingService = app(CustomerThreeStepShippingService::class);
+        foreach (CartManager::get_cart_group_ids(request: $request, type: 'checked') as $groupId) {
+            if (!Cart::where('cart_group_id', $groupId)->where('is_checked', 1)->where('product_type', 'physical')->exists()) {
+                continue;
+            }
+
+            $quote = $shippingService->quoteAutomaticDistanceDeliveryOptions($groupId, $address);
+            if (!$quote) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     function getRegisterNewCustomer($request, $address): array

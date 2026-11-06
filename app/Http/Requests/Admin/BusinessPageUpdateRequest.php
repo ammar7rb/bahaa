@@ -9,6 +9,7 @@ use Illuminate\Validation\Validator;
 
 class BusinessPageUpdateRequest extends FormRequest
 {
+    use \App\Http\Requests\Admin\Concerns\HasBusinessPageTranslations;
     protected $stopOnFirstFailure = true;
 
     public function authorize(): bool
@@ -23,6 +24,8 @@ class BusinessPageUpdateRequest extends FormRequest
         }
 
         return [
+            ...$this->translationRules(),
+            'id' => 'required|integer|exists:business_pages,id',
             'title' => [
                 'required', 'string', Rule::unique('business_pages', 'title')->ignore($this['id']),
             ],

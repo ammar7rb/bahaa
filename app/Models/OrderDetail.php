@@ -41,6 +41,8 @@ class OrderDetail extends Model
 {
     use StorageTrait;
 
+    protected $hidden = ['vendor_unit_price_snapshot', 'vendor_content_revision'];
+
     protected $fillable = [
         'product_id',
         'order_id',
@@ -85,6 +87,17 @@ class OrderDetail extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class)->where('status', 1);
+    }
+
+    public function getProductDetailsAttribute($value): ?string
+    {
+        $workspace = app(\App\Services\VendorProductWorkspaceService::class);
+        if (!$value || !$workspace->enabled() || !$workspace->sellerId()) return $value;
+        $payload = json_decode($value, true);
+        if (!is_array($payload)) return null;
+        $payload = $workspace->privatePayload((int) $this->getRawOriginal('product_id'), $payload);
+        unset($payload['slug'], $payload['product_url'], $payload['share_url'], $payload['seo_info'], $payload['translations']);
+        return json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     //active_product
@@ -162,6 +175,9 @@ class OrderDetail extends Model
     protected static function boot(): void
     {
         parent::boot();
+        static::creating(function ($line) {
+            $line->forceFill(app(\App\Services\VendorProductWorkspaceService::class)->snapshotOrderLine($line->getAttributes()));
+        });
         static::saved(function ($model) {
             if ($model->isDirty('digital_file_after_sell')) {
                 $storage = config('filesystems.disks.default') ?? 'public';

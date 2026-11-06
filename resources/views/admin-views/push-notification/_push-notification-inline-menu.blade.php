@@ -16,13 +16,7 @@
             </a>
         </li>
 
-        <li class="nav-item" role="presentation">
-            <a class="nav-link {{ Request::is('admin/push-notification/index') && request('type') == 'deliveryman' ? 'active' : '' }}"
-               href="{{ route('admin.push-notification.index', ['type' => 'deliveryman']) }}"
-               role="tab" aria-selected="true">
-                {{ translate('Deliveryman') }}
-            </a>
-        </li>
+        {{-- Delivery Man notifications are intentionally unavailable in the admin panel. --}}
 
     </ul>
     <div class="nav--tab__prev">

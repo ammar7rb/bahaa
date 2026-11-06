@@ -241,7 +241,11 @@ class CartController extends Controller
     {
         $user = Helpers::getCustomerInformation();
 
-        Cart::where(['id' => $request->key, 'customer_id' => ($user == 'offline' ? session('guest_id') : auth('customer')->id())])->delete();
+        $cartItem = Cart::where(['id' => $request->key, 'customer_id' => ($user == 'offline' ? session('guest_id') : auth('customer')->id())])->first();
+        if ($cartItem && app(\App\Services\CustomerThreeStepShippingService::class)->isEnabled()) {
+            CartShipping::where('cart_group_id', $cartItem->cart_group_id)->delete();
+        }
+        $cartItem?->delete();
 
         session()->forget('coupon_code');
         session()->forget('coupon_type');

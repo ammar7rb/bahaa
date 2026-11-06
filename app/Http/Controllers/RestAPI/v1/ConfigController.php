@@ -257,6 +257,15 @@ class ConfigController extends Controller
         if ($request['type'] == 'pages') {
             $businessPages = $businessPages?->where('default_status', 0);
         }
+        // Compatibility alias: older installed apps look up this slug directly.
+        // Both entries expose the same current document, never a separate policy.
+        $businessPages = $businessPages->reject(fn ($page) => $page->slug === 'privacy-policy')->values();
+        $combined = $businessPages->firstWhere('slug', 'terms-and-conditions');
+        if ($combined) {
+            $legacyPrivacy = clone $combined;
+            $legacyPrivacy->setAttribute('slug', 'privacy-policy');
+            $businessPages->push($legacyPrivacy);
+        }
         return $businessPages->values();
     }
 }

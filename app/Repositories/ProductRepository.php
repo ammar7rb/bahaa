@@ -311,10 +311,21 @@ class ProductRepository implements ProductRepositoryInterface
                     ->when(isset($filters['request_status']) && $filters['request_status'] != 'all', function ($query) use ($filters) {
                         $query->where(['request_status' => $filters['request_status']]);
                     })
+                    ->when(isset($filters['seller_review_status']) && $filters['seller_review_status'] != 'all', function ($query) use ($filters) {
+                        $query->where('seller_review_status', $filters['seller_review_status']);
+                    })
                     ->when(isset($filters['seller_id']) && $filters['seller_id'] != 'all', function ($query) use ($filters) {
                         $query->where(['user_id' => $filters['seller_id']]);
                     });
             })
+            ->when(($filters['expiry_status'] ?? null) === 'near_expiry', fn ($query) => $query
+                ->whereDate('expiry_date', '>', today())
+                ->whereDate('expiry_date', '<=', today()->addDays(30)))
+            ->when(($filters['expiry_status'] ?? null) === 'expired', fn ($query) => $query
+                ->whereNotNull('expiry_date')
+                ->whereDate('expiry_date', '<=', today()))
+            ->when(($filters['expiry_status'] ?? null) === 'missing', fn ($query) => $query
+                ->where(fn ($query) => $query->whereNull('production_date')->orWhereNull('expiry_date')))
             ->when(isset($relations['reviews']), function ($query) use ($relations) {
                 return $query->with($relations['reviews'], function ($query) use ($relations) {
                     return $query->active();
@@ -608,11 +619,8 @@ class ProductRepository implements ProductRepositoryInterface
                         ->orWhereIn('id', $product_ids);
                 });
             })
-            ->when($stockLimit <= 0, function ($query) {
-                return $query->where('current_stock', 0);
-            })
-            ->when($stockLimit > 0, function ($query) use ($stockLimit) {
-                return $query->where('current_stock', '<', $stockLimit);
+            ->when(isset($stockLimit), function ($query) use ($stockLimit) {
+                return $query->where('current_stock', '<=', $stockLimit);
             })
             ->when(!empty($orderBy), function ($query) use ($orderBy) {
                 return $query->orderBy(array_key_first($orderBy), array_values($orderBy)[0]);

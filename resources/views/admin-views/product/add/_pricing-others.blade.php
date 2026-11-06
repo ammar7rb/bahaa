@@ -84,35 +84,8 @@
                             </div>
                         </div>
 
-                        <div class="col-md-6 col-lg-4">
-                            <div class="form-group">
-                                <label class="form-label" for="discount">
-                                    {{ translate('Discount_Amount') }}
-                                    <span class="discount-amount-symbol" data-percent="%"
-                                          data-currency="{{ getCurrencySymbol(currencyCode: getCurrencyCode()) }}">
-                                        ({{ getCurrencySymbol(currencyCode: getCurrencyCode()) }})
-                                    </span>
-                                    <span class="input-required-icon">*</span>
-                                    <span class="tooltip-icon cursor-pointer" data-bs-toggle="tooltip"
-                                          aria-label="{{ translate('add_the_discount_amount_in_percentage_or_a_fixed_value_here') }}."
-                                          data-bs-title="{{ translate('add_the_discount_amount_in_percentage_or_a_fixed_value_here') }}."
-                                    >
-                                        <i class="fi fi-sr-info"></i>
-                                    </span>
-                                </label>
-                                <div class="input-group">
-                                    <input type="number" min="0" value="0" step="0.01"
-                                           placeholder="{{ translate('ex: 5') }}"
-                                           name="discount" id="discount" class="form-control"  data-required-msg="{{ translate('discount_is_required') }}" required>
-                                    <div class="input-group-append select-wrapper">
-                                        <select class="form-control form-select shadow-none product-discount-type" name="discount_type" id="product-discount-type">
-                                            <option value="flat">{{ translate('flat') }}</option>
-                                            <option value="percent">{{ translate('percent') }}</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <input type="hidden" name="discount" id="discount" value="0">
+                        <input type="hidden" name="discount_type" id="discount_type" value="flat">
 
                         @if ($productWiseTax)
                             <div class="col-md-6 col-lg-4">
@@ -138,6 +111,29 @@
                             </div>
                         @endif
 
+                        @if(getWebConfig(name: 'customer_three_step_shipping_status'))
+                            {{-- Three product-level rates are controlled by admin; sellers cannot enter delivery pricing. --}}
+                            <input type="hidden" name="shipping_cost" value="0">
+                            <input type="hidden" name="multiply_qty" value="0">
+                            <div class="col-md-6 col-lg-4 show-for-physical-product">
+                                <div class="form-group">
+                                    <label class="form-label">{{ translate('Same_Day_Delivery') }} {{ translate('cost') }} <span class="input-required-icon">*</span></label>
+                                    <input type="number" min="0" value="0" step="0.01" name="same_day_shipping_cost" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 show-for-physical-product">
+                                <div class="form-group">
+                                    <label class="form-label">{{ translate('Next_Day_Delivery') }} {{ translate('cost') }} <span class="input-required-icon">*</span></label>
+                                    <input type="number" min="0" value="0" step="0.01" name="next_day_shipping_cost" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 show-for-physical-product">
+                                <div class="form-group">
+                                    <label class="form-label">{{ translate('Normal_Delivery') }} {{ translate('cost') }} <span class="input-required-icon">*</span></label>
+                                    <input type="number" min="0" value="0" step="0.01" name="normal_shipping_cost" class="form-control" required>
+                                </div>
+                            </div>
+                        @else
                         <div class="col-md-6 col-lg-4 show-for-physical-product" id="shipping_cost">
                             <div class="form-group">
                                 <label class="form-label">
@@ -181,11 +177,11 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
 

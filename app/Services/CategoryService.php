@@ -14,12 +14,14 @@ class CategoryService
     {
         $storage = config('filesystems.disks.default') ?? 'public';
         $name = $request['name'][array_search('en', $request['lang'])];
+        $usesLibraryIcon = $request->input('visual_source') === 'library';
 
         return [
             'name' => $name,
             'slug' => $this->generateModelUniqueSlug(name: $name, type: 'category'),
-            'icon' => $this->upload('category/', 'webp', $request->file('image')),
-            'icon_storage_type' => $request->has('image') ? $storage : null,
+            'icon' => $usesLibraryIcon ? null : $this->upload('category/', 'webp', $request->file('image')),
+            'medical_icon' => $usesLibraryIcon ? $request->input('medical_icon') : null,
+            'icon_storage_type' => !$usesLibraryIcon && $request->hasFile('image') ? $storage : null,
             'parent_id' => $request->get('parent_id', 0),
             'position' => $request['position'] ?? 0,
             'priority' => $request['priority'] ?? 0,
@@ -32,11 +34,13 @@ class CategoryService
         $storage = config('filesystems.disks.default') ?? 'public';
         $image = $request->file('image') ? $this->update('category/', $data['image'], 'webp', $request->file('image')) : $data['icon'];
         $name = $request['name'][array_search('en', $request['lang'])];
+        $usesLibraryIcon = $request->input('visual_source') === 'library';
 
         $result = [
             'name' => $name,
             'slug' => $this->generateModelUniqueSlug(name: $name, type: 'category', id: $data['id']),
             'icon' => $image,
+            'medical_icon' => $usesLibraryIcon ? $request->input('medical_icon') : null,
             'icon_storage_type' => $request->has('image') ? $storage : $data['icon_storage_type'],
             'priority' => $request['priority'],
         ];

@@ -23,7 +23,7 @@ class SellerSearchPromotionController extends Controller
         $seller = $request->seller;
         $products = Product::query()
             ->withoutGlobalScopes()
-            ->with('activeSearchPromotion')
+            ->with(['activeSearchPromotion', 'latestSearchPromotion'])
             ->where(['added_by' => 'seller', 'user_id' => $seller->id])
             ->where(['status' => 1, 'request_status' => 1])
             ->latest('id')
@@ -68,7 +68,7 @@ class SellerSearchPromotionController extends Controller
             $promotion = $this->promotionService->activateSearchPromotion($product, $seller);
 
             return response()->json([
-                'message' => translate('search_promotion_activated_successfully'),
+                'message' => translate('Advertising_request_sent_for_admin_review'),
                 'promotion' => $this->formatPromotion($promotion),
                 'summary' => $this->formatSummary($this->promotionService->getSearchSummary($seller)),
             ]);
@@ -102,8 +102,9 @@ class SellerSearchPromotionController extends Controller
             'name' => $product->name,
             'thumbnail_full_url' => $product->thumbnail_full_url,
             'is_search_promoted' => (bool) $product->activeSearchPromotion,
-            'search_promotion' => $product->activeSearchPromotion
-                ? $this->formatPromotion($product->activeSearchPromotion)
+            'has_pending_ad_request' => $product->latestSearchPromotion?->approval_status === SellerProductPromotion::APPROVAL_PENDING,
+            'search_promotion' => $product->latestSearchPromotion
+                ? $this->formatPromotion($product->latestSearchPromotion)
                 : null,
         ];
     }
@@ -117,6 +118,15 @@ class SellerSearchPromotionController extends Controller
             'promotion_type' => $promotion->promotion_type,
             'duration_days' => $promotion->duration_days,
             'status' => $promotion->status,
+            'approval_status' => $promotion->approval_status,
+            'review_note' => $promotion->review_note,
+            'placement_scope' => $promotion->placement_scope,
+            'placement_key' => $promotion->placement_key,
+            'requested_position' => $promotion->requested_position,
+            'approved_position' => $promotion->approved_position,
+            'badge_label' => data_get($promotion->metadata, 'badge_label'),
+            'requested_at' => $promotion->requested_at,
+            'reviewed_at' => $promotion->reviewed_at,
             'starts_at' => $promotion->starts_at,
             'expires_at' => $promotion->expires_at,
         ];

@@ -44,6 +44,12 @@
                         <input type="text" class="form-control" placeholder="{{ translate('ex').': '.translate('bkash') }}"
                                data-required-msg="{{ translate('method_name_is_required') }}"
                                name="method_name" required>
+                        <label for="payment_channel" class="form-label mt-3">{{ app()->getLocale() === 'ar' ? 'نوع الوسيلة في تطبيق العميل' : 'Customer app payment channel' }}</label>
+                        <select class="form-control" id="payment_channel" name="payment_channel" required>
+                            <option value="wallet">{{ app()->getLocale() === 'ar' ? 'محفظة إلكترونية' : 'Electronic wallet' }}</option>
+                            <option value="instapay">InstaPay</option>
+                            <option value="other">{{ app()->getLocale() === 'ar' ? 'أخرى (لا تظهر كخيار تحويل في التطبيق)' : 'Other (not shown as an app transfer option)' }}</option>
+                        </select>
                     </div>
 
                     <div class="input-fields-section" id="input-fields-section">
@@ -228,4 +234,3 @@
 @push('script')
     <script src="{{ dynamicAsset(path: 'public/assets/backend/admin/js/third-party/offline-payment.js') }}"></script>
 @endpush
-

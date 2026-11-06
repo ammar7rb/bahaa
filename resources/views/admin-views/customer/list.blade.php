@@ -4,6 +4,7 @@
 @section('title', translate('Customer_List'))
 
 @section('content')
+    <div class="content container-fluid pb-0"><a class="btn btn-outline-primary" href="{{ route('admin.customer.password-recovery.index') }}">طلبات استعادة كلمة المرور</a></div>
     <div class="content container-fluid">
         <div class="mb-4">
             <h2 class="h1 mb-0 text-capitalize d-flex align-items-center gap-2">
@@ -47,6 +48,8 @@
                                 <select class="form-select" name="sort_by">
                                     <option disabled {{ is_null(request('sort_by')) ? 'selected' : '' }}>{{ translate('Select_Customer_sorting_order') }}</option>
                                     <option value="order_amount">{{ translate('Sort_By_Order_Amount') }}</option>
+                                    <option value="orders_count" {{ request('sort_by') === 'orders_count' ? 'selected' : '' }}>{{ translate('Sort_By_Most_Orders') }}</option>
+                                    <option value="orders_count_asc" {{ request('sort_by') === 'orders_count_asc' ? 'selected' : '' }}>{{ translate('Sort_By_Least_Orders') }}</option>
                                     <option value="asc" {{ request('sort_by') === 'asc' ? 'selected' : '' }}>{{translate('Sort_By_Oldest')}}</option>
                                     <option value="desc" {{ request('sort_by') === 'desc' ? 'selected' : '' }}>{{translate('Sort_By_Newest')}}</option>
                                 </select>
@@ -90,7 +93,7 @@
                                         <input type="hidden" name="sort_by" value="{{request('sort_by')}}">
                                         <input type="hidden" name="choose_first" value="{{request('choose_first')}}">
                                         <input id="datatableSearch_" type="search" name="searchValue" class="form-control"
-                                               placeholder="{{ translate('search_by_Name_or_Email_or_Phone')}}"  aria-label="Search orders" value="{{ request('searchValue') }}">
+                                               placeholder="{{ translate('search_by_ID_or_Name_or_Email_or_Phone')}}"  aria-label="{{ translate('search_by_ID_or_Name_or_Email_or_Phone') }}" value="{{ request('searchValue') }}">
                                         <div class="input-group-append search-submit">
                                             <button type="submit">
                                                 <i class="fi fi-rr-search"></i>
@@ -105,13 +108,45 @@
                             <i class="fi fi-sr-inbox-in"></i>
                             <span class="fs-12">{{ translate('export') }}</span>
                         </a>
+                        <button type="button" class="btn btn-outline-secondary" onclick="window.baFullPagePrint()" data-smart-print-trigger>
+                            <i class="fi fi-rr-print"></i>
+                            <span class="fs-12">{{ translate('print') }}</span>
+                        </button>
                     </div>
                 </div>
+                <details class="mb-3 customer-notification-panel">
+                    <summary class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
+                        <i class="fi fi-rr-bell"></i> {{ translate('Notify_Selected_Customers') }}
+                    </summary>
+                    <form action="{{ route('admin.customer.notify') }}" method="POST" class="border rounded p-3 mt-3">
+                        @csrf
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label">{{ translate('notification_title') }}</label>
+                                <input type="text" name="title" class="form-control" maxlength="120" required>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">{{ translate('message') }}</label>
+                                <textarea name="message" class="form-control" rows="2" maxlength="1000" required></textarea>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fi fi-rr-paper-plane"></i> {{ translate('send_to_selected') }}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-muted fs-12 mt-2">{{ translate('select_customers_before_sending') }}</div>
+                    </form>
+                </details>
                 <div class="table-responsive datatable-custom">
                     <table class="table table-hover table-borderless table-thead-bordered table-nowrap table-align-middle card-table w-100">
                         <thead class="thead-light thead-50 text-capitalize">
                             <tr>
+                                <th class="text-center">
+                                    <input type="checkbox" id="select-all-customers" class="form-check-input" aria-label="{{ translate('select_all') }}">
+                                </th>
                                 <th>{{translate('SL')}}</th>
+                                <th>{{translate('ID')}}</th>
                                 <th>{{translate('customer_name')}}</th>
                                 <th>{{translate('contact_info')}}</th>
                                 <th>{{translate('total_Order')}} </th>
@@ -123,9 +158,15 @@
                         <tbody>
                         @foreach($customers as $key=>$customer)
                             <tr>
+                                <td class="text-center">
+                                    @if($customer['email'] != 'walking@customer.com')
+                                        <input type="checkbox" name="customer_ids[]" value="{{ $customer['id'] }}" class="form-check-input customer-select" aria-label="{{ translate('select_customer') }}">
+                                    @endif
+                                </td>
                                 <td>
                                     {{$customers->firstItem()+$key}}
                                 </td>
+                                <td>{{ $customer->administrative_reference }}</td>
                                 <td>
                                     <a href="{{route('admin.customer.view',[$customer['id']])}}"
                                     class="text-dark text-hover-primary d-flex align-items-center gap-10">
@@ -151,12 +192,12 @@
                                 <td>
                                     @php($activePackage = $customerActivePackages[$customer['id']] ?? null)
                                     @if($activePackage)
-                                        @php($totalLimit = (float) $activePackage->package_purchase_limit + (float) $activePackage->extra_credit_limit + (float) $activePackage->admin_adjustment_limit)
-                                        @php($availableLimit = max($totalLimit - (float) $activePackage->used_purchase_limit, 0))
-                                        <div class="fw-semibold text-dark">{{ Str::limit($activePackage?->package?->name ?? translate('package'), 24) }}</div>
+                                        @php($totalLimit = (float)$activePackage->granted_allowance+(float)$activePackage->additional_allowance)
+                                        @php($availableLimit = max($totalLimit-(float)$activePackage->committed_allowance,0))
+                                        <div class="fw-semibold text-dark">{{ Str::limit($activePackage->package_name ?? translate('package'),24) }}</div>
                                         <div class="fs-12 text-muted">
                                             {{ translate('available') }}:
-                                            <span class="fw-semibold">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $availableLimit)) }}</span>
+                                            <span class="fw-semibold">{{ rtrim(rtrim(number_format($availableLimit,3,'.',','),'0'),'.') }} ج.م</span>
                                         </div>
                                     @else
                                         <span class="badge badge-danger text-bg-danger">{{ translate('no_active_package') }}</span>
@@ -233,8 +274,35 @@
 @endsection
 
 @push('script')
+    <style>
+        @media print {
+            .navbar, .footer, .customer-notification-panel, form, .btn, .pagination, th:first-child, td:first-child,
+            .table thead th:last-child, .table tbody td:last-child { display: none !important; }
+            .content { padding: 0 !important; }
+        }
+    </style>
     <script type="text/javascript">
         changeInputTypeForDateRangePicker($('input[name="order_date"]'));
         changeInputTypeForDateRangePicker($('input[name="customer_joining_date"]'));
+        document.getElementById('select-all-customers')?.addEventListener('change', function () {
+            document.querySelectorAll('.customer-select').forEach((checkbox) => {
+                checkbox.checked = this.checked;
+            });
+        });
+        document.querySelector('.customer-notification-panel form')?.addEventListener('submit', function (event) {
+            const selected = [...document.querySelectorAll('.customer-select:checked')];
+            if (!selected.length) {
+                event.preventDefault();
+                alert('{{ translate('select_customers_before_sending') }}');
+                return;
+            }
+            selected.forEach((checkbox) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'customer_ids[]';
+                input.value = checkbox.value;
+                this.appendChild(input);
+            });
+        });
     </script>
 @endpush

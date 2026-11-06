@@ -10,6 +10,7 @@ use App\Utils\Helpers;
 use App\Models\Product;
 use App\Models\DeliveryMan;
 use App\Utils\ImageManager;
+use App\Services\EgyptPhoneService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use App\Models\SellerWallet;
@@ -17,6 +18,9 @@ use App\Utils\BackEndHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use App\Models\WithdrawRequest;
+use App\Models\WithdrawalMethod;
+use App\Services\SellerLedgerService;
+use App\Services\SellerWithdrawalMethodService;
 use App\Models\OrderTransaction;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
@@ -112,6 +116,19 @@ class SellerController extends Controller
 
     public function shop_info_update(Request $request):JsonResponse
     {
+        $request->merge([
+            'contact' => app(EgyptPhoneService::class)->normalizeLocal($request->input('contact')),
+        ]);
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'address' => 'required|string',
+            'contact' => ['required', 'regex:/^01[0125][0-9]{8}$/'],
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
+        }
+
         $data = Helpers::get_seller_by_token($request);
 
         if ($data['success'] == 1) {
@@ -183,63 +200,25 @@ class SellerController extends Controller
         return response()->json(translate('Info updated successfully!'), 200);
     }
 
-    public function withdraw_request(Request $request):JsonResponse
+    public function withdraw_request(Request $request): JsonResponse
     {
-        $data = Helpers::get_seller_by_token($request);
-        if ($data['success'] == 1) {
-            $seller = $data['data'];
-        } else {
-            return response()->json([
-                'auth-001' => translate('Your existing session token does not authorize you any more')
-            ], 401);
-        }
-        if($seller->account_no==null || $seller->bank_name==null)
-        {
-            return response()->json(['message'=>translate('Update your bank info first')], 202);
-        }
-
-        $wallet = SellerWallet::where('seller_id', $seller['id'])->first();
-        if (($wallet->total_earning) >= Convert::usd($request['amount']) && $request['amount'] > 0) {
-            DB::table('withdraw_requests')->insert([
-                'seller_id' => $seller['id'],
-                'amount' => Convert::usd($request['amount']),
-                'transaction_note' => null,
-                'approved' => 0,
-                'created_at' => now(),
-                'updated_at' => now()
-            ]);
-            $wallet->total_earning -= BackEndHelper::currency_to_usd($request['amount']);
-            $wallet->pending_withdraw += BackEndHelper::currency_to_usd($request['amount']);
-            $wallet->save();
-            return response()->json(translate('Withdraw request sent successfully!'), 200);
-        }
-        return response()->json(['message'=>translate('Invalid withdraw request')], 400);
+        $result = Helpers::get_seller_by_token($request); abort_unless($result['success'] == 1, 401); $seller = $result['data'];
+        $input = $request->validate(['amount' => 'required|numeric|min:0.01', 'saved_method_id' => 'required_without:withdraw_method_id|integer', 'withdraw_method_id' => 'required_without:saved_method_id|integer', 'request_key' => 'nullable|uuid']);
+        try {
+            $withdrawal = app(\App\Services\SellerWithdrawalService::class)->submit((int) $seller['id'], (int) ($input['saved_method_id'] ?? $input['withdraw_method_id']), (float) Convert::usd($input['amount']), $input['request_key'] ?? null);
+            return response()->json(['message' => translate('withdraw_request_has_been_sent'), 'request' => $withdrawal]);
+        } catch (\DomainException | \InvalidArgumentException $exception) { return response()->json(['message' => translate($exception->getMessage())], 422); }
     }
 
-    public function close_withdraw_request(Request $request):JsonResponse
+
+    public function close_withdraw_request(Request $request): JsonResponse
     {
-        $data = Helpers::get_seller_by_token($request);
-        if ($data['success'] == 1) {
-            $seller = $data['data'];
-        } else {
-            return response()->json([
-                'auth-001' => translate('Your existing session token does not authorize you any more')
-            ], 401);
-        }
-
-        $withdraw_request = WithdrawRequest::find($request['id']);
-        $wallet = SellerWallet::where('seller_id', $seller['id'])->first();
-
-        if (isset($withdraw_request) && $withdraw_request->approved == 0) {
-            $wallet->total_earning += BackEndHelper::currency_to_usd($withdraw_request['amount']);
-            $wallet->pending_withdraw -= BackEndHelper::currency_to_usd($request['amount']);
-            $wallet->save();
-            $withdraw_request->delete();
-            return response()->json(translate('Withdraw request has been closed successfully!'), 200);
-        }
-
-        return response()->json(translate('Withdraw request is invalid'), 400);
+        $result = Helpers::get_seller_by_token($request); abort_unless($result['success'] == 1, 401); $seller = $result['data'];
+        $request->validate(['id' => 'required|integer']);
+        try { app(\App\Services\SellerWithdrawalService::class)->finish((int) $request->id, 3, (int) $seller['id'], 'Cancelled by vendor'); return response()->json(['message' => translate('withdraw_request_closed')]); }
+        catch (\DomainException $exception) { return response()->json(['message' => translate($exception->getMessage())], 422); }
     }
+
 
     public function transaction(Request $request):JsonResponse
     {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\CategoryShippingCost;
 use App\Models\ShippingType;
+use App\Services\CustomerThreeStepShippingService;
 use App\Utils\Convert;
 use App\Utils\Helpers;
 use Illuminate\Http\JsonResponse;
@@ -32,6 +33,11 @@ class shippingController extends Controller
 
     public function selected_shipping_type(Request $request):JsonResponse
     {
+        if (app(CustomerThreeStepShippingService::class)->isEnabled()) {
+            // Prevent direct API calls from restoring seller-specific shipping configuration.
+            return response()->json(['message' => translate('Shipping is managed by admin')], 403);
+        }
+
         $seller = $request->seller;
         $seller_id = $seller['id'];
 
@@ -81,6 +87,11 @@ class shippingController extends Controller
 
     public function set_category_cost(Request $request):JsonResponse
     {
+        if (app(CustomerThreeStepShippingService::class)->isEnabled()) {
+            // Category prices cannot override the active admin three-step delivery pricing.
+            return response()->json(['message' => translate('Shipping is managed by admin')], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'ids' => 'required',
             'cost' => 'required',

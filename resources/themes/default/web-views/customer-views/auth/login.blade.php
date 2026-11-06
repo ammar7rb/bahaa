@@ -50,7 +50,6 @@
                                     <input type="hidden" name="login_type" value="otp-login">
                                     @include('web-views.customer-views.auth.partials._phone')
 
-                                    @include('web-views.customer-views.auth.partials._recaptcha')
 
                                     <button class="btn btn--primary btn-block btn-shadow font-semi-bold" type="submit">
                                         {{ translate('Get_OTP') }}
@@ -69,7 +68,6 @@
                                     @include('web-views.customer-views.auth.partials._remember-me', [
                                         'forgotPassword' => true,
                                     ])
-                                    @include('web-views.customer-views.auth.partials._recaptcha')
                                     <button class="btn btn--primary btn-block btn-shadow font-semi-bold" type="submit">
                                         {{ translate('sign_in') }}
                                     </button>
@@ -90,7 +88,6 @@
                                     @include('web-views.customer-views.auth.partials._remember-me', [
                                         'forgotPassword' => true,
                                     ])
-                                    @include('web-views.customer-views.auth.partials._recaptcha')
                                     <button class="btn btn--primary btn-block btn-shadow font-semi-bold" type="submit">
                                         {{ translate('sign_in') }}
                                     </button>
@@ -109,7 +106,6 @@
                                     <input type="hidden" name="keep_customer_login_redirect_url" value="{{ $keepCustomerLoginRedirectUrl ?? old('keep_customer_login_redirect_url', url()->previous()) }}">
                                     <input type="hidden" name="login_type" value="otp-login">
                                     @include('web-views.customer-views.auth.partials._phone')
-                                    @include('web-views.customer-views.auth.partials._recaptcha')
 
                                     <button class="btn btn--primary btn-block btn-shadow font-semi-bold" type="submit">
                                         {{ translate('Get_OTP') }}
@@ -141,7 +137,6 @@
                                             @include('web-views.customer-views.auth.partials._phone')
                                         </div>
 
-                                        @include('web-views.customer-views.auth.partials._recaptcha')
 
                                         <div class="manual-login-items">
                                             <button class="btn btn--primary btn-block btn-shadow font-semi-bold"
@@ -209,7 +204,6 @@
 @endsection
 
 @push('script')
-    @php($recaptcha = getWebConfig(name: 'recaptcha'))
     @if ($web_config['firebase_otp_verification_status'])
         <script>
             $('.or-sign-in-with').css('width', $('.or-sign-in-with-row').height())

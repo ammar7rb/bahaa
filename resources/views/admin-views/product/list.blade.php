@@ -31,6 +31,12 @@
                                                class="form-control"
                                                placeholder="{{ translate('search_by_Product_Name') }}"
                                                aria-label="Search orders" value="{{ request('searchValue') }}">
+                                        <select class="form-control form-control-sm" name="expiry_status" onchange="this.form.submit()">
+                                            <option value="">{{ translate('All_Expiry_Statuses') }}</option>
+                                            <option value="near_expiry" {{ request('expiry_status') === 'near_expiry' ? 'selected' : '' }}>{{ translate('Near_Expiry_30_Days') }}</option>
+                                            <option value="expired" {{ request('expiry_status') === 'expired' ? 'selected' : '' }}>{{ translate('Expired') }}</option>
+                                            <option value="missing" {{ request('expiry_status') === 'missing' ? 'selected' : '' }}>{{ translate('Missing_Product_Dates') }}</option>
+                                        </select>
                                         <div class="input-group-append search-submit">
                                             <button type="submit">
                                                 <i class="fi fi-rr-search"></i>
@@ -48,7 +54,6 @@
                                                 'searchValue' => request('searchValue'),
                                                 'seller_id' => request('seller_id'),
                                                 'filter_sort_by' => request('filter_sort_by'),
-                                                'filter_product_types' => request('filter_product_types'),
                                                 'product_status' => request('product_status'),
                                                 'filter_brand_ids' => request('filter_brand_ids'),
                                                 'filter_category_ids' => request('filter_category_ids'),
@@ -63,7 +68,7 @@
                                            data-bs-target="#offcanvasProductFilter">
                                         <i class="fi fi-sr-settings-sliders d-flex"></i> {{ translate('Filter') }}
                                     </button>
-                                    @if(!empty(request('filter_sort_by')) || !empty(request('filter_product_types')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
+                                    @if(!empty(request('filter_sort_by')) || !empty(request('product_status')) || !empty(request('filter_shop_ids')) || !empty(request('filter_brand_ids')) || !empty(request('filter_category_ids')))
                                         <div
                                             class="position-absolute top-n1 inset-inline-end-n1 btn-circle bg-danger border border-white border-2"
                                             style="--size: 12px;"></div>
@@ -87,9 +92,11 @@
                             <tr>
                                 <th>{{ translate('SL') }}</th>
                                 <th>{{ translate('product Name') }}</th>
-                                <th class="text-center">{{ translate('product Type') }}</th>
                                 <th class="text-center">{{ translate('unit_price') }}</th>
-                                <th class="text-center">{{ translate('stock') }}</th>
+                                <th class="text-center">{{ translate('quantity') }}</th>
+                                @if($type === 'seller')
+                                    <th>{{ translate('seller') }}</th>
+                                @endif
                                 @if ($productWiseTax)
                                     <th class="text-center">{{ translate('Vat/Tax') }}</th>
                                 @endif
@@ -97,15 +104,15 @@
                                     <div class="d-flex justify-content-center">
                                         <div>
                                             <div class="d-flex gap-2">
-                                                <span>{{ translate('show_as_featured') }} </span>
+                                                <span>{{ translate('homepage_sections') }} </span>
                                                 <span class="tooltip-icon" data-bs-toggle="tooltip"
                                                       data-bs-placement="top"
-                                                      aria-label="{{ translate('Highlight_this_product_on_the_homepage_by_marking_it_as_featured') }}"
-                                                      data-bs-title="{{ translate('Highlight_this_product_on_the_homepage_by_marking_it_as_featured') }}">
+                                                      aria-label="{{ translate('Choose_the_enabled_homepage_sections_where_this_product_should_appear') }}"
+                                                      data-bs-title="{{ translate('Choose_the_enabled_homepage_sections_where_this_product_should_appear') }}">
                                                         <i class="fi fi-sr-info"></i>
                                                     </span>
                                             </div>
-                                            <div>{{ translate('on_homepage') }}</div>
+                                            <div>{{ translate('visible_sections') }}</div>
                                         </div>
                                     </div>
                                 </th>
@@ -148,33 +155,33 @@
                                         </a>
                                     </td>
                                     <td class="text-center">
-                                        {{ translate(str_replace('_', ' ', $product['product_type'])) }}
-                                    </td>
-                                    <td class="text-center">
                                         {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $product['unit_price']), currencyCode: getCurrencyCode()) }}
                                     </td>
                                     <td>
                                         <div class="d-flex justify-content-center gap-2 align-items-center lh-1">
-                                            @if ($product['product_type'] === 'physical')
-                                                <span>{{ $product->current_stock }}</span>
-                                                @if ($product->current_stock <= 0)
-                                                    <span class="text-danger-dark fs-18"
-                                                          data-bs-toggle="tooltip"
-                                                          title="{{ translate('Out_of_Stock') }}">
-                                                        <i class="fi fi-sr-exclamation"></i>
-                                                    </span>
-                                                @elseif ($product->current_stock <= 20)
-                                                    <span class="text-warning-dark fs-18"
-                                                          data-bs-toggle="tooltip"
-                                                          title="{{ translate('Low_Stock') }}">
-                                                        <i class="fi fi-sr-exclamation"></i>
-                                                    </span>
-                                                @endif
-                                            @else
-                                                <span>-</span>
+                                            <span>{{ $product->current_stock }}</span>
+                                            @if ($product->current_stock <= 0)
+                                                <span class="text-danger-dark fs-18"
+                                                      data-bs-toggle="tooltip"
+                                                      title="{{ translate('Out_of_Stock') }}">
+                                                    <i class="fi fi-sr-exclamation"></i>
+                                                </span>
+                                            @elseif ($product->current_stock <= 20)
+                                                <span class="text-warning-dark fs-18"
+                                                      data-bs-toggle="tooltip"
+                                                      title="{{ translate('Low_Stock') }}">
+                                                    <i class="fi fi-sr-exclamation"></i>
+                                                </span>
                                             @endif
                                         </div>
                                     </td>
+                                    @if($type === 'seller')
+                                        <td>
+                                            <a href="{{ route('admin.vendors.view', $product->user_id) }}" class="fw-semibold">M{{ $product->user_id }}</a>
+                                            <div class="small text-muted">{{ $product->seller?->shop?->name ?? translate('shop_not_found') }}</div>
+                                            <div class="small text-muted">{{ $product->seller?->phone ?? '—' }}</div>
+                                        </td>
+                                    @endif
 
                                     @if ($productWiseTax)
                                         <td class="text-center">
@@ -192,17 +199,27 @@
                                                 </span>
                                         </td>
                                     @endif
-                                    @php
-                                        $isDisabled = request()->has('request_status') && request('request_status') === '0' || request('request_status') === '2';
-                                    @endphp
                                     <td class="text-center">
-                                        <div class="" data-bs-toggle="{{ $isDisabled ? 'tooltip' : '' }}" title="{{ $isDisabled ? translate('Non approved products cannot be featured') : '' }}">
-                                            <input type="checkbox"
-                                                   class="product-status-checkbox form-check-input checkbox--input checkbox--input_lg"
-                                                   data-id="{{ $product['id'] }}"
-                                                   data-action="{{ route('admin.products.featured-status') }}"
-                                                {{ $product['featured'] == 1 ? 'checked' : '' }}
-                                                {{ $isDisabled ? 'disabled' : '' }}>
+                                        @php
+                                            $canManageHomepagePlacement = (int) $product['request_status'] === 1 && (int) $product['status'] === 1;
+                                            $selectedHomepageSections = collect($homepagePlacementSections)
+                                                ->filter(fn ($section) => in_array((int) $product['id'], $section['product_ids'], true))
+                                                ->pluck('key')
+                                                ->values()
+                                                ->all();
+                                        @endphp
+                                        <div data-bs-toggle="{{ !$canManageHomepagePlacement ? 'tooltip' : '' }}" title="{{ !$canManageHomepagePlacement ? translate('homepage_placement_requires_approved_active_product') : '' }}">
+                                            <button type="button"
+                                                    class="btn btn-sm {{ count($selectedHomepageSections) ? 'btn-primary' : 'btn-outline-primary' }} homepage-placement-open"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#homepagePlacementModal"
+                                                    data-product-id="{{ $product['id'] }}"
+                                                    data-product-name="{{ $product['name'] }}"
+                                                    data-selected-sections='@json($selectedHomepageSections)'
+                                                    {{ !$canManageHomepagePlacement ? 'disabled' : '' }}>
+                                                <i class="fi fi-sr-layout-fluid"></i>
+                                                <span>{{ count($selectedHomepageSections) ?: translate('select') }}</span>
+                                            </button>
                                         </div>
                                     </td>
 
@@ -284,5 +301,104 @@
     <span id="message-select-word" data-text="{{ translate('select') }}"></span>
 
     @include('admin-views.product.partials.offcanvas._filter-offcanvas')
+
+    <div class="modal fade" id="homepagePlacementModal" tabindex="-1" aria-labelledby="homepagePlacementModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form id="homepage-placement-form" method="post"
+                  data-endpoint-template="{{ route('admin.products.homepage-placement', ['product' => '__product__']) }}">
+                @csrf
+                <div class="modal-content homepage-placement-modal">
+                    <div class="modal-header">
+                        <div>
+                            <h5 class="modal-title" id="homepagePlacementModalLabel">{{ translate('homepage_sections') }}</h5>
+                            <p class="text-muted small mb-0" id="homepage-placement-product-name"></p>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ translate('close') }}"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info small mb-3">
+                            {{ translate('Only_enabled_homepage_product_sections_are_listed_here') }}
+                        </div>
+                        <div class="row g-2" id="homepage-placement-options">
+                            @forelse($homepagePlacementSections as $section)
+                                <div class="col-sm-6">
+                                    <label class="homepage-placement-option w-100" for="homepage-section-{{ $section['key'] }}">
+                                        <input class="form-check-input" type="checkbox" name="section_keys[]"
+                                               value="{{ $section['key'] }}" id="homepage-section-{{ $section['key'] }}">
+                                        <span>
+                                            <strong class="d-block">{{ translate($section['label']) }}</strong>
+                                            <small>{{ translate($section['source_mode']) }}</small>
+                                        </span>
+                                    </label>
+                                </div>
+                            @empty
+                                <div class="col-12 text-muted text-center py-3">{{ translate('No_enabled_homepage_product_sections_are_available') }}</div>
+                            @endforelse
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ translate('cancel') }}</button>
+                        <button type="submit" class="btn btn-primary" @disabled(count($homepagePlacementSections) === 0)>{{ translate('save_placement') }}</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 @endsection
 
+@push('script')
+    <script>
+        'use strict';
+        $(function () {
+            const form = $('#homepage-placement-form');
+            const modalElement = document.getElementById('homepagePlacementModal');
+
+            $('.homepage-placement-open').on('click', function () {
+                const button = $(this);
+                let selectedSections = button.attr('data-selected-sections') || '[]';
+                try {
+                    selectedSections = JSON.parse(selectedSections);
+                } catch (error) {
+                    selectedSections = [];
+                }
+
+                form.attr('action', form.data('endpoint-template').replace('__product__', button.data('product-id')));
+                $('#homepage-placement-product-name').text(button.data('product-name'));
+                form.find('input[name="section_keys[]"]').prop('checked', false);
+                selectedSections.forEach(function (sectionKey) {
+                    form.find('input[name="section_keys[]"][value="' + sectionKey + '"]').prop('checked', true);
+                });
+            });
+
+            form.on('submit', function (event) {
+                event.preventDefault();
+                const submitButton = form.find('button[type="submit"]');
+                submitButton.prop('disabled', true);
+
+                $.post(form.attr('action'), form.serialize())
+                    .done(function (response) {
+                        if (window.bootstrap) {
+                            bootstrap.Modal.getOrCreateInstance(modalElement).hide();
+                        }
+                        if (window.toastr) {
+                            toastr.success(response.message);
+                        }
+                        window.location.reload();
+                    })
+                    .fail(function (xhr) {
+                        const message = xhr.responseJSON && xhr.responseJSON.message
+                            ? xhr.responseJSON.message
+                            : '{{ translate('something_went_wrong') }}';
+                        if (window.toastr) {
+                            toastr.error(message);
+                        } else {
+                            alert(message);
+                        }
+                    })
+                    .always(function () {
+                        submitButton.prop('disabled', false);
+                    });
+            });
+        });
+    </script>
+@endpush

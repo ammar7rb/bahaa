@@ -486,6 +486,10 @@ $(".action-sort-shop-products-by-data").on("change", function () {
 
 $("#shop-view-chat-form").on("submit", function (e) {
     e.preventDefault();
+    if ($("#route-messages-store").data("support-only")) {
+        window.location.assign($("#route-messages-store").data("url"));
+        return;
+    }
     $.ajaxSetup({
         headers: {
             "X-CSRF-TOKEN": $('meta[name="_token"]').attr("content"),
@@ -532,6 +536,10 @@ $(".menu--caret").on("click", function (e) {
 
 $("#seller-chat-form").on("submit", function (e) {
     e.preventDefault();
+    if ($("#route-messages-store").data("support-only")) {
+        window.location.assign($("#route-messages-store").data("url"));
+        return;
+    }
     $.ajaxSetup({
         headers: {
             "X-CSRF-TOKEN": $('meta[name="_token"]').attr("content"),
@@ -553,6 +561,10 @@ $("#seller-chat-form").on("submit", function (e) {
 
 $("#deliveryman-chat-form").on("submit", function (e) {
     e.preventDefault();
+    if ($("#route-messages-store").data("support-only")) {
+        window.location.assign($("#route-messages-store").data("url"));
+        return;
+    }
     $.ajaxSetup({
         headers: {
             "X-CSRF-TOKEN": $('meta[name="_token"]').attr("content"),
@@ -666,7 +678,8 @@ $("#customer-register-form").on("submit", function (e) {
     e.preventDefault();
     $.ajax({
         type: "POST",
-        url: $(this).data("action"),
+        url: $(this).attr("action"),
+        dataType: "json",
         data: $(this).serialize(),
         beforeSend: function () {
             $("#loading").addClass("d-grid");
@@ -686,8 +699,17 @@ $("#customer-register-form").on("submit", function (e) {
                 window.location.href = response.redirect_url;
             }
         },
-        error: function () {
-
+        error: function (xhr) {
+            const response = xhr.responseJSON || {};
+            if (response.errors) {
+                Object.values(response.errors).forEach(function (error) {
+                    const messages = Array.isArray(error) ? error : [error.message || error];
+                    messages.forEach(function (message) { toastr.error(message); });
+                });
+            } else {
+                toastr.error(response.error || response.message ||
+                    (document.documentElement.lang === 'ar' ? 'تعذر إنشاء الحساب. حاول مرة أخرى.' : 'Unable to create your account. Please try again.'));
+            }
         },
         complete: function () {
             $("#loading").removeClass("d-grid");
@@ -738,7 +760,7 @@ function showInstantImage(link) {
 }
 
 function couponCode() {
-    $("#apply-coupon-code").on("click", function () {
+    $(document).on("click", "#apply-coupon-code", function () {
         $.ajaxSetup({
             headers: {
                 "X-CSRF-TOKEN": $('meta[name="_token"]').attr("content"),
@@ -1308,6 +1330,10 @@ function checkoutFromCartList() {
             $("#loading").show();
         },
         success: function (response) {
+            if (response.registration_required && response.redirect) {
+                location.href = response.redirect;
+                return;
+            }
             if (response.status === 0) {
                 response.message.map(function (message) {
                     toastr.error(message);
@@ -1508,7 +1534,8 @@ function cartListQuantityUpdateInit() {
 cartListQuantityUpdateInit();
 
 function actionCheckoutFunctionInit() {
-    $(".action-checkout-function").on("click", function () {
+    $(document).off("click.checkoutAction", ".action-checkout-function").on("click.checkoutAction", ".action-checkout-function", function () {
+        if ($(this).hasClass('custom-disabled')) return;
         let getRoute = $("#route-action-checkout-function").data("route");
         if (getRoute && getRoute.toString() === "shop-cart") {
             checkoutFromCartList();
@@ -2373,7 +2400,7 @@ $(".password-check").on("keyup keypress change click", function () {
                 .html(passwordErrorMessage.data("number"))
                 .removeClass("d-none");
             break;
-        case !/[@.#$!%*?&]/.test(password):
+        case !this.hasAttribute("data-special-character-optional") && !/[@.#$!%*?&]/.test(password):
             passwordError
                 .html(passwordErrorMessage.data("symbol"))
                 .removeClass("d-none");

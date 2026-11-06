@@ -15,6 +15,7 @@ class BusinessPageService
             'title' => $request['title'],
             'slug' => Str::slug($request['title']),
             'description' => $request['description'],
+            'translations' => $request['translations'],
             'status' => $request['status'] ?? 0,
         ];
     }
@@ -35,7 +36,7 @@ class BusinessPageService
             'shipping-policy' => 'shipping-policy',
         ];
 
-        $slug = Str::slug($request['title']);
+        $slug = $request['slug'] ?? Str::slug($request['title']);
         if ($request->has('slug') && in_array($request['slug'], $defaultPages)) {
             $slug = Str::slug($request['slug']);
         }
@@ -48,6 +49,7 @@ class BusinessPageService
             'title' => $request['title'],
             'slug' => $slug,
             'description' => $request['description'],
+            'translations' => $request['translations'],
             'status' => $status,
         ];
     }

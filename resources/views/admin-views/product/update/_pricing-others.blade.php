@@ -28,6 +28,32 @@
             <div class="card-body">
                 <div class="bg-section rounded-10 p-12 p-sm-20">
                     <div class="row gy-4 align-items-end">
+                        @unless($product->added_by === 'seller')
+                        <div class="col-md-6 col-lg-4">
+                            <div class="form-group">
+                                <label class="form-label" for="production_date">
+                                    {{ translate('production_date') }}
+                                    <span class="input-required-icon">*</span>
+                                </label>
+                                <input type="date" name="production_date" id="production_date"
+                                       value="{{ old('production_date', $product->production_date?->format('Y-m-d')) }}"
+                                       class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-lg-4">
+                            <div class="form-group">
+                                <label class="form-label" for="expiry_date">
+                                    {{ translate('expiry_date') }}
+                                    <span class="input-required-icon">*</span>
+                                </label>
+                                <input type="date" name="expiry_date" id="expiry_date"
+                                       min="{{ now()->addDay()->toDateString() }}"
+                                       value="{{ old('expiry_date', $product->expiry_date?->format('Y-m-d')) }}"
+                                       class="form-control" required>
+                            </div>
+                        </div>
+
+                        @endunless
                         <div class="col-md-6 col-lg-4">
                             <div class="form-group">
                                 <label class="form-label">
@@ -45,7 +71,7 @@
                                 <input type="number" min="0" step="0.01"
                                        placeholder="{{ translate('unit_price') }}" name="unit_price" id="unit_price"
                                        data-required-msg="{{ translate('unit_price_is_required') }}"
-                                       value="{{ usdToDefaultCurrency($product->unit_price) }}" class="form-control" required>
+                                       value="{{ old('unit_price', usdToDefaultCurrency($product->unit_price)) }}" class="form-control" required>
                             </div>
                         </div>
                         <div class="col-md-6 col-lg-4" id="minimum_order_qty">
@@ -86,42 +112,8 @@
                                        class="form-control only-number-input" required>
                             </div>
                         </div>
-                        <div class="col-md-6 col-lg-4">
-                            <div class="form-group">
-                                <label class="form-label" for="discount">
-                                    {{ translate('Discount_Amount') }}
-                                    <span class="discount-amount-symbol" data-percent="%"
-                                          data-currency="{{ getCurrencySymbol(currencyCode: getCurrencyCode()) }}">
-                                        ({{ $product->discount_type == 'flat' ? getCurrencySymbol(currencyCode: getCurrencyCode()) : '%' }})
-                                    </span>
-                                    <span class="input-required-icon">*</span>
-                                    <span class="tooltip-icon cursor-pointer" data-bs-toggle="tooltip"
-                                          aria-label="{{ translate('add_the_discount_amount_in_percentage_or_a_fixed_value_here') }}."
-                                          data-bs-title="{{ translate('add_the_discount_amount_in_percentage_or_a_fixed_value_here') }}."
-                                    >
-                                        <i class="fi fi-sr-info"></i>
-                                    </span>
-                                </label>
-                                <div class="input-group">
-                                    <input type="number" min="0"
-                                           value="{{ $product->discount_type == 'flat' ? usdToDefaultCurrency($product->discount) : $product->discount }}"
-                                           step="any"
-                                           placeholder="{{ translate('ex: 5') }}"
-                                           data-required-msg="{{ translate('discount_is_required') }}"
-                                           name="discount" id="discount" class="form-control" required>
-                                    <div class="input-group-append select-wrapper">
-                                        <select class="form-control form-select shadow-none product-discount-type" name="discount_type" id="product-discount-type">
-                                            <option value="flat" {{ $product['discount_type']=='flat'?'selected':''}}>
-                                                {{ translate('flat') }}
-                                            </option>
-                                            <option value="percent" {{ $product['discount_type']=='percent'?'selected':''}}>
-                                                {{ translate('percent') }}
-                                            </option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <input type="hidden" name="discount" id="discount" value="0">
+                        <input type="hidden" name="discount_type" id="discount_type" value="flat">
 
                         @if ($productWiseTax)
                             <div class="col-md-6 col-lg-4">
@@ -144,49 +136,12 @@
                             </div>
                         @endif
 
-                        <div class="col-md-6 col-lg-4 show-for-physical-product" id="shipping_cost">
-                            <div class="form-group">
-                                <label class="form-label">
-                                    {{ translate('Shipping_Cost') }}
-                                    ({{getCurrencySymbol(currencyCode: getCurrencyCode()) }})
-                                    <span class="tooltip-icon cursor-pointer" data-bs-toggle="tooltip"
-                                          aria-label="{{ translate('set_the_shipping_cost_for_this_product_here._Shipping_cost_will_only_be_applicable_if_product-wise_shipping_is_enabled.') }}"
-                                          data-bs-title="{{ translate('set_the_shipping_cost_for_this_product_here._Shipping_cost_will_only_be_applicable_if_product-wise_shipping_is_enabled.') }}"
-                                    >
-                                        <i class="fi fi-sr-info"></i>
-                                    </span>
-                                </label>
-                                <input type="number" min="0" value="{{ usdToDefaultCurrency($product->shipping_cost) }}" step="any"
-                                       placeholder="{{ translate('shipping_cost') }}" name="shipping_cost" id="shipping_cost_input"
-                                       data-required-msg="{{ translate('shipping_cost_is_required') }}"
-                                       class="form-control" required>
-                            </div>
-                        </div>
+                        {{-- Shipping is managed by the order workflow; retain the stored product rates. --}}
+                        @foreach(['shipping_cost', 'same_day_shipping_cost', 'next_day_shipping_cost', 'normal_shipping_cost'] as $retainedShippingField)
+                            <input type="hidden" name="{{ $retainedShippingField }}" value="{{ usdToDefaultCurrency($product->{$retainedShippingField} ?? 0) }}">
+                        @endforeach
+                        <input type="hidden" name="multiply_qty" value="{{ $product->multiply_qty ? 'on' : 'off' }}">
 
-                        <div class="col-md-6 col-lg-4 show-for-physical-product" id="shipping_cost_multi">
-                            <div class="form-group">
-                                <label class="form-label" for="shipping_cost">
-                                   {{ translate('shipping_cost_multiply_with_quantity') }}
-                                    <span class="tooltip-icon cursor-pointer" data-bs-toggle="tooltip"
-                                            title="{{ translate('if_enabled,_the_shipping_charge_will_increase_with_the_product_quantity') }}">
-                                        <i class="fi fi-sr-info"></i>
-                                    </span>
-                                </label>
-                                <div
-                                    class="form-control min-h-40 d-flex align-items-center flex-wrap justify-content-between gap-2">
-                                    <label class="form-label mb-0">
-                                        {{ translate('Status') }}
-                                    </label>
-                                    <div>
-                                        <label class="switcher">
-                                            <input type="checkbox" class="switcher_input" name="multiply_qty" id="is_shipping_cost_multil"
-                                                {{ $product['multiply_qty'] == 1 ? 'checked' : '' }}>
-                                            <span class="switcher_control"></span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

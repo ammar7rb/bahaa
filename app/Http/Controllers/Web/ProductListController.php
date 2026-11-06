@@ -38,7 +38,7 @@ class ProductListController extends Controller
             $pageTitle = Author::firstWhere('id', $request['author_id'])?->name .' '.translate('Products');
         }
 
-        return match (theme_root_path()) {
+        return match (theme_base_path()) {
             'default' => self::default_theme(request: $request, pageType: 'default', pageTitle: $pageTitle),
             'theme_aster' => self::theme_aster(request: $request, pageType: 'default', pageTitle: $pageTitle),
         };
@@ -183,7 +183,7 @@ class ProductListController extends Controller
 
     public function getProductsListPage(object|array $request, string $pageType = 'default', string $offerType = '', string $pageTitle = '', object|array|null $metaData = null)
     {
-        return match (theme_root_path()) {
+        return match (theme_base_path()) {
             'default' => self::default_theme(request: $request, pageType: $pageType, pageTitle: $pageTitle, metaData: $metaData),
             'theme_aster' => self::theme_aster(request: $request, pageType: $pageType, pageTitle: $pageTitle, metaData: $metaData),
         };

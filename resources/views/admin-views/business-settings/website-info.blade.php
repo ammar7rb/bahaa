@@ -489,17 +489,11 @@
                                         <div class="card-body">
                                             <div class="row g-4">
                                                 <div class="col-xl-4 col-md-6">
-                                                    <div class="form-check d-flex gap-3">
-                                                        <input class="form-check-input checkbox--input" type="checkbox" name="cash_on_delivery"
-                                                            id="cash_on_delivery" value="1" {{ $cashOnDelivery['status'] == 1 ? 'checked' : '' }}>
+                                                    <div class="d-flex gap-3">
+                                                        <i class="tio-blocked fs-22 text-danger"></i>
                                                         <div class="flex-grow-1">
-                                                            <label for="cash_on_delivery"
-                                                                class="form-label text-dark fw-semibold mb-1 user-select-none">
-                                                                {{ translate('cash_on_delivery') }}
-                                                            </label>
-                                                            <p class="fs-12 mb-0">
-                                                                {{ translate('enabling_cash_on_delivery') }} ({{ translate('COD') }}) {{ translate('will_make_it_available_as_a_payment_option_for_customers_during_the_checkout_process') }}
-                                                            </p>
+                                                            <div class="form-label text-dark fw-semibold mb-1">{{ translate('cash_on_delivery') }}</div>
+                                                            <p class="fs-12 mb-0 text-muted">{{ translate('cash_on_delivery_is_not_available') }}</p>
                                                         </div>
                                                     </div>
                                                 </div>

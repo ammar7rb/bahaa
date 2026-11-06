@@ -19,9 +19,11 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/vendor/icon-set/style.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/theme.minc619.css?v=1.0') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/style.css') }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-dark-mode.css') }}">
+    @include('layouts.vendor.partials._dark-mode-preference')
     <link rel="stylesheet"
         href="{{ dynamicAsset(path: 'public/assets/back-end/plugins/intl-tel-input/css/intlTelInput.css') }}">
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.css') }}">
+    <style>.default-captcha-container,.dynamic-default-and-recaptcha-section,.generate-firebase-auth-recaptcha{display:none!important}</style>
 
     @if ($web_config['primary_color'])
         <style>
@@ -38,6 +40,7 @@
 @php($recaptcha = getWebConfig(name: 'recaptcha'))
 
 <body>
+    @include('layouts.vendor.partials._dark-mode-toggle')
     <main id="content" role="main" class="main">
         <div class="auth-wrapper">
             <div class="auth-wrapper-left"
@@ -67,143 +70,25 @@
                         <div class="mb-5">
                             <h1 class="display-4">{{ translate('forgot_password') . '?' }}</h1>
                             <h1 class="h4 text-gray-900 mb-4">
-                                {{ translate('Follow_steps_to_reset_vendor_password') }}
+                                {{ translate('password_reset_support_title') }}
                             </h1>
                         </div>
 
-                        @php($verificationBy = getWebConfig('vendor_forgot_password_method'))
-                        @if ($verificationBy == 'email')
-                            <ol class="list-unstyled font-size-md text-start">
-                                <li>
-                                    <span class="text--primary mr-2">1.</span>
-                                    {{ translate('enter_your_email_address_below') . '.' }}
-                                </li>
-                                <li>
-                                    <span class="text--primary mr-2">2.</span>
-                                    {{ translate('we_will_send_you_a_temporary_link_via_email') . '.' }}
-                                </li>
-                                <li>
-                                    <span class="text--primary mr-2">3.</span>
-                                    {{ translate('by_clicking_the_link_to_change_your_password_on_our_secure_website') . '.' }}
-                                </li>
-                            </ol>
-
-                            <form id="vendor-forgot-password-form"
-                                action="{{ route('vendor.auth.forgot-password.index') }}" method="post">
-                                @csrf
-                                <div class="js-form-message form-group mt-5 mb-1">
-                                    <label class="input-label" for="signingVendorPassword" tabindex="0">
-                                        <span class="d-flex justify-content-between align-items-center">
-                                            {{ translate('Email_Address') }}
-                                            <a href="{{ route('vendor.auth.login') }}" class="text--primary">
-                                                {{ translate('back_to_login') }}
-                                            </a>
-                                        </span>
-                                    </label>
-
-                                    <input type="email" class="form-control form-control-lg" name="identity"
-                                        value="{{ old('identity') }}" tabindex="1"
-                                        placeholder="{{ translate('enter_email_address') }}"
-                                        aria-label="{{ translate('enter_email_address') }}" required>
-                                </div>
-                                @if ($web_config['firebase_otp_verification'] && $web_config['firebase_otp_verification']['status'])
-                                    <div class="generate-firebase-auth-recaptcha" id="firebase-auth-recaptcha-{{ rand(111, 999) }}"></div>
-                                @elseif(isset($recaptcha) && $recaptcha['status'] == 1)
-                                    <div class="dynamic-default-and-recaptcha-section">
-                                        <input type="hidden" name="g-recaptcha-response" class="render-grecaptcha-response"
-                                               data-input="#login-default-captcha-section" data-action="vendor_forgot_password"
-                                               data-default-captcha="#login-default-captcha-section"
-                                        >
-
-                                        <div class="default-captcha-container d-none" id="login-default-captcha-section"
-                                             data-placeholder="{{ translate('enter_captcha_value') }}"
-                                             data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                             data-session="{{ 'default_recaptcha_id_vendor_forgot_password' }}"
-                                        >
-                                        </div>
-                                    </div>
-                                @else
-                                    <div class="default-captcha-container"
-                                         data-placeholder="{{ translate('enter_captcha_value') }}"
-                                         data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                         data-session="{{ 'default_recaptcha_id_vendor_forgot_password' }}"
-                                    >
-                                    </div>
-                                @endif
-
-                                <button type="submit" id="vendor-forgot-password-btn"
-                                    class="btn btn-lg btn-block btn--primary">
-                                    {{ translate('Send') }}
-                                </button>
-                            </form>
-                        @else
-                            <ol class="list-unstyled font-size-md text-start">
-                                <li>
-                                    <span class="text--primary mr-2">1.</span>
-                                    {{ translate('fill_in_your_phone_number_below') . '.' }}
-                                </li>
-                                <li>
-                                    <span class="text--primary mr-2">2.</span>
-                                    {{ translate('we_will_send_you_a_temporary_OTP_via_phone') . '.' }}
-                                </li>
-                                <li>
-                                    <span class="text--primary mr-2">3.</span>
-                                    {{ translate('use_the_OTP_to_change_your_password_on_our_secure_website') . '.' }}
-                                </li>
-                            </ol>
-
-                            <form id="vendor-forgot-password-form"
-                                action="{{ route('vendor.auth.forgot-password.index') }}" method="post">
-                                @csrf
-                                <div class="js-form-message form-group mt-5 mb-1">
-                                    <label class="input-label" for="forgotVendorPassword" tabindex="0">
-                                        <span class="d-flex justify-content-between align-items-center">
-                                            {{ translate('phone') }}
-                                            <a href="{{ route('vendor.auth.login') }}" class="text--primary">
-                                                {{ translate('back_to_login') }}
-                                            </a>
-                                        </span>
-                                    </label>
-
-                                    <div class="form-group mb-3">
-                                        <input type="tel" id="forgotVendorPassword"
-                                            value="{{ old('identity') }}" name="identity"
-                                            class="form-control phone-input-with-country-picker-forgot-password"
-                                            placeholder="{{ translate('enter_phone_number') }}" />
-                                    </div>
-                                </div>
-
-                                @if ($web_config['firebase_otp_verification'] && $web_config['firebase_otp_verification']['status'])
-                                    <div class="generate-firebase-auth-recaptcha" id="firebase-auth-recaptcha-{{ rand(111, 999) }}"></div>
-                                @elseif(isset($recaptcha) && $recaptcha['status'] == 1)
-                                    <div class="dynamic-default-and-recaptcha-section">
-                                        <input type="hidden" name="g-recaptcha-response" class="render-grecaptcha-response" data-action="vendor_forgot_password"
-                                               data-input="#login-default-captcha-section"
-                                               data-default-captcha="#login-default-captcha-section"
-                                        >
-
-                                        <div class="default-captcha-container d-none" id="login-default-captcha-section"
-                                             data-placeholder="{{ translate('enter_captcha_value') }}"
-                                             data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                             data-session="{{ 'default_recaptcha_id_vendor_forgot_password' }}"
-                                        >
-                                        </div>
-                                    </div>
-                                @else
-                                    <div class="default-captcha-container"
-                                         data-placeholder="{{ translate('enter_captcha_value') }}"
-                                         data-base-url="{{ route('g-recaptcha-session-store') }}"
-                                         data-session="{{ 'default_recaptcha_id_vendor_forgot_password' }}"
-                                    >
-                                    </div>
-                                @endif
-
-                                <button type="submit" id="vendor-forgot-password-btn"
-                                    class="btn btn-lg btn-block btn--primary">
-                                    {{ translate('Get_OTP') }}
-                                </button>
-                            </form>
-                        @endif
+                        <p class="font-size-md text-muted mb-4">
+                            {{ translate('password_reset_support_message') }}
+                        </p>
+                        <div class="alert alert-info mb-4" role="alert">
+                            {{ translate('password_reset_support_identity_notice') }}
+                        </div>
+                        <div class="d-flex flex-wrap gap-3">
+                            <a href="{{ route('vendor.auth.login') }}" class="btn btn-lg btn-secondary flex-grow-1">
+                                {{ translate('back_to_login') }}
+                            </a>
+                            <a href="{{ route('contacts', ['subject' => translate('password_reset_support_subject')]) }}"
+                               class="btn btn-lg btn--primary flex-grow-1">
+                                {{ translate('contact_support') }}
+                            </a>
+                        </div>
                     </div>
 
                     @if (env('APP_MODE') == 'demo')
@@ -271,12 +156,7 @@
         </script>
     @endif
 
-    <span id="get-google-recaptcha-key" data-value="{{ isset($recaptcha) && $recaptcha['status'] == 1 ? $recaptcha['site_key'] : '' }}"></span>
-    @if ($web_config['firebase_otp_verification'] && $web_config['firebase_otp_verification']['status'])
-    @elseif(isset($recaptcha) && $recaptcha['status'] == 1)
-        <script src="https://www.google.com/recaptcha/api.js?render={{ $recaptcha['site_key'] }}"></script>
-    @endif
-    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.js') }}"></script>
+    {{-- CAPTCHA was removed from all authentication channels. --}}
 
     <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInput.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/utils.js') }}"></script>
@@ -317,6 +197,7 @@
     </script>
 
 
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-dark-mode.js') }}"></script>
 </body>
 
 </html>

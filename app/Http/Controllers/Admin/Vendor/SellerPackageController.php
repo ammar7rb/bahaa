@@ -136,6 +136,8 @@ class SellerPackageController extends BaseController
             'homepage_promotion_duration_days' => $homepagePromotionLimit > 0
                 ? (int) $request->get('homepage_promotion_duration_days')
                 : 0,
+            // Coupon creation is a package entitlement; zero keeps the feature locked for this package.
+            'coupon_limit' => (int) $request->get('coupon_limit', 0),
             'package_validity_days' => $request->filled('package_validity_days')
                 ? (int) $request->get('package_validity_days')
                 : null,

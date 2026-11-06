@@ -471,6 +471,13 @@ trait OrderEditManager
             ];
         }
 
+        if ((float) ($orderData['edit_due_amount'] ?? 0) > 0) {
+            return [
+                'status' => 'error',
+                'message' => 'لا يمكن حفظ تعديل يتطلب دفعة إضافية. يجب دفع إجمالي الطلب والشحن في دفعة واحدة.',
+            ];
+        }
+
         $minimumOrderAmount = $this->checkEditOrderMinimumOrderAmount(order: $order, totalCartAmount: $couponSummary['total_cart_amount'], data: $data);
         if ($minimumOrderAmount['status'] == 'error') {
             return [

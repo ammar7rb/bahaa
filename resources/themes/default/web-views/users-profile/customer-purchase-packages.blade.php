@@ -28,6 +28,11 @@
                                 <div class="border rounded p-3 h-100">
                                     <div class="text-muted mb-1">{{ translate('active_package') }}</div>
                                     <h6 class="mb-0">{{ $limitSummary['subscription']?->package_name ?? translate('No_active_package') }}</h6>
+                                    @if($limitSummary['subscription'])
+                                        <div class="fs-12 text-muted mt-1">
+                                            {{ $limitSummary['subscription']->duration_status === 'lifetime' ? translate('Lifetime') : translate('Remaining_Days').': '.$limitSummary['subscription']->remaining_days }}
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                             <div class="col-md-6 col-xl-3">
@@ -58,7 +63,7 @@
                             <div class="border rounded p-3 mb-4">
                                 <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
                                     <div>
-                                        <h5 class="mb-1">{{ translate('activation_invoice') }} #{{ $pendingActivationInvoice->invoice_no }}</h5>
+                                        <h5 class="mb-1">{{ translate('activation_invoice') }} #{{ $pendingActivationInvoice->invoice_number }}</h5>
                                         <p class="text-muted mb-0">{{ translate('pay_this_invoice_to_activate_your_package_and_release_your_paid_order') }}</p>
                                     </div>
                                     <div class="text-end">
@@ -80,18 +85,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <div class="bg-light rounded p-3 h-100">
-                                            <div class="text-muted fs-12">{{ translate('monthly_insurance') }}</div>
-                                            <strong>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $pendingActivationInvoice->insurance_amount)) }}</strong>
-                                            @if($pendingActivationInvoice->insurance_discount_amount > 0)
-                                                <div class="small text-success mt-1">
-                                                    {{ translate('discount') }}:
-                                                    {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $pendingActivationInvoice->insurance_discount_amount)) }}
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
+
                                     <div class="col-md-4">
                                         <div class="bg-light rounded p-3 h-100">
                                             <div class="text-muted fs-12">{{ translate('order_group') }}</div>
@@ -228,7 +222,10 @@
                                             </div>
                                             <div class="text-end">
                                                 <div class="text-muted fs-12">{{ translate('package_price') }}</div>
-                                                <strong>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $package->package_price)) }}</strong>
+                                            <strong>{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $package->package_price)) }}</strong>
+                                            @php($durationUnit = $package->duration_unit ?: 'lifetime')
+                                            @php($durationValue = $package->duration_value)
+                                            <div class="fs-12 text-muted">{{ $durationUnit === 'lifetime' ? translate('Lifetime') : $durationValue . ' ' . translate($durationUnit) }}</div>
                                             </div>
                                         </div>
                                         @if($package->description)

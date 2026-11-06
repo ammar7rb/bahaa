@@ -6,6 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class BusinessPageAddRequest extends FormRequest
 {
+    use \App\Http\Requests\Admin\Concerns\HasBusinessPageTranslations;
     protected $stopOnFirstFailure = false;
 
     public function authorize(): bool
@@ -16,6 +17,7 @@ class BusinessPageAddRequest extends FormRequest
     public function rules(): array
     {
         return [
+            ...$this->translationRules(),
             'title' => 'required|string|unique:business_pages,title',
             'description' => 'required|string',
             'slug' => 'string|unique:business_pages,slug',

@@ -31,6 +31,8 @@ class CustomerPurchasePackageRequest extends FormRequest
             'sort_order' => 'nullable|integer|min:0',
             'status' => 'nullable|boolean',
             'customer_id' => 'nullable|exists:users,id',
+            'duration_unit' => 'nullable|in:days,months,years,lifetime',
+            'duration_value' => 'nullable|integer|min:1|max:100000',
         ];
     }
 

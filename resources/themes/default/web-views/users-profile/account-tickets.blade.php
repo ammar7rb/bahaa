@@ -3,6 +3,9 @@
 @section('title', translate('My_Support_Tickets'))
 
 @section('content')
+    @if(auth('customer')->user()?->activation_status !== 'active')
+        <div class="container pt-3"><div class="alert alert-danger mb-0">{{ translate('customer_activation_support_message') }}</div></div>
+    @endif
 
     <div class="modal fade rtl text-align-direction" id="open-ticket" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
          aria-hidden="true">
@@ -177,9 +180,6 @@
                                                            href="{{route('support-ticket.index',$ticket['id'])}}">
                                                             <i class="fa fa-eye"></i>
                                                         </a>
-                                                        <button class="__action-btn btn-shadow rounded-full text-danger marl delete-ticket-by-modal" data-link="{{ route('support-ticket.delete',['id'=>$ticket->id])}}">
-                                                            <i class="czi-trash"></i>
-                                                        </button>
                                                     </div>
 
                                                 </td>
@@ -244,11 +244,6 @@
                             </div>
                         </div>
                     </div>
-                    <div>
-                        <button class="__action-btn btn-shadow rounded-full text-danger stopPropagation marl delete-ticket-by-modal fs-15" data-link="{{ route('support-ticket.delete',['id'=>$ticket->id])}}">
-                            <i class="czi-trash"></i>
-                        </button>
-                    </div>
                 </div>
             </div>
             @endforeach
@@ -274,34 +269,6 @@
         </button>
     </div>
 
-    <div class="modal fade" id="delete-ticket-modal">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <div class="modal-header border-0">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body pb-5">
-                    <div class="text-center">
-                        <img src="{{theme_asset(path: 'public/assets/front-end/img/icons/ticket-delete.png')}}" alt="">
-                        <h6 class="font-semibold mt-3 mb-1">{{translate('Delete_this_ticket')}}?</h6>
-                        <p class="mb-4">
-                            <small>{{translate('This_ticket_will_be_removed_from_this_list')}}</small>
-                        </p>
-                    </div>
-                    <div class="d-flex gap-3 justify-content-center">
-                        <a href="javascript:" class="btn btn-primary __rounded-10" id="delete-ticket-link">
-                            {{translate('Remove')}}
-                        </a>
-                        <button class="btn btn-soft-secondary bg--secondary __rounded-10" data-dismiss="modal">
-                            {{translate('Cancel')}}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 @endsection
 
 @push('script')

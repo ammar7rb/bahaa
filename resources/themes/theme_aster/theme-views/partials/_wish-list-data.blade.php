@@ -20,19 +20,7 @@
                                             {{ $product['name'] }}
                                         </h6>
                                     </a>
-                                        <?php
-                                        if ($product->added_by == "seller") {
-                                            $shopName = $product->seller?->shop?->name ?? '';
-                                            $shopSlug = $product->seller?->shop?->slug ?? '';
-                                        } else {
-                                            $shopName = getInHouseShopConfig('name');
-                                            $shopSlug = getInHouseShopConfig('slug');
-                                        }
-                                        ?>
-                                    <a href="{{ route('vendor-shop', ['slug' => $shopSlug]) }}"
-                                       class="text-truncate width--10 d-block mt-1 text-secondary-body-color">
-                                        {{ $shopName }}
-                                    </a>
+                                    {{-- Store identity and links are hidden in customer wishlist. --}}
                                 </div>
 
                             </div>
@@ -108,19 +96,7 @@
                                 {{ $product['name'] }}
                             </h6>
                         </a>
-                            <?php
-                            if ($product->added_by == "seller") {
-                                $shopName = $product->seller?->shop?->name ?? '';
-                                $shopSlug = $product->seller?->shop?->slug ?? '';
-                            } else {
-                                $shopName = getInHouseShopConfig('name');
-                                $shopSlug = getInHouseShopConfig('slug');
-                            }
-                            ?>
-                        <a href="{{ route('vendor-shop', ['slug' => $shopSlug]) }}"
-                           class="text-truncate width--10 d-block mt-1 text-secondary-body-color">
-                            {{ $shopName }}
-                        </a>
+                        {{-- Store identity and links are hidden in customer wishlist. --}}
                         <div>
                             {{ translate('price') }} :
                             <div class="product__price d-flex flex-wrap align-items-end gap-2 mb-4 ">

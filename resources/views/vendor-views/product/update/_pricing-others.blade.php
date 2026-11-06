@@ -32,7 +32,7 @@
                             <div class="form-group mb-0">
                                 <div class="d-flex gap-2">
                                     <label class="title-color">
-                                        {{ translate('unit_price') }}
+                                        <span data-unit-price-text>{{ translate('unit_price') }}</span>
                                         ({{ getCurrencySymbol(currencyCode: getCurrencyCode()) }})
                                         <span class="input-required-icon">*</span>
                                     </label>
@@ -86,35 +86,8 @@
                                         name="current_stock" id="current_stock" class="form-control only-number-input" required>
                             </div>
                         </div>
-                        <div class="col-md-6 col-lg-4">
-                            <div class="form-group mb-0">
-                                <div class="d-flex gap-2">
-                                    <label class="title-color" for="discount">
-                                        {{ translate('discount_amount') }}
-                                        <span class="discount_amount_symbol">
-                                            ({{ $product->discount_type == 'flat' ? getCurrencySymbol(currencyCode: getCurrencyCode()) : '%' }})
-                                        </span>
-                                    </label>
-
-                                    <span class="input-label-secondary cursor-pointer" data-toggle="tooltip"
-                                            title="{{ translate('add_the_discount_amount_in_percentage_or_a_fixed_value_here') }}.">
-                                        <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/info-circle.svg') }}" alt="">
-                                    </span>
-                                </div>
-                                <div class="input-group input-group-merge input-group--merge">
-                                    <input type="number" min="0"
-                                        value="{{ $product->discount_type=='flat'?usdToDefaultCurrency($product->discount) : $product->discount }}" step="0.01"
-                                        placeholder="{{ translate('ex: 5') }}" name="discount" id="discount"
-                                        class="form-control" required>
-                                    <select class="form-control input-group--merge-action" name="discount_type" id="discount_type">
-                                        <option
-                                            value="flat" {{ $product['discount_type']=='flat'?'selected':''}}>{{ translate('flat') }}</option>
-                                        <option
-                                            value="percent" {{ $product['discount_type']=='percent'?'selected':''}}>{{ translate('percent') }}</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                        <input type="hidden" name="discount" id="discount" value="0">
+                        <input type="hidden" name="discount_type" id="discount_type" value="flat">
 
                         @if ($productWiseTax)
                             <div class="col-md-6 col-lg-4">
@@ -137,54 +110,9 @@
                             </div>
                         @endif
 
-                        <div class="col-md-6 col-lg-4 physical_product_show" id="shipping_cost">
-                            <div class="form-group mb-0">
-                                <div class="d-flex gap-2">
-                                    <label class="title-color">
-                                        {{ translate('shipping_cost') }}
-                                        ({{ getCurrencySymbol(currencyCode: getCurrencyCode()) }})
-                                        <span class="input-required-icon">*</span>
-                                    </label>
-
-                                    <span class="input-label-secondary cursor-pointer" data-toggle="tooltip"
-                                            title="{{ translate('set_the_shipping_cost_for_this_product_here._Shipping_cost_will_only_be_applicable_if_product-wise_shipping_is_enabled.') }}">
-                                        <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/info-circle.svg') }}" alt="">
-                                    </span>
-                                </div>
-
-                                <input type="number" min="0" value="{{usdToDefaultCurrency($product->shipping_cost) }}"
-                                        step="1"
-                                        placeholder="{{ translate('shipping_cost') }}" id="shipping_cost"
-                                        name="shipping_cost" class="form-control" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-4 physical_product_show" id="shipping_cost_multi">
-                            <div class="form-group mb-0">
-                                <div class="d-flex gap-2">
-                                    <label class="title-color text-capitalize"
-                                            for="shipping_cost">{{ translate('shipping_cost_multiply_with_quantity') }}</label>
-
-                                    <span class="input-label-secondary cursor-pointer" data-toggle="tooltip"
-                                            title="{{ translate('if_enabled,_the_shipping_charge_will_increase_with_the_product_quantity') }}">
-                                            <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/info-circle.svg') }}" alt="">
-                                        </span>
-                                </div>
-                                <div class="form-control h-auto min-form-control-height d-flex align-items-center flex-wrap justify-content-between gap-2">
-                                    <div class="d-flex gap-2">
-                                        <label class="title-color text-capitalize mb-0" for="shipping_cost">
-                                            {{ translate('Status') }}
-                                        </label>
-                                    </div>
-
-                                    <div>
-                                        <label class="switcher">
-                                            <input class="switcher_input" type="checkbox" name="multiply_qty"
-                                                    id="is_shipping_cost_multil" {{ $product['multiply_qty'] == 1?'checked':'' }}>
-                                            <span class="switcher_control"></span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="col-12">
+                            <input type="hidden" name="shipping_cost" value="0">
+                            <input type="hidden" name="multiply_qty" value="off">
                         </div>
                     </div>
                 </div>
@@ -192,5 +120,4 @@
         </div>
     </div>
 </div>
-
 

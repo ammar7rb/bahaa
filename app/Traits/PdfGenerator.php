@@ -46,45 +46,8 @@ trait  PdfGenerator
 
     public static function footerHtml(string $requestFrom): string
     {
-        $getCompanyPhone = getWebConfig(name: 'company_phone');
-        $getCompanyEmail = getWebConfig(name: 'company_email');
-
-        if ($requestFrom == 'web' && theme_root_path() == 'theme_aster' || theme_root_path() == 'theme_fashion') {
-            return '
-                <div style="width:100%;background-color:#FAFAFA;padding:8px 24px; margin-top: 30px;">
-                    <table width="100%" style="font-size:10px;color:#303030;table-layout:fixed;">
-                        <tr>
-                            <td style="width:33.33%;padding:8px;text-align:left;">
-                                ' . url('/') . '
-                            </td>
-                            <td style="width:33.33%;padding:8px;text-align:center;">
-                                ' . $getCompanyPhone . '
-                            </td>
-                            <td style="width:33.33%;padding:8px;text-align:right;">
-                                ' . $getCompanyEmail . '
-                            </td>
-                        </tr>
-                    </table>
-                </div>';
-        } else {
-            return '
-                <div style="width:100%;background-color:#FAFAFA;padding:8px 24px; margin-top: 30px;">
-                    <table width="100%" style="font-size:10px;color:#303030;table-layout:fixed;">
-                        <tr>
-                            <td style="width:33.33%;padding:8px;text-align:left;">
-                                ' . url('/') . '
-                            </td>
-                            <td style="width:33.33%;padding:8px;text-align:center;">
-                                ' . $getCompanyPhone . '
-                            </td>
-                            <td style="width:33.33%;padding:8px;text-align:right;">
-                                ' . $getCompanyEmail . '
-                            </td>
-                        </tr>
-                    </table>
-                </div>';
-
-        }
-
+        return '<div style="width:100%;background-color:#FAFAFA;padding:8px 24px;margin-top:30px;text-align:center;font-size:10px;color:#303030;">'
+            . e(url('/'))
+            . '</div>';
     }
 }

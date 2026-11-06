@@ -46,3 +46,6 @@ node_modules/
 
 # Local credentials and signing keys
 /public/assets/back-end/Apple-AuthKey*.txt
+
+.env.testing
+.phpunit.cache/

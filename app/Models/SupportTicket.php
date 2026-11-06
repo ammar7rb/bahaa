@@ -6,6 +6,8 @@ use App\Traits\StorageTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Carbon;
 
 /**
@@ -29,17 +31,45 @@ use Illuminate\Support\Carbon;
 class SupportTicket extends Model
 {
     use StorageTrait;
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('retired_account_activation', function (Builder $query) {
+            foreach (['purpose', 'type'] as $column) {
+                if (Schema::hasColumn('support_tickets', $column)) {
+                    $query->where(fn ($q) => $q->whereNull('support_tickets.'.$column)->orWhere('support_tickets.'.$column, '!=', 'account_activation'));
+                }
+            }
+        });
+    }
+
+    public const ARCHIVE_AFTER_DAYS = 180;
+
     protected $fillable = [
         'customer_id',
         'subject',
         'type',
+        'purpose',
         'priority',
         'description',
         'reply',
         'status',
+        'review_status',
+        'review_note',
+        'reviewed_by_admin_id',
+        'reviewed_at',
+        'closed_at',
+        'archived_at',
         'created_at',
         'updated_at',
-        'attachment'
+        'attachment',
+        'purpose',
+        'review_status',
+        'reviewed_by_admin_id',
+        'reviewed_at',
+        'closed_at',
+        'archived_at',
+        'hidden_from_subject_at',
     ];
 
     protected $casts = [
@@ -47,14 +77,25 @@ class SupportTicket extends Model
         'customer_id' => 'integer',
         'priority' => 'string',
         'status' => 'string',
+        'purpose' => 'string',
+        'review_status' => 'string',
+        'reviewed_by_admin_id' => 'integer',
+        'reviewed_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'attachment' => 'array'
+        'closed_at' => 'datetime',
+        'archived_at' => 'datetime',
+        'attachment' => 'array',
+        'hidden_from_subject_at' => 'datetime',
     ];
 
     public function conversations(): HasMany
     {
         return $this->hasMany(SupportTicketConv::class);
+    }
+    public function latestConversation(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(SupportTicketConv::class)->latestOfMany();
     }
     public function getAttachmentFullUrlAttribute():array|null
     {
@@ -73,5 +114,12 @@ class SupportTicket extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    public function scopeVisibleToSubject(Builder $query): Builder
+    {
+        return Schema::hasColumn($this->getTable(), 'hidden_from_subject_at')
+            ? $query->whereNull('hidden_from_subject_at')
+            : $query;
     }
 }

@@ -16,7 +16,7 @@
                     </button>
                 </div>
 
-                <div class="__card">
+                <div class="__card customer-support-chat">
                     <div class="card-header border-0 p-2 p-sm-3">
                         <div class="bg-section rounded d-flex gap-2 align-items-start justify-content-between p-3 ">
                             <div class="support_ticket_head-media media flex-wrap gap-2 gap-sm-3">
@@ -45,29 +45,9 @@
                                         <div class="meta-info d-flex flex-wrap align-items-center column-gap-4 fs-14 mt-2">
                                             <div class="d-flex align-items-center gap-2 gap-md-3">
                                                 <div>{{translate('status')}}:</div>
-                                                <span class="{{$ticket->status ==  'open' ? ' text-info ' : 'text-danger'}} fw-semibold">{{ ucwords($ticket->status) }}</span>
-                                            </div>
-                                            <div class="d-flex align-items-center gap-2 gap-md-3 text-capitalize">
-                                                <div>{{translate('priority')}}:</div>
-                                                <span
-                                                    @if($ticket->priority == 'Urgent')
-                                                        class="text-danger fw-bold"
-                                                    @elseif($ticket->priority == 'High')
-                                                        class="text-warning fw-bold "
-                                                    @elseif($ticket->priority == 'Medium')
-                                                        class="text-success fw-bold"
-                                                    @else
-                                                        class="text-primary fw-bold"
-                                                    @endif> {{ translate($ticket->priority) }}
-                                                </span>
+                                                <span class="{{$ticket->status ==  'open' ? ' text-info ' : 'text-danger'}} fw-semibold">{{ translate($ticket->status) }}</span>
                                             </div>
                                         </div>
-                                        @if($ticket?->subject)
-                                            <div class="d-flex align-items-start gap-2 gap-md-3 fs-14 mt-2">
-                                                <div class="text-nowrap">{{ translate('subject') }}:</div>
-                                                <span class="text-primary fw-semibold">{{ ucwords($ticket->subject) }}</span>
-                                            </div>
-                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -78,7 +58,7 @@
                         </div>
                     </div>
 
-                    <div class="__media-wrapper p-2 p-sm-3 d-flex flex-column-reverse">
+                    <div id="customer-ticket-live-messages" class="__media-wrapper p-2 p-sm-3 d-flex flex-column-reverse">
 
                         @foreach($ticket->conversations as $conversation)
 
@@ -179,7 +159,7 @@
                     </div>
                     @if($ticket->status != 'close')
                     <div class="card-footer py-0 px-0">
-                        <form class="needs-validation form-advance-validation form-advance-inputs-validation form-advance-file-validation non-ajax-form-validate" href="{{route('support-ticket.comment',[$ticket['id']])}}" enctype="multipart/form-data"
+                        <form id="customer-ticket-live-form" class="needs-validation form-advance-validation form-advance-inputs-validation form-advance-file-validation non-ajax-form-validate" action="{{route('support-ticket.comment',[$ticket['id']])}}" enctype="multipart/form-data"
                             method="post" novalidate>
                             @csrf
                             <div class="d-flex flex-wrap align-items-baseline">
@@ -218,4 +198,15 @@
 
 @push('script')
     <script src="{{ theme_asset(path: 'public/assets/front-end/js/ticket-view.js') }}"></script>
+    <script>
+        (function () {
+            const box = document.getElementById('customer-ticket-live-messages'), form = document.getElementById('customer-ticket-live-form');
+            const endpoint = @json(route('support-ticket.messages', $ticket->id)); let ready = false, seen = new Set();
+            const esc = v => String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
+            function append(m) { if (!box || seen.has(String(m.id))) return; seen.add(String(m.id)); const mine=m.sender_type==='customer'; const el=document.createElement('div'); el.className='media '+(mine ? '' : 'gap-3'); el.innerHTML='<div class="media-body '+(mine?'__outgoing-msg':'d-flex')+'"><div class="'+(mine?'d-flex justify-content-end':'mx-1 __incoming-msg')+'"><p class="font-size-md mb-1 btn--primary message-text">'+esc(m.body).replace(/\n/g,'<br>')+'</p></div><p class="time_date font-size-ms '+(mine?'text-end':'text-muted')+'">'+esc(m.created_at)+'</p></div>'; box.prepend(el); }
+            async function refresh(){try{const r=await fetch(endpoint,{headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});if(!r.ok)return;const d=await r.json();if(d.activation_approved){const alert=document.createElement('div');alert.className='alert alert-success position-fixed shadow';alert.style.cssText='top:1rem;left:50%;transform:translateX(-50%);z-index:2000';alert.textContent=d.message;document.body.appendChild(alert);window.setTimeout(()=>window.location.assign(d.redirect_url),1200);return}if(!ready){d.messages.forEach(m=>seen.add(String(m.id)));ready=true;return}d.messages.forEach(append)}catch(_){}}
+            if(form) form.addEventListener('submit',async e=>{e.preventDefault();const b=form.querySelector('button[type="submit"]');if(b)b.disabled=true;try{const r=await fetch(form.action,{method:'POST',body:new FormData(form),headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});if(!r.ok)throw 0;const d=await r.json();ready=true;append(d.conversation);form.reset()}catch(_){form.submit()}finally{if(b)b.disabled=false}});
+            refresh(); setInterval(refresh,7000);
+        })();
+    </script>
 @endpush

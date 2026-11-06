@@ -41,6 +41,7 @@ trait CustomerTrait
 
     protected function createWalletTransaction($user_id, float $amount, $transaction_type, $reference, $payment_data = []): bool|WalletTransaction
     {
+        app(\App\Services\CustomerPurchaseWalletPolicyService::class)->assertTransactionAllowed((string) $transaction_type);
         if (BusinessSetting::where('type', 'wallet_status')->first()->value != 1) return false;
         $user = User::find($user_id);
         $currentBalance = $user->wallet_balance;

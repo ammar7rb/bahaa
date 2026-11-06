@@ -16,6 +16,7 @@ use App\Http\Controllers\RestAPI\v3\seller\OrderEditController;
 use App\Http\Controllers\RestAPI\v3\seller\POSCartController;
 use App\Http\Controllers\RestAPI\v3\seller\POSController;
 use App\Http\Controllers\RestAPI\v3\seller\ProductController;
+use App\Http\Controllers\RestAPI\v3\seller\PolicyController;
 use App\Http\Controllers\RestAPI\v3\seller\RefundController;
 use App\Http\Controllers\RestAPI\v3\seller\SellerController;
 use App\Http\Controllers\RestAPI\v3\seller\SellerInsuranceController;
@@ -24,8 +25,11 @@ use App\Http\Controllers\RestAPI\v3\seller\SellerPackageController;
 use App\Http\Controllers\RestAPI\v3\seller\SellerSearchPromotionController;
 use App\Http\Controllers\RestAPI\v3\seller\shippingController;
 use App\Http\Controllers\RestAPI\v3\seller\ShippingMethodController;
+use App\Http\Controllers\RestAPI\v3\seller\ShippingProofController;
+use App\Http\Controllers\RestAPI\v3\seller\SellerShippingSupportController;
 use App\Http\Controllers\RestAPI\v3\seller\ShopController;
 use App\Http\Controllers\RestAPI\v3\seller\VendorPaymentInfoController;
+use App\Http\Controllers\RestAPI\v3\seller\SellerBalanceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -36,6 +40,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'middleware' => ['api_lang']], function () {
     Route::group(['prefix' => 'auth', 'namespace' => 'auth'], function () {
+        Route::controller(\App\Http\Controllers\RestAPI\v3\seller\auth\SupportConversationController::class)->prefix('support-conversation')->group(function () {
+            Route::post('/', 'create')->middleware('throttle:5,1');
+            Route::get('/', 'show')->middleware('throttle:30,1');
+            Route::post('messages', 'reply')->middleware('throttle:15,1');
+        });
 
         Route::controller(VendorLoginController::class)->group(function () {
             Route::post('login', 'login');
@@ -56,18 +65,67 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
             Route::post('send-otp', 'sendOtp');
             Route::post('verify-otp', 'verifyOtp');
             Route::get('status', 'status');
+            Route::get('activation-status', 'activationStatus');
+            Route::get('activation-ticket/messages', 'activationTicketMessages');
         });
+    });
+    Route::prefix('policies')->controller(PolicyController::class)->group(function () {
+        Route::get('required', 'required');
+        Route::post('accept', 'accept');
     });
 
     Route::group(['middleware' => ['seller_api_auth']], function () {
+        Route::prefix('fulfillment-requests')->controller(\App\Http\Controllers\Vendor\VendorFulfillmentController::class)->group(function () {
+            Route::get('{id}/unlock-quote','quote')->whereNumber('id')->middleware('throttle:30,1');
+            Route::post('{id}/unlock','unlock')->whereNumber('id')->middleware('throttle:10,1');
+            Route::post('{id}/decision','decide')->whereNumber('id')->middleware('throttle:20,1');
+            Route::post('{id}/delivery-proof','deliveryProof')->whereNumber('id')->middleware('throttle:10,1');
+        });
+        Route::get('fulfillment-requests/order/{reference}', [\App\Http\Controllers\RestAPI\v3\seller\VendorFulfillmentRequestController::class, 'show']);
+        Route::get('account', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'show']);
+        Route::post('account', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'update']);
+        Route::post('account/password', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'password'])->middleware('throttle:6,1');
+        Route::get('account/document/{kind}', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'document']);
+        Route::get('inbox', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index']);
+        Route::get('inbox/threads/{thread}', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'thread'])->whereNumber('thread');
+        Route::post('inbox/read', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'read']);
+        Route::controller('\\App\\Http\\Controllers\\Vendor\\VendorFinanceWorkspaceController')->group(function () {
+            Route::get('invoices', 'invoices');
+            Route::get('balance/transfer-quote', 'transferQuote')->middleware('throttle:30,1');
+            Route::post('balance/transfer', 'transferToCash')->middleware('throttle:10,1');
+            Route::get('invoices/{order}/document', 'invoiceDocument')->whereNumber('order');
+            Route::get('withdrawal-methods', 'methods');
+            Route::post('withdrawal-methods', 'saveMethod');
+            Route::post('withdrawal-methods/{method}/disable', 'disableMethod');
+            Route::post('balance/withdraw', 'withdraw');
+            Route::get('balance/operating-refunds', 'operatingRefunds');
+            Route::post('balance/operating-refunds', 'operatingRefund')->middleware('throttle:6,1');
+        });
         Route::prefix('packages')->controller(SellerPackageController::class)->group(function () {
+            Route::post('auto-renewal', [\App\Http\Controllers\Vendor\VendorAutoRenewalController::class, 'enable'])->middleware('throttle:10,1');
+            Route::get('extra-ads', [\App\Http\Controllers\RestAPI\v3\seller\VendorExtraAdController::class, 'index']);
+            Route::post('extra-ads', [\App\Http\Controllers\RestAPI\v3\seller\VendorExtraAdController::class, 'store']);
+            Route::get('slots', [\App\Http\Controllers\RestAPI\v3\seller\VendorAdvertisingSlotController::class, 'index']);
+            Route::post('slots/{slot}/reserve', [\App\Http\Controllers\RestAPI\v3\seller\VendorAdvertisingSlotController::class, 'reserve']);
+            Route::post('slots/{slot}/cancel-reservation', [\App\Http\Controllers\RestAPI\v3\seller\VendorAdvertisingSlotController::class, 'cancelReservation']);
+            Route::post('slots/{slot}', [\App\Http\Controllers\RestAPI\v3\seller\VendorAdvertisingSlotController::class, 'update']);
             Route::get('/', 'index');
             Route::post('pay', 'pay');
             Route::post('offline-payment', 'submitOfflinePayment');
+            Route::get('{subscription}/performance', 'performance');
+            Route::post('{subscription}/cancel', 'cancel');
         });
 
         Route::prefix('insurance')->controller(SellerInsuranceController::class)->group(function () {
             Route::get('status', 'status');
+            Route::post('pay', 'pay');
+            Route::post('offline-payment', 'submitOfflinePayment');
+        });
+
+        Route::prefix('balance')->controller(SellerBalanceController::class)->group(function () {
+            Route::get('funding-intents', [\App\Http\Controllers\RestAPI\v3\seller\VendorFundingIntentController::class,'index']);
+            Route::post('funding-intents/{intent}/retry', [\App\Http\Controllers\RestAPI\v3\seller\VendorFundingIntentController::class,'retry']);
+            Route::get('/', 'index');
             Route::post('pay', 'pay');
             Route::post('offline-payment', 'submitOfflinePayment');
         });
@@ -85,6 +143,8 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
         Route::controller(SellerController::class)->group(function () {
             Route::put('language-change', 'language_change');
             Route::get('seller-info', 'getSellerInfo');
+            Route::get('financial-summary', 'financial_summary');
+            Route::get('dashboard-overview', 'dashboardOverview');
             Route::get('get-earning-statitics', 'getEarningStatics');
             Route::get('order-statistics', 'order_statistics');
             Route::get('account-delete', 'account_delete');
@@ -129,6 +189,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
                 Route::post('add', 'add_new');
                 Route::get('details/{id}', 'details');
                 Route::get('stock-out-list', 'stock_out_list');
+                Route::get('stock-violations', 'stockViolations');
                 Route::put('status-update', 'status_update');
                 Route::get('edit/{id}', 'edit');
                 Route::put('update/{id}', 'updateProduct');
@@ -152,8 +213,17 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
         });
 
         Route::group(['prefix' => 'orders'], function () {
+            Route::controller(\App\Http\Controllers\RestAPI\v3\seller\SellerOrderInsuranceController::class)->group(function () {
+                Route::get('{id}/insurance', 'show');
+                Route::post('{id}/insurance/pay', 'pay');
+                Route::post('{id}/insurance/offline-payment', 'offline');
+            });
+            Route::post('{id}/shipping-response', [\App\Http\Controllers\RestAPI\v3\seller\SellerShippingResponseController::class, 'store']);
             Route::controller(OrderController::class)->group(function () {
+                Route::get('insurance-pending', 'insurancePending');
                 Route::post('list', 'list');
+                Route::get('recent', 'recent');
+                Route::get('history', 'history');
                 Route::get('/{id}', 'details');
                 Route::put('order-detail-status/{id}', 'order_detail_status');
                 Route::put('assign-delivery-man', 'assign_delivery_man');
@@ -164,6 +234,12 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
                 Route::post('address-update', 'address_update');
                 Route::post('order-detail-info-update', 'updateOrderDetails');
             });
+            Route::get('{order}/shipping-proofs', [ShippingProofController::class, 'index']);
+            Route::get('{order}/shipping-proofs/{proof}/download', [ShippingProofController::class, 'download']);
+            Route::post('{order}/shipping-proofs', [ShippingProofController::class, 'store']);
+            Route::post('{order}/shipping-support', [SellerShippingSupportController::class, 'open']);
+            Route::get('{order}/shipping-support', [SellerShippingSupportController::class, 'show']);
+            Route::post('{order}/shipping-support/messages', [SellerShippingSupportController::class, 'reply']);
 
             Route::controller(OrderEditController::class)->group(function () {
                 Route::post('edit-order-submit', 'submitEditOrder');
@@ -195,7 +271,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
             });
         });
 
-        Route::group(['prefix' => 'coupon'], function () {
+        Route::group(['prefix' => 'coupon', 'middleware' => \App\Http\Middleware\HideVendorLegacyFeaturesMiddleware::class], function () {
             Route::controller(CouponController::class)->group(function () {
                 Route::get('list', 'list');
                 Route::post('store', 'store');
@@ -227,15 +303,8 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
             });
         });
 
-        Route::group(['prefix' => 'messages'], function () {
-            Route::controller(ChatController::class)->group(function () {
-                Route::get('list/{type}', 'list');
-                Route::get('get-message/{type}/{id}', 'get_message');
-                Route::post('send/{type}', 'send_message');
-                Route::post('seen/{type}', 'seenMessage');
-                Route::get('search/{type}', 'search');
-            });
-        });
+        // Direct seller-to-customer/delivery chat is disabled. Activation and
+        // operational communication use the administration support center.
 
         Route::group(['prefix' => 'pos'], function () {
             Route::controller(POSController::class)->group(function () {
@@ -312,7 +381,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
 
     });
 
-    Route::controller(ProductController::class)->group(function () {
+    Route::controller(ProductController::class)->middleware('seller_api_auth')->group(function () {
         Route::group(['prefix' => 'products'], function () {
             Route::get('{seller_id}/all-products', 'getVendorAllProducts');
             Route::get('{seller_id}/edit-order-all-products', 'editOrderVendorAllProducts');

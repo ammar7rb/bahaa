@@ -89,7 +89,7 @@ if (!function_exists('getStorageImages')) {
         ];
         if (isset($placeholderMap[$type])) {
             if (is_array($placeholderMap[$type])) {
-                $theme = theme_root_path();
+                $theme = theme_base_path();
                 $placeholderPath = theme_asset(path: $placeholderMap[$type][$theme]);
                 if ($theme == 'default') {
                     $placeholderPath = theme_asset(path: $placeholderMap[$type][$theme]);
@@ -212,7 +212,7 @@ if (!function_exists('getValidImage')) {
 
         if (isset($placeholderMap[$type])) {
             if (is_array($placeholderMap[$type])) {
-                $theme = theme_root_path();
+                $theme = theme_base_path();
                 $placeholderPath = theme_asset(path: $placeholderMap[$type][$theme]);
                 if ($theme == 'default') {
                     $placeholderPath = theme_asset(path: $placeholderMap[$type][$theme]);

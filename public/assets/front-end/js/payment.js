@@ -42,25 +42,18 @@ function updateProceedButtonState() {
         }
     });
 
-    if (paymentInputCheckbox && radioStatus) {
+    if (paymentInputCheckbox && (radioStatus || payOfflineSelected)) {
         $(".proceed_to_next_button").removeClass("disabled");
     } else {
         $(".proceed_to_next_button").addClass("disabled");
     }
 
     // show/hide offline card
-    if (payOfflineSelected) {
-        $(".pay_offline_card").removeClass("d-none");
-        $(".proceed_to_next_button").addClass("disabled");
-    } else {
-        $(".pay_offline_card").addClass("d-none");
-    }
+    $(".pay_offline_card").addClass("d-none");
 }
 
 $('.payment-input-checkbox').on('click', function () {
-    if (this.checked) {
-        $('.payment-input-checkbox').prop('checked', true);
-    }
+    $('.payment-input-checkbox').prop('checked', this.checked);
     updateProceedButtonState();
 });
 
@@ -68,7 +61,14 @@ updateProceedButtonState();
 
 
 function checkoutFromPayment() {
+    if ($('.payment-input-checkbox').length !== $('.payment-input-checkbox:checked').length) return;
     let checked_button_id = $('input[type="radio"]:checked').attr("id");
+    if (checked_button_id === 'pay_offline') {
+        const methodId = $('#pay_offline_method').val();
+        if (methodId) pay_offline_method_field(methodId);
+        else $('#selectPaymentMethod').modal('show');
+        return;
+    }
     $(".action-checkout-function").attr("disabled", true).addClass("disabled");
     $("#" + checked_button_id + "_form").submit();
 }
@@ -97,7 +97,7 @@ function pay_offline_method_field(method_id, edit_due_amount = null, isModalShow
 
     let url = $("#route-pay-offline-method-list").data("url") + "?method_id=" + method_id;
     if (edit_due_amount !== null) {
-        url += "&edit_due_amount=" + encodeURIComponent(edit_due_amount);
+        url += "&edit_due_amount=" + encodeURIComponent(edit_due_amount) + "&order_id=" + encodeURIComponent(orderId || document.querySelector('input[name="order_id"]')?.value || '');
     }
     const targetSelector = orderId ? `#payment_method_field_${orderId}` : '#payment_method_field';
 

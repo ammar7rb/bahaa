@@ -1,0 +1,21 @@
+.customer-profile-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:18px;color:inherit}
+.customer-profile-identity{display:flex;align-items:center;gap:12px;min-width:0}
+.customer-profile-identity img{border-radius:50%;object-fit:cover;flex-shrink:0}
+.customer-profile-identity strong,.customer-profile-identity bdi{display:block;overflow-wrap:anywhere}
+.customer-profile-identity bdi{font-size:13px;color:inherit;opacity:.8;font-variant-numeric:tabular-nums}
+.customer-profile-actions{display:flex;gap:8px;flex-shrink:0}
+.customer-communication-preview{position:relative}
+.customer-communication-preview summary{list-style:none;display:flex;align-items:center;gap:8px;min-width:44px;min-height:44px;padding:10px;cursor:pointer;border:1px solid #dce4f0;border-radius:10px;background:var(--bs-body-bg,#fff);color:var(--bs-body-color,#172942)}
+.customer-communication-preview summary::-webkit-details-marker{display:none}
+.customer-communication-preview summary svg{width:22px;height:22px}
+.customer-communication-preview [data-communication-total]{font-size:11px;font-variant-numeric:tabular-nums}
+.customer-communication-preview summary:focus-visible,.customer-preview-panel a:focus-visible{outline:3px solid #1a428a;outline-offset:3px}
+.customer-preview-panel{position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:min(340px,calc(100vw - 32px));max-height:65vh;display:flex;flex-direction:column;overflow:hidden;z-index:1100;background:var(--bs-body-bg,#fff);color:var(--bs-body-color,#172942);border-radius:12px;box-shadow:0 12px 36px rgba(23,41,66,.2);padding:16px;text-align:start;box-sizing:border-box}
+.customer-preview-panel [data-preview-items]{overflow-y:auto;min-height:0}
+.customer-preview-panel strong{display:block;margin-bottom:12px}
+.customer-preview-row{display:block;color:inherit;padding:12px 0;border-bottom:1px solid #e1e8f2;text-decoration:none}
+.customer-preview-row span,.customer-preview-row time{display:block;white-space:normal;overflow-wrap:anywhere}
+.customer-preview-row time{font-size:12px;margin-top:6px;opacity:.8}
+.customer-view-all{display:block;padding-top:14px;font-weight:700;flex-shrink:0;min-height:44px;box-sizing:border-box}
+.customer-preview-panel p{margin:12px 0;line-height:1.7}
+@media(max-width:575px){.customer-communication-label{display:none}.customer-profile-header{gap:8px}.customer-profile-identity strong{font-size:14px}.customer-profile-identity img{width:40px;height:40px}.customer-profile-actions{gap:6px}.customer-communication-preview:first-child .customer-preview-panel{inset-inline-end:-50px}}

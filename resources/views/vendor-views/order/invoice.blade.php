@@ -550,6 +550,7 @@ $orderTotalPriceSummary = \App\Utils\OrderManager::getOrderTotalPriceSummary(ord
             <td class="text-left" colspan="2">
                 <table>
                     <tbody>
+                    <tr><td class="px-2 pt-1 pb-1">{{ translate('invoice') }}</td><td class="px-2 pt-1 pb-1">: <bdi>{{ \App\Services\AdministrativeReferenceService::format('invoice', (int) $order->id) }}</bdi></td></tr>
                     <tr>
                         <td class="px-2 pt-1 pb-1">{{ translate('Order_Id') }}</td>
                         <td class="px-2 pt-1 pb-1">: <span class="text-dark">#{{ $order->id }}</span></td>

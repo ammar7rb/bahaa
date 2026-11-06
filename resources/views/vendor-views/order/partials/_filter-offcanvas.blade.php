@@ -14,10 +14,6 @@
                 <div class="p-12 p-sm-20 bg-section rounded mb-3 mb-sm-4 overflow-wrap-anywhere">
                     <div class="row g-3">
                         <div class="col-12">
-                            @if(request('delivery_man_id'))
-                                <input type="hidden" name="delivery_man_id" value="{{ request('delivery_man_id') }}">
-                            @endif
-
                             <label class="title-color" for="date_type">{{translate('date_type')}}</label>
                             <select class="form-control __form-control" name="date_type" id="date_type">
                                 <option value="all" {{ empty($dateType) ? 'selected' : '' }}>
@@ -63,7 +59,7 @@
                         </div>
                     </div>
                 </div>
-                @if (($status == 'all' || $status == 'delivered') && !request()->has('delivery_man_id'))
+                @if ($status == 'all' || $status == 'delivered')
                 <div class="p-12 p-sm-20 bg-section rounded mb-3 mb-sm-4 overflow-wrap-anywhere">
                     <label for="" class="title-color">{{ translate('Show_Order_For') }}</label>
                     <div class="bg-white rounded p-3">

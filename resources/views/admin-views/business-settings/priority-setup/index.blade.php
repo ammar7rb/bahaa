@@ -19,6 +19,11 @@
             </span>
         </div>
 
+        <div class="alert alert-info fs-12">
+            {{ translate('priority_setup_controls_item_ranking_not_homepage_section_layout') }}
+            <a href="{{ route('admin.system-setup.theme.homepage-builder.index', ['theme' => 'default']) }}">{{ translate('open_homepage_builder') }}</a>.
+        </div>
+
         <form action="{{ route('admin.business-settings.priority-setup.index') }}" method="post">
         @csrf
 

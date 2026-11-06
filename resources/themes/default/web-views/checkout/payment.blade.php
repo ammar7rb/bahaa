@@ -9,7 +9,7 @@
 @endpush
 
 @section('content')
-    <div class="container pb-5 mb-2 mb-md-4 rtl px-0 px-md-3 text-align-direction">
+    <div class="container pb-5 mb-2 mb-md-4 rtl px-0 px-md-3 text-align-direction checkout-payment-page">
         <div class="row mx-max-md-0">
             <section class="col-lg-8 px-max-md-0 mt-4">
                 <div class="checkout_details">
@@ -89,13 +89,14 @@
                                                                          src="{{ theme_asset(path: 'public/assets/front-end/img/icons/wallet-sm.png') }}"
                                                                          alt="" />
                                                                     <span class="fs-12 text-start">
-                                                                        {{ translate('pay_via_Wallet') }} <br>
-                                                                        <span class="fs-18 fw-semibold text-dark">{{ webCurrencyConverter(amount:auth('customer')->user()?->wallet_balance ?? 0 ) }}</span>
+                                                                        {{ translate('pay_with_purchase_balance') }} <br>
+                                                                        <span class="fs-18 fw-semibold text-dark">{{ webCurrencyConverter(amount:(auth('customer')->user()?->wallet_balance ?? 0)) }}</span>
+                                                                        <small class="d-block text-muted">{{ translate('purchase_balance_is_for_product_purchases_only') }}</small>
                                                                     </span>
                                                                 </div>
                                                                 <button type="button"  data-toggle="modal"
                                                                 data-target="#wallet_submit_button" class="btn btn-outline-primary">
-                                                                    {{ translate('APPLY') }}
+                                                                    {{ translate('apply') }}
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -145,24 +146,8 @@
 
                                     @endif
 
+                                    @if ($digital_payment['status'] == 1 && count($payment_gateways_list) > 0)
                                     <div class="bg-primary-light rounded p-4 mb-20">
-                                        @if (($digital_payment['status'] == 1 && count($payment_gateways_list) > 0) ||
-                                                    (isset($offline_payment) && $offline_payment['status'] && count($offline_payment_methods) > 0))
-                                            <div class="gap-2 mb-4">
-                                                <div class="d-flex justify-content-between">
-                                                    <div class="d-flex align-items-end gap-2">
-                                                        <h5 class="mb-0 text-nowrap">
-                                                            {{ translate('pay_via_online') }}
-                                                        </h5>
-                                                        <span class="fs-10 text-capitalize mt-1">
-                                                            ({{ translate('faster_&_secure_way_to_pay') }})
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @endif
-
-                                        @if ($digital_payment['status'] == 1)
                                             <div class="row gx-4">
                                                 @foreach ($payment_gateways_list as $payment_gateway)
                                                     @php($additionalData = $payment_gateway['additional_data'] != null ? json_decode($payment_gateway['additional_data']) : [])
@@ -219,36 +204,26 @@
                                                     </div>
                                                 @endforeach
                                             </div>
-                                        @endif
                                     </div>
+                                    @endif
 
                                     @if (isset($offline_payment) && $offline_payment['status'] && count($offline_payment_methods) > 0)
                                         <div class="row g-3">
                                             <div class="col-12">
                                                 <div class="bg-primary-light rounded p-4">
-                                                    <div
-                                                        class="d-flex justify-content-between align-items-center gap-2 position-relative">
-                                                        <span class="d-flex align-items-center gap-3">
-                                                            <input type="radio" id="pay_offline" name="online_payment"
-                                                                   class="custom-radio" value="pay_offline">
-                                                            <label for="pay_offline"
-                                                                   class="cursor-pointer d-flex align-items-center gap-2 mb-0 text-capitalize">{{ translate('pay_offline') }}</label>
-                                                        </span>
-
-                                                        <div data-toggle="tooltip"
-                                                             title="{{ translate('for_offline_payment_options,_please_follow_the_steps_below') }}">
-                                                            <i class="tio-info text-primary"></i>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="mt-4 pay_offline_card d-none">
-                                                        <div class="d-flex flex-wrap gap-3">
-                                                            @foreach ($offline_payment_methods as $method)
-                                                                <button type="button"
-                                                                        class="btn btn-light offline_payment_button text-capitalize"
-                                                                        id="{{ $method->id }}">{{ $method->method_name }}</button>
-                                                            @endforeach
-                                                        </div>
+                                                    <div class="d-flex flex-column flex-sm-row gap-3">
+                                                        @foreach ($offline_payment_methods as $method)
+                                                            <button type="button"
+                                                                    class="btn btn-light border offline_payment_button d-flex flex-fill align-items-center justify-content-between gap-3 p-3 text-capitalize"
+                                                                    data-payment-channel="{{ $method->payment_channel ?? 'other' }}"
+                                                                    id="{{ $method->id }}">
+                                                                <span class="d-flex align-items-center gap-2">
+                                                                    <i class="fs-24 text-primary {{ ($method->payment_channel ?? 'other') === 'wallet' ? 'tio-wallet' : 'tio-send' }}"></i>
+                                                                    <span class="font-weight-bold">{{ ($method->payment_channel ?? 'other') === 'wallet' ? translate('pay_with_electronic_wallet') : translate('pay_with_instapay') }}</span>
+                                                                </span>
+                                                                <i class="tio-chevron-right"></i>
+                                                            </button>
+                                                        @endforeach
                                                     </div>
                                                 </div>
                                             </div>
@@ -294,7 +269,7 @@
                                 <option value="" disabled>{{ translate('select_Payment_Method') }}</option>
                                 @foreach ($offline_payment_methods as $method)
                                     <option value="{{ $method->id }}">{{ translate('payment_Method') }} :
-                                        {{ $method->method_name }}</option>
+                                        {{ offlinePaymentMethodDisplayName($method) }}</option>
                                 @endforeach
                             </select>
                             <div class="" id="payment_method_field">
@@ -311,7 +286,7 @@
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="exampleModalLongTitle">{{ translate('wallet_payment') }}</h5>
+                        <h5 class="modal-title" id="exampleModalLongTitle">{{ translate('purchase_balance_payment') }}</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
@@ -344,18 +319,24 @@
                                     <input class="form-control" type="text"
                                            value="{{ webCurrencyConverter(amount: $remain_balance ?? 0) }}" readonly>
                                     @if ($remain_balance < 0)
-                                        <label
-                                            class="__color-crimson mt-1">{{ translate('you_do_not_have_sufficient_balance_for_pay_this_order!!') }}</label>
+                                        <div class="alert alert-danger mt-3 mb-0">
+                                            <strong>{{ translate('insufficient_purchase_balance') }}</strong>
+                                            <div class="small mt-1">{{ translate('purchase_balance_is_lower_than_invoice_total_deposit_or_choose_another_method') }}</div>
+                                        </div>
                                     @endif
                                 </div>
                             </div>
 
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary"
-                                    data-dismiss="modal">{{ translate('close') }}</button>
+                            @if ($remain_balance < 0)
+                                <a href="{{ route('wallet') }}" class="btn btn--primary">{{ translate('deposit_enough_into_purchase_balance') }}</a>
+                                <button type="button" class="btn btn-outline-primary" data-dismiss="modal">{{ translate('use_another_payment_method') }}</button>
+                            @else
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ translate('close') }}</button>
+                            @endif
                             <button type="submit" class="btn btn--primary"
-                                {{ $remain_balance > 0 ? '' : 'disabled' }}>{{ translate('submit') }}</button>
+                                {{ $remain_balance >= 0 ? '' : 'disabled' }}>{{ translate('confirm_payment') }}</button>
                         </div>
                     </form>
                 </div>
@@ -367,5 +348,5 @@
 @endsection
 
 @push('script')
-    <script src="{{ theme_asset(path: 'public/assets/front-end/js/payment.js') }}"></script>
+    <script src="{{ theme_asset(path: 'public/assets/front-end/js/payment.js') }}?v=20260906.6"></script>
 @endpush

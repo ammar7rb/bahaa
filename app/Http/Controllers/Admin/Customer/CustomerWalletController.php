@@ -80,6 +80,16 @@ class CustomerWalletController extends BaseController
         return view('admin-views.customer.wallet.report', compact('data', 'transactions', 'customerStatus', 'customer','customers','sidebarCustomers'));
     }
 
+    public function updateNote(Request $request, \App\Models\WalletTransaction $transaction): RedirectResponse
+    {
+        abort_unless(\App\Utils\Helpers::module_permission_check('people'),403);
+        $data=$request->validate(['customer_note'=>'nullable|string|max:2000']);
+        $transaction->update(['customer_note'=>trim($data['customer_note']??'') ?: null,
+            'note_admin_id'=>auth('admin')->id(),'note_updated_at'=>now()]);
+        ToastMagic::success('تم حفظ ملاحظة الحركة وعرضها للعميل.');
+        return back();
+    }
+
     public function addFund(AddFundRequest $request, CustomerWalletService $customerWalletService): JsonResponse
     {
         $walletTransaction = $this->walletTransactionRepo->addWalletTransaction(

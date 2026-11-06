@@ -8,7 +8,7 @@
 
 <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInput.js') }}"></script>
 <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/utils.js') }}"></script>
-<script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInout-validation.js') }}"></script>
+<script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInout-validation.js') }}?v=20261104.2"></script>
 
 <script src="{{ dynamicAsset(path: 'public/assets/new/back-end/libs/swiper/swiper-bundle.min.js')}}"></script>
 <script src="{{ dynamicAsset(path: 'public/assets/backend/vendor/js/promotion/offers-and-deals.js') }}"></script>
@@ -42,7 +42,21 @@
 
 <script src="{{ dynamicAsset(path: 'public/assets/backend/backend-utils.js') }}"></script>
 
+@php
+    config(['laravel-toaster-magic.options.positionClass' => 'toast-top-start']);
+@endphp
 {!! ToastMagic::scripts() !!}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const container = document.querySelector('.toast-container');
+        if (!container) return;
+        const labelDismissButtons = () => container.querySelectorAll('.toast-close-btn').forEach(button => {
+            button.setAttribute('aria-label', @json(translate('close')));
+        });
+        labelDismissButtons();
+        new MutationObserver(labelDismissButtons).observe(container, {childList: true, subtree: true});
+    });
+</script>
 
 @if ($errors->any())
     <script>

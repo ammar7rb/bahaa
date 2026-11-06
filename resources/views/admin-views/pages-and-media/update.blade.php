@@ -130,25 +130,7 @@
                             </div>
                         </div>
 
-                        <div class="p-12 p-sm-20 bg-section rounded">
-                            <div class="mb-2" id="page-description-form">
-                                <label for="" class="form-label fw-normal mb-2">
-                                    {{ translate('Page_Title') }}
-                                    <span class="text-danger">*</span>
-                                </label>
-                                <input class="form-control" name="title" placeholder="{{ translate('type_page_title') }}"
-                                    value="{{ $businessPage['title'] }}" data-required-msg="{{ translate('page_title_is_required') }}" required>
-                            </div>
-
-                            <div class="" id="page-description-form">
-                                <label for="" class="form-label fw-normal mb-2">
-                                    {{ translate('Page_Description') }}
-                                    <span class="text-danger">*</span>
-                                </label>
-                                <div id="description-page-editor" class="quill-editor">{!! $businessPage['description'] !!}</div>
-                                <textarea name="description" id="description-page" style="display:none;" data-required-msg="{{ translate('page_description_is_required') }}" required>{!! $businessPage['description'] !!}</textarea>
-                            </div>
-                        </div>
+                        @include('admin-views.pages-and-media._localized-content')
 
                     </div>
                 </div>

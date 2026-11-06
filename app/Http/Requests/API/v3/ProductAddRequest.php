@@ -13,6 +13,16 @@ class ProductAddRequest extends FormRequest
 {
     use ResponseHandler;
     use VatTaxManagement;
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'product_type' => 'physical',
+            'shipping_cost' => 0,
+            'sub_sub_category_id' => null,
+            'tags' => $this->input('tags', $this->input('search_tags')),
+        ]);
+    }
     public function authorize(): bool
     {
         return true;
@@ -25,7 +35,7 @@ class ProductAddRequest extends FormRequest
         return [
             'name' => 'required',
             'category_id' => 'required',
-            'product_type' => 'required',
+            'product_type' => 'in:physical',
             'unit' => 'required_if:product_type,==,physical',
             'images' => 'required',
             'thumbnail' => getRulesStringForImageValidation(
@@ -38,7 +48,7 @@ class ProductAddRequest extends FormRequest
             'lang' => 'required',
             'unit_price' => 'required|min:1',
             'discount' => 'required|gt:-1',
-            'shipping_cost' => 'required_if:product_type,==,physical|gt:-1',
+            'shipping_cost' => 'nullable|numeric|min:0',
             'code' => 'required|min:6|max:20|regex:/^[a-zA-Z0-9]+$/|unique:products',
             'minimum_order_qty' => 'required|numeric|min:1',
         ];

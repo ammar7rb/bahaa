@@ -3,7 +3,7 @@
 @section('title', translate('SMS_configuration'))
 
 @push('css_or_js')
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.css') }}">
+    <style>.default-captcha-container,.dynamic-default-and-recaptcha-section,.generate-firebase-auth-recaptcha{display:none!important}</style>
 @endpush
 
 @section('content')
@@ -295,7 +295,7 @@
                                                 <div class="col-8">
                                                     <input type="text" class="form-control form-control-lg form-control-focus-none"
                                                            id="admin-sms-recaptcha-input"
-                                                           name="default_captcha_value" value="" required
+                                                           name="default_captcha_value" value="" disabled
                                                            placeholder="{{ translate('enter_captcha_value') }}">
                                                 </div>
                                                 <div class="col-4 input-icons bg-white rounded">
@@ -342,7 +342,5 @@
 
 @push('script')
     <script src="{{ dynamicAsset(path: 'public/assets/backend/admin/js/third-party/sms-setup.js') }}"></script>
-    @php($recaptcha = getWebConfig(name: 'recaptcha'))
-    <span id="get-google-recaptcha-key" data-value="{{ isset($recaptcha['status']) && $recaptcha['status'] == 1 ? $recaptcha['site_key'] ?? '' : '' }}"></span>
-    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/google-recaptcha/google-recaptcha-init.js') }}"></script>
+    {{-- CAPTCHA was removed platform-wide. --}}
 @endpush

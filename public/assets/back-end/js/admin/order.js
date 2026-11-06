@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 $(window).on('load',function () {
     $('.js-select2-custom').siblings('.select2-container').addClass('border-0');
@@ -103,19 +103,7 @@ $('.js-data-example-ajax').select2({
 });
 
 
-$(document).ready(function () {
-    let delivery_type = $("#delivery-type").data('type');
-    if (delivery_type === 'self_delivery') {
-        $('.choose_delivery_man').show();
-        $('#by_third_party_delivery_service_info').hide();
-    } else if (delivery_type === 'third_party_delivery') {
-        $('.choose_delivery_man').hide();
-        $('#by_third_party_delivery_service_info').show();
-    } else {
-        $('.choose_delivery_man').hide();
-        $('#by_third_party_delivery_service_info').hide();
-    }
-});
+// Delivery Man order controls were retired; shipping review remains available in the order view.
 
 $('.payment-status-alert').on('click',function (){
     toastMagic.info($('#payment-status-alert-message').data('message'));
@@ -191,7 +179,9 @@ $("#order_status").on('change', function (e) {
                 method: 'POST',
                 data: {
                     "id": $(this).data('id'),
-                    "order_status": value
+                    "order_status": value,
+                    "workflow_override": $("#workflow_override").is(':checked') ? 1 : 0,
+                    "workflow_reason": $("#workflow_reason").val()
                 },
                 success: function (response) {
                     if (response?.status) {
@@ -208,98 +198,6 @@ $("#order_status").on('change', function (e) {
         }
     })
 });
-
-$("#choose_delivery_type").on('change', function () {
-    let value = $(this).val();
-    if (value === 'self_delivery') {
-        $('.choose_delivery_man').show();
-        $('#by_third_party_delivery_service_info').hide();
-    } else if (value === 'third_party_delivery') {
-        $('.choose_delivery_man').hide();
-        $('#by_third_party_delivery_service_info').show();
-        $('#third_party_delivery_service_modal').modal("show");
-    } else {
-        $('.choose_delivery_man').hide();
-        $('#by_third_party_delivery_service_info').hide();
-    }
-
-});
-
-$("#addDeliveryMan").on('change', function () {
-    let id = $(this).val();
-    $.ajax({
-        type: "GET",
-        url: $("#add-delivery-man-url").data('url') + id,
-        data: {
-            'order_id': $(this).data('order-id'),
-            'delivery_man_id': id
-        },
-        success: function (data) {
-            if (data.status == true) {
-                toastMagic.success($("#message-deliveryman-add-success-text").data('text'));
-                location.reload();
-            } else {
-                toastMagic.error($("#message-deliveryman-add-error-text").data('text'));
-            }
-        },
-        error: function () {
-            toastMagic.error($("#message-deliveryman-add-invalid-text").data('text'));
-        }
-    });
-});
-$('input[name=deliveryman_charge]').on('keyup',function(event) {
-    if (event.which === 13) {
-        let value = $(this);
-        amountDateUpdate(value);
-    }
-});
-
-$(".deliveryman-charge").on('click', function () {
-    let value = $('input[name=deliveryman_charge]');
-    amountDateUpdate(value);
-});
-$('.deliveryman-charge-alert').on('click',function (){
-    toastMagic.info($('#deliveryman-charge-alert-message').data('message'))
-})
-
-$("#expected_delivery_date").on('change', function () {
-    amountDateUpdate(this);
-});
-
-function amountDateUpdate(t){
-    let field_name = $(t).attr('name');
-    let field_val = $(t).val();
-
-    if (!field_val || Number(field_val) <= 0) {
-        toastMagic.warning($("#amount-cannot-be-empty-message").data('message'));
-        return;
-    }
-    $.ajaxSetup({
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content')
-        }
-    });
-    $.ajax({
-        url: $("#add-date-update-url").data('url'),
-        method: 'POST',
-        data: {
-            'order_id': $(t).data('order-id'),
-            'field_name': field_name,
-            'field_val': field_val
-        },
-        success: function (data) {
-            if (data.status == true) {
-                toastMagic.success(data.message);
-                location.reload();
-            } else {
-                toastMagic.error($("#message-deliveryman-charge-error-text").data('text'));
-            }
-        },
-        error: function () {
-            toastMagic.error($("#message-deliveryman-charge-invalid-text").data('text'));
-        }
-    });
-}
 
 /** shipping address  map */
 async function shippingAddressMap() {

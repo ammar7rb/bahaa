@@ -48,6 +48,52 @@
             </div>
         </div>
 
+        <div class="card mb-3">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <h3 class="mb-1">{{ translate('general_financial_summary') }}</h3>
+                    <p class="text-muted fs-12 mb-0">
+                        {{ translate('financial_summary_period') }}:
+                        {{ $general_financial_summary['from']->format('Y-m-d') }}
+                        {{ translate('to') }}
+                        {{ $general_financial_summary['to']->format('Y-m-d') }}
+                    </p>
+                </div>
+                <a class="btn btn-outline-primary"
+                   href="{{ route('admin.report.general-financial-export', request()->only(['date_type', 'from', 'to'])) }}">
+                    <i class="fi fi-sr-inbox-in"></i> {{ translate('export') }}
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    @foreach([
+                        ['key' => 'sales', 'label' => 'gross_sales'],
+                        ['key' => 'shipping', 'label' => 'shipping_revenue'],
+                        ['key' => 'package_revenue', 'label' => 'package_revenue'],
+                        ['key' => 'insurance_revenue', 'label' => 'insurance_revenue'],
+                        ['key' => 'commissions', 'label' => 'platform_commissions'],
+                        ['key' => 'refunds', 'label' => 'refunds_total'],
+                        ['key' => 'forfeited_insurance', 'label' => 'forfeited_insurance'],
+                        ['key' => 'platform_net', 'label' => 'platform_net_result'],
+                    ] as $metric)
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="bg-section rounded p-3 h-100">
+                                <div class="text-muted fs-12">{{ translate($metric['label']) }}</div>
+                                <strong class="d-block mt-1 fs-18">
+                                    {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $general_financial_summary[$metric['key']])) }}
+                                </strong>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="row g-2 mt-2 fs-12 text-muted">
+                    <div class="col-md-6">{{ translate('vendor_package_revenue') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $general_financial_summary['vendor_package_revenue'])) }}</div>
+                    <div class="col-md-6">{{ translate('customer_insurance_revenue') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $general_financial_summary['customer_insurance_revenue'])) }}</div>
+                    <div class="col-md-6">{{ translate('vendor_insurance_revenue') }}: {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $general_financial_summary['vendor_insurance_revenue'])) }}</div>
+                </div>
+            </div>
+        </div>
+
         <div class="d-flex flex-wrap gap-3 mb-3">
             <div class="d-flex flex-column gap-3 flex-grow-1">
                 <div class="card card-body">

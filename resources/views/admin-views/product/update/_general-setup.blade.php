@@ -12,7 +12,7 @@
                 @if(getActiveAIProviderConfigCache())
                 <button type="button"
                     class="btn bg-white text-primary bg-transparent shadow-none border-0 opacity-1 generate_btn_wrapper p-0 general_setup_auto_fill"
-                    id="general_setup_auto_fill" data-route="{{ route('admin.product.general-setup-auto-fill') }}" data-item=""  data-lang="en">
+                    id="general_setup_auto_fill" data-route="{{ route('admin.product.general-setup-auto-fill') }}" data-item=""  data-lang="ar">
                     <div class="btn-svg-wrapper">
                         <img width="18" height="18" class=""
                             src="{{ dynamicAsset(path: 'public/assets//back-end/img/ai/blink-right-small.svg') }}" alt="">
@@ -27,26 +27,7 @@
             <div class="card-body">
                 <div class="bg-section rounded-10 p-12 p-sm-20">
                     <div class="row gy-4">
-                        <div class="col-md-6 col-lg-4">
-                            <div class="form-group">
-                                <label class="form-label">
-                                    {{ translate('product_type') }}
-                                    <span class="input-required-icon">*</span>
-                                </label>
-                                <div class="select-wrapper">
-                                    <select name="product_type" id="product_type" class="form-select" data-required-msg="{{ translate('product_type_is_required') }}" required>
-                                        <option value="physical" {{ $product->product_type == 'physical' ? 'selected' : ''}}>
-                                            {{ translate('physical') }}
-                                        </option>
-                                        @if($digitalProductSetting)
-                                            <option value="digital" {{ $product->product_type == 'digital' ? 'selected' : ''}}>
-                                                {{ translate('digital') }}
-                                            </option>
-                                        @endif
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                        <input type="hidden" name="product_type" id="product_type" value="physical">
 
                         <div class="col-md-6 col-lg-4">
                             <div class="form-group">
@@ -224,6 +205,7 @@
                                 </div>
                             </div>
                         </div>
+                        @include('admin-views.product.partials._lifecycle-fields', ['product' => $product])
                         <div class="col-md-8">
                             <div class="form-group">
                                 <label class="form-label d-flex align-items-center gap-2">
@@ -246,4 +228,3 @@
         </div>
     </div>
 </div>
-

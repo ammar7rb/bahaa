@@ -9,6 +9,9 @@
                 <div class="col-lg-9">
                     <div class="card h-100">
                         <div class="card-body d-flex flex-column gap-3 p-2 p-sm-4">
+                            @if(auth('customer')->user()?->activation_status !== 'active')
+                                <div class="alert alert-danger mb-0">{{ translate('customer_activation_support_message') }}</div>
+                            @endif
                             <div class="d-flex left gap-2 justify-content-between">
                                 <div class="media gap-3"></div>
                                 <button class="btn btn-primary rounded-pill px-2 py-0 px-sm-4 py-sm-2"
@@ -142,4 +145,3 @@
         </div>
     </div>
 @endsection
-

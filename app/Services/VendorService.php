@@ -130,11 +130,11 @@ class VendorService
 
     public function getAddData(object $request): array
     {
-        $isApproved = $request['status'] === 'approved';
+        $isApproved = $request->input('status') === 'approved';
 
         return [
-            'f_name' => $request['f_name'],
-            'l_name' => $request['l_name'],
+            'f_name' => trim((string) $request->input('f_name')),
+            'l_name' => trim((string) $request->input('l_name', '')),
             'phone' => $request['phone'],
             'email' => $request['email'],
             'image' => $request->file('image') ? $this->upload(dir: 'seller/', format: 'webp', image: $request->file('image')) : 'def.png',

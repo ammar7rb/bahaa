@@ -14,7 +14,7 @@
                             <div class="d-flex justify-content-center mb-30">
                                 <ul class="cart-step-list">
                                     <li class="done cursor-pointer get-view-by-onclick" data-link="{{ route('shop-cart') }}">
-                                        <span><i class="bi bi-check2"></i></span> {{ translate('cart') }}
+                                        <span><i class="bi bi-check2"></i></span> {{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart') }}
                                     </li>
                                     <li class="done cursor-pointer get-view-by-onclick text-capitalize"
                                         data-link="{{ route('checkout-details') }}">
@@ -101,26 +101,26 @@
                                                         <img width="30"
                                                              src="{{ theme_asset('assets/img/icons/wallet.png') }}"
                                                              class="dark-support" alt="">
-                                                        <span class="fs-16">{{ translate('wallet') }}</span>
+                                                        <span class="fs-16">{{ translate('pay_with_purchase_balance') }}</span>
                                                     </button>
                                                 </label>
                                             </li>
                                         @endif
 
                                         @if (isset($offline_payment) && $offline_payment['status'] && count($offline_payment_methods) > 0)
-                                            <li>
-                                                <label class="w-100">
-                                                    <span
-                                                        class="payment-method payment-method_parent d-flex align-items-center gap-3 overflow-hidden disabled-proceed-to-payment"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#offline_payment_submit_button">
-                                                        <img width="30"
-                                                             src="{{ theme_asset('assets/img/icons/cash-payment.png') }}"
-                                                             class="dark-support" alt="">
-                                                        <span class="fs-16">{{ translate('offline_payment') }}</span>
-                                                    </span>
-                                                </label>
-                                            </li>
+                                            @foreach($offline_payment_methods as $method)
+                                                <li>
+                                                    <label class="w-100">
+                                                        <button type="button"
+                                                                class="payment-method d-flex align-items-center gap-3 overflow-hidden w-100 js-offline-channel"
+                                                                data-method-id="{{ $method->id }}"
+                                                                data-bs-toggle="modal" data-bs-target="#offline_payment_submit_button">
+                                                            <i class="fs-24 text-primary {{ ($method->payment_channel ?? 'other') === 'wallet' ? 'bi bi-wallet2' : 'bi bi-send' }}"></i>
+                                                            <span class="fs-16">{{ ($method->payment_channel ?? 'other') === 'wallet' ? translate('pay_with_electronic_wallet') : translate('pay_with_instapay') }}</span>
+                                                        </button>
+                                                    </label>
+                                                </li>
+                                            @endforeach
                                         @endif
 
                                         @if ($digital_payment['status'] == 1)
@@ -206,7 +206,7 @@
                                                 <div class="modal-content">
                                                     <div class="modal-header">
                                                         <h5 class="modal-title" id="exampleModalLongTitle">
-                                                            {{ translate('wallet_payment') }}</h5>
+                                                            {{ translate('purchase_balance_payment') }}</h5>
                                                         <button type="reset" class="btn-close" data-bs-dismiss="modal"
                                                                 aria-label="Close"></button>
                                                     </div>
@@ -246,21 +246,25 @@
                                                                            value="{{ webCurrencyConverter($remain_balance) }}"
                                                                            readonly>
                                                                     @if ($remain_balance < 0)
-                                                                        <label
-                                                                            class="__color-crimson mt-2">{{ translate('you_do_not_have_sufficient_balance_for_pay_this_order') }}
-                                                                            !!</label>
+                                                                        <div class="alert alert-danger mt-3 mb-0">
+                                                                            <strong>{{ translate('insufficient_purchase_balance') }}</strong>
+                                                                            <div class="small mt-1">{{ translate('purchase_balance_is_lower_than_invoice_total_deposit_or_choose_another_method') }}</div>
+                                                                        </div>
                                                                     @endif
                                                                 </div>
                                                             </div>
 
                                                         </div>
                                                         <div class="modal-footer">
-                                                            <button type="button" data-bs-dismiss="modal"
-                                                                    class="update_cart_button fs-16 btn btn-secondary"
-                                                                    data-dismiss="modal">{{ translate('close') }}</button>
+                                                            @if($remain_balance < 0)
+                                                                <a href="{{ route('wallet') }}" class="fs-16 btn btn-primary">{{ translate('deposit_enough_into_purchase_balance') }}</a>
+                                                                <button type="button" data-bs-dismiss="modal" class="fs-16 btn btn-outline-primary">{{ translate('use_another_payment_method') }}</button>
+                                                            @else
+                                                                <button type="button" data-bs-dismiss="modal" class="update_cart_button fs-16 btn btn-secondary">{{ translate('close') }}</button>
+                                                            @endif
                                                             <button type="submit"
                                                                     class="update_cart_button update_wallet_cart_button fs-16 btn btn-primary"
-                                                                {{ $remain_balance > 0 ? '' : 'disabled' }}>{{ translate('submit') }}</button>
+                                                                {{ $remain_balance >= 0 ? '' : 'disabled' }}>{{ translate('confirm_payment') }}</button>
                                                         </div>
                                                     </form>
                                                 </div>
@@ -299,7 +303,7 @@
                                                                         {{ translate('select_Payment_Method') }}</option>
                                                                     @foreach ($offline_payment_methods as $method)
                                                                         <option value="{{ $method->id }}">
-                                                                            {{ translate('payment_Method') . ' : ' . $method->method_name }}
+                                                                            {{ translate('payment_Method') . ' : ' . offlinePaymentMethodDisplayName($method) }}
                                                                         </option>
                                                                     @endforeach
                                                                 </select>

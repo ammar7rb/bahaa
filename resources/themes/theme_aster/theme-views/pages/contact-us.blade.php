@@ -78,7 +78,7 @@
                                     <div class="col-sm-6">
                                         <div class="form-group mb-4">
                                             <label for="message">{{ translate('Subject') }}</label>
-                                            <input type="text" name="subject" value="{{ old('subject') }}"
+                                            <input type="text" name="subject" value="{{ old('subject', request('subject')) }}"
                                                 class="form-control" placeholder="{{ translate('short_title') }}">
                                         </div>
                                     </div>

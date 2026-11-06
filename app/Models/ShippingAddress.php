@@ -30,6 +30,21 @@ use Illuminate\Support\Carbon;
  */
 class ShippingAddress extends Model
 {
+    public function save(array $options = [])
+    {
+        return \Illuminate\Support\Facades\DB::transaction(fn () => parent::save($options));
+    }
+
+    public function delete()
+    {
+        return \Illuminate\Support\Facades\DB::transaction(fn () => parent::delete());
+    }
+    protected static function booted(): void
+    {
+        static::created(fn ($address) => app(\App\Services\CustomerProfileAuditService::class)->address($address, 'address_created'));
+        static::updated(fn ($address) => app(\App\Services\CustomerProfileAuditService::class)->address($address, 'address_updated'));
+        static::deleted(fn ($address) => app(\App\Services\CustomerProfileAuditService::class)->address($address, 'address_deleted'));
+    }
     protected $guarded = [];
 
     /**
@@ -45,12 +60,26 @@ class ShippingAddress extends Model
         'address_type',
         'address',
         'city',
+        'district',
+        'area',
+        'street',
+        'building_number',
+        'floor',
+        'unit_number',
+        'company_details',
+        'landmark',
         'zip',
         'phone',
         'state',
         'country',
         'latitude',
         'longitude',
+        'dispatch_point_id',
+        'shipping_zone_rate_id',
+        'distance_km',
+        'geocode_status',
+        'geocoded_address',
+        'geocoded_at',
         'is_billing',
     ];
 
@@ -62,5 +91,7 @@ class ShippingAddress extends Model
     protected $casts = [
         'is_guest' => 'boolean',
         'is_billing' => 'boolean',
+        'distance_km' => 'float',
+        'geocoded_at' => 'datetime',
     ];
 }

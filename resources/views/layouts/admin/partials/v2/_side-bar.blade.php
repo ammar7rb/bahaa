@@ -1,6 +1,7 @@
 @php
     use App\Utils\Helpers;
     use App\Enums\EmailTemplateKey;
+    $sidebarWorkspaceCategories = app(\App\Services\AdminWorkspaceService::class)->snapshot()['categories'];
     $v2Auction = function_exists('getCheckAddonPublishedStatus') && getCheckAddonPublishedStatus(moduleName: 'Auction');
     $v2Tax = function_exists('getCheckAddonPublishedStatus') && getCheckAddonPublishedStatus(moduleName: 'TaxModule');
     $v2Ai = function_exists('getCheckAddonPublishedStatus') && getCheckAddonPublishedStatus(moduleName: 'AI');
@@ -34,48 +35,22 @@
                     <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="pos" aria-label="Pin"></button></div>
                 </a>
             @endif
+
         </div>
     </div>
 
     {{-- ================= CATALOG ================= --}}
     @if (Helpers::module_permission_check('catalog'))
         <div class="v2-ctx-section" data-section="catalog">
-            <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('catalog') }}</div></div>
+            <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('products') }}</div></div>
             <div class="v2-ctx-group v2-is-pinned" style="display:none;">
                 <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
                 <div class="v2-ctx-group-body"></div>
             </div>
 
             <div class="v2-ctx-group">
-                <div class="v2-ctx-group-head"><span>{{ translate('In_House_Products') }}</span></div>
-                <a class="v2-nav-item {{ (Request::is('admin/products/list/in-house*') || Request::is('admin/products/view/in-house/*') || Request::is('admin/products/barcode/*') || Request::is('admin/products/update/*')) ? 'v2-is-active' : '' }}" data-item="inhouse-products" href="{{ route('admin.products.list', ['in-house']) }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Product_List') }}</span></span>
-                    <div class="v2-nav-right">
-                        <span data-v2-tag="success">{{ getAdminProductsCount('all') }}</span>
-                        <button class="v2-pin-btn" type="button" data-pin="inhouse-products" aria-label="Pin"></button>
-                    </div>
-                </a>
-                <a class="v2-nav-item {{ Request::is('admin/products/add') ? 'v2-is-active' : '' }}" data-item="add-product" href="{{ route('admin.products.add') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('add_New_Product') }}</span></span>
-                    <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="add-product" aria-label="Pin"></button></div>
-                </a>
-                <a class="v2-nav-item {{ Request::is('admin/products/stock-limit-list/in_house') ? 'v2-is-active' : '' }}" data-item="limited-stock" href="{{ route('admin.products.stock-limit-list', ['in_house']) }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Limited_Stock') }}</span></span>
-                    <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="limited-stock" aria-label="Pin"></button></div>
-                </a>
-                <a class="v2-nav-item {{ Request::is('admin/products/request-restock-list') ? 'v2-is-active' : '' }}" data-item="restock-requests" href="{{ route('admin.products.request-restock-list') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Request_Restock_List') }}</span></span>
-                    <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="restock-requests" aria-label="Pin"></button></div>
-                </a>
-                <a class="v2-nav-item {{ Request::is('admin/products/bulk-import') ? 'v2-is-active' : '' }}" data-item="bulk-import" href="{{ route('admin.products.bulk-import') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Bulk_Import') }}</span></span>
-                    <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="bulk-import" aria-label="Pin"></button></div>
-                </a>
-            </div>
-
-            <div class="v2-ctx-group">
                 <div class="v2-ctx-group-head"><span>{{ translate('vendor_Products') }}</span></div>
-                <a class="v2-nav-item {{ str_contains(url()->current().'?request_status='.request()->get('request_status'),'admin/products/list/vendor?request_status=0') ? 'v2-is-active' : '' }}" data-item="vendor-new-products" href="{{ route('admin.products.list', ['vendor', 'request_status' => '0']) }}">
+                <a class="v2-nav-item {{ str_contains(url()->current().'?request_status='.request()->get('request_status'),'admin/products/list/vendor?request_status=0') ? 'v2-is-active' : '' }}" data-item="vendor-new-products" href="{{ route('admin.products.review-queue') }}">
                     <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('new_Products_Requests') }}</span></span>
                     <div class="v2-nav-right">
                         <span data-v2-tag="danger">{{ getVendorProductsCount(type: 'new-product', panel: 'admin') }}</span>
@@ -139,10 +114,6 @@
                     <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Brand_Setup') }}</span></span>
                     <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="brands" aria-label="Pin"></button></div>
                 </a>
-                <a class="v2-nav-item {{ Request::is('admin/attribute*') ? 'v2-is-active' : '' }}" data-item="attributes" href="{{ route('admin.attribute.view') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('product_Attribute_Setup') }}</span></span>
-                    <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="attributes" aria-label="Pin"></button></div>
-                </a>
                 <a class="v2-nav-item {{ Request::is('admin/products/product-gallery') ? 'v2-is-active' : '' }}" data-item="product-gallery" href="{{ route('admin.products.product-gallery') }}">
                     <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Product_Gallery') }}</span></span>
                     <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="product-gallery" aria-label="Pin"></button></div>
@@ -150,6 +121,7 @@
             </div>
         </div>
     @endif
+
 
     {{-- ================= ORDERS ================= --}}
     @if (Helpers::module_permission_check('orders'))
@@ -168,9 +140,7 @@
                         <span class="v2-nav-label">{{ translate('orders') }}</span>
                     </a>
                     <div class="v2-nav-right">
-                        @if (($sidebarOrderCounts['pending'] ?? 0) > 0)
-                            <span data-v2-tag="primary">{{ $sidebarOrderCounts['pending'] }}</span>
-                        @endif
+                        <span data-v2-tag="primary" data-nav-workspace-count="orders" class="{{ empty($sidebarWorkspaceCategories['orders']['count']) ? 'd-none' : '' }}">{{ ($sidebarWorkspaceCategories['orders']['count'] ?? 0) > 99 ? '99+' : ($sidebarWorkspaceCategories['orders']['count'] ?? 0) }}</span>
                         <button class="v2-pin-btn" type="button" data-pin="orders-all" aria-label="Pin"></button>
                         <span class="v2-nav-chev" aria-label="{{ translate('toggle') }}">
                             <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="currentColor"
@@ -224,6 +194,20 @@
                         <span class="v2-nav-child-label">{{ translate('canceled') }}</span>
                         <span class="v2-nav-child-count" data-tone="danger">{{ $sidebarOrderCounts['canceled'] ?? 0 }}</span>
                     </a>
+                    <a class="v2-nav-child {{ Request::is('admin/orders/package-refunds*') ? 'v2-is-on' : '' }}" href="{{ route('admin.orders.package-refunds.index') }}">
+                        <span class="v2-nav-child-dot" data-tone="danger"></span><span class="v2-nav-child-label">طلبات رد المشتريات</span>
+                        @if(\Illuminate\Support\Facades\Schema::hasTable('order_admin_purchase_refunds'))
+                            <span class="v2-nav-child-count" data-tone="danger">{{ \App\Models\OrderAdminPurchaseRefund::where('reason','customer_canceled_waiting_for_package')->where('status','customer_requested')->count() }}</span>
+                        @endif
+                    </a>
+                    <a class="v2-nav-child {{ Request::is('admin/orders/post-purchase-invoices*') ? 'v2-is-on' : '' }}" href="{{ route('admin.orders.post-purchase-invoices.index') }}">
+                        <span class="v2-nav-child-dot" data-tone="primary"></span>
+                        <span class="v2-nav-child-label">{{ translate('post_purchase_invoices') }}</span>
+                    </a>
+                    <a class="v2-nav-child {{ Request::is('admin/orders/delivery-proofs') ? 'v2-is-on' : '' }}" href="{{ route('admin.orders.delivery-proofs') }}">
+                        <span class="v2-nav-child-dot" data-tone="success"></span>
+                        <span class="v2-nav-child-label">إثبات التسليم</span>
+                    </a>
                 </div>
 
                 <div class="v2-nav-item v2-has-children {{ Request::is('admin/refund-section/refund/*') ? 'v2-is-active' : '' }}" data-item="refunds">
@@ -262,9 +246,56 @@
                         <span class="v2-nav-child-label">{{ translate('rejected') }}</span>
                         <span class="v2-nav-child-count" data-tone="danger">{{ $sidebarRefundCounts['rejected'] ?? 0 }}</span>
                     </a>
+                    <a class="v2-nav-child {{ Request::is('admin/orders/post-payment-refunds') ? 'v2-is-on' : '' }}" href="{{ route('admin.orders.post-payment-refunds') }}">
+                        <span class="v2-nav-child-dot" data-tone="warning"></span>
+                        <span class="v2-nav-child-label">{{ translate('post_payment_refunds') }}</span>
+                    </a>
                 </div>
             </div>
         </div>
+    @endif
+
+    @if (Helpers::module_permission_check('catalog') || Helpers::module_permission_check('people') || Helpers::module_permission_check('orders') || Helpers::module_permission_check('business_settings'))
+    <div class="v2-ctx-section" data-section="operations">
+        <div class="v2-ctx-head"><div class="v2-ctx-title">{{ __('payments.operations') }}</div></div>
+        <div class="v2-ctx-group v2-is-pinned" style="display:none;"><div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div><div class="v2-ctx-group-body"></div></div>
+        <div class="v2-ctx-group">
+            @if(Helpers::module_permission_check('business_settings'))
+                <a class="v2-nav-item" data-item="seller-settlement-timing" href="{{ route('admin.business-settings.vendor-settings.index') }}#seller-settlement-hold-days">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">مدد تسوية مستحقات التجار</span></span>
+                </a>
+            @endif
+            @if(Helpers::module_permission_check('people'))
+                <a class="v2-nav-item" data-item="customer-withdrawal-rates" href="{{ route('admin.customer-withdrawals.index') }}">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">نسب ومدد صرف الأموال</span></span>
+                </a>
+            @endif
+            @if (Helpers::module_permission_check('people'))
+                <a class="v2-nav-item {{ request()->routeIs('admin.monthly-packages.*') ? 'v2-is-active' : '' }}" data-item="monthly-packages" href="{{ route('admin.monthly-packages.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-calendar"></i></span><span class="v2-nav-label">الباقات الشهرية</span></span></a>
+                <a class="v2-nav-item {{ request()->routeIs('admin.customer.password-recovery.*') ? 'v2-is-active' : '' }}" data-item="customer-password-recovery" href="{{ route('admin.customer.password-recovery.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-key"></i></span><span class="v2-nav-label">استعادة كلمة مرور العملاء</span></span></a>
+            @endif
+            @if(Helpers::module_permission_check('catalog'))
+            @foreach(['medical-devices' => ['medical_devices', 'fi-rr-heart-rate'], 'homepage-sections' => ['homepage_sections', 'fi-rr-apps']] as $entry => [$label, $icon])
+            <a class="v2-nav-item {{ request()->routeIs('admin.operations.'.$entry.'.*') ? 'v2-is-active' : '' }}" data-item="{{ $entry }}" href="{{ route('admin.operations.'.$entry.'.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi {{ $icon }}"></i></span><span class="v2-nav-label">{{ __('operations.'.$label) }}</span></span></a>
+            @endforeach
+            @endif
+            @if (Helpers::module_permission_check('orders'))
+            <a class="v2-nav-item {{ request()->routeIs('admin.orders.logistics.*') ? 'v2-is-active' : '' }}" data-item="order-tracking" href="{{ route('admin.orders.logistics.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-route"></i></span><span class="v2-nav-label">تتبع الطلبات</span></span></a>
+            @endif
+
+            @if (Helpers::module_permission_check('people') || Helpers::module_permission_check('orders'))
+            <a class="v2-nav-item {{ request()->routeIs('admin.payment-reviews.*') || request()->is('admin/workspace/reviews/payments') || request()->routeIs('admin.vendors.balance-funding-settings.*') ? 'v2-is-active' : '' }}" data-item="payment-reviews" href="{{ route('admin.payment-reviews.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-credit-card"></i></span><span class="v2-nav-label">{{ __('payments.title') }}</span></span><span class="v2-nav-right"><span data-v2-tag="primary" data-nav-workspace-count="payments" class="{{ empty($sidebarWorkspaceCategories['payments']['count']) ? 'd-none' : '' }}">{{ ($sidebarWorkspaceCategories['payments']['count'] ?? 0) > 99 ? '99+' : ($sidebarWorkspaceCategories['payments']['count'] ?? 0) }}</span></span></a>
+            @if(\App\Utils\Helpers::module_permission_check('orders'))
+                <a class="v2-nav-item {{ request()->routeIs('admin.guest-orders.*') ? 'v2-is-active' : '' }}" data-item="guest-orders" href="{{ route('admin.guest-orders.index') }}">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">طلبات زوار</span></span>
+                </a>
+            @endif
+            @endif
+            @if (Helpers::module_permission_check('business_settings'))
+            <a class="v2-nav-item {{ request()->routeIs('admin.operations.shipping.*') ? 'v2-is-active' : '' }}" data-item="shipping-setup" href="{{ route('admin.operations.shipping.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v11H3zM14 10h4l3 4v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></span><span class="v2-nav-label">{{ __('shipping-governorates.setup') }}</span></span></a>
+            @endif
+        </div>
+    </div>
     @endif
 
     {{-- ================= AUCTION ================= --}}
@@ -317,110 +348,19 @@
     @endif
 
     {{-- ================= MARKETING ================= --}}
-    @if (Helpers::module_permission_check('marketing'))
-        <div class="v2-ctx-section" data-section="marketing">
-            <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('marketing') }}</div></div>
-            <div class="v2-ctx-group v2-is-pinned" style="display:none;">
-                <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
-                <div class="v2-ctx-group-body"></div>
-            </div>
-
-            @if (Helpers::module_permission_check('marketing'))
-                <div class="v2-ctx-group">
-                    <div class="v2-ctx-group-head"><span>{{ translate('promotions') }}</span></div>
-                    <a class="v2-nav-item {{ Request::is('admin/banner*') ? 'v2-is-active' : '' }}" data-item="banners" href="{{ route('admin.banner.list') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('banner_Setup') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="banners" aria-label="Pin"></button></div>
-                    </a>
-
-                    <div class="v2-nav-item v2-has-children {{ (Request::is('admin/coupon*') || Request::is('admin/deal*')) ? 'v2-is-active' : '' }}" data-item="offers">
-                        <a class="v2-nav-btn" href="{{ route('admin.coupon.add') }}">
-                            <span class="v2-nav-label">{{ translate('offers_&_Deals') }}</span>
-                        </a>
-                        <div class="v2-nav-right">
-                            <button class="v2-pin-btn" type="button" data-pin="offers" aria-label="Pin"></button>
-                            <span class="v2-nav-chev">
-                                <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 5 5 5-5 5"/></svg>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="v2-nav-children v2-is-collapsed" data-children-for="offers">
-                        <a class="v2-nav-child {{ Request::is('admin/coupon*') ? 'v2-is-on' : '' }}" href="{{ route('admin.coupon.add') }}">
-                            <span class="v2-nav-child-dot" data-tone="primary"></span>
-                            <span class="v2-nav-child-label">{{ translate('coupon') }}</span>
-                        </a>
-                        <a class="v2-nav-child {{ (Request::is('admin/deal/flash') || Request::is('admin/deal/flash-add') || Request::is('admin/deal/update*')) ? 'v2-is-on' : '' }}" href="{{ route('admin.deal.flash') }}">
-                            <span class="v2-nav-child-dot" data-tone="warn"></span>
-                            <span class="v2-nav-child-label">{{ translate('flash_Deals') }}</span>
-                        </a>
-                        <a class="v2-nav-child {{ (Request::is('admin/deal/day') || Request::is('admin/deal/day-update*')) ? 'v2-is-on' : '' }}" href="{{ route('admin.deal.day') }}">
-                            <span class="v2-nav-child-dot" data-tone="warn"></span>
-                            <span class="v2-nav-child-label">{{ translate('deal_of_the_day') }}</span>
-                        </a>
-                        <a class="v2-nav-child {{ (Request::is('admin/deal/feature') || Request::is('admin/deal/feature/new') || Request::is('admin/deal/feature-update*')) ? 'v2-is-on' : '' }}" href="{{ route('admin.deal.feature') }}">
-                            <span class="v2-nav-child-dot" data-tone="success"></span>
-                            <span class="v2-nav-child-label">{{ translate('featured_Deal') }}</span>
-                        </a>
-                        <a class="v2-nav-child {{ Request::is('admin/deal/clearance-sale*') ? 'v2-is-on' : '' }}" href="{{ route('admin.deal.clearance-sale.index') }}">
-                            <span class="v2-nav-child-dot" data-tone="danger"></span>
-                            <span class="v2-nav-child-label">{{ translate('Clearance_Sale') }}</span>
-                        </a>
-                    </div>
-
-                </div>
-
-                <div class="v2-ctx-group">
-                    <div class="v2-ctx-group-head"><span>{{ translate('communication') }}</span></div>
-                    <a class="v2-nav-item {{ (!Request::is('admin/notification/push') && Request::is('admin/notification/*')) ? 'v2-is-active' : '' }}" data-item="send-notification" href="{{ route('admin.notification.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('send_notification') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="send-notification" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/push-notification/index*') ? 'v2-is-active' : '' }}" data-item="push-setup" href="{{ route('admin.push-notification.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('push_notifications_setup') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="push-setup" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/business-settings/announcement*') ? 'v2-is-active' : '' }}" data-item="announcement" href="{{ route('admin.business-settings.announcement') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('announcement') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="announcement" aria-label="Pin"></button></div>
-                    </a>
-                </div>
-            @endif
-
-            @if (Helpers::module_permission_check('marketing') && Route::has('admin.blog.view'))
-                <div class="v2-ctx-group">
-                    <div class="v2-ctx-group-head"><span>{{ translate('content') }}</span></div>
-                    <div class="v2-nav-item v2-has-children {{ Request::is('admin/blog*') ? 'v2-is-active' : '' }}" data-item="blog">
-                        <a class="v2-nav-btn" href="{{ route('admin.blog.view') }}">
-                            <span class="v2-nav-label">{{ translate('blog_setup') }}</span>
-                        </a>
-                        <div class="v2-nav-right">
-                            <button class="v2-pin-btn" type="button" data-pin="blog" aria-label="Pin"></button>
-                            <span class="v2-nav-chev">
-                                <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 5 5 5-5 5"/></svg>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="v2-nav-children v2-is-collapsed" data-children-for="blog">
-                        <a class="v2-nav-child {{ Request::is('admin/blog/add') ? 'v2-is-on' : '' }}" href="{{ route('admin.blog.add') }}">
-                            <span class="v2-nav-child-dot" data-tone="primary"></span>
-                            <span class="v2-nav-child-label">{{ translate('add_new') }}</span>
-                        </a>
-                        <a class="v2-nav-child {{ (Request::is('admin/blog/view') || Request::is('admin/blog/app-download-setup') || Request::is('admin/blog/priority-setup')) ? 'v2-is-on' : '' }}" href="{{ route('admin.blog.view') }}">
-                            <span class="v2-nav-child-dot" data-tone="primary"></span>
-                            <span class="v2-nav-child-label">{{ translate('blog_list') }}</span>
-                        </a>
-                    </div>
-                </div>
-            @endif
-        </div>
-    @endif
 
     {{-- ================= PEOPLE ================= --}}
     @if (Helpers::module_permission_check('people'))
         <div class="v2-ctx-section" data-section="people">
             <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('people') }}</div></div>
+            <div class="v2-ctx-group">
+                <a class="v2-nav-item {{ request()->routeIs('admin.account-directory.*') ? 'v2-is-active' : '' }}" data-item="all-accounts" href="{{ route('admin.account-directory.index') }}">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('all_customer_vendor_accounts') }}</span></span>
+                </a>
+                <a class="v2-nav-item {{ request()->boolean('guest_customers') ? 'v2-is-active' : '' }}" data-item="guest-customers" href="{{ route('admin.account-directory.index', ['guest_customers' => 1]) }}">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">عملاء زوار</span></span>
+                </a>
+            </div>
             <div class="v2-ctx-group v2-is-pinned" style="display:none;">
                 <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
                 <div class="v2-ctx-group-body"></div>
@@ -434,22 +374,8 @@
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('customer_List') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="customers" aria-label="Pin"></button></div>
                     </a>
-                    <a class="v2-nav-item {{ Request::is('admin/reviews*') ? 'v2-is-active' : '' }}" data-item="reviews" href="{{ route('admin.reviews.list') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('customer_Reviews') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="reviews" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/customer/wallet/report') ? 'v2-is-active' : '' }}" data-item="wallet" href="{{ route('admin.customer.wallet.report') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('wallet') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="wallet" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ (Request::is('admin/customer/wallet/bonus-setup') || Request::is('admin/customer/wallet/bonus-setup/edit/*')) ? 'v2-is-active' : '' }}" data-item="wallet-bonus" href="{{ route('admin.customer.wallet.bonus-setup') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('wallet_Bonus_Setup') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="wallet-bonus" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/customer/loyalty/report') ? 'v2-is-active' : '' }}" data-item="loyalty" href="{{ route('admin.customer.loyalty.report') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('loyalty_Points') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="loyalty" aria-label="Pin"></button></div>
-                    </a>
+{{-- Customer purchase packages are suspended; keep historical routes and records only. --}}
+                    @if(false)
                     <a class="v2-nav-item {{ (Request::is('admin/customer/purchase-package') || Request::is('admin/customer/purchase-package/edit*')) ? 'v2-is-active' : '' }}" data-item="purchase-packages" href="{{ route('admin.customer.purchase-package.index') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Customer_Purchase_Packages') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="purchase-packages" aria-label="Pin"></button></div>
@@ -458,46 +384,17 @@
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Activation_Offline_Payments') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="activation-offline-payments" aria-label="Pin"></button></div>
                     </a>
+                    @endif
 
-                    <a class="v2-nav-item {{ Request::is('admin/customer/subscriber-list') ? 'v2-is-active' : '' }}" data-item="subscribers" href="{{ route('admin.customer.subscriber-list') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('subscribers') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="subscribers" aria-label="Pin"></button></div>
-                    </a>
                 </div>
 
                 <div class="v2-ctx-group">
                     <div class="v2-ctx-group-head"><span>{{ translate('vendors') }}</span></div>
-                    <a class="v2-nav-item {{ Request::is('admin/vendors/add') ? 'v2-is-active' : '' }}" data-item="vendor-add" href="{{ route('admin.vendors.add') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('add_New_Vendor') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-add" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ (Request::is('admin/vendors/list') || Request::is('admin/vendors/view*')) ? 'v2-is-active' : '' }}" data-item="vendor-list" href="{{ route('admin.vendors.vendor-list') }}">
+<a class="v2-nav-item {{ (Request::is('admin/vendors/list') || Request::is('admin/vendors/view*')) ? 'v2-is-active' : '' }}" data-item="vendor-list" href="{{ route('admin.vendors.vendor-list') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('vendor_List') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-list" aria-label="Pin"></button></div>
                     </a>
-                    <a class="v2-nav-item {{ Request::is('admin/vendors/quota-control*') ? 'v2-is-active' : '' }}" data-item="vendor-quota-control" href="{{ route('admin.vendors.quota-control.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Vendor_Package_Control') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-quota-control" aria-label="Pin"></button></div>
-                    </a>
-                    @if (Helpers::module_permission_check('business_settings'))
-                        <a class="v2-nav-item {{ Request::is('admin/business-settings/vendor-settings') ? 'v2-is-active' : '' }}" data-item="vendor-insurance-settings" href="{{ route('admin.business-settings.vendor-settings.index') }}#vendor-insurance-settings">
-                            <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Vendor_Insurance_Settings') }}</span></span>
-                            <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-insurance-settings" aria-label="Pin"></button></div>
-                        </a>
-                    @endif
-                    <a class="v2-nav-item {{ Request::is('admin/vendors/packages*') ? 'v2-is-active' : '' }}" data-item="vendor-packages" href="{{ route('admin.vendors.packages.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Vendor_Packages') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-packages" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/vendors/package-payments*') ? 'v2-is-active' : '' }}" data-item="vendor-package-reviews" href="{{ route('admin.vendors.package-payments.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Package_Offline_Reviews') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-package-reviews" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/vendors/insurance-payments*') ? 'v2-is-active' : '' }}" data-item="vendor-insurance-reviews" href="{{ route('admin.vendors.insurance-payments.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Insurance_Offline_Reviews') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-insurance-reviews" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ (Request::is('admin/vendors/withdraw-list') || Request::is('admin/vendors/withdraw-view/*')) ? 'v2-is-active' : '' }}" data-item="vendor-withdraw" href="{{ route('admin.vendors.withdraw_list') }}">
+<a class="v2-nav-item {{ (Request::is('admin/vendors/withdraw-list') || Request::is('admin/vendors/withdraw-view/*')) ? 'v2-is-active' : '' }}" data-item="vendor-withdraw" href="{{ route('admin.vendors.withdraw_list') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('withdraws') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-withdraw" aria-label="Pin"></button></div>
                     </a>
@@ -507,46 +404,16 @@
                     </a>
                 </div>
 
-                <div class="v2-ctx-group">
-                    <div class="v2-ctx-group-head"><span>{{ translate('deliveryman') }}</span></div>
-                    <a class="v2-nav-item {{ (Request::is('admin/delivery-man/list') || Request::is('admin/delivery-man/update*') || Request::is('admin/delivery-man/order-history-log*') || Request::is('admin/delivery-man/order-wise-earning*')) ? 'v2-is-active' : '' }}" data-item="delivery" href="{{ route('admin.delivery-man.list') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('delivery_men') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="delivery" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/delivery-man/add') ? 'v2-is-active' : '' }}" data-item="dm-add" href="{{ route('admin.delivery-man.add') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('add_new_delivery_man') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="dm-add" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ (Request::is('admin/delivery-man/withdraw-list') || Request::is('admin/delivery-man/withdraw-view*')) ? 'v2-is-active' : '' }}" data-item="dm-withdraw" href="{{ route('admin.delivery-man.withdraw-list') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('withdraws') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="dm-withdraw" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/delivery-man/emergency-contact') ? 'v2-is-active' : '' }}" data-item="dm-emergency" href="{{ route('admin.delivery-man.emergency-contact.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Emergency_Contact') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="dm-emergency" aria-label="Pin"></button></div>
-                    </a>
-                </div>
+                {{-- Delivery-man navigation is intentionally removed; historical records remain in the database. --}}
 
-                @if (auth('admin')->user()->admin_role_id == 1)
-                    <div class="v2-ctx-group">
-                        <div class="v2-ctx-group-head"><span>{{ translate('team') }}</span></div>
-                        <a class="v2-nav-item {{ (Request::is('admin/employee/list') || Request::is('admin/employee/add') || Request::is('admin/employee/update*')) ? 'v2-is-active' : '' }}" data-item="employees" href="{{ route('admin.employee.list') }}">
-                            <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('employees') }}</span></span>
-                            <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="employees" aria-label="Pin"></button></div>
-                        </a>
-                        <a class="v2-nav-item {{ Request::is('admin/custom-role*') ? 'v2-is-active' : '' }}" data-item="roles" href="{{ route('admin.custom-role.create') }}">
-                            <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('roles_and_permissions') }}</span></span>
-                            <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="roles" aria-label="Pin"></button></div>
-                        </a>
-                    </div>
-                @endif
+
             @endif
 
             @if (Helpers::module_permission_check('people'))
                 <div class="v2-ctx-group">
                     <div class="v2-ctx-group-head"><span>{{ translate('support') }}</span></div>
-                    <a class="v2-nav-item {{ Request::is('admin/messages*') ? 'v2-is-active' : '' }}" data-item="inbox" href="{{ route('admin.messages.index', ['type' => 'customer']) }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('inbox') }}</span></span>
+                    <a class="v2-nav-item {{ Request::is('admin/workspace/communication*') ? 'v2-is-active' : '' }}" data-item="inbox" href="{{ route('admin.workspace.communication') }}">
+                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('workspace_communication_center') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="inbox" aria-label="Pin"></button></div>
                     </a>
                     <a class="v2-nav-item {{ Request::is('admin/support-ticket*') ? 'v2-is-active' : '' }}" data-item="support-ticket" href="{{ route('admin.support-ticket.view') }}">
@@ -554,6 +421,9 @@
                         <div class="v2-nav-right">
                             <button class="v2-pin-btn" type="button" data-pin="support-ticket" aria-label="Pin"></button>
                         </div>
+                    </a>
+                    <a class="v2-nav-item {{ Request::is('admin/vendor-support*') ? 'v2-is-active' : '' }}" data-item="vendor-support" href="{{ route('admin.vendor-support.index') }}">
+                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('vendor_support_conversations') }}</span></span>
                     </a>
                     <a class="v2-nav-item {{ Request::is('admin/contact*') ? 'v2-is-active' : '' }}" data-item="contact-form" href="{{ route('admin.contact.list') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('contact_form') }}</span></span>
@@ -572,60 +442,22 @@
     {{-- ================= REPORTS ================= --}}
     @if (Helpers::module_permission_check('reports'))
         <div class="v2-ctx-section" data-section="reports">
-            <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('reports') }}</div></div>
+            <div class="v2-ctx-head"><div class="v2-ctx-title">{{ __('financials.title') }}</div></div>
+            <div class="v2-ctx-group">
+                
+                @foreach (['company', 'customers'] as $financialPage)
+                    <a class="v2-nav-item {{ Request::routeIs('admin.report.financials.'.$financialPage) || ($financialPage === 'company' && Request::routeIs('admin.report.financials.entry')) ? 'v2-is-active' : '' }}" data-item="financials-{{ $financialPage }}" href="{{ route('admin.report.financials.'.$financialPage) }}">
+                        <span class="v2-nav-btn"><i class="fi fi-rr-{{ $financialPage === 'company' ? 'chart-histogram' : 'wallet' }}" aria-hidden="true"></i><span class="v2-nav-label">{{ __('financials.'.$financialPage) }}</span></span>
+                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="financials-{{ $financialPage }}" aria-label="{{ translate('pinned') }}"></button></div>
+                    </a>
+                @endforeach
+            </div>
             <div class="v2-ctx-group v2-is-pinned" style="display:none;">
                 <div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div>
                 <div class="v2-ctx-group-body"></div>
             </div>
 
-            <div class="v2-ctx-group">
-                <div class="v2-ctx-group-head"><span>{{ translate('finance') }}</span></div>
-                <a class="v2-nav-item {{ (Request::is('admin/report/admin-earning') || Request::is('admin/report/vendor-earning')) ? 'v2-is-active' : '' }}" data-item="earnings" href="{{ route('admin.report.admin-earning') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('earnings') }}</span></span>
-                    <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="earnings" aria-label="Pin"></button></div>
-                </a>
-
-                <div class="v2-nav-item v2-has-children {{ (Request::is('admin/report/inhouse-product-sale') || Request::is('admin/report/vendor-report') || Request::is('admin/transaction/order-transaction-list') || Request::is('admin/transaction/expense-transaction-list') || Request::is('admin/report/transaction/refund-transaction-list') || Request::is('admin/transaction/wallet-bonus')) ? 'v2-is-active' : '' }}" data-item="sales-report">
-                    <a class="v2-nav-btn" href="{{ route('admin.report.inhouse-product-sale') }}">
-                        <span class="v2-nav-label">{{ translate('sales_and_transactions') }}</span>
-                    </a>
-                    <div class="v2-nav-right">
-                        <button class="v2-pin-btn" type="button" data-pin="sales-report" aria-label="Pin"></button>
-                        <span class="v2-nav-chev">
-                            <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 5 5 5-5 5"/></svg>
-                        </span>
-                    </div>
-                </div>
-                <div class="v2-nav-children v2-is-collapsed" data-children-for="sales-report">
-                    <a class="v2-nav-child {{ Request::is('admin/report/inhouse-product-sale') ? 'v2-is-on' : '' }}" href="{{ route('admin.report.inhouse-product-sale') }}">
-                        <span class="v2-nav-child-dot" data-tone="primary"></span>
-                        <span class="v2-nav-child-label">{{ translate('inhouse_Sales') }}</span>
-                    </a>
-                    <a class="v2-nav-child {{ Request::is('admin/report/vendor-report') ? 'v2-is-on' : '' }}" href="{{ route('admin.report.vendor-report') }}">
-                        <span class="v2-nav-child-dot" data-tone="primary"></span>
-                        <span class="v2-nav-child-label">{{ translate('vendor_Sales') }}</span>
-                    </a>
-                    <a class="v2-nav-child {{ (Request::is('admin/transaction/order-transaction-list') || Request::is('admin/transaction/expense-transaction-list') || Request::is('admin/transaction/refund-transaction-list') || Request::is('admin/report/transaction/refund-transaction-list') || Request::is('admin/transaction/wallet-bonus')) ? 'v2-is-on' : '' }}" href="{{ route('admin.transaction.order-transaction-list') }}">
-                        <span class="v2-nav-child-dot" data-tone="success"></span>
-                        <span class="v2-nav-child-label">{{ translate('transactions') }}</span>
-                    </a>
-                </div>
-            </div>
-
-            <div class="v2-ctx-group">
-                <div class="v2-ctx-group-head"><span>{{ translate('operations') }}</span></div>
-                <a class="v2-nav-item {{ (Request::is('admin/report/all-product') || Request::is('admin/stock/product-in-wishlist') || Request::is('admin/stock/product-stock')) ? 'v2-is-active' : '' }}" data-item="product-report" href="{{ route('admin.report.all-product') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('product_Report') }}</span></span>
-                    <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="product-report" aria-label="Pin"></button></div>
-                </a>
-                <a class="v2-nav-item {{ Request::is('admin/report/order') ? 'v2-is-active' : '' }}" data-item="order-report" href="{{ route('admin.report.order') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('order_Report') }}</span></span>
-                    <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="order-report" aria-label="Pin"></button></div>
-                </a>
-            </div>
-
-            @if ($v2Tax && count($v2TaxReportRoutes))
+            @if (false)
                 <div class="v2-ctx-group">
                     <div class="v2-ctx-group-head"><span>{{ translate('tax') }}</span></div>
                     @foreach ($v2TaxReportRoutes as $v2TaxReport)
@@ -660,15 +492,11 @@
             @if (Helpers::module_permission_check('business_settings'))
                 <div class="v2-ctx-group">
                     <div class="v2-ctx-group-head"><span>{{ translate('Business_Settings') }}</span></div>
-                    <a class="v2-nav-item {{ (Request::is('admin/business-settings/web-config') || Request::is('admin/business-settings/refund-setup') || Request::is('admin/business-settings/website-setup') || Request::is('admin/business-settings/product-settings') || Request::is('admin/business-settings/payment-method/payment-option') || Request::is('admin/business-settings/vendor-settings') || Request::is('admin/business-settings/customer-settings') || Request::is('admin/business-settings/delivery-man-settings') || Request::is('admin/business-settings/shipping-method/update*') || Request::is('admin/business-settings/shipping-method/index') || Request::is('admin/business-settings/order-settings/index') || Request::is('admin/business-settings/invoice-settings') || Request::is('admin/business-settings/delivery-zone')) ? 'v2-is-active' : '' }}" data-item="business-setup" href="{{ route('admin.business-settings.web-config.index') }}">
+                    <a class="v2-nav-item {{ (Request::is('admin/business-settings/web-config') || Request::is('admin/business-settings/refund-setup') || Request::is('admin/business-settings/website-setup') || Request::is('admin/business-settings/product-settings') || Request::is('admin/business-settings/payment-method/payment-option') || Request::is('admin/business-settings/vendor-settings') || Request::is('admin/business-settings/customer-settings') || Request::is('admin/business-settings/order-settings/index') || Request::is('admin/business-settings/invoice-settings') || Request::is('admin/business-settings/delivery-zone')) ? 'v2-is-active' : '' }}" data-item="business-setup" href="{{ route('admin.business-settings.web-config.index') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Business_Setup') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="business-setup" aria-label="Pin"></button></div>
                     </a>
 
-                    <a class="v2-nav-item {{ Request::is('admin/business-settings/inhouse-shop') || Request::is('admin/business-settings/inhouse-shop/setup*') ? 'v2-is-active' : '' }}" data-item="inhouse-shop" href="{{ route('admin.business-settings.inhouse-shop') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Inhouse_Shop') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="inhouse-shop" aria-label="Pin"></button></div>
-                    </a>
 
                     @if ($v2Tax && count($v2TaxRoutes))
                         @php
@@ -702,10 +530,6 @@
                     <a class="v2-nav-item {{ Request::is('admin/pages-and-media/vendor-registration-settings/*') ? 'v2-is-active' : '' }}" data-item="vendor-registration" href="{{ route('admin.pages-and-media.vendor-registration-settings.index') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('vendor_Registration') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="vendor-registration" aria-label="Pin"></button></div>
-                    </a>
-                    <a class="v2-nav-item {{ Request::is('admin/business-settings/priority-setup') ? 'v2-is-active' : '' }}" data-item="priority-setup" href="{{ route('admin.business-settings.priority-setup.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Priority_Setup') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="priority-setup" aria-label="Pin"></button></div>
                     </a>
                     <a class="v2-nav-item {{ (Request::is('admin/pages-and-media/list') || Request::is('admin/pages-and-media/page*') || Request::is('admin/pages-and-media/privacy-policy') || Request::is('admin/pages-and-media/about-us') || Request::is('admin/helpTopic/index') || Request::is('admin/pages-and-media/features-section') || Request::is('admin/pages-and-media/company-reliability')) ? 'v2-is-active' : '' }}" data-item="business-pages" href="{{ route('admin.pages-and-media.list') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('business_Pages') }}</span></span>
@@ -765,7 +589,7 @@
                             <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="ai-setup" aria-label="Pin"></button></div>
                         </a>
                     @endif
-                    <a class="v2-nav-item {{ (Request::is('admin/third-party/mail') || Request::is('admin/third-party/sms-module') || Request::is('admin/third-party/recaptcha') || Request::is('admin/third-party/social-login/view') || Request::is('admin/third-party/social-media-chat/view') || Request::is('admin/third-party/storage-connection-settings/index') || Request::is('admin/third-party/map-api')) ? 'v2-is-active' : '' }}" data-item="other-config" href="{{ route('admin.third-party.social-login.view') }}">
+                    <a class="v2-nav-item {{ (Request::is('admin/third-party/mail') || Request::is('admin/third-party/sms-module') || Request::is('admin/third-party/social-login/view') || Request::is('admin/third-party/social-media-chat/view') || Request::is('admin/third-party/storage-connection-settings/index') || Request::is('admin/third-party/map-api')) ? 'v2-is-active' : '' }}" data-item="other-config" href="{{ route('admin.third-party.social-login.view') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Other_Configuration') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="other-config" aria-label="Pin"></button></div>
                     </a>
@@ -848,30 +672,6 @@
     @endif
 
     </div>{{-- /.v2-ctx-scroll --}}
-
-    {{-- Setup guide footer (super-admin only, always pinned at bottom when ctxpanel is visible) --}}
-    @php
-        $v2Setup = function_exists('checkSetupGuideRequirements') ? checkSetupGuideRequirements(panel: 'admin') : ['completePercent' => 100, 'totalSteps' => 0];
-        $v2ShowSetupGuide = ($v2Setup['completePercent'] ?? 100) < 100 && auth('admin')->user()->admin_role_id == 1;
-    @endphp
-    @if ($v2ShowSetupGuide)
-        <div class="v2-ctx-foot">
-            <button type="button" class="v2-setup-guide" data-v2-setup-trigger aria-label="{{ translate('Setup_Guide') }}">
-                <div class="v2-setup-guide-icon">
-                    <img src="{{ dynamicAsset(path: 'public/assets/new/back-end/img/setup_guide.png') }}"
-                         width="18" height="18" alt="">
-                </div>
-                <div class="v2-setup-guide-body">
-                    <span class="v2-setup-guide-title">{{ translate('Setup_Guide') }}</span>
-                    <span class="v2-setup-guide-sub">{{ $v2Setup['completePercent'] ?? 0 }}% {{ translate('complete') }}</span>
-                </div>
-                <div class="v2-setup-guide-chev">
-                    <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 5 5 5-5 5"/></svg>
-                </div>
-            </button>
-        </div>
-    @endif
 
 </aside>
 

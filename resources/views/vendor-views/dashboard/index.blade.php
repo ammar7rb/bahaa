@@ -1,149 +1,38 @@
 @extends('layouts.vendor.app')
 @section('title', translate('dashboard'))
-@push('css_or_js')
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-@endpush
-
 @section('content')
-    <div class="content container-fluid">
-        <div class="page-header pb-0 border-0 mb-3">
-            <div class="flex-between row align-items-center mx-1">
-                <div>
-                    <h1 class="page-header-title text-capitalize">{{translate('welcome').' '.auth('seller')->user()->f_name.' '.auth('seller')->user()->l_name}}</h1>
-                    <p class="mb-0">{{ translate('monitor_your_business_analytics_and_statistics').'.'}}</p>
-                </div>
-
-                <div>
-                    <a class="btn btn--primary" href="{{route('vendor.products.list',['type'=>'all'])}}">
-                        <i class="tio-premium-outlined mr-1"></i> {{translate('products')}}
-                    </a>
-                </div>
-            </div>
-        </div>
-        @include('vendor-views.dashboard.partials.seller-setup-status', ['setup' => $sellerSetup])
-        <div class="card mb-3 remove-card-shadow">
-            <div class="card-body">
-                <div class="row justify-content-between align-items-center g-2 mb-3">
-                    <div class="col-sm-6 col-md-8">
-                        <h4 class="d-flex align-items-center text-capitalize gap-10 mb-0">
-                            <img src="{{dynamicAsset(path: 'public/assets/back-end/img/business_analytics.png')}}" alt="">
-                            {{ translate('Business_Analytics') }}
-                        </h4>
-                    </div>
-                    <div class="col-sm-6 col-md-4 d-flex justify-content-sm-end">
-                        <div class="min-w-200">
-                            <select class="custom-select w-auto" id="statistics_type" name="statistics_type">
-                                <option value="overall"
-                                    {{ session()->has('vendor_statistics_type') && session('vendor_statistics_type') == 'overall' ? 'selected' : '' }}>
-                                    {{ translate('Overall_Statistics') }}
-                                </option>
-                                <option value="today"
-                                    {{ session()->has('vendor_statistics_type') && session('vendor_statistics_type') == 'today' ? 'selected' : '' }}>
-                                    {{ translate('Today_Statistics') }}
-                                </option>
-                                <option value="this_week"
-                                    {{ session()->has('vendor_statistics_type') && session('vendor_statistics_type') == 'this_week' ? 'selected' : '' }}>
-                                    {{ translate('This_Week_Statistics') }}
-                                </option>
-                                <option value="this_month"
-                                    {{ session()->has('vendor_statistics_type') && session('vendor_statistics_type') == 'this_month' ? 'selected' : '' }}>
-                                    {{ translate('This_Month_Statistics') }}
-                                </option>
-                                <option value="this_year"
-                                    {{ session()->has('vendor_statistics_type') && session('vendor_statistics_type') == 'this_year' ? 'selected' : '' }}>
-                                    {{ translate('This_Year_Statistics') }}
-                                </option>
-
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="row g-2" id="order_stats">
-                    @include('vendor-views.partials._dashboard-order-status',['orderStatus'=>$dashboardData['orderStatus']])
-                </div>
-            </div>
-        </div>
-        <div class="card mb-3 remove-card-shadow">
-            <div class="card-body">
-                <div class="row justify-content-between align-items-center g-2 mb-3">
-                    <div class="col-sm-6">
-                        <h4 class="d-flex align-items-center text-capitalize gap-10 mb-0">
-                            <img width="20" class="mb-1" src="{{dynamicAsset(path: 'public/assets/back-end/img/admin-wallet.png')}}" alt="">
-                            {{translate('vendor_Wallet')}}
-                        </h4>
-                    </div>
-                </div>
-                <div class="row g-2" id="order_stats">
-                    @include('vendor-views.partials._dashboard-wallet-status',['dashboardData' => $dashboardData])
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="balance-modal" tabindex="-1" aria-labelledby="balanceModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="balanceModalLabel">{{ translate('withdraw_Request') }}</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-
-                    <form action="{{ route('vendor.dashboard.withdraw-request') }}" method="post" class="d-flex flex-column flex-grow-1 max-h-100vh-150px">
-                        @csrf
-
-                        @include("vendor-views.withdraw._withdraw-request-form")
-
-                        <div class="modal-footer p-3 border-top bg-white d-flex flex-nowrap gap-1">
-                            <button type="button" class="btn btn-secondary w-100" data-dismiss="modal">
-                                {{ translate('close') }}
-                            </button>
-                            <button type="submit" class="btn btn--primary w-100">
-                                {{ translate('Send_Request') }}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        <div class="row g-2">
-            <div class="col-12" id="earn-statistics-div">
-                @include('vendor-views.dashboard.partials.earning-statistics')
-            </div>
-            <div class="col-lg-6">
-                <div class="card h-100 remove-card-shadow">
-                    @include('vendor-views.partials._top-rated-products',['topRatedProducts'=>$dashboardData['topRatedProducts']])
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <div class="card h-100 remove-card-shadow">
-                    @include('vendor-views.partials._top-selling-products',['topSell'=>$dashboardData['topSell']])
-                </div>
-            </div>
-            <div class="col-12">
-                <div class="card h-100 remove-card-shadow">
-                    @include('vendor-views.partials._top-rated-delivery-man',['topRatedDeliveryMan'=>$dashboardData['topRatedDeliveryMan']])
-                </div>
-            </div>
-        </div>
+@php
+    $account = $sellerOverview['account_overview'];
+    $package = $account['subscription'];
+    $capacity = $account['capacity'];
+    $expiry = $package['expires_at'] ? \Carbon\Carbon::parse($package['expires_at'])->timezone(config('app.timezone'))->format('Y-m-d') : null;
+    $seller = auth('seller')->user();
+@endphp
+<div class="content container-fluid vendor-dashboard sigma-dashboard">
+    <div class="sigma-dashboard-intro">
+        <div><h1>{{ translate('dashboard') }}</h1><p>{{ translate('vendor_workspace_intro') }}</p></div>
     </div>
-    <span id="withdraw-method-url" data-url="{{ route('vendor.dashboard.method-list') }}"></span>
-    <span id="order-status-url" data-url="{{ route('vendor.dashboard.order-status', ['type' => ':type']) }}"></span>
-    <span id="seller-text" data-text="{{ translate('vendor')}}"></span>
-    <span id="in-house-text" data-text="{{ translate('In-house')}}"></span>
-    <span id="customer-text" data-text="{{ translate('customer')}}"></span>
-    <span id="store-text" data-text="{{ translate('store')}}"></span>
-    <span id="product-text" data-text="{{ translate('product')}}"></span>
-    <span id="order-text" data-text="{{ translate('order')}}"></span>
-    <span id="brand-text" data-text="{{ translate('brand')}}"></span>
-    <span id="business-text" data-text="{{ translate('business')}}"></span>
-    <span id="customers-text" data-text="{{ $dashboardData['customers'] }}"></span>
-    <span id="products-text" data-text="{{ $dashboardData['products'] }}"></span>
-    <span id="orders-text" data-text="{{ $dashboardData['orders'] }}"></span>
-    <span id="brands-text" data-text="{{ $dashboardData['brands'] }}"></span>
+    <div class="sigma-dashboard-main">
+        <section class="sigma-panel sigma-wallet" aria-labelledby="sigma-wallet-title">
+            <div class="sigma-panel-heading"><div><h2 id="sigma-wallet-title">{{ translate('finance_my_wallet') }}</h2><p>{{ translate('sigma_sales_available') }}</p></div><span class="sigma-icon">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'wallet'])</span></div>
+            <a class="sigma-balance" href="{{ route('vendor.balance.index') }}"><span>{{ translate('sigma_sales_balance') }}</span><strong><bdi>{{ webCurrencyConverter(amount: $account['balances']['available']) }}</bdi></strong><small>{{ translate('available_balance') }}</small></a>
+            <div class="sigma-wallet-actions"><a href="{{ route('vendor.balance.index') }}">{{ translate('sigma_sales_balance') }}</a><a class="sigma-outline-action" href="{{ route('vendor.balance.payments') }}">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'add']) {{ translate('fund_wallet') }}</a></div>
+            <p class="sigma-wallet-note">{{ translate('payments_balance') }}: <bdi>{{ webCurrencyConverter(amount: $account['balances']['operating']) }}</bdi></p>
+        </section>
+        <section class="sigma-panel sigma-package" aria-labelledby="sigma-package-title">
+            <div class="sigma-panel-heading"><div><h2 id="sigma-package-title">{{ translate('phase5_current_package') }}</h2><p>{{ translate('vendor_subscriptions') }}</p></div><span class="sigma-icon">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'marketing'])</span></div>
+            <div class="sigma-package-name"><strong>{{ $package['package_name'] ?: translate('phase5_no_package') }}</strong><span class="sigma-package-status {{ $package['active'] ? 'is-active' : '' }}">{{ translate('phase5_status_'.$package['status']) }}</span></div>
+            <dl class="sigma-package-details"><div><dt>{{ translate('phase5_expires') }}</dt><dd><bdi>{{ $expiry ?: '—' }}</bdi></dd></div><div><dt>{{ translate('sigma_ad_allowance') }}</dt><dd><bdi dir="ltr">{{ $capacity['used'] }} / {{ $capacity['total'] }}</bdi></dd></div></dl>
+            <a class="sigma-text-link" href="{{ route('vendor.packages.index') }}">{{ translate('sigma_manage_subscription') }} @include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'arrow-left'])</a>
+        </section>
+    </div>
+    <a class="sigma-offer" href="{{ route('vendor.packages.index') }}"><span class="sigma-icon">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'marketing'])</span><span><strong>{{ translate('sigma_explore_packages') }}</strong><small>{{ translate('sigma_packages_hint') }}</small></span><span class="sigma-offer-link">{{ translate('sigma_explore_packages') }} @include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'arrow-left'])</span></a>
+    <section class="sigma-shortcuts" aria-label="{{ translate('vendor_account_summary') }}">
+        <a class="sigma-shortcut" href="{{ route('vendor.products.list', ['type'=>'all']) }}"><span class="sigma-icon">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'marketing'])</span><h2>{{ translate('sigma_active_ads') }}</h2><strong>{{ $activeAdvertisementCount }}</strong><span class="sigma-shortcut-link">{{ translate('sigma_view_ads') }} @include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'arrow-left'])</span></a>
+        <a class="sigma-shortcut" href="{{ route('vendor.orders.list', ['status'=>'all']) }}"><span class="sigma-icon">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'orders'])</span><h2>{{ translate('orders') }}</h2><strong>{{ $sellerOverview['sales']['received_orders_count'] }}</strong><span class="sigma-shortcut-link">{{ translate('view_orders') }} @include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'arrow-left'])</span></a>
+        <a class="sigma-shortcut" href="{{ route('vendor.products.list', ['type'=>'all']) }}"><span class="sigma-icon">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'view'])</span><h2>{{ translate('Product_Visits') }}</h2><strong>{{ $activeProductVisits === null ? '—' : number_format($activeProductVisits) }}</strong><small>{{ translate('sigma_recorded_active_visits') }}</small><span class="sigma-shortcut-link">{{ translate('sigma_view_products') }} @include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'arrow-left'])</span></a>
+        <a class="sigma-shortcut" href="{{ route('vendor.products.add') }}"><span class="sigma-icon">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'add'])</span><h2>{{ translate('add_product') }}</h2><p>{{ translate('sigma_add_product_hint') }}</p><span class="sigma-shortcut-link">{{ translate('add_product') }} @include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'arrow-left'])</span></a>
+        <a class="sigma-shortcut sigma-support" href="{{ route('vendor.messages') }}"><span class="sigma-icon">@include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'messages'])</span><h2>{{ translate('sigma_technical_support') }}</h2><p>{{ translate('sigma_support_description') }}</p><span class="sigma-shortcut-link">{{ translate('sigma_contact_support') }} @include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>'arrow-left'])</span></a>
+    </section>
+</div>
 @endsection
-
-@push('script_2')
-    <script src="{{dynamicAsset(path: 'public/assets/back-end/js/apexcharts.js')}}"></script>
-    <script src="{{dynamicAsset(path: 'public/assets/back-end/js/vendor/dashboard.js')}}"></script>
-@endpush

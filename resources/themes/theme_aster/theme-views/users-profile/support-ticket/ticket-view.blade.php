@@ -74,7 +74,7 @@
                             @endif
                         </div>
                         <div class="messaging">
-                            <div class="inbox_msg custom-scrollbar p-3 msg-history __h-30rem">
+                            <div id="customer-ticket-live-messages" class="inbox_msg custom-scrollbar p-3 msg-history __h-30rem">
                                 <div class="outgoing_msg">
                                     <p class="message_text">{{ $ticket['description']}}</p>
                                     <span class="time_date d-flex justify-content-end"> {{ date('h:i:A | M d',strtotime($ticket['created_at'])) }}<i
@@ -122,7 +122,7 @@
 
                             @if($ticket->status ==  'open')
                                 <div class="type_msg">
-                                    <form action="{{route('support-ticket.comment',[$ticket['id']])}}" method="post" class="form-advance-validation form-advance-inputs-validation form-advance-file-validation non-ajax-form-validate" novalidate="novalidate">
+                                    <form id="customer-ticket-live-form" action="{{route('support-ticket.comment',[$ticket['id']])}}" method="post" class="form-advance-validation form-advance-inputs-validation form-advance-file-validation non-ajax-form-validate" novalidate="novalidate">
                                         @csrf
                                         <div class="input_msg_write border-top py-2 px-2 px-sm-3 d-flex align-items-start justify-content-between gap-2 gap-sm-3 lh-base">
 
@@ -153,5 +153,14 @@
             let messageHistory = $(".msg-history");
             messageHistory.stop().animate({scrollTop: messageHistory[0].scrollHeight}, 1000);
         });
+        (function () {
+            const box=document.getElementById('customer-ticket-live-messages'), form=document.getElementById('customer-ticket-live-form');
+            const endpoint=@json(route('support-ticket.messages', $ticket->id)); let ready=false, seen=new Set();
+            const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
+            function append(m){if(!box||seen.has(String(m.id)))return;seen.add(String(m.id));const mine=m.sender_type==='customer',el=document.createElement('div');el.className='incoming_msg mb-3';el.innerHTML='<div class="received_msg '+(mine?'text-end':'')+'"><div class="received_withd_msg '+(mine?'bg-primary text-white ms-auto':'')+'"><p>'+esc(m.body).replace(/\n/g,'<br>')+'</p><span class="time_date">'+esc(m.created_at)+'</span></div></div>';box.appendChild(el);box.scrollTop=box.scrollHeight}
+            async function refresh(){try{const r=await fetch(endpoint,{headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});if(!r.ok)return;const d=await r.json();if(d.activation_approved){const alert=document.createElement('div');alert.className='alert alert-success position-fixed shadow';alert.style.cssText='top:1rem;left:50%;transform:translateX(-50%);z-index:2000';alert.textContent=d.message;document.body.appendChild(alert);window.setTimeout(()=>window.location.assign(d.redirect_url),1200);return}if(!ready){d.messages.forEach(m=>seen.add(String(m.id)));ready=true;return}d.messages.forEach(append)}catch(_){}}
+            if(form)form.addEventListener('submit',async e=>{e.preventDefault();const b=form.querySelector('button[type="submit"]');if(b)b.disabled=true;try{const r=await fetch(form.action,{method:'POST',body:new FormData(form),headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}});if(!r.ok)throw 0;const d=await r.json();ready=true;append(d.conversation);form.reset()}catch(_){form.submit()}finally{if(b)b.disabled=false}});
+            refresh();setInterval(refresh,7000);
+        })();
     </script>
 @endpush

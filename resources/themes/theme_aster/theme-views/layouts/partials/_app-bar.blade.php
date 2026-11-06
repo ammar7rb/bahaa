@@ -205,8 +205,8 @@
                             @if($web_config['guest_checkout_status'] || auth('customer')->check())
                                 <a href="{{route('shop-cart')}}"
                                    class="btn btn-outline-primary btn-block">{{translate('view_cart')}}</a>
-                                <a href="{{route('checkout-details')}}"
-                                   class="btn btn-primary btn-block">{{translate('go_to_checkout')}}</a>
+                                <a href="{{route('shop-cart')}}"
+                                   class="btn btn-primary btn-block">{{translate('view_cart')}}</a>
                             @else
                                 <button class="btn btn-outline-primary btn-block" data-bs-toggle="modal"
                                         data-bs-target="#loginModal">{{translate('view_cart')}}</button>

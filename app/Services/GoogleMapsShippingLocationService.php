@@ -99,8 +99,10 @@ class GoogleMapsShippingLocationService
     {
         $data = $this->toArray($address);
         $isResolved = ($resolution['status'] ?? null) === self::STATUS_RESOLVED;
-
-        return [
+        $details = \Illuminate\Support\Facades\Validator::make($data, [
+            'floor' => 'nullable|string|max:100', 'unit_number' => 'nullable|string|max:100', 'company_details' => 'nullable|string|max:500',
+        ])->validate();
+        return array_merge([
             'state' => $resolution['governorate'] ?? $data['state'] ?? $data['governorate'] ?? null,
             'district' => $data['district'] ?? null,
             'area' => $data['area'] ?? null,
@@ -117,7 +119,7 @@ class GoogleMapsShippingLocationService
             'geocode_status' => $resolution['status'] ?? self::STATUS_NEEDS_REVIEW,
             'geocoded_address' => $isResolved ? ($resolution['geocoded_address'] ?? null) : null,
             'geocoded_at' => $isResolved ? now() : null,
-        ];
+        ], $details);
     }
 
     private function resolveUncached(string $apiKey, array $data, string $governorate, EgyptShippingZoneRate $shippingZoneRate): array

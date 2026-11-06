@@ -10,8 +10,8 @@
                 {{ translate('Activation_Offline_Payment_Reviews') }}
                 <span class="badge badge-soft-dark radius-50">{{ $invoices->total() }}</span>
             </h2>
-            <a href="{{ route('admin.customer.purchase-package.index') }}" class="btn btn-secondary">
-                {{ translate('Customer_Purchase_Packages') }}
+            <a href="{{ route('admin.payment-reviews.index') }}" class="btn btn-secondary">
+                {{ translate('unified_payment_reviews') }}
             </a>
         </div>
 
@@ -82,7 +82,7 @@
                             <tr>
                                 <td>{{ $invoices->firstItem() + $key }}</td>
                                 <td>
-                                    <div class="fw-semibold">{{ $invoice->invoice_no }}</div>
+                                    <div class="fw-semibold">{{ $invoice->invoice_number }}</div>
                                     <div class="fs-12 text-muted">{{ translate('Order_Group') }}: {{ $invoice->order_group_id }}</div>
                                     <div class="fs-12 text-muted">{{ $invoice->created_at }}</div>
                                 </td>

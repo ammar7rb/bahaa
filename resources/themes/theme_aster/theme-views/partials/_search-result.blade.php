@@ -4,7 +4,7 @@
             <a href="{{route('product',$product->slug)}}" >
                 {{ $product['name'] }}
                 @if($product->is_search_promoted ?? false)
-                    <span class="badge bg-warning text-dark">{{ translate('Featured_Ad') }}</span>
+                    <span class="badge bg-warning text-dark">{{ translate($product->advertising_badge_label ?: 'Featured_Ad') }}</span>
                 @endif
             </a>
         </li>

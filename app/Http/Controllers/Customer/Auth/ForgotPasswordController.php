@@ -40,17 +40,17 @@ class ForgotPasswordController extends Controller
         private readonly FirebaseService                             $firebaseService,
         private readonly PhoneOrEmailVerificationRepositoryInterface $phoneOrEmailVerificationRepo,
     ) {
-        $this->middleware('guest:customer', ['except' => ['logout']]);
+        $this->middleware('guest:customer', ['except' => ['logout','reset_password']]);
     }
 
     public function reset_password()
     {
-        $verification_by = getWebConfig(name: 'forgot_password_verification');
-        return view(VIEW_FILE_NAMES['recover_password'], compact('verification_by'));
+        return redirect()->route('customer.password-recovery.form');
     }
 
     public function resetPasswordRequest(Request $request): RedirectResponse|JsonResponse
     {
+        return app(\App\Http\Controllers\Customer\PasswordRecoveryController::class)->request($request,app(\App\Services\CustomerPasswordRecoveryService::class));
         $request->validate([
             'identity' => 'required',
         ]);
@@ -122,6 +122,10 @@ class ForgotPasswordController extends Controller
                         'phone_or_email' => $customer['email'],
                         'token' => $token,
                     ]);
+                    DB::table('password_resets')->updateOrInsert(
+                        ['identity' => $customer['email'], 'user_type' => 'customer'],
+                        ['token' => $token, 'created_at' => now(), 'updated_at' => now()]
+                    );
                     event(new PasswordResetEvent(email: $customer['email'], data: $data));
                     Toastr::success(translate('Check_your_email') . ' ' . translate('Password_reset_url_sent'));
                 } catch (\Exception $exception) {
@@ -137,6 +141,10 @@ class ForgotPasswordController extends Controller
                     'phone_or_email' => $identity,
                     'token' => $token,
                 ]);
+                DB::table('password_resets')->updateOrInsert(
+                    ['identity' => $identity, 'user_type' => 'customer'],
+                    ['token' => $token, 'created_at' => now(), 'updated_at' => now()]
+                );
                 Toastr::success(translate('Check_your_phone') . ' ' . translate('Password_reset_OTP_sent'));
                 return redirect()->route('customer.auth.login.verify-account', ['identity' => base64_encode($identity), 'type' => base64_encode($type), 'action' => base64_encode('password-reset')]);
             } else {
@@ -297,6 +305,7 @@ class ForgotPasswordController extends Controller
 
     public function resetPasswordSubmit(Request $request): View|Redirector|RedirectResponse
     {
+        return redirect()->route('customer.password-recovery.form');
         $validator = Validator::make($request->all(), [
             'password' => 'required|same:confirm_password',
         ]);

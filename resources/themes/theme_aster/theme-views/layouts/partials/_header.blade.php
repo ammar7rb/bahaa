@@ -61,14 +61,9 @@
                                 @php( $local = Helpers::default_lang())
                                 @foreach($web_config['language'] as $data)
                                     @if($data['code']==$local)
-                                        <?php
-                                            if (\Illuminate\Support\Str::contains($data['code'], '-')) {
-                                                $countryCodeArr = explode('-', $data['code']);
-                                                $data['code'] = $countryCodeArr[0];
-                                            }
-                                        ?>
+                                        @php($langFlagCode = getLanguageFlagCode($data['code']))
                                         <img width="20"
-                                             src="{{ theme_asset('assets/img/flags/' . strtolower($data['code']).'.png') }}"
+                                             src="{{ theme_asset('assets/img/flags/' . $langFlagCode .'.png') }}"
                                              class="dark-support" alt="{{ translate('Eng') }}"/>
                                         {{ ucwords($data['name']) }}
                                     @endif
@@ -77,15 +72,10 @@
                             <ul class="dropdown-menu bs-dropdown-min-width--10rem">
                                 @foreach($web_config['language'] as $key =>$data)
                                     @if($data['status']==1)
-                                        <?php
-                                            if (\Illuminate\Support\Str::contains($data['code'], '-')) {
-                                                $countryCodeArr = explode('-', $data['code']);
-                                                $data['code'] = $countryCodeArr[0];
-                                            }
-                                        ?>
+                                        @php($langFlagCode = getLanguageFlagCode($data['code']))
                                         <li class="change-language" data-action="{{route('change-language')}}" data-language-code="{{$data['code']}}">
                                             <a class="d-flex gap-2 align-items-center" href="javascript:">
-                                                <img width="20" src="{{ theme_asset('assets/img/flags/' . strtolower($data['code']).'.png') }}"
+                                                <img width="20" src="{{ theme_asset('assets/img/flags/' . $langFlagCode .'.png') }}"
                                                      loading="lazy" class="dark-support" alt="{{$data['name']}}"/>
                                                 {{ ucwords($data['name']) }}
                                             </a>
@@ -94,6 +84,15 @@
                                 @endforeach
                             </ul>
                         </div>
+                    </li>
+                    <li>
+                        <button type="button" class="customer-theme-toggle" data-storefront-theme-toggle
+                                aria-pressed="false"
+                                onclick="event.stopPropagation(); window.baToggleStorefrontTheme && window.baToggleStorefrontTheme(this); return false;"
+                                title="{{ app()->getLocale() === 'ar' ? 'تبديل المظهر' : 'Toggle theme' }}">
+                            <span aria-hidden="true" data-theme-icon>☾</span>
+                            <span class="visually-hidden">{{ app()->getLocale() === 'ar' ? 'تبديل المظهر' : 'Toggle theme' }}</span>
+                        </button>
                     </li>
                     @if($web_config['business_mode'] == 'multi' && $web_config['seller_registration'])
                         <li class="d-none d-xl-block">
@@ -110,7 +109,7 @@
         <div class="container">
             <div class="d-flex align-items-center justify-content-between gap-3">
                 <a class="logo" href="{{route('home')}}">
-                    <img class="dark-support svg h-45" alt="{{ translate('Logo') }}"
+                    <img class="dark-support svg h-45 ba-platform-logo" alt="{{ translate('Logo') }}"
                          src="{{ getStorageImages(path: $web_config['web_logo'], type:'logo') }}">
                 </a>
                 <div class="search-box position-relative">
@@ -301,7 +300,8 @@
                                     </ul>
                                 </li>
                             @endif
-                            @if($web_config['business_mode'] == 'multi')
+                            {{-- The public navigation does not expose seller stores. --}}
+                            @if(false)
                                 <li>
                                     <a href="javascript:">{{ translate('stores') }}</a>
                                     <ul class="sub_menu">
@@ -458,7 +458,7 @@
                     <div class="nav-wrapper">
                         <div class="d-xl-none">
                             <a class="logo" href="{{route('home')}}">
-                                <img class="dark-support mobile-logo-cs" alt="{{ translate('logo') }}"
+                                <img class="dark-support mobile-logo-cs ba-platform-logo" alt="{{ translate('logo') }}"
                                      src="{{ getStorageImages(path: $web_config['mob_logo'], type:'logo') }}">
                             </a>
                         </div>
@@ -508,7 +508,8 @@
                                 </li>
                             @endif
 
-                            @if($web_config['business_mode'] == 'multi')
+                            {{-- The public navigation does not expose seller stores. --}}
+                            @if(false)
                                 <li>
                                     <span class="cursor-pointer no-follow-link" ref="nofollow">{{ translate('stores') }}</span>
                                     <div
