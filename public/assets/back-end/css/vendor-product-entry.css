@@ -22,3 +22,5 @@
 #product_form .mb-5{margin-bottom:10px!important}
 #product_form .seller-product-specification .row+.row{margin-top:16px!important}
 @media(max-width:575px){#product_form>.card,#product_form>.outline-wrapper,#product_form>.general_wrapper,#product_form>.price_wrapper{margin-bottom:20px!important}#product_form .card-header h3,#product_form .mb-20 h2{font-size:17px}#product_form .row.gy-4{--bs-gutter-y:12px;margin-top:-12px}#product_form .row.gy-4>[class*="col-"]{margin-top:12px}}
+#product_form .row.gy-4>[class*="col-"]{padding-block:0!important}
+#product_form .form-group.mb-3{margin-bottom:0!important}
