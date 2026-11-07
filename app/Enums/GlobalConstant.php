@@ -1320,6 +1320,8 @@ enum GlobalConstant
         'customer_account_manage' => 'تعليق وتنشيط حسابات العملاء',
         'customer_password_reset' => 'تعيين كلمات مرور العملاء',
         'customer_account_close' => 'إغلاق حسابات العملاء',
+        'vendor_financial_view' => 'عرض ماليات التجار',
+        'vendor_financial_manage' => 'إدارة مدفوعات وديون واشتراكات التجار',
         'reports' => 'reports',
         'business_settings' => 'business_settings',
         'system_settings' => 'system_settings',

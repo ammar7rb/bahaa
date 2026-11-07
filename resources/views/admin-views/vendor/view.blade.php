@@ -2,8 +2,13 @@
 
 @section('title', $seller?->shop->name ?? translate('shop_Name'))
 
+@push('css_or_js')
+    <link rel="stylesheet" href="{{ dynamicAsset(path:'public/assets/back-end/css/vendor-accounts.css') }}?v=20261107.2">
+@endpush
+
 @section('content')
-    <div class="content container-fluid">
+    <div class="content container-fluid vendor-accounts">
+        @include('admin-views.vendor.accounts.context-nav')
         @if(config('vendor_advertising.auto_renewal_enabled') && \Illuminate\Support\Facades\Schema::hasTable('vendor_auto_renewals') && \Illuminate\Support\Facades\DB::table('vendor_auto_renewals')->where('seller_id', $seller->id)->where('enabled', true)->exists())
             <div class="card card-body mb-4"><strong>التجديد التلقائي مفعل</strong><form method="post" action="{{ route('admin.vendors.auto-renewal.disable', $seller->id) }}">@csrf<button class="btn btn-outline-danger mt-2" type="submit">إيقاف التجديد التلقائي</button></form></div>
         @endif
