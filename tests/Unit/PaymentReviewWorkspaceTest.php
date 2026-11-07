@@ -12,6 +12,30 @@ use Tests\TestCase;
 
 class PaymentReviewWorkspaceTest extends TestCase
 {
+    public function test_customer_scope_controls_rows_counts_methods_and_pagination(): void
+    {
+        $this->role(['people','customer_financial_view']);
+        DB::table('users')->insert(['id'=>2,'f_name'=>'عميل آخر','phone'=>'01099999999']);
+        $own=$this->deposit();$other=$this->deposit('paid','OTHER-BANK');$other->update(['customer_id'=>2]);
+        DB::table('seller_balance_deposits')->insert(['seller_id'=>1,'source'=>'offline','status'=>'pending','amount'=>70,'currency_code'=>'EGP','transaction_reference'=>'VENDOR-1','created_at'=>now(),'updated_at'=>now()]);
+        $data=$this->data(['customer_id'=>1,'audience'=>'vendor','kind'=>'balance_deposit']);
+        $this->assertSame(1,$data['reviews']->total());$this->assertSame(1,(int)$data['customer']->id);
+        $this->assertSame(1,$data['counts']->get('pending'));$this->assertFalse($data['methods']->contains('OTHER-BANK'));
+        $this->assertSame($own->id,$data['reviews']->first()['id']);$this->assertSame('customer',$data['reviews']->first()['audience']);
+        $this->assertSame(0,$this->data(['customer_id'=>1,'status'=>'approved','kind'=>'balance_deposit'])['reviews']->total());
+        foreach([1,2] as $owner)DB::table('wallet_transactions')->insert(['user_id'=>$owner,'transaction_id'=>'WALLET-'.$owner,'reference'=>'WALLET-'.$owner,'transaction_type'=>'add_fund','payment_method'=>'historical','credit'=>5,'debit'=>0,'balance'=>5,'admin_bonus'=>0,'created_at'=>now(),'updated_at'=>now()]);
+        $wallet=$this->data(['customer_id'=>1,'kind'=>'wallet_transaction']);$this->assertSame(1,$wallet['reviews']->total());$this->assertTrue($wallet['reviews']->first()['read_only']);$this->assertSame('WALLET-1',$wallet['reviews']->first()['reference']);
+        $data=$this->data(['customer_id'=>1,'kind'=>'balance_deposit']);
+        $source=file_get_contents(resource_path('views/admin-views/payment-reviews/index.blade.php'));
+        $start=strpos($source,"@section('content')")+strlen("@section('content')");$end=strrpos($source,'@endsection');
+        $html=Blade::render(substr($source,$start,$end-$start),$data);
+        $this->assertStringContainsString('مدفوعات العميل C000001',$html);
+        $this->assertStringNotContainsString('مراجعة موحدة',$html);
+        $this->assertStringNotContainsString('name="audience" class="form-select"',$html);
+        $this->assertStringContainsString('name="customer_id" value="1"',$html);
+        $directory=storage_path('app/customer-accounts-qa');if(!is_dir($directory))mkdir($directory,0755,true);
+        foreach(['light','dark'] as $theme)file_put_contents($directory.'/reviews-'.$theme.'.html','<!doctype html><html lang="ar" dir="rtl" data-ba-admin-theme="'.$theme.'"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/backend/libs/bootstrap/bootstrap.min.css"><link rel="stylesheet" href="/assets/backend/libs/bootstrap/bootstrap.rtl.css"><link rel="stylesheet" href="/assets/backend/libs/fonts/inter/inter.css"><link rel="stylesheet" href="/assets/backend/webfonts/uicons-regular-rounded.css"><link rel="stylesheet" href="/assets/backend/admin/css/style.css"><link rel="stylesheet" href="/assets/back-end/css/admin-v2.css"><link rel="stylesheet" href="/assets/back-end/css/admin-dark-mode.css"><link rel="stylesheet" href="/assets/back-end/css/customer-accounts.css"><body class="app-v2" style="display:block;height:auto;overflow:auto;direction:rtl"><p>معاينة اختبار — ليست حسابات فعلية</p>'.$html.'</body></html>');
+    }
     protected function setUp(): void
     {
         parent::setUp();

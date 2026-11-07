@@ -1,13 +1,14 @@
         <div class="card"><div class="card-body">
             <form method="get" class="row g-2 mb-4">
+                @if(isset($customer))<input type="hidden" name="customer_id" value="{{ $customer->id }}"><input type="hidden" name="audience" value="customer">@endif
                 @if(request()->boolean('guest_orders'))
                     <input type="hidden" name="guest_orders" value="1">
                 @endif
-                <div class="col-md-2"><select name="audience" class="form-select"><option value="">{{ translate('all_users') }}</option><option value="vendor" @selected(request('audience') === 'vendor')>{{ translate('vendor') }}</option><option value="customer" @selected(request('audience') === 'customer')>{{ translate('customer') }}</option></select></div>
-                <div class="col-md-2"><select name="kind" class="form-select"><option value="">{{ translate('all_payment_types') }}</option><option value="subscription" @selected(request('kind') === 'subscription')>الاشتراك الشهري</option><option value="order" @selected(request('kind') === 'order')>{{ translate('order') }}</option><option value="package" @selected(request('kind') === 'package')>{{ translate('package') }}</option><option value="insurance" @selected(request('kind') === 'insurance')>{{ translate('insurance') }}</option><option value="balance_deposit" @selected(request('kind') === 'balance_deposit')>إيداع رصيد التاجر</option></select></div>
+                @unless(isset($customer))<div class="col-md-2"><select name="audience" class="form-select"><option value="">{{ translate('all_users') }}</option><option value="vendor" @selected(request('audience') === 'vendor')>{{ translate('vendor') }}</option><option value="customer" @selected(request('audience') === 'customer')>{{ translate('customer') }}</option></select></div>@endunless
+                <div class="col-md-2"><select name="kind" class="form-select"><option value="">{{ translate('all_payment_types') }}</option><option value="subscription" @selected(request('kind') === 'subscription')>الاشتراك الشهري</option><option value="order" @selected(request('kind') === 'order')>{{ translate('order') }}</option>@unless(isset($customer))<option value="package" @selected(request('kind') === 'package')>{{ translate('package') }}</option>@endunless<option value="balance_deposit" @selected(request('kind') === 'balance_deposit')>{{ isset($customer)?'طلبات شحن المحفظة':'إيداع الرصيد' }}</option>@if(isset($customer))<option value="wallet_transaction" @selected(request('kind') === 'wallet_transaction')>حركات المحفظة</option>@endif</select></div>
                 <div class="col-md-2"><select name="status" class="form-select"><option value="">{{ translate('all_Status') }}</option><option value="reconciliation" @selected(request('status') === 'reconciliation')>تحتاج مطابقة مالية</option><option value="pending" @selected(request('status') === 'pending')>{{ translate('pending') }}</option><option value="approved" @selected(request('status') === 'approved')>{{ translate('approved') }}</option><option value="rejected" @selected(request('status') === 'rejected')>{{ translate('rejected') }}</option></select></div>
-                <div class="col-md-4"><input class="form-control" name="searchValue" value="{{ request('searchValue') }}" placeholder="{{ translate('search_seller_customer_or_reference') }}"></div>
-                <div class="col-md-2"><button class="btn btn--primary w-100">{{ translate('filter') }}</button></div>
+                <div class="col-md-4"><input class="form-control" name="searchValue" value="{{ request('searchValue') }}" placeholder="{{ isset($customer)?'ابحث بمرجع المعاملة':translate('search_seller_customer_or_reference') }}"></div>
+                <div class="col-md-2"><button class="btn btn-primary w-100">{{ translate('filter') }}</button></div>
             </form>
             <div class="table-responsive"><table class="table align-middle"><thead><tr><th>#</th><th>{{ translate('user_type') }}</th><th>{{ translate('user') }}</th><th>{{ translate('payment_type') }}</th><th>{{ translate('amount') }}</th><th>{{ translate('offline_payment_info') }}</th><th>{{ translate('status') }}</th><th>{{ translate('action') }}</th></tr></thead><tbody>
                 @forelse ($reviews as $review)
@@ -19,12 +20,12 @@
                             @endif
                         </td>
                         <td><div class="fw-semibold">{{ trim(($review['actor']?->f_name ?? '') . ' ' . ($review['actor']?->l_name ?? '')) ?: '—' }}</div><small>{{ $review['actor']?->email }}</small><br><small>{{ $review['actor']?->phone }}</small></td>
-                        <td>{{ translate($review['kind']) }}<br><small>{{ $review['label'] }}
+                        <td>{{ isset($customer)?(['wallet_transaction'=>'حركة محفظة','balance_deposit'=>'طلب شحن','order'=>'دفعة طلب','subscription'=>'اشتراك'][$review['kind']]??translate($review['kind'])):translate($review['kind']) }}<br><small>{{ $review['label'] }}
                             @if(!empty($review['customer_state']['customer']))<div class="small mt-1" dir="rtl">{{ $review['customer_state']['customer']['onboarding_journey'] === 'checkout_first' ? 'عميل جديد — تسجيل من الدفع' : 'تسجيل عادي أو سابق' }} · {{ $review['customer_state']['customer']['account_activated'] ? 'مفعّل' : 'غير مفعّل' }} · {{ $review['customer_state']['customer']['subscription']['active'] ? 'اشتراك نشط' : 'اشتراك غير نشط' }}<br>{{ $review['customer_state']['message'] }}</div>@endif</small></td>
                         <td>{{ in_array($review['type'], ['customer_subscription','customer_legacy_receipt'], true) ? number_format($review['amount'],2).' '.$review['currency'] : setCurrencySymbol(amount: usdToDefaultCurrency(amount: $review['amount'])) }}</td>
                         <td>
                             @if($review['type'] === 'customer_subscription')
-                                <a href="{{ route('admin.customer.monthly-subscriptions.index', ['status'=>$review['status'] === 'pending' ? 'pending_review' : $review['status']]) }}">عرض الحساب والاشتراك وإثبات الدفع</a>
+                                <a href="{{ isset($customer)?route('admin.customer.accounts.index',['page'=>'subscriptions','customer_id'=>$customer->id,'tab'=>'subscriptions']):route('admin.customer.monthly-subscriptions.index', ['status'=>$review['status'] === 'pending' ? 'pending_review' : $review['status']]) }}">عرض الحساب والاشتراك وإثبات الدفع</a>
                             @endif
                             @if (!empty($review['offline']) && is_array($review['offline']))
                                 <strong>{{ translatePaymentText($review['offline']['method_name'] ?? translate('offline_payment')) }}</strong>
@@ -46,7 +47,7 @@
                                 &mdash;
                             @endif
                         </td>
-                        <td><span class="badge {{ $review['status'] === 'pending' ? 'badge-soft-warning' : ($review['status'] === 'approved' ? 'badge-soft-success' : 'badge-soft-danger') }}">{{ $review['status'] === 'reconciliation' ? 'تحتاج مطابقة مالية' : translate($review['status']) }}</span><br><small>{{ $review['reference'] }}</small></td>
+                        <td><span data-state="{{ $review['status'] }}" class="badge ca-review-status {{ $review['status'] === 'pending' ? 'badge-soft-warning' : ($review['status'] === 'approved' ? 'badge-soft-success' : 'badge-soft-danger') }}">{{ $review['status'] === 'reconciliation' ? 'تحتاج مطابقة مالية' : translate($review['status']) }}</span><br><small>{{ $review['reference'] }}</small></td>
                         <td>
                             @if($review['customer_state']['can_request_package'] ?? false)
                                 @if($review['customer_state']['package_request_sent'] ?? false)
@@ -58,7 +59,7 @@
                                     </form>
                                 @endif
                             @endif
-                            @if ($review['status'] === 'pending')
+                            @if ($review['status'] === 'pending' && empty($review['read_only']))
                                 <div class="d-flex gap-1">
                                     <form method="post" action="{{ route('admin.payment-reviews.approve', [$review['type'], $review['id']]) }}">@csrf<button class="btn btn-sm btn-outline-success">{{ translate('approve') }}</button></form>
                                     <form method="post" action="{{ route('admin.payment-reviews.reject', [$review['type'], $review['id']]) }}">@csrf<input class="form-control form-control-sm mb-1" name="review_note" required placeholder="{{ translate('rejection_reason') }}"><button class="btn btn-sm btn-outline-danger">{{ translate('reject') }}</button></form>

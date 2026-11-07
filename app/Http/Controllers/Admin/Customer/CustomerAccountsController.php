@@ -55,19 +55,20 @@ class CustomerAccountsController extends Controller
         $refunds=$customer?OrderAdminPurchaseRefund::where('customer_id',$customer->id)->where('reason','customer_canceled_waiting_for_package')->latest('id')->paginate(20,['*'],'refunds_page')->withQueryString():null;
         $returns=$customer?\App\Models\RefundRequest::where('customer_id',$customer->id)->latest('id')->paginate(20,['*'],'returns_page')->withQueryString():null;
         $payments=CustomerSubscriptionPayment::with('customer')->when($customer,fn($q)=>$q->where('customer_id',$customer->id));
-        $actions=DB::table('customer_account_actions')->when($customer,fn($q)=>$q->where('customer_id',$customer->id));
         if (!$customer && !empty($data['q'])) {
             $scope=app(AdminAccountDirectoryService::class)->query(['type'=>'customer','q'=>$data['q']])->select('accounts.id');
-            $payments->whereIn('customer_id',clone $scope);$actions->whereIn('customer_id',clone $scope);
+            $payments->whereIn('customer_id',clone $scope);
         }
-        if (!empty($data['operation'])) {$payments->where('purchase_kind',$data['operation']);$actions->where('operation',$data['operation']);}
+        if (!empty($data['operation'])) $payments->where('purchase_kind',$data['operation']);
         foreach (['from'=>'>=','to'=>'<='] as $field=>$operator) if (!empty($data[$field])) {
-            $payments->whereDate('created_at',$operator,$data[$field]);$actions->whereDate('created_at',$operator,$data[$field]);
+            $payments->whereDate('created_at',$operator,$data[$field]);
         }
         $payments=$payments->latest('id')->paginate(20,['*'],'payments_page')->withQueryString();
         $paymentActions=DB::table('customer_account_actions')->whereIn('financial_reference',$payments->pluck('payment_reference')->filter())->get()->keyBy('financial_reference');
         $paymentSubscriptions=CustomerMonthlySubscription::whereIn('payment_id',$payments->pluck('id'))->get()->keyBy('payment_id');
-        $actions=$actions->latest('id')->paginate(20,['*'],'actions_page')->withQueryString();
+        $actions=($customer || ($page==='subscriptions' && $tab==='actions'))
+            ? app(\App\Services\CustomerAccountHistoryService::class)->paginate($customer?->id,$data,CustomerAccountAccess::allows('financial_view'))
+            : DB::table('customer_account_actions')->whereRaw('1=0')->paginate(20,['*'],'actions_page');
         $currentSubscriptions=null;$subscriptionCustomers=collect();
         if($page==='subscriptions' && $tab==='current') {
             $currentQuery=CustomerMonthlySubscription::query()->whereNotNull('package_id')->where('starts_at','<=',now())->where('expires_at','>',now())
@@ -78,8 +79,10 @@ class CustomerAccountsController extends Controller
             $subscriptionCustomers=User::whereIn('id',$currentSubscriptions->pluck('customer_id'))->get()->keyBy('id');
         }
         $active=$customer?app(CustomerMonthlyAllowanceService::class)->active($customer->id):null;
+        $latestSubscription=$customer?CustomerMonthlySubscription::where('customer_id',$customer->id)->latest('id')->first():null;
         return view('admin-views.customer.accounts.index',compact('page','tab','customer','accounts','accountStates','focusedAction','packages','debtTotal','rows','repayments','debtAccounts','requests','fundingAllocations','fundingDebts','transactions','refunds','returns','payments','paymentActions','paymentSubscriptions','actions','currentSubscriptions','subscriptionCustomers','active')+[
             'catalog'=>app(CustomerPackageCatalogService::class)->available()->get(),
+            'latestSubscription'=>$latestSubscription,
             'currency'=>getWebConfig('currency_model')==='multi_currency'?'USD':getCurrencyCode(type:'default'),
             'debtPolicyReady'=>config('customer_accounts.debt_allocation')==='oldest_first',
         ]);
@@ -120,11 +123,12 @@ class CustomerAccountsController extends Controller
     public function subscription(Request $request, CustomerPackageWalletService $service)
     {
         [$customer,$context]=$this->identity($request,'subscriptions_manage');
-        $data=$request->validate(['operation'=>'required|in:purchase,renew_limit','package_id'=>'required|integer|min:1',
+        $data=$request->validate(['operation'=>'required|in:purchase,renew_limit','intent'=>'required|in:activation,renew_package,upgrade,downgrade,renew_limit','package_id'=>'required|integer|min:1',
             'quote_token'=>'required|string|size:64|regex:/^[a-f0-9]{64}$/','expected_amount'=>'required|numeric|gt:0|max:10000000|decimal:0,3',
             'expected_subscription_id'=>'nullable|integer|min:1','expected_revision'=>'required|integer|min:0',
             'support_reference'=>'nullable|string|max:191','authorized_request'=>'accepted']);
         $data['request_key']=$context['request_key'];
+        if(($data['intent']==='renew_limit')!==($data['operation']==='renew_limit'))throw ValidationException::withMessages(['intent'=>'العملية المحددة لا تطابق معاملة الباقة.']);
         return $this->perform(fn()=> $service->transact($customer->id,$data,['admin_id'=>(int)auth('admin')->id(),'source'=>$request->filled('support_reference')?'support':'admin','reason'=>$context['reason'],'support_reference'=>$data['support_reference']??null]), 'تمت معاملة الباقة من المحفظة وتسجيل نتيجتها.');
     }
 

@@ -12,6 +12,37 @@ use Tests\TestCase;
 
 class CustomerAccountManagementTest extends TestCase
 {
+    public function test_history_reads_preexisting_sources_for_owner_without_creating_audit_rows(): void
+    {
+        DB::table('wallet_transactions')->insert(['user_id'=>1,'transaction_id'=>'OLD-2019','reference'=>'OLD-2019','transaction_type'=>'add_fund','payment_method'=>'historical','credit'=>30,'debit'=>0,'balance'=>100,'admin_bonus'=>0,'created_at'=>'2019-01-01 10:00:00','updated_at'=>'2019-01-01 10:00:00']);
+        DB::table('wallet_transactions')->insert(['user_id'=>2,'transaction_id'=>'OTHER-CUSTOMER','reference'=>'OTHER-CUSTOMER','transaction_type'=>'add_fund','payment_method'=>'historical','credit'=>50,'debit'=>0,'balance'=>70,'admin_bonus'=>0,'created_at'=>now(),'updated_at'=>now()]);
+        $this->debt(12);$this->deposit(25);$before=[DB::table('wallet_transactions')->count(),DB::table('customer_account_actions')->count(),User::find(1)->wallet_balance];
+        $rows=app(\App\Services\CustomerAccountHistoryService::class)->paginate(1);
+        $this->assertTrue($rows->getCollection()->contains('financial_reference','OLD-2019'));
+        $this->assertFalse($rows->getCollection()->contains('financial_reference','OTHER-CUSTOMER'));
+        $this->assertTrue($rows->getCollection()->contains('operation','debt_created'));
+        $this->assertTrue($rows->getCollection()->contains('operation','funding_request'));
+        $this->assertSame($before,[DB::table('wallet_transactions')->count(),DB::table('customer_account_actions')->count(),User::find(1)->wallet_balance]);
+        $this->assertSame(0,app(\App\Services\CustomerAccountHistoryService::class)->paginate(1,[],false)->total());
+    }
+
+    public function test_explicit_subscription_intent_is_enforced_before_any_debit(): void
+    {
+        $eligibility=\Mockery::mock(\App\Services\CustomerPurchaseEligibilityService::class);$eligibility->shouldReceive('assertPackagePurchaseAvailable')->andReturnNull();$eligibility->shouldReceive('reevaluateCustomer')->andReturnNull();app()->instance(\App\Services\CustomerPurchaseEligibilityService::class,$eligibility);
+        $service=app(CustomerPackageWalletService::class);$catalog=app(CustomerPackageCatalogService::class);
+        $input=function($package,$intent,$active=null)use($catalog){$p=CustomerPurchasePackage::find($package);return ['package_id'=>$package,'intent'=>$intent,'operation'=>'purchase','request_key'=>(string)Str::uuid(),'expected_revision'=>0,'expected_subscription_id'=>$active?->id,'expected_amount'=>$p->package_price,'quote_token'=>$catalog->token($p,'package')];};
+        foreach(['upgrade','downgrade','renew_package'] as $intent){try{$service->transact(1,$input(1,$intent));$this->fail('Mismatched operation accepted');}catch(DomainException $error){$this->assertStringContainsString('لا تطابق',$error->getMessage());}}
+        $first=$service->transact(1,$input(1,'activation'));$this->assertSame('activation',$first->purchase_kind);
+        $active=\App\Models\CustomerMonthlySubscription::find($first->target_subscription_id);
+        $before=User::find(1)->wallet_balance;
+        foreach([['activation',2],['renew_package',2],['upgrade',1],['downgrade',2]] as [$intent,$package]){try{$service->transact(1,$input($package,$intent,$active));$this->fail('Incorrect intent accepted');}catch(DomainException $error){$this->assertStringContainsString('لا تطابق',$error->getMessage());}}
+        $this->assertEquals($before,User::find(1)->wallet_balance);
+        $upgrade=$service->transact(1,$input(2,'upgrade',$active));$this->assertSame('upgrade',$upgrade->purchase_kind);
+        $active=\App\Models\CustomerMonthlySubscription::find($upgrade->target_subscription_id);
+        $down=$service->transact(1,$input(1,'downgrade',$active));$this->assertSame('downgrade',$down->purchase_kind);
+        $active=\App\Models\CustomerMonthlySubscription::find($down->target_subscription_id);
+        $renew=$service->transact(1,$input(1,'renew_package',$active));$this->assertSame('renew_package',$renew->purchase_kind);
+    }
     public function test_manual_confirmed_payment_repay_debt_once_and_return_credit_stays_separate(): void
     {
         $this->debt(40);$service=app(\App\Services\CustomerManualCreditService::class);
@@ -150,8 +181,9 @@ class CustomerAccountManagementTest extends TestCase
         app(CustomerAccountDebtService::class)->archive(1,$archived,9);
         $this->debt(40);$this->deposit(25);
         app(CustomerAccountAdjustmentService::class)->credit(1,'10','تسوية للمعاينة',9,(string)Str::uuid());
-        $fixturePayment=CustomerSubscriptionPayment::create(['customer_id'=>1,'request_key'=>(string)Str::uuid(),'quoted_amount'=>10,'wallet_debit_amount'=>10,'currency_code'=>'EGP','status'=>'approved','package_id'=>1,'terms_name'=>'Silver','purchase_kind'=>'activation','payment_method'=>'wallet_balance','payment_reference'=>'fixture-package-1','approved_at'=>now(),'subscription_expires_at'=>now()->addDays(29),'terms_snapshot'=>['auto_renew'=>false,'source'=>'self_service']]);
-        \App\Models\CustomerMonthlySubscription::create(['customer_id'=>1,'payment_id'=>$fixturePayment->id,'package_id'=>1,'package_name'=>'Silver','package_price'=>10,'granted_allowance'=>1000,'starts_at'=>now()->subDay(),'expires_at'=>now()->addDays(29)]);
+        $fixturePayment=CustomerSubscriptionPayment::create(['customer_id'=>1,'request_key'=>(string)Str::uuid(),'quoted_amount'=>10,'wallet_debit_amount'=>10,'currency_code'=>'EGP','status'=>'approved','package_id'=>1,'terms_name'=>'Gold','purchase_kind'=>'activation','payment_method'=>'wallet_balance','payment_reference'=>'fixture-package-1','approved_at'=>now(),'subscription_expires_at'=>now()->addDays(29),'terms_snapshot'=>['auto_renew'=>false,'source'=>'self_service']]);
+        \App\Models\CustomerMonthlySubscription::create(['customer_id'=>1,'payment_id'=>$fixturePayment->id,'package_id'=>2,'package_name'=>'Gold','package_price'=>20,'granted_allowance'=>2000,'starts_at'=>now()->subDay(),'expires_at'=>now()->addDays(29)]);
+        DB::table('wallet_transactions')->insert(['user_id'=>1,'transaction_id'=>'HISTORY-2018','reference'=>'HISTORY-2018','transaction_type'=>'add_fund','payment_method'=>'historical','credit'=>5,'debit'=>0,'balance'=>5,'admin_bonus'=>0,'created_at'=>'2018-01-01 10:00:00','updated_at'=>'2018-01-01 10:00:00']);
         $controller=app(\App\Http\Controllers\Admin\Customer\CustomerAccountsController::class);
         $source=file_get_contents(resource_path('views/admin-views/customer/accounts/index.blade.php'));
         $start=strpos($source,"@section('content')")+strlen("@section('content')");$end=strrpos($source,'@endsection');
@@ -162,6 +194,10 @@ class CustomerAccountManagementTest extends TestCase
             $html=\Illuminate\Support\Facades\Blade::render(substr($source,$start,$end-$start),$view->getData()+['errors'=>new \Illuminate\Support\ViewErrorBag()]);
             $this->assertStringNotContainsString('VENDOR MUST NOT APPEAR',$html);$this->assertStringContainsString('C000001',$html);
             $this->assertStringNotContainsString('class="ca-navigation"',$html);
+            $this->assertStringContainsString('aria-label="أقسام ملف العميل"',$html);
+            $this->assertStringContainsString('customer_id=1',$html);
+            if($page==='subscriptions')$this->assertStringContainsString('name="intent"',$html);
+            if($page!=='subscriptions'||$tab==='actions')$this->assertStringContainsString('HISTORY-2018',$html);
             if($page==='subscriptions' && $tab==='current') {$this->assertSame(1,$view->getData()['currentSubscriptions']->total());$this->assertStringContainsString('Silver',$html);}
             foreach(['light','dark'] as $theme) {
                 $document='<!doctype html><html lang="ar" dir="rtl" data-ba-admin-theme="'.$theme.'"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/backend/libs/fonts/inter/inter.css"><link rel="stylesheet" href="/assets/backend/webfonts/uicons-regular-rounded.css"><link rel="stylesheet" href="/assets/backend/libs/bootstrap/bootstrap.min.css"><link rel="stylesheet" href="/assets/backend/libs/bootstrap/bootstrap.rtl.css"><link rel="stylesheet" href="/assets/backend/admin/css/style.css"><link rel="stylesheet" href="/assets/back-end/css/admin-v2.css"><link rel="stylesheet" href="/assets/back-end/css/admin-dark-mode.css"><link rel="stylesheet" href="/assets/back-end/css/customer-accounts.css"><body class="app-v2" style="display:block;min-height:100vh"><p style="padding:8px">معاينة محلية ببيانات اختبار — ليست حسابات فعلية</p>'.$html.'<script src="/assets/back-end/js/customer-accounts.js"></script></body></html>';

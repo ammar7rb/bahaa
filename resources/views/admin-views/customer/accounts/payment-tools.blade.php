@@ -1,7 +1,7 @@
 <section class="ca-panel"><h2>عمليات المدفوعات</h2><p>الشحن المؤكد يسدد أقدم الديون أولًا؛ التعديل الإداري ورصيد المرتجع لا يستوفيان الديون. طلبات العملاء تبقى «جاري التحقق» حتى مراجعتها.</p><div class="ca-actions">
 @if($can('wallet_adjust'))<button type="button" class="btn btn-primary" data-ca-open="ca-manual-credit">إضافة رصيد / قيمة مرتجع</button>@endif
 @if($can('debts_manage'))<button type="button" class="btn btn-outline-primary" data-ca-open="ca-manual-debt">إضافة مديونية جديدة</button>@endif
-<a class="btn btn-outline-primary" href="{{ route('admin.payment-reviews.index',['audience'=>'customer','kind'=>'balance_deposit']) }}">التحقق من طلبات الشحن</a></div></section>
+<a class="btn btn-outline-primary" href="{{ route('admin.payment-reviews.index',['audience'=>'customer','kind'=>'balance_deposit','customer_id'=>$customer?->id]) }}">التحقق من طلبات الشحن</a></div></section>
 @foreach(['credit'=>'إضافة رصيد أو قيمة مرتجع','debt'=>'إضافة مديونية'] as $tool=>$toolLabel)
 @if($can($tool==='credit'?'wallet_adjust':'debts_manage'))
 <dialog id="ca-manual-{{ $tool }}" class="ca-dialog" aria-label="{{ $toolLabel }}"><form method="post" action="{{ route('admin.customer.accounts.'.$tool) }}" data-ca-financial>@csrf<h2>{{ $toolLabel }}</h2>

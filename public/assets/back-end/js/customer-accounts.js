@@ -59,7 +59,10 @@
             return;
         }
         const opener = event.target.closest('[data-ca-open]');
-        if (opener) openDialog(opener.dataset.caOpen, opener);
+        if (opener) {
+            if(opener.dataset.caIntent){const intent=document.querySelector('#ca-subscription [name="intent"]');if(intent){intent.value=opener.dataset.caIntent;intent.dispatchEvent(new Event('change',{bubbles:true}));}}
+            openDialog(opener.dataset.caOpen, opener);
+        }
         const closer = event.target.closest('[data-ca-close]');
         if (closer) closeDialog(closer.closest('dialog'));
     });
@@ -90,18 +93,23 @@
     });
     root.querySelectorAll('[data-ca-subscription]').forEach(form => {
         const sync = () => {
+            const intent=form.elements.intent;
+            const notes={activation:'اشتراك جديد بالسعر المعروض يبدأ الآن لمدة 30 يومًا.',renew_package:'تجديد نفس الباقة بالسعر الحالي؛ تبدأ مدة جديدة من 30 يومًا الآن.',upgrade:'ترقية إلى حد شرائي أعلى بالسعر الحالي؛ يبدأ الاشتراك البديل الآن لمدة 30 يومًا.',downgrade:'تخفيض إلى حد شرائي أقل بالسعر الحالي؛ يبدأ الاشتراك البديل الآن لمدة 30 يومًا.',renew_limit:'رسوم تجديد الحد فقط؛ لا تمديد للمدة ولا محو للاستخدام السابق.'};
+            if(intent){
+                form.querySelector('h2').textContent=intent.selectedOptions[0].textContent;
+                form.elements.operation.value=intent.value==='renew_limit'?'renew_limit':'purchase';
+                [...form.elements.package_id.options].forEach(option=>{option.disabled=({renew_package:()=>option.value!==intent.dataset.latestPackage,renew_limit:()=>option.value!==intent.dataset.activePackage,upgrade:()=>Number(option.dataset.allowance)<=Number(intent.dataset.activeLimit),downgrade:()=>Number(option.dataset.allowance)>=Number(intent.dataset.activeLimit)})[intent.value]?.()??false;});
+                if(!form.elements.package_id.selectedOptions[0]||form.elements.package_id.selectedOptions[0].disabled)form.elements.package_id.value=[...form.elements.package_id.options].find(o=>!o.disabled)?.value??'';
+                form.querySelector('[data-ca-operation-note]').textContent=notes[intent.value];
+            }
             const option = form.elements.package_id.selectedOptions[0];
-            if (!option) return;
+            if (!option) {form.querySelector('[data-ca-price]').textContent='لا توجد باقة متاحة تطابق هذه العملية.';form.querySelector('[type="submit"]').disabled=true;return;}
             const price = form.elements.operation.value === 'renew_limit' ? option.dataset.renewal : option.dataset.price;
             form.elements.quote_token.value = option.dataset.token;
             form.elements.expected_amount.value = price || '';
             form.querySelector('[data-ca-price]').textContent = price ? `رسوم العملية: ${price} ج.م؛ تُخصم من أموال المحفظة.` : 'لم تُحدد رسوم هذه العملية؛ لا يمكن تنفيذ الخصم.';
             form.querySelector('[type="submit"]').disabled = !price || Number(price) <= 0;
         };
-        form.elements.operation.addEventListener('change', () => {
-            if (form.elements.operation.value === 'renew_limit') form.elements.package_id.value = form.elements.operation.dataset.activePackage;
-            sync();
-        });
         form.addEventListener('change', sync); sync();
     });
     if (root.dataset.caInitialDialog) openDialog(root.dataset.caInitialDialog);

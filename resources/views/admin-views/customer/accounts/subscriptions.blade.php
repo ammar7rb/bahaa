@@ -2,7 +2,11 @@
 @if($customer && $can('subscriptions_manage'))
 <section class="ca-panel"><h2>إدارة باقة العميل</h2><p>خصم وتفعيل تلقائي عند كفاية المحفظة. الاشتراك والتجديد والترقية والتخفيض تبدأ مدة جديدة من 30 يومًا بالسعر الحالي. تجديد الحد لا يمحو الاستخدام ولا يمدد المدة.</p>
 <p>التجديد التلقائي: <strong>{{ $customer->package_auto_renew?'مفعّل':'معطّل' }}</strong>@if($customer->package_auto_renew_failed_at) — توقف بعد تعذر التجديد؛ يلزم تجديد يدوي.@endif</p>
-<div class="ca-actions"><button class="btn btn-primary" type="button" data-ca-open="ca-subscription"><i class="fi fi-rr-box-open" aria-hidden="true"></i>اشتراك / تجديد / تغيير الباقة / تجديد الحد</button>
+<div class="ca-actions">
+@foreach(['activation'=>'اشتراك جديد','renew_package'=>'تجديد الباقة','upgrade'=>'ترقية الباقة','downgrade'=>'تخفيض الباقة','renew_limit'=>'تجديد الحد الشرائي'] as $intent=>$intentLabel)
+@php($available=match($intent){'activation'=>!$active,'renew_package'=>(bool)$latestSubscription,'upgrade'=>$active && $catalog->contains(fn($p)=>(float)$p->purchase_limit>(float)$active->granted_allowance),'downgrade'=>$active && $catalog->contains(fn($p)=>(float)$p->purchase_limit<(float)$active->granted_allowance),'renew_limit'=>(bool)$active})
+<button class="btn btn-outline-primary" type="button" data-ca-open="ca-subscription" data-ca-intent="{{ $intent }}" @disabled(!$available)>{{ $intentLabel }}</button>
+@endforeach
 @foreach(['auto_on'=>'تفعيل التجديد التلقائي','auto_off'=>'تعطيل التجديد التلقائي','cancel'=>'إلغاء الاشتراك عند نهاية المدة'] as $control=>$controlLabel)
 @if(($control==='auto_on' && $active && $customer->is_active && !$customer->package_auto_renew && !$customer->account_deleted_at) || ($control!=='auto_on' && $customer->package_auto_renew))
 <button class="btn btn-outline-primary" type="button" data-ca-open="ca-control-{{ $control }}"><i class="fi fi-rr-{{ $control==='auto_on'?'play-circle':($control==='cancel'?'calendar-minus':'pause-circle') }}" aria-hidden="true"></i>{{ $controlLabel }}</button>
@@ -13,8 +17,14 @@
 @endforeach
 <dialog id="ca-subscription" class="ca-dialog" aria-labelledby="ca-subscription-title"><form method="post" action="{{ route('admin.customer.accounts.subscription') }}" data-ca-financial data-ca-subscription>@csrf
 <h2 id="ca-subscription-title">معاملة الباقة من محفظة العميل</h2><p>{{ $customer->f_name }} · <bdi>{{ $customer->administrative_reference }}</bdi></p>
-<label for="ca-sub-operation">العملية</label><select id="ca-sub-operation" name="operation" class="form-control" data-active-package="{{ $active?->package_id }}"><option value="purchase">اشتراك / تجديد / ترقية / تخفيض</option>@if($active)<option value="renew_limit">تجديد الحد الشرائي للباقة الحالية</option>@endif</select>
-<label for="ca-package">الباقة</label><select id="ca-package" name="package_id" class="form-control" required>@foreach($catalog as $package)<option value="{{ $package->id }}" data-price="{{ $package->package_price }}" data-renewal="{{ $package->renewal_price }}" data-token="{{ app(\App\Services\CustomerPackageCatalogService::class)->token($package,'package') }}">{{ $package->name }} — {{ number_format((float)$package->package_price,3) }} ج.م — حد شرائي {{ number_format((float)$package->purchase_limit,3) }}</option>@endforeach</select>
+<label for="ca-sub-operation">العملية المطلوبة</label><select id="ca-sub-operation" name="intent" class="form-control" data-active-package="{{ $active?->package_id }}" data-latest-package="{{ $latestSubscription?->package_id }}" data-active-limit="{{ $active?->granted_allowance ?? 0 }}" required>
+<option value="activation" @disabled($active) @selected(!$active)>اشتراك جديد — عند عدم وجود باقة نشطة</option>
+<option value="renew_package" @disabled(!$latestSubscription) @selected($active)>تجديد — نفس الباقة</option>
+<option value="upgrade" @disabled(!$active)>ترقية — باقة بحد شرائي أعلى</option>
+<option value="downgrade" @disabled(!$active)>تخفيض — باقة بحد شرائي أقل</option>
+@if($active)<option value="renew_limit">تجديد الحد الشرائي — دون تمديد مدة الباقة</option>@endif
+</select><input type="hidden" name="operation" value="purchase"><p data-ca-operation-note role="status"></p>
+<label for="ca-package">الباقة</label><select id="ca-package" name="package_id" class="form-control" required>@foreach($catalog as $package)<option value="{{ $package->id }}" data-allowance="{{ $package->purchase_limit }}" data-price="{{ $package->package_price }}" data-renewal="{{ $package->renewal_price }}" data-token="{{ app(\App\Services\CustomerPackageCatalogService::class)->token($package,'package') }}">{{ $package->name }} — {{ number_format((float)$package->package_price,3) }} ج.م — حد شرائي {{ number_format((float)$package->purchase_limit,3) }}</option>@endforeach</select>
 <p data-ca-price role="status"></p><input type="hidden" name="quote_token"><input type="hidden" name="expected_amount"><input type="hidden" name="expected_subscription_id" value="{{ $active?->id }}"><input type="hidden" name="expected_revision" value="{{ $active?->limit_revision ?? 0 }}">
 <label>مرجع طلب الدعم «اختياري»<input class="form-control" name="support_reference" maxlength="191" placeholder="رقم محادثة الدعم أو مرجع الطلب"></label>
 @include('admin-views.customer.accounts.confirmation')

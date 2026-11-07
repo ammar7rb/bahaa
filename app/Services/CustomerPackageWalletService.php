@@ -14,6 +14,7 @@ class CustomerPackageWalletService
             (int)($input['package_id']??0),(int)($input['offer_id']??0),(int)($input['quantity']??1),
             $input['operation'],(int)($input['expected_subscription_id']??0),(int)$input['expected_revision'],
             $input['quote_token'],$this->units($input['expected_amount']),
+            ...isset($input['intent'])?[$input['intent']]:[],
         ]));
         return DB::transaction(function()use($customerId,$input,$signature,$context){
             $customer=User::lockForUpdate()->findOrFail($customerId);
@@ -95,10 +96,21 @@ class CustomerPackageWalletService
             return ['kind'=>'renew_limit','amount'=>$package->renewal_price,'allowance'=>$restored,'base_limit'=>(float)$active->granted_allowance,'name'=>'تجديد حد '.$active->package_name,'package_id'=>$package->id,'offer_id'=>null];
         }
         if($input['operation']!=='purchase')throw new DomainException('معاملة باقة غير صالحة.');
+        $intent=$input['intent']??null;
+        if($intent!==null){
+            $valid=match($intent){
+                'activation'=>!$active,
+                'renew_package'=>$latest && (int)$latest->package_id===(int)$package->id,
+                'upgrade'=>$active && (float)$package->purchase_limit>(float)$active->granted_allowance,
+                'downgrade'=>$active && (float)$package->purchase_limit<(float)$active->granted_allowance,
+                default=>false,
+            };
+            if(!$valid)throw new DomainException('الباقة المختارة لا تطابق العملية المحددة. الاشتراك الجديد دون باقة نشطة، والتجديد لنفس الباقة، والترقية لحد أعلى والتخفيض لحد أقل من الباقة النشطة.');
+        }
         $renewing = $latest && (int) $latest->package_id === (int) $package->id;
         $upgrading = $latest && !$renewing && (float) $package->purchase_limit > (float) $latest->granted_allowance;
         $downgrading = $latest && !$renewing && (float) $package->purchase_limit < (float) $latest->granted_allowance;
-        return ['kind'=>$renewing ? 'renew_package' : ($upgrading ? 'upgrade' : ($downgrading ? 'downgrade' : 'activation')),'amount'=>$package->package_price,'allowance'=>$package->purchase_limit,'name'=>$package->name,'package_id'=>$package->id,'offer_id'=>null];
+        return ['kind'=>$intent??($renewing ? 'renew_package' : ($upgrading ? 'upgrade' : ($downgrading ? 'downgrade' : 'activation'))),'amount'=>$package->package_price,'allowance'=>$package->purchase_limit,'name'=>$package->name,'package_id'=>$package->id,'offer_id'=>null];
     }
 
     private function apply(int $customerId,CustomerSubscriptionPayment $payment,?CustomerMonthlySubscription $active): CustomerMonthlySubscription

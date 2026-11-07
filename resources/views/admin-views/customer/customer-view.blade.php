@@ -4,17 +4,14 @@
 
 @push('css_or_js')
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/customer-profile-workspace.css') }}?v=20261021.2">
+    <link rel="stylesheet" href="{{ dynamicAsset(path:'public/assets/back-end/css/customer-accounts.css') }}?v=20261107.5">
     <link rel="stylesheet" href="{{dynamicAsset(path:'public/assets/back-end/css/owl.min.css') }}">
 @endpush
 
 @section('content')
     <div class="content container-fluid customer-profile-workspace">
         @if(\App\Services\CustomerAccountAccess::allows('financial_view'))
-        <nav class="d-flex flex-wrap gap-3 mb-4" aria-label="معاملات العميل">
-            @foreach(['list'=>'إدارة الحساب','payments'=>'المحفظة والشحن','debts'=>'الديون','subscriptions'=>'الاشتراكات'] as $customerPage=>$customerLabel)
-            <a class="btn btn-outline-primary" href="{{ route('admin.customer.accounts.index',['page'=>$customerPage,'customer_id'=>$customer->id]) }}">{{ $customerLabel }}</a>
-            @endforeach
-        </nav>
+        @include('admin-views.customer.accounts.profile-navigation')
         @endif
         @if($customer->account_deleted_at)<div class="alert alert-warning" role="status">حساب محذوف منذ {{ $customer->account_deleted_at }}. تُحتفظ بهوية العميل وسجلاته المالية، والوصول للحساب مغلق.</div>@endif
         <div class="d-print-none pb-2">

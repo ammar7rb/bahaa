@@ -29,8 +29,9 @@ class PaymentReviewController extends Controller
         abort_unless(\App\Utils\Helpers::module_permission_check('people') || \App\Utils\Helpers::module_permission_check('orders'), 403);
         $request->validate([
             'panel' => 'nullable|in:settings', 'guest_orders' => 'nullable|in:1',
+            'customer_id'=>'nullable|integer|min:1|exists:users,id',
             'record_type' => 'nullable|string|max:40', 'record_id' => 'nullable|integer|min:1',
-            'audience' => 'nullable|in:customer,vendor', 'kind' => 'nullable|in:order,subscription,package,balance_deposit',
+            'audience' => 'nullable|in:customer,vendor', 'kind' => 'nullable|in:order,subscription,package,balance_deposit,wallet_transaction',
             'status' => 'nullable|in:pending,approved,rejected,reconciliation,reversed',
             'method' => 'nullable|string|max:191', 'searchValue' => 'nullable|string|max:191',
             'from' => 'nullable|date_format:Y-m-d', 'to' => 'nullable|date_format:Y-m-d'.($request->filled('from') ? '|after_or_equal:from' : ''),
@@ -45,8 +46,10 @@ class PaymentReviewController extends Controller
             $request->merge(['audience' => 'customer', 'kind' => 'order']);
         }
 
-        // Normalize first, then apply identical filters to every workflow and count.
-        $rows = $this->rows(new Request($request->only(['audience', 'kind', 'record_id', 'record_type', 'guest_orders'])))->map(function ($row) {
+        $customer=$request->filled('customer_id')?\App\Models\User::findOrFail($request->integer('customer_id')):null;
+        if($customer){\App\Services\CustomerAccountAccess::authorize('financial_view');$request->merge(['audience'=>'customer']);}
+        // Scope before counts, methods, status filtering and pagination.
+        $rows = $this->rows(new Request($request->only(['audience', 'kind', 'record_id', 'record_type', 'guest_orders','customer_id'])))->filter(fn($row)=>!$customer||($row['audience']==='customer'&&(int)$row['actor']?->id===(int)$customer->id))->map(function ($row) {
             $row['method'] = $row['method'] ?? data_get($row, 'offline.method_name') ?: translate('offline_payment');
             $row['request_number'] = $row['request_number'] ?? '#'.$row['id'];
             return $row;
@@ -74,7 +77,7 @@ class PaymentReviewController extends Controller
             'path' => $request->url(), 'query' => $request->query(),
         ]);
 
-        return view('admin-views.payment-reviews.index', ['reviews' => $paginator, 'counts' => $counts, 'methods' => $methods, 'pendingCount' => $counts->get('pending', 0)]);
+        return view('admin-views.payment-reviews.index', ['customer'=>$customer,'page'=>'payments','reviews' => $paginator, 'counts' => $counts, 'methods' => $methods, 'pendingCount' => $counts->get('pending', 0)]);
     }
 
     public function guestOrders(Request $request): View
@@ -279,7 +282,7 @@ class PaymentReviewController extends Controller
         $status = $request->get('status');
         $search = trim((string) $request->get('searchValue'));
         $recordId = $request->integer('record_id');
-        $customerHistory = $recordId && $request->input('record_type') === 'customer_balance_deposit';
+        $customerHistory = $request->filled('customer_id') || ($recordId && $request->input('record_type') === 'customer_balance_deposit');
         $vendorHistory = $recordId && $request->input('record_type') === 'vendor_balance_deposit';
 
         if (\App\Utils\Helpers::module_permission_check('people') && (!$audience || $audience === 'customer') && (!$kind || $kind === 'balance_deposit')) {
@@ -300,7 +303,7 @@ class PaymentReviewController extends Controller
 
         if (\App\Utils\Helpers::module_permission_check('orders') && (!$audience || $audience === 'customer') && (!$kind || $kind === 'order')
             && \Illuminate\Support\Facades\Schema::hasTable('post_purchase_invoices')) {
-            \App\Models\PostPurchaseInvoice::with('customer')->where('status', 'awaiting_review')->when($recordId, fn ($q) => $q->where('id', $recordId))->latest('id')->get()->each(function ($invoice) use (&$rows) {
+            \App\Models\PostPurchaseInvoice::with('customer')->when(!$request->filled('customer_id'),fn($q)=>$q->where('status', 'awaiting_review'))->when($recordId, fn ($q) => $q->where('id', $recordId))->latest('id')->get()->each(function ($invoice) use (&$rows) {
                 $rows->push(['id'=>$invoice->id, 'type'=>'customer_legacy_invoice', 'kind'=>'order', 'audience'=>'customer',
                     'status'=>'reconciliation', 'actor'=>$invoice->customer, 'label'=>__('payments.legacy_invoice'),
                     'amount'=>(float)$invoice->total_amount, 'currency'=>getCurrencyCode(type:'default'),
@@ -324,7 +327,7 @@ class PaymentReviewController extends Controller
 
 
         if (\App\Utils\Helpers::module_permission_check('people') && (!$audience || $audience === 'customer') && (!$kind || $kind === 'subscription')) {
-            \App\Models\CustomerSubscriptionPayment::with('customer')->whereNotIn('status',['draft','cancelled'])
+            \App\Models\CustomerSubscriptionPayment::with('customer')->when(!$request->filled('customer_id'),fn($q)=>$q->whereNotIn('status',['draft','cancelled']))
                 ->when($status,fn($q)=>$q->where('status',$status === 'pending' ? 'pending_review' : $status))
                 ->when($search !== '',fn($q)=>$q->where(function($q) use($search){ $q->where('payment_reference','like','%'.$search.'%')->orWhereHas('customer',fn($c)=>$c->where('phone','like','%'.$search.'%')->orWhere('f_name','like','%'.$search.'%')); }))
                 ->when($recordId, fn ($q) => $q->where('id', $recordId))->latest('id')->get()->each(function($payment) use(&$rows) {
@@ -437,6 +440,22 @@ class PaymentReviewController extends Controller
                         'offline' => ['method_name' => $order->payment_method, 'ملاحظة' => 'الدفع مؤكد ماليًا. الموافقة لا تخصم مرة أخرى، والرفض يبقي السجل المالي للمراجعة.'],
                         '_order' => $order, 'created_at' => $order->created_at]);
                 });
+        }
+        if($request->filled('customer_id')){
+            $customerId=$request->integer('customer_id');$actor=\App\Models\User::findOrFail($customerId);
+            if(\App\Utils\Helpers::module_permission_check('people') && (!$kind || $kind==='subscription') && \Illuminate\Support\Facades\Schema::hasTable('customer_purchase_package_subscriptions')){
+                \Illuminate\Support\Facades\DB::table('customer_purchase_package_subscriptions')->where('customer_id',$customerId)->orderByDesc('id')->get()->each(function($subscription)use(&$rows,$actor){$rows->push(['id'=>$subscription->id,'type'=>'customer_legacy_subscription','kind'=>'subscription','audience'=>'customer','status'=>in_array($subscription->payment_status,['paid','approved'],true)?'approved':$subscription->payment_status,'actor'=>$actor,'label'=>'اشتراك سابق · '.$subscription->package_name,'amount'=>(float)$subscription->paid_package_price,'currency'=>getWebConfig('currency_model')==='multi_currency'?'USD':getCurrencyCode(type:'default'),'reference'=>$subscription->payment_reference,'method'=>$subscription->payment_method,'offline'=>[],'read_only'=>true,'created_at'=>$subscription->created_at]);});
+            }
+            if(\App\Utils\Helpers::module_permission_check('people') && (!$kind || $kind==='wallet_transaction')){
+                \App\Models\WalletTransaction::where('user_id',$customerId)->orderByDesc('id')->get()->each(function($transaction)use(&$rows,$actor){
+                    $rows->push(['id'=>$transaction->id,'type'=>'customer_wallet_history','kind'=>'wallet_transaction','audience'=>'customer','status'=>'approved','actor'=>$actor,'label'=>'حركة محفظة · '.$transaction->transaction_type,'amount'=>(float)$transaction->credit-(float)$transaction->debit,'currency'=>getWebConfig('currency_model')==='multi_currency'?'USD':getCurrencyCode(type:'default'),'reference'=>$transaction->reference?:$transaction->transaction_id,'method'=>$transaction->payment_method,'offline'=>[],'read_only'=>true,'created_at'=>$transaction->created_at]);
+                });
+            }
+            if(\App\Utils\Helpers::module_permission_check('orders') && (!$kind || $kind==='order')){
+                Order::where('customer_id',$customerId)->where('is_guest',0)->where('payment_method','!=','offline_payment')
+                    ->when(\Illuminate\Support\Facades\Schema::hasColumn('orders','customer_initial_payment_review_status'),fn($q)=>$q->whereNull('customer_initial_payment_review_status'))
+                    ->orderByDesc('id')->get()->each(function($order)use(&$rows,$actor){$rows->push(['id'=>$order->id,'type'=>'customer_payment_history','kind'=>'order','audience'=>'customer','status'=>$order->payment_status==='paid'?'approved':'pending','actor'=>$actor,'label'=>'دفعة طلب #'.$order->id,'amount'=>(float)$order->order_amount,'currency'=>getCurrencyCode(type:'default'),'reference'=>$order->transaction_ref?:'ORD-'.$order->id,'method'=>$order->payment_method,'offline'=>[],'read_only'=>true,'created_at'=>$order->created_at]);});
+            }
         }
         return $rows;
     }

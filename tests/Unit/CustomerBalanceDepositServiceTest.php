@@ -58,8 +58,8 @@ class CustomerBalanceDepositServiceTest extends TestCase
     public function test_each_wallet_review_notifies_the_right_customer_once(): void
     {
         $notice = \Mockery::mock(\App\Services\CustomerPaymentNotificationService::class);
-        $notice->shouldReceive('notify')->once()->with(1, 'wallet-deposit-1-approve', \Mockery::on(fn ($message) => str_contains($message, 'تمت إضافة الرصيد') && str_contains($message, 'رصيدك الحالي:')));
-        $notice->shouldReceive('notify')->once()->with(1, 'wallet-deposit-2-reject', \Mockery::on(fn ($message) => str_contains($message, 'تعذّر اعتماد') && str_contains($message, 'المرجع غير صحيح')));
+        $notice->shouldReceive('notify')->once()->with(1, 'wallet-deposit-1-approve', \Mockery::on(fn ($message) => str_contains($message, '50.000') && str_contains($message, 'إلى رصيدكم بنجاح')));
+        $notice->shouldReceive('notify')->once()->with(1, 'wallet-deposit-2-reject', \Mockery::on(fn ($message) => str_contains($message, 'رفض اعتماد') && str_contains($message, 'المرجع غير صحيح')));
         $this->app->instance(\App\Services\CustomerPaymentNotificationService::class, $notice);
         $service = app(CustomerBalanceDepositService::class);
         $approved = $this->deposit();
