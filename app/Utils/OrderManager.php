@@ -87,11 +87,12 @@ class OrderManager
 
     public static function getStockUpdateOnOrderStatusChange($order, $status): void
     {
+        if(!in_array($status,['canceled','returned','failed'],true))app(\App\Services\VendorFulfillmentDecisionService::class)->assertLegacyMutationAllowed(Order::findOrFail($order['id']));
         if ($status == 'returned' || $status == 'failed' || $status == 'canceled') {
             app(\App\Services\OrderFinancialAuditService::class)->holdForReview($order, $status);
             foreach ($order->details as $detail) {
                 if ($detail['is_stock_decreased'] == 1) {
-                    $product = Product::find($detail['product_id']);
+                    $product = Product::withoutGlobalScopes()->findOrFail($detail['product_id']);
                     $type = $detail['variant'];
                     $variationData = [];
                     foreach (json_decode($product['variation'], true) as $var) {
@@ -122,7 +123,7 @@ class OrderManager
         } else {
             foreach ($order->details as $detail) {
                 if ($detail['is_stock_decreased'] == 0) {
-                    $product = Product::find($detail['product_id']);
+                    $product = Product::withoutGlobalScopes()->findOrFail($detail['product_id']);
 
                     $type = $detail['variant'];
                     $variationData = [];
@@ -148,6 +149,7 @@ class OrderManager
     public static function getWalletManageOnOrderStatusChange($order, $received_by): void
     {
         $model = Order::findOrFail($order['id']);
+        app(\App\Services\VendorFulfillmentDecisionService::class)->assertLegacyMutationAllowed($model);
         app(\App\Services\SellerDeliveredEarningService::class)->record($model, fn () => self::calculateLegacyDeliveredWallet($order, $received_by));
     }
 

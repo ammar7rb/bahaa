@@ -12,6 +12,11 @@ class VendorFulfillmentDecisionService
     public const LABELS=['locked'=>'مقيد باختيار باقة','pending_vendor'=>'معلق من جهة التاجر','available'=>'متاح للمراجعة',
         'accepted'=>'تم القبول','preparing'=>'قيد التجهيز','ready'=>'جاهز','shipping'=>'قيد الشحن','delivered'=>'تم التسليم','rejected'=>'مرفوض قبل القبول','canceled'=>'ملغى بعد القبول'];
 
+    public function assertLegacyMutationAllowed(Order $order): void
+    {
+        if($this->managed($order))throw new DomainException('استخدم إجراءات جزء التنفيذ؛ لا يمكن تغيير الطلب أو مخزونه أو تسويته عبر المسار القديم.');
+    }
+
     public function managed(Order $order): bool
     {
         return Schema::hasColumn('vendor_fulfillment_requests','accepted_at')

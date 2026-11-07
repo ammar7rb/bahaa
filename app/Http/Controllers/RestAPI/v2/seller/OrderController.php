@@ -39,12 +39,9 @@ class OrderController extends Controller
             ], 401);
         }
 
-        $order_ids = OrderDetail::where(['seller_id' => $seller['id']])->pluck('order_id')->toArray();
-        $orders = Order::with(['customer', 'shipping'])->where(['seller_is' => 'seller'])->whereIn('id', $order_ids)->get();
-        $orders->map(function ($data) {
-            $data['billing_address_data'] = json_decode($data['billing_address_data']);
-            return $data;
-        });
+        $orders = Order::where('seller_id',$seller->id)->where('seller_is','seller')->sellerAccessible()->get()
+            ->filter(fn($order)=>app(\App\Services\SellerOrderVisibilityService::class)->canSellerView($order))
+            ->map(fn($order)=>app(\App\Services\VendorOrderPresentationService::class)->order($order))->values();
 
         return response()->json($orders, 200);
     }
@@ -61,10 +58,12 @@ class OrderController extends Controller
             ], 401);
         }
 
-        $details = OrderDetail::with(['order'])->where(['seller_id' => $seller['id'], 'order_id' => $id])->get();
-        foreach ($details as $det) {
-            $det['product_details'] = Helpers::product_data_formatting(json_decode($det['product_details'], true));
-        }
+        $order=Order::where('seller_id',$seller->id)->where('seller_is','seller')->findOrFail($id);
+        abort_unless(app(\App\Services\SellerOrderVisibilityService::class)->canSellerView($order),404);
+        $eligibility=app(\App\Services\VendorFulfillmentEligibilityService::class);
+        abort_if($eligibility->summary($order)['details_locked']??false,423,$eligibility::MESSAGE);
+        $details=$order->details->filter(fn($line)=>$eligibility->lineAllowed($line))
+            ->map(fn($line)=>app(\App\Services\VendorOrderPresentationService::class)->line($line))->values();
 
         return response()->json($details, 200);
     }
@@ -180,6 +179,23 @@ class OrderController extends Controller
 
     public function order_detail_status(Request $request):JsonResponse
     {
+        $auth=Helpers::get_seller_by_token($request);
+        if(($auth['success']??0)!==1)return response()->json(['auth-001'=>'Unauthenticated'],401);
+        $request->merge(['id'=>$request->route('id')??$request->input('id')]);
+        $request->validate(['id'=>'required|integer|min:1','order_status'=>'required|in:pending,confirmed,processing,out_for_delivery,delivered,returned,failed,canceled']);
+        try {
+            return DB::transaction(function()use($request,$auth){
+                $order=Order::where('seller_id',$auth['data']->id)->where('seller_is','seller')->lockForUpdate()->findOrFail($request->id);
+                app(\App\Services\VendorFulfillmentDecisionService::class)->assertLegacyMutationAllowed($order);
+                abort_unless(app(\App\Services\SellerOrderVisibilityService::class)->canSellerView($order),404);
+                app(\App\Services\OrderWorkflowService::class)->assertTransition($order->order_status,$request->order_status,'seller');
+                return $this->applyLegacyOrderStatus($request);
+            },3);
+        }catch(\DomainException $error){return response()->json(['success'=>0,'message'=>$error->getMessage()],422);}
+    }
+
+    private function applyLegacyOrderStatus(Request $request):JsonResponse
+    {
         $data = Helpers::get_seller_by_token($request);
 
         if ($data['success'] == 1) {
@@ -206,9 +222,9 @@ class OrderController extends Controller
             return response()->json(['success' => 0, 'message' => translate('order is already delivered')], 200);
         }
 
-        OrderStatusEvent::dispatch($request['order_status'], 'customer', $order);
+        DB::afterCommit(fn()=>OrderStatusEvent::dispatch($request['order_status'], 'customer', $order));
         if ($request->order_status == 'canceled') {
-            OrderStatusEvent::dispatch('canceled', 'delivery_man', $order);
+            DB::afterCommit(fn()=>OrderStatusEvent::dispatch('canceled', 'delivery_man', $order));
         }
 
         $order->order_status = $request->order_status;

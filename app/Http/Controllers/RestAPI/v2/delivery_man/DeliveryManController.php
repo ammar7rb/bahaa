@@ -134,6 +134,18 @@ class DeliveryManController extends Controller
 
     public function update_order_status(Request $request):JsonResponse
     {
+        $request->validate(['order_id'=>'required|integer|min:1','status'=>'required|in:pending,confirmed,processing,out_for_delivery,delivered,returned,failed,canceled']);
+        try{return \Illuminate\Support\Facades\DB::transaction(function()use($request){
+            $driver=$request->input('delivery_man');
+            $order=Order::where('delivery_man_id',$driver['id']??null)->lockForUpdate()->findOrFail($request->order_id);
+            app(\App\Services\VendorFulfillmentDecisionService::class)->assertLegacyMutationAllowed($order);
+            app(\App\Services\OrderWorkflowService::class)->assertTransition($order->order_status,$request->status,'delivery_man');
+            return $this->applyLegacyOrderStatus($request);
+        },3);}catch(\DomainException $error){return response()->json(['message'=>$error->getMessage()],422);}
+    }
+
+    private function applyLegacyOrderStatus(Request $request):JsonResponse
+    {
         $validator = Validator::make($request->all(), [
             'order_id' => 'required',
             'status' => 'required|in:delivered,canceled,returned,out_for_delivery'

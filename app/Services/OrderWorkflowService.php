@@ -29,6 +29,7 @@ class OrderWorkflowService
 
     public function assertTransition(string $from, string $to, string $actorType = 'admin', bool $override = false, ?string $reason = null): void
     {
+        if($actorType==='seller'&&$to==='canceled')throw new DomainException('استخدم رفض أو إلغاء جزء التنفيذ لتطبيق القرار والغرامة الصحيحة.');
         if ($from === $to || in_array($to, self::TRANSITIONS[$from] ?? [], true)) {
             return;
         }
