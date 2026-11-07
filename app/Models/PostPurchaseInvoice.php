@@ -55,11 +55,7 @@ class PostPurchaseInvoice extends Model
 
     public function isPayable(): bool
     {
-        // Only invoices created after a paid first stage or submitted offline
-        // proof receive a due date. A second-stage proof under review stays locked.
-        return $this->status === self::STATUS_PENDING
-            && $this->payment_due_at !== null
-            && $this->payment_due_at->isFuture()
-            && (float) $this->total_amount > (float) $this->paid_amount;
+        // Retained for history and verified callbacks; no new collections.
+        return false;
     }
 }

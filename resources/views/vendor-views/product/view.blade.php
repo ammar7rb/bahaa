@@ -3,7 +3,13 @@
 @section('title', translate('product_Preview'))
 
 @section('content')
+    @php
+        $privateWorkspace = app(\App\Services\VendorProductWorkspaceService::class)->state($product);
+        $advertisingInactive = $privateWorkspace ? !app(\App\Services\VendorProductWorkspaceService::class)->vendorActive($privateWorkspace) : !app(\App\Services\VendorAdvertisingAccessService::class)->visible($product);
+    @endphp
     <div class="content container-fluid text-start">
+        @include('vendor-views.product.partials._workspace-notice')
+        <p class="fw-semibold">مشاهدات المنتج: {{ app(\App\Services\ProductViewCountService::class)->totals((int) $product->id)['total'] }}</p>
         <div class="d-flex align-items-stretch justify-content-end flex-wrap gap-3 mb-3">
             <div class="flex-grow-1">
                 <h2 class="h1 text-capitalize mb-1">
@@ -14,6 +20,7 @@
                 </p>
             </div>
             <div class="d-flex align-items-stretch justify-content-end flex-wrap gap-3">
+                @unless(config('vendor_product_workspace.enabled'))
                 @php
                     $sellerReviewStatus = $product->seller_review_status ?: match (true) {
                         (int) $product->request_status === 2 => 'rejected',
@@ -50,6 +57,7 @@
                     </div>
                 @endif
 
+                @endunless
                 <button type="button" class="btn border text-danger bg-white icon-btn delete-data" style="--size: 40px;"
                         title="{{ translate('delete') }}" data-id="product-{{ $product['id']}}">
                     <i class="fi fi-rr-trash d-flex"></i>
@@ -59,7 +67,10 @@
                     @csrf @method('delete')
                 </form>
 
-                <form action="{{ route('vendor.products.status-update') }}"
+                @if(config('vendor_advertising.creation_slots_enabled') && (int) $product['status'] !== 1 && !app(\App\Services\VendorProductWorkspaceService::class)->state($product)?->legacy_exempt)
+                                                <a class="btn btn-outline-primary" href="{{ route('vendor.packages.slots') }}">إدارة النشر والمساحات</a>
+                                            @else
+<form action="{{ route('vendor.products.status-update') }}"
                       method="post"
                       data-from="product-status"
                       id="product-status{{ $product['id']}}-form"
@@ -92,6 +103,7 @@
                     </label>
 
                 </form>
+                                            @endif
 
                 <a href="{{ route('vendor.products.update', [$product['id']]) }}"
                    class="btn btn--primary min-w-120 h-40">
@@ -160,7 +172,7 @@
                                                             </div>
                                                             <div class="">
                                                                 <a href="{{ $imagePath }}">
-                                                                    <img class="h-100 aspect-1 rounded min-w-xl-280"
+                                                                    <img class="h-100 aspect-1 rounded min-w-xl-280 {{ $advertisingInactive ? 'vendor-ad-inactive-image' : '' }}"
                                                                          alt="" src="{{ $imagePath }}">
                                                                 </a>
                                                             </div>
@@ -237,7 +249,7 @@
                                                 @endforeach
                                             </ul>
                                             <div class="d-flex flex-column gap-2">
-                                                @if ($product['added_by'] == 'seller' && $product['request_status'] == 2)
+                                                @if (!config('vendor_product_workspace.enabled') && $product['added_by'] == 'seller' && $product['request_status'] == 2)
                                                     <div class="d-flex justify-content-sm-end flex-wrap gap-2 pb-4">
                                                         <div>
                                                             <span>{{ translate('status') . ' : ' }}</span>

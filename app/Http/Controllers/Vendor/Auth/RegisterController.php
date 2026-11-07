@@ -150,12 +150,12 @@ class RegisterController extends BaseController
         // Registration creates a usable seller account immediately. Activation
         // is a separate review workflow shown as a banner/ticket after login.
         $vendorData['status'] = 'approved';
+        $vendorData['activation_status'] = 'active';
         $vendorData['phone_verified_at'] = null;
         $vendor = $this->vendorRepo->add(data: $vendorData);
         $this->shopRepo->add($this->shopService->getAddShopDataForRegistration(request: $request, vendorId: $vendor['id']));
         $this->vendorWalletRepo->add($this->vendorService->getInitialWalletData(vendorId: $vendor['id']));
         $policyService->accept('seller', (int) $vendor['id'], $requiredPolicyIds);
-        $this->sellerActivationService->openRegistrationTicket($vendor);
 
         session()->put(SessionKey::VENDOR_REGISTRATION_REFERENCE, $vendor['registration_reference']);
         $requiresPhoneVerification = $this->sellerRegistrationVerificationService->requiresPhoneVerification($vendor);
@@ -267,28 +267,7 @@ class RegisterController extends BaseController
 
     public function activation(): View|RedirectResponse
     {
-        $vendor = auth('seller')->user();
-        if (!$vendor) {
-            return redirect()->route('vendor.auth.login');
-        }
-
-        $ticket = SellerActivationTicket::query()
-            ->where('seller_id', $vendor->id)
-            ->whereNull('hidden_from_subject_at')
-            ->latest('id')
-            ->with('messages')
-            ->first();
-
-        if (!$ticket && $vendor->activation_status !== 'active') {
-            $ticket = $this->sellerActivationService->openRegistrationTicket($vendor);
-            $ticket?->load('messages');
-        }
-
-        return view('vendor-views.auth.activation-status', [
-            'vendor' => $vendor->fresh(),
-            'ticket' => $ticket,
-            'supportTicketRequired' => true,
-        ]);
+        abort(410);
     }
 
     /**
@@ -298,75 +277,12 @@ class RegisterController extends BaseController
      */
     public function activationMessages(): JsonResponse
     {
-        $vendor = auth('seller')->user();
-        abort_unless($vendor, 401);
-
-        $ticket = SellerActivationTicket::query()
-            ->where('seller_id', $vendor->id)
-            ->whereNull('hidden_from_subject_at')
-            ->latest('id')
-            ->with('messages')
-            ->first();
-
-        return response()->json([
-            'ticket_id' => $ticket?->id,
-            'status' => $ticket?->status,
-            'activation_status' => $vendor->fresh()->activation_status,
-            'dashboard_url' => route('vendor.dashboard.index'),
-            'messages' => ($ticket?->messages ?? collect())->map(fn ($message) => [
-                'id' => $message->id,
-                'sender_type' => $message->sender_type,
-                'body' => $message->body,
-                'created_at' => optional($message->created_at)->format('Y-m-d H:i'),
-                'attachments' => $message->attachment_full_url,
-            ])->values() ?? [],
-        ]);
+        abort_unless(auth('seller')->check(), 401);
+        return response()->json(['activation_status'=>'active', 'activation_completed'=>true, 'messages'=>[]])->header('Cache-Control','private, no-store');
     }
 
     public function activationMessage(Request $request): RedirectResponse|JsonResponse
     {
-        $vendor = auth('seller')->user();
-        if (!$vendor) {
-            return redirect()->route('vendor.auth.login');
-        }
-
-        $request->validate([
-            'body' => 'required|string|max:2000',
-            'attachments' => 'nullable|array|max:5',
-            'attachments.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:6144',
-        ]);
-
-        $ticket = SellerActivationTicket::query()
-            ->where('seller_id', $vendor->id)
-            ->whereNull('hidden_from_subject_at')
-            ->latest('id')
-            ->first() ?? $this->sellerActivationService->openRegistrationTicket($vendor);
-
-        if (!$ticket || !$ticket->isOpen()) {
-            ToastMagic::error(translate('seller_activation_ticket_closed'));
-            return back();
-        }
-
-        $storage = config('filesystems.disks.default') ?? 'public';
-        $attachments = collect($request->file('attachments', []))->map(fn ($file) => [
-            'file_name' => $this->fileUpload(dir: 'seller-activation-ticket/', format: $file->getClientOriginalExtension(), file: $file),
-            'storage' => $storage,
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getMimeType(),
-        ])->values()->all();
-
-        $ticket->messages()->create([
-            'sender_type' => 'seller',
-            'body' => trim((string) $request->input('body')),
-            'attachments' => $attachments,
-            'is_automatic' => false,
-        ]);
-
-        if ($request->expectsJson()) {
-            return $this->activationMessages();
-        }
-
-        ToastMagic::success(translate('message_sent_successfully'));
-        return redirect()->route('vendor.auth.registration.activation');
+        abort(410);
     }
 }

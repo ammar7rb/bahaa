@@ -32,6 +32,10 @@ class ForgotPasswordController extends Controller
 
     public function reset_password_request(Request $request)
     {
+        $request->validate(['identity'=>'required|string|max:191']);
+        $record=app(\App\Services\CustomerPasswordRecoveryService::class)->request($request->input('identity'));
+        return response()->json(['message'=>\App\Services\CustomerPasswordRecoveryService::MESSAGE,'support_required'=>true,
+            'conversation_url'=>\Illuminate\Support\Facades\URL::temporarySignedRoute('contact.conversation',now()->addMinutes(30),['contact'=>$record->contact_id])],200);
         $validator = Validator::make($request->all(), [
             'identity' => 'required',
         ]);

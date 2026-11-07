@@ -39,7 +39,7 @@ class SellerBalanceController extends Controller
     public function index(Request $request)
     {
         $section = $request->attributes->get('wallet_section');
-        $bucket = $section === 'insurance' ? SellerLedgerService::ORDER_INSURANCE_CREDIT : ($section === 'operating' ? SellerLedgerService::OPERATING : SellerLedgerService::AVAILABLE);
+        $bucket = $section === 'operating' ? SellerLedgerService::OPERATING : SellerLedgerService::AVAILABLE;
         $seller = auth('seller')->user();
         $funding = $this->fundingSettings->get();
         $gateways = collect(payment_gateways())
@@ -48,23 +48,24 @@ class SellerBalanceController extends Controller
         $summary = $this->ledger->summary((int) $seller->id);
 
         $data = [
+            'vendorDebt' => app(\App\Services\VendorDebtService::class)->presentation((int) $seller->id),
             'walletSection' => $section,
             'transactions' => app(\App\Services\VendorFinancialWorkspaceService::class)->transactions((int) $seller->id, $request->integer('transactions_page', 1), $bucket),
-            'securityDeposits' => app(\App\Services\VendorFinancialWorkspaceService::class)->securityDeposits((int) $seller->id, $request->integer('security_page', 1)),
-            'withdrawalMethods' => \App\Models\VendorWithdrawMethodInfo::where('user_id', $seller->id)->where('approval_status', 'approved')->where('is_active', true)->get(),
-            'withdrawals' => \App\Models\WithdrawRequest::where('seller_id', $seller->id)->latest('id')->paginate(10, ['*'], 'withdrawals_page'),
+            'withdrawalMethods' => \App\Models\VendorWithdrawMethodInfo::where('user_id', $seller->id)->where('is_active', true)->get(),
+            'withdrawals' => \App\Models\WithdrawRequest::where('seller_id', $seller->id)->when($section === 'operating', fn ($query) => $query->where('source_bucket', 'operating'))->latest('id')->paginate(10, ['*'], 'withdrawals_page'),
             'summary' => [
-                'order_insurance_credit' => (float) ($summary[SellerLedgerService::ORDER_INSURANCE_CREDIT] ?? 0),
                 'sales_total' => (float) ($summary[SellerLedgerService::SALES_TOTAL] ?? 0),
                 'pending' => (float) ($summary[SellerLedgerService::PENDING] ?? 0),
                 'available' => (float) ($summary[SellerLedgerService::AVAILABLE] ?? 0),
                 'operating' => (float) ($summary[SellerLedgerService::OPERATING] ?? 0),
+                'order_insurance_credit' => (float) ($summary[SellerLedgerService::ORDER_INSURANCE_CREDIT] ?? 0),
                 'pending_withdraw' => (float) ($summary[SellerLedgerService::PENDING_WITHDRAW] ?? 0),
                 'withdrawn' => (float) ($summary[SellerLedgerService::WITHDRAWN] ?? 0),
             ],
             'financeOverview' => $this->financePresentation->overview((int) $seller->id, 50),
             'deposits' => \App\Models\SellerBalanceDeposit::where('seller_id', $seller->id)->when($section, fn ($q) => $q->where(fn ($target) => $target->where('metadata->wallet_target', $section)->when($section === 'operating', fn ($legacy) => $legacy->orWhereNull('metadata->wallet_target'))))->latest('id')->paginate(10, ['*'], 'deposits_page'),
             'fundingSettings' => $funding,
+            'fundingChoices'=>config('vendor_advertising.enabled') ? app(\App\Http\Controllers\RestAPI\v3\seller\VendorFundingIntentController::class)->index((new Request())->merge(['seller'=>$seller]))->getData(true) : [],
             'paymentGatewayList' => $gateways,
             'digitalPaymentAvailable' => $funding['digital_enabled'] && $gateways->isNotEmpty() && (bool) (getWebConfig(name: 'digital_payment')['status'] ?? 0),
             'offlinePaymentAvailable' => $funding['offline_enabled'] && (bool) (getWebConfig(name: 'offline_payment')['status'] ?? 0),
@@ -73,11 +74,14 @@ class SellerBalanceController extends Controller
         return view($section ? 'vendor-views.balance.details' : 'vendor-views.balance.index', $data);
     }
 
-    public function insurance(Request $request) { $request->attributes->set('wallet_section', 'insurance'); return $this->index($request); }
+    public function insurance(Request $request) {
+        return redirect()->route('vendor.balance.index');
+    }
     public function payments(Request $request) { $request->attributes->set('wallet_section', 'operating'); return $this->index($request); }
 
     public function pay(Request $request): RedirectResponse
     {
+        if ($request->get('wallet_target') === 'insurance') return back()->withErrors(['wallet_target' => translate('seller_insurance_retired')]);
         $validator = Validator::make($request->all(), ['wallet_target' => 'required|in:operating,insurance', 'amount' => 'required|numeric|min:0.01', 'payment_method' => 'required|string|max:100']);
         if ($validator->fails()) return back()->withErrors($validator)->withInput();
 
@@ -106,26 +110,20 @@ class SellerBalanceController extends Controller
 
     public function submitOfflinePayment(Request $request): RedirectResponse
     {
-        $validator = Validator::make($request->all(), ['wallet_target' => 'required|in:operating,insurance', 'amount' => 'required|numeric|min:0.01', 'method_id' => 'required|integer', 'method_information' => 'nullable|array', 'payment_note' => 'nullable|string|max:1000', 'payment_proof' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
-        if ($validator->fails()) return back()->withErrors($validator)->withInput();
-
-        $method = OfflinePaymentMethod::query()->whereKey($request->method_id)->where('status', 1)->first();
-        $funding = $this->fundingSettings->get();
-        if (!$funding['offline_enabled'] || !(getWebConfig(name: 'offline_payment')['status'] ?? 0) || !$method) return back()->withErrors(['method_id' => translate('offline_payment_method_not_found')]);
-        $information = (array) $request->input('method_information', []);
-        foreach ((array) ($method->method_informations ?? []) as $field) {
-            $name = $field['customer_input'] ?? null;
-            if ($name && $name !== 'payment_screenshot' && ($field['is_required'] ?? 0) && blank($information[$name] ?? null)) return back()->withErrors(['method_information' => translate('required_offline_payment_information_is_missing')])->withInput();
-        }
+        if ($request->get('wallet_target') === 'insurance') return back()->withErrors(['wallet_target' => translate('seller_insurance_retired')]);
         try {
-            $amount = (float) Convert::usd($request->amount);
-            $this->fundingSettings->assertAmountAllowed($amount);
-            $proof = $this->upload(dir: 'seller-balance/payment-proof/', format: 'webp', image: $request->file('payment_proof'));
-            $this->deposits->createOffline(auth('seller')->user(), ['amount' => $amount, 'currency_code' => getCurrencyCode(type: 'default'), 'payment_method' => 'offline_payment', 'offline_payment_method_id' => $method->id, 'offline_information' => $information, 'payment_proof' => ['image_name' => $proof, 'storage' => config('filesystems.disks.default') ?? 'public'], 'payment_note' => $request->payment_note, 'wallet_target' => $request->wallet_target]);
-            return back()->with('success', translate('seller_balance_deposit_submitted'));
-        } catch (DomainException $exception) {
-            return back()->withErrors(['amount' => translate($exception->getMessage())])->withInput();
-        }
+            app(\App\Services\VendorFundingSubmissionService::class)->submit(auth('seller')->user(),$request);
+            return back()->with('success','تم استلام طلب الإيداع، وجارٍ التحقق من عملية الدفع.');
+        } catch (DomainException $e) { return back()->withErrors(['amount'=>translate($e->getMessage())])->withInput(); }
+    }
+
+    public function retryFundingIntent(Request $request, int $intent): RedirectResponse
+    {
+        $request->merge(['seller'=>auth('seller')->user()]);
+        $response = app(\App\Http\Controllers\RestAPI\v3\seller\VendorFundingIntentController::class)->retry($request,$intent);
+        $data = $response->getData(true);
+        if ($response->getStatusCode() >= 400) return back()->withErrors(['funding'=>$data['message']]);
+        return back()->with('success',$data['intent']['message'] ?? 'تم تحديث طلب الشراء.');
     }
 
     private function extractPaymentRequestId(string $link): ?string

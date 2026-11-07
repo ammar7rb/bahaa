@@ -1,5 +1,6 @@
 <div class="bg-section rounded-10 p-12 p-sm-20" lang="ar" dir="rtl">
-    <div class="form-system-language-form ar-form" id="ar-form">
+    <div class="form-system-language-form ar-form" id="{{ ($fieldPart ?? 'all') === 'description' ? 'ar-description-form' : 'ar-form' }}">
+        @if(($fieldPart ?? 'all') !== 'description')
         <div class="form-group mb-3">
             <div class="d-flex justify-content-between align-items-center">
                 <label class="title-color" for="ar_name">
@@ -23,12 +24,13 @@
             </div>
         </div>
         <input type="hidden" name="lang[]" value="ar">
+        @endif
 
+        @if(($fieldPart ?? 'all') !== 'name')
         <div class="form-group mb-0">
             <div class="d-flex justify-content-between align-items-center">
                 <label class="title-color" for="ar_description">
                     {{ translate('description') }}
-                    <span class="input-required-icon">*</span>
                 </label>
                 @if(getActiveAIProviderConfigCache())
                     <button type="button" class="btn bg-white text-primary bg-transparent shadow-none border-0 opacity-1 generate_btn_wrapper p-0 auto_fill_description"
@@ -42,9 +44,10 @@
                 @endif
             </div>
             <div class="outline-wrapper" id="editor-container-ar">
-                <div id="description-ar-editor" class="quill-editor editor-min-h-80"></div>
+                <div id="description-ar-editor" class="quill-editor editor-min-h-80" data-vendor-description-rtl dir="rtl"></div>
                 <textarea name="description[]" id="description-ar" class="product-description-default-language" style="display:none;"></textarea>
             </div>
         </div>
+        @endif
     </div>
 </div>

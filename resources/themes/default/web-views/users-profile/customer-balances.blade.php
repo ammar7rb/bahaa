@@ -20,9 +20,8 @@
                 <button type="button" class="profile-aside-btn btn btn--primary d-lg-none">{{ translate('profile_info') }}</button>
             </div>
             <div class="row align-items-stretch">
-                <div class="col-md-6 mb-3 wallet-subscription-column">@include('customer-subscription.entry')</div>
                 @foreach(['purchase'] as $walletType)
-                    <div class="col-md-6 mb-3" id="{{ $walletType }}-balance">
+                    <div class="col-12 mb-3" id="{{ $walletType }}-balance">
                         <div class="card h-100 wallet-balance-card wallet-balance-{{ $walletType }}"><div class="card-body">
                             <div class="wallet-card-heading"><h2 class="h6 mb-0">{{ translate($walletType . '_balance_title') }}</h2><span class="wallet-icon-tile">@include('web-views.users-profile.partials.wallet-icon', ['icon' => $walletType])</span></div>
                             <p class="wallet-amount my-3"><bdi>{{ webCurrencyConverter( $purchaseBalance) }}</bdi></p>
@@ -90,12 +89,7 @@
                 </tbody></table></div>{{ $depositRequests->links() }}
             </div></div>
             <div class="card mb-3 wallet-history" @if($walletTab !== 'balances') hidden @endif><div class="card-body">
-                <h2 class="h5">حركة رصيد المشتريات</h2>
-                <div class="table-responsive"><table class="table"><thead><tr><th>التاريخ</th><th>العملية</th><th>إضافة</th><th>خصم</th><th>الرصيد</th></tr></thead><tbody>
-                @forelse($purchaseEntries as $entry)
-                    <tr><td><bdi>{{ $entry->created_at?->format('Y/m/d H:i') }}</bdi></td><td>{{ $entry->transaction_type === 'monthly_subscription' ? 'الاشتراك الشهري' : translate($entry->transaction_type) }}</td><td>{{ webCurrencyConverter($entry->credit) }}</td><td>{{ webCurrencyConverter($entry->debit) }}</td><td>{{ webCurrencyConverter($entry->balance) }}</td></tr>
-                @empty<tr><td colspan="5" class="text-center text-muted py-4">لا توجد حركات رصيد حتى الآن</td></tr>@endforelse
-                </tbody></table></div>{{ $purchaseEntries->links() }}
+                @include('customer-wallet.statement')
             </div></div>
         </section>
     </div>

@@ -17,28 +17,34 @@ class SellerProductEntitlementService
     {
         $subscription = $this->activeSubscriptionQuery($seller)->first();
 
+        if (config('vendor_advertising.enabled') || config('vendor_product_workspace.enabled')) {
+            $active = app(SellerPackagePurchaseService::class)->getSummary($seller)['active_subscription'];
+            $used = $active ? \App\Models\VendorAdvertisingSlot::where('seller_package_subscription_id', $active->id)->whereNotNull('product_id')->count() : 0;
+            $capacity = $active ? \App\Models\VendorAdvertisingSlot::where('seller_package_subscription_id', $active->id)->count() : 0;
+            return [
+                'active_subscription' => $active, 'product_limit' => $capacity, 'base_product_limit' => $active?->product_limit ?? 0,
+                'used_product_limit' => $used, 'remaining_product_limit' => max(0, $capacity - $used),
+                'can_add_product' => $seller->activation_status === null || $seller->activation_status === 'active',
+                'package_required' => false,
+            ];
+        }
+
         return [
             // Product publishing is a core seller capability. Advertising
             // packages only grant promotional placements and never gate product
             // creation, review, publication or lifetime.
-            'insurance_satisfied' => true,
             'active_subscription' => $subscription,
             'product_limit' => null,
             'used_product_limit' => 0,
             'remaining_product_limit' => null,
-            'can_add_product' => $seller->getAttribute('activation_status') === null
-                || $seller->getAttribute('activation_status') === 'active',
+            'can_add_product' => true,
             'package_required' => false,
         ];
     }
 
     public function assertCanReserve(Seller $seller): ?SellerPackageSubscription
     {
-        $activationStatus = $seller->getAttribute('activation_status');
-        if ($activationStatus !== null && $activationStatus !== 'active') {
-            throw new DomainException('seller_activation_is_required_before_adding_products');
-        }
-
+        if (config('vendor_product_workspace.enabled')) app(VendorAdvertisingAccessService::class)->assertCanCreate((int) $seller->id);
         return $this->activeSubscriptionQuery($seller)->first();
     }
 
@@ -70,6 +76,18 @@ class SellerProductEntitlementService
 
     public function cancelForDeletion(Product $product): void
     {
+        if (config('vendor_advertising.enabled')) {
+            DB::transaction(function () use ($product) {
+                Seller::whereKey($product->user_id)->lockForUpdate()->firstOrFail();
+                $slots = \App\Models\VendorAdvertisingSlot::where('seller_id', $product->user_id)->where('product_id', $product->id)->where('expires_at', '>', now())->lockForUpdate()->get();
+                foreach ($slots as $slot) {
+                    DB::table('vendor_advertising_slot_history')->insert(['slot_id' => $slot->id, 'seller_id' => $product->user_id, 'previous_product_id' => $product->id, 'product_id' => null, 'created_at' => now()]);
+                    $slot->update(['product_id' => null]);
+                    SellerPackageSubscription::whereKey($slot->seller_package_subscription_id)->update(['used_product_limit' => \App\Models\VendorAdvertisingSlot::where('seller_package_subscription_id', $slot->seller_package_subscription_id)->whereNotNull('product_id')->count()]);
+                }
+                app(VendorAdvertisingSlotService::class)->refreshScheduled((int) $product->user_id);
+            });
+        }
         // Deleting a product does not alter package purchase history. Active ad
         // requests are handled by the promotion service/admin workflow.
     }

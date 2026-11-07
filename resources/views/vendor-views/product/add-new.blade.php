@@ -8,6 +8,7 @@
     <link href="{{ dynamicAsset(path: 'public/assets/back-end/plugins/summernote/summernote.min.css') }}" rel="stylesheet">
     <link href="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor.css') }}" rel="stylesheet">
     <link href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-product.css') }}" rel="stylesheet">
+    <link href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-product-entry.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-product-entry.css')) }}" rel="stylesheet">
 @endpush
 
 @section('content')
@@ -34,13 +35,37 @@
         <form class="product-form text-start form-advance-validation form-advance-file-validation" action="{{ route('vendor.products.add') }}"
               method="POST" enctype="multipart/form-data" id="product_form" novalidate="novalidate">
             @csrf
+            @if($errors->has('extra_ad_payment'))
+                <div class="alert alert-danger" role="alert">{{ $errors->first('extra_ad_payment') }} <a href="{{ route('vendor.balance.payments') }}">شحن الرصيد</a></div>
+            @endif
+            <div id="product-publish-feedback" class="alert alert-info" role="status" tabindex="-1" hidden></div>
+            <input type="hidden" name="publish_product" value="1">
+            @if(!request()->filled('slot_id') && !request()->boolean('extra_ad_publish'))
+                <div class="alert alert-info" role="status">يمكنك إرسال المنتج دون باقة مدفوعة. ستراجعه الإدارة قبل نشره، ولن يشغل مساحة إعلانية.</div>
+            @endif
+            @if(config('vendor_advertising.creation_slots_enabled') && (request()->filled('slot_id') || request()->boolean('extra_ad_publish')))
+                @if(request()->boolean('extra_ad_publish'))
+                <input type="hidden" name="extra_ad_publish" value="1">
+                <input type="hidden" name="extra_ad_subscription_id" value="{{ request('extra_ad_subscription_id') }}">
+                <input type="hidden" name="extra_ad_expected_price" value="{{ request('extra_ad_expected_price') }}">
+                <input type="hidden" name="extra_ad_request_key" value="{{ request('extra_ad_request_key') }}">
+                <div class="alert alert-info">إعلان إضافي: يُخصم {{ webCurrencyConverter(amount: request('extra_ad_expected_price')) }} من الرصيد النقدي عند نشر المنتج. تنتهي صلاحيته مع اشتراكك الحالي.</div>
+                @else
+                <input type="hidden" name="slot_id" value="{{ request('slot_id') }}">
+                <input type="hidden" name="slot_reservation_token" value="{{ request('slot_reservation_token') }}">
+                <div data-slot-editor data-slot="{{ request('slot_id') }}" data-token="{{ request('slot_reservation_token') }}" data-reserve="{{ route('vendor.packages.slots.reserve', request('slot_id')) }}" data-cancel="{{ route('vendor.packages.slots.cancel-reservation', request('slot_id')) }}"></div>
+                @endif
+            @endif
 
             @include('vendor-views.product.add._basic-setup')
-            @include("vendor-views.product.add._general-setup")
-            @include('vendor-views.product.partials._seller-product-specification')
             @include("vendor-views.product.add._pricing-others")
-            @include("vendor-views.product.add._product-variation-setup")
+            @include('vendor-views.product.partials._seller-product-specification', ['specPart' => 'sale'])
+            @include("vendor-views.product.add._general-setup")
+            @include('vendor-views.product.partials._seller-product-specification', ['specPart' => 'measurements'])
             <input type="hidden" name="product_type" value="physical">
+            <div class="card card-body mt-3">
+                @include('vendor-views.product.add._title-description', ['fieldPart' => 'description'])
+            </div>
 
             @include('vendor-views.product.partials.ai-sidebar')
 
@@ -50,7 +75,7 @@
                         {{ translate('reset') }}
                     </button>
                     <button type="button" class="btn btn--primary min-w-120 product-add-requirements-check">
-                        {{ translate('submit') }}
+                        {{ session('local', app()->getLocale()) === 'ar' ? 'نشر' : 'Publish' }}
                     </button>
                 </div>
             </div>
@@ -94,21 +119,21 @@
 
     <span id="message-click-to-upload" data-text="{{ translate('click_to_upload') }}"></span>
     <span id="message-drag-and-drop" data-text="{{ translate('Or_drag_and_drop') }}"></span>
-    <span id="message-seller-product-minimum-images-required" data-text="{{ translate('seller_product_minimum_images_required') }}"></span>
     <span id="message-seller-product-pieces-per-unit-required" data-text="{{ translate('seller_product_pieces_per_unit_required') }}"></span>
     <span id="message-seller-product-measurement-invalid" data-text="{{ translate('seller_product_measurement_invalid') }}"></span>
 
 @endsection
 
 @push('script')
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-product-entry.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-product-entry.js')) }}" defer></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/tags-input.min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/new/back-end/libs/spartan-multi-image-picker/spartan-multi-image-picker-min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/plugins/summernote/summernote.min.js') }}"></script>
 
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor.js') }}"></script>
-    <script src="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor-init.js') }}"></script>
-    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/product-add-update.js') }}"></script>
-    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/product-add-colors-img.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/libs/quill-editor/quill-editor-init.js') }}?v={{ filemtime(public_path('assets/back-end/libs/quill-editor/quill-editor-init.js')) }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/product-add-update.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor/product-add-update.js')) }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor/product-add-colors-img.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor/product-add-colors-img.js')) }}"></script>
 
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/file-upload/pdf.min.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/file-upload/pdf-worker.min.js') }}"></script>
@@ -141,4 +166,8 @@
 
 
 
+@endpush
+
+@push('script')
+<script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-slot-editor.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-slot-editor.js')) }}" defer></script>
 @endpush

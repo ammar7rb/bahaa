@@ -56,6 +56,10 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+Route::get('medical-devices', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'index'])->name('medical-devices.index');
+Route::get('medical-devices/{device}', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'show'])->whereNumber('device')->name('medical-devices.show');
+Route::post('medical-devices/{device}/inquire', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'inquire'])->whereNumber('device')->middleware('throttle:20,1')->name('medical-devices.inquire');
+Route::post('medical-devices/{device}/purchase-request', [\App\Http\Controllers\Web\MedicalDeviceController::class, 'purchaseRequest'])->whereNumber('device')->middleware(['customer', 'throttle:20,1'])->name('medical-devices.purchase-request');
 Route::get('/image-proxy', function () {
     $url = request('url');
     if (!$url) {
@@ -71,6 +75,12 @@ Route::controller(WebController::class)->group(function () {
     Route::get('maintenance-mode', 'maintenance_mode')->name('maintenance-mode');
 });
 
+Route::controller(\App\Http\Controllers\Customer\PasswordRecoveryController::class)->prefix('customer/password-recovery')->name('customer.password-recovery.')->group(function(){
+    Route::get('/', 'form')->name('form');
+    Route::post('request','request')->middleware('throttle:5,1,customer-recovery:')->name('request');
+    Route::get('change','changeForm')->middleware('customer')->name('change-form');
+    Route::post('change','change')->middleware(['customer','throttle:5,1,customer-recovery-change:'])->name('change');
+});
 Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestCheck']], function () {
     Route::group(['prefix' => 'product-compare', 'as' => 'product-compare.'], function () {
         Route::controller(ProductCompareController::class)->group(function () {
@@ -105,7 +115,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::controller(WebController::class)->group(function () {
         Route::get('checkout-details', 'checkout_details')->name('checkout-details');
         Route::get('checkout-payment', 'checkout_payment')->name('checkout-payment');
-        Route::get('checkout-review', 'checkout_review')->name('checkout-review');
+        Route::get('checkout-review', 'checkout_payment')->name('checkout-review');
         Route::get('checkout-complete', 'getCashOnDeliveryCheckoutComplete')->name('checkout-complete');
         Route::post('offline-payment-checkout-complete', 'getOfflinePaymentCheckoutComplete')->name('offline-payment-checkout-complete');
         Route::get('order-placed', 'order_placed')->name('order-placed');
@@ -181,20 +191,19 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::controller(UserProfileController::class)->group(function () {
         Route::group(['prefix' => 'support-ticket', 'as' => 'support-ticket.', 'middleware' => 'customer'], function () {
             Route::get('activation-status', 'activationStatus')->name('activation-status');
-            Route::get('{id}', 'single_ticket')->name('index');
+            Route::get('{id}', [\App\Http\Controllers\Customer\SupportConversationController::class, 'show'])->name('index');
             Route::get('{id}/messages', 'ticketMessages')->name('messages');
+            Route::get('{id}/attachments/{message}/{index}/download', [\App\Http\Controllers\ChatAttachmentController::class, 'customer'])->whereNumber('index')->name('attachments.download');
             Route::post('{id}', 'comment_submit')->name('comment');
-            Route::get('delete/{id}', 'support_ticket_delete')->name('delete');
-            Route::get('close/{id}', 'support_ticket_close')->name('close');
         });
     });
 
     Route::controller(UserProfileController::class)->group(function () {
         Route::group(['prefix' => 'track-order', 'as' => 'track-order.'], function () {
             Route::get('', 'track_order')->name('index');
-            Route::get('result-view', 'track_order_result')->name('result-view');
+            Route::get('result-view', 'track_order_result')->middleware(\App\Http\Middleware\CustomerOrderTrackingBoundary::class)->name('result-view');
             Route::get('last', 'track_last_order')->name('last');
-            Route::any('result', 'track_order_result')->name('result');
+            Route::any('result', 'track_order_result')->middleware(\App\Http\Middleware\CustomerOrderTrackingBoundary::class)->name('result');
             Route::get('order-wise-result-view', 'track_order_wise_result')->name('order-wise-result-view');
         });
     });
@@ -203,7 +212,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('user-profile', 'user_profile')->name('user-profile')->middleware('customer'); //theme_aster
         Route::get('user-account', 'user_account')->name('user-account')->middleware('customer');
         Route::post('user-account-update', 'getUserProfileUpdate')->name('user-update')->middleware('customer');
-        Route::post('user-account-picture', 'user_picture')->name('user-picture');
+        Route::post('user-account-picture', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware('customer')->name('user-picture');
         Route::get('account-address-add', 'account_address_add')->name('account-address-add');
         Route::get('account-address', 'account_address')->name('account-address');
         Route::post('account-address-store', 'address_store')->name('address-store');
@@ -221,25 +230,56 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('refund-request/{id}', 'refund_request')->name('refund-request');
         Route::get('refund-details/{id}', 'refund_details')->name('refund-details');
         Route::post('refund-store', 'store_refund')->name('refund-store');
-        Route::get('account-tickets', 'account_tickets')->name('account-tickets');
-        Route::get('order-cancel/{id}', 'order_cancel')->name('order-cancel');
+        Route::get('account-tickets', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->middleware('customer')->name('account-tickets');
+        Route::get('account-notifications', [\App\Http\Controllers\Customer\NotificationCenterController::class, 'index'])->middleware('customer')->name('customer.notifications.index');
+        Route::get('account-order-tracking', [\App\Http\Controllers\Customer\OrderTrackingController::class, 'index'])->middleware('customer')->name('customer.tracking.index');
+        Route::get('account-messages', [\App\Http\Controllers\Customer\SupportConversationController::class, 'index'])->middleware('customer')->name('customer.messages.index');
+        Route::get('order-cancel/{id}', fn (int $id) => redirect()->route('account-order-details', ['id' => $id]))
+            ->middleware('customer')->name('order-cancel');
         Route::post('ticket-submit', 'submitSupportTicket')->name('ticket-submit');
-        Route::get('account-delete/{id}', 'account_delete')->name('account-delete');
+        Route::redirect('account-delete/{id}', '/account-settings')->middleware('customer')->name('account-delete');
         Route::get('refer-earn', 'refer_earn')->name('refer-earn')->middleware('customer');
         Route::get('user-coupons', 'user_coupons')->name('user-coupons')->middleware('customer');
         Route::get('user-restock-requests', 'restockRequestsView')->name('user-restock-requests')->middleware('customer');
         Route::get('user-restock-request-delete', 'deleteRestockRequest')->name('user-restock-request-delete')->middleware('customer');
-        Route::get('user-all-restock-request-delete/{ids}', 'deleteAllRestockRequest')->name('user-all-restock-request-delete')->middleware('customer');
     });
 
     // Customer-to-seller/delivery chat is intentionally unavailable. Customers
     // use the support-ticket center for administration communication.
 
+    Route::post('customer/orders/{id}/cancellation', [\App\Http\Controllers\Customer\OrderCancellationRequestController::class, 'store'])
+        ->middleware(['customer', 'throttle:10,1'])->name('customer.order.cancellation');
+    Route::post('customer/order/{order}/package-cancellation', [\App\Http\Controllers\Customer\PackageOrderCancellationController::class, 'request'])->middleware(['customer', 'throttle:10,1'])->name('customer.order.package-cancellation');
+    Route::get('customer/communication', [\App\Http\Controllers\Customer\CommunicationController::class, 'index'])->middleware(['customer', 'throttle:60,1'])->name('customer.communication.index');
+    Route::post('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'update'])->middleware(['customer','throttle:10,1'])->name('customer.contact-phones.update');
+    Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['customer', 'throttle:10,1,customer-support-report:'])->name('customer.support.report');
+    Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show'])->name('customer.purchasing-limit');
+    Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['customer', 'throttle:10,1,customer-profile-image:'])->name('customer.profile-image');
+    Route::get('account-photos/{kind}/{id}', [\App\Http\Controllers\Customer\AccountPhotoController::class, '__invoke'])
+        ->withoutMiddleware(\App\Http\Middleware\GuestMiddleware::class)
+        ->whereIn('kind', ['customer', 'seller'])->whereNumber('id')->name('account-photos.show');
+
+    Route::get('wallet/withdrawals', [\App\Http\Controllers\Customer\WalletWithdrawalController::class, 'index'])->middleware('customer')->name('customer.withdrawals.index');
+    Route::post('wallet/withdrawals', [\App\Http\Controllers\Customer\WalletWithdrawalController::class, 'store'])->middleware(['customer', 'throttle:5,1'])->name('customer.withdrawals.store');
+
+    Route::view('account-settings', 'customer-account.settings')->middleware('customer')->name('customer.settings');
+    Route::post('account-settings/password', [\App\Http\Controllers\Customer\AccountSettingsController::class, 'password'])
+        ->middleware(['customer', 'throttle:5,1'])->name('customer.settings.password');
+
+    Route::prefix('customer/account-deletion')->name('customer.deletion.')->middleware('customer')->controller('\App\Http\Controllers\Customer\AccountDeletionController')->group(function () {
+        Route::get('/', 'show')->name('show');
+        Route::post('begin', 'begin')->middleware('throttle:5,1,customer-deletion-password:')->name('begin');
+        Route::post('reason', 'reason')->middleware('throttle:10,1,customer-deletion-reason:')->name('reason');
+        Route::post('finish', 'finish')->middleware('throttle:5,1,customer-deletion-password:')->name('finish');
+    });
     Route::prefix('customer/subscription')->name('customer.subscription.')->middleware('customer')->controller('\App\Http\Controllers\Customer\MonthlySubscriptionController')->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::post('checkout', 'checkout')->middleware('throttle:10,1')->name('checkout');
-        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1')->name('wallet');
-        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1')->name('offline');
+        Route::post('{payment}/cancel', 'cancel')->middleware('throttle:10,1,customer-package-cancel:')->name('cancel');
+        Route::post('checkout', 'checkout')->middleware('throttle:10,1,customer-package-quote:')->name('checkout');
+        Route::post('auto-renew', 'enableAutoRenew')->middleware('throttle:5,1')->name('auto-renew');
+        Route::post('transact','transact')->middleware('throttle:10,1,customer-package-transaction:')->name('transact');
+        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1,customer-package-wallet:')->name('wallet');
+        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1,customer-package-transfer:')->name('offline');
     });
 
     Route::post('customer/orders/{order}/payment-proof/retry', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'submit'])->middleware(['customer', 'throttle:10,1'])->name('customer.order.payment-retry');
@@ -258,9 +298,9 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::get('/', [PostPurchaseInvoiceController::class, 'index'])->name('index');
         Route::get('{invoice}', [PostPurchaseInvoiceController::class, 'show'])->name('show');
         Route::get('{invoice}/state', [PostPurchaseInvoiceController::class, 'state'])->name('state');
-        Route::post('{invoice}/pay-digital', [PostPurchaseInvoiceController::class, 'payDigitally'])->name('pay-digital');
-        Route::post('{invoice}/use-insurance-balance', [PostPurchaseInvoiceController::class, 'useInsuranceBalance'])->name('use-insurance-balance');
-        Route::post('{invoice}/offline-payment', [PostPurchaseInvoiceController::class, 'submitOffline'])->name('offline-payment');
+        Route::post('{invoice}/pay-digital', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke'])->name('pay-digital');
+        Route::post('{invoice}/use-insurance-balance', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke'])->name('use-insurance-balance');
+        Route::post('{invoice}/offline-payment', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke'])->name('offline-payment');
     });
 
     Route::controller(UserLoyaltyController::class)->group(function () {
@@ -282,9 +322,9 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
 
     Route::controller(WebController::class)->group(function () {
         Route::post('vendor-shop/{id}', 'seller_shop_product')->middleware('hide_public_seller_information');
-        Route::get('top-rated', 'top_rated')->name('topRated');
-        Route::get('best-sell', 'best_sell')->name('bestSell');
-        Route::get('new-product', 'new_product')->name('newProduct');
+        Route::get('top-rated', [\App\Http\Controllers\Web\ProductListController::class, 'getTopRatedProductsView'])->name('topRated');
+        Route::get('best-sell', [\App\Http\Controllers\Web\ProductListController::class, 'getBestSellingProductsView'])->name('bestSell');
+        Route::get('new-product', [\App\Http\Controllers\Web\ProductListController::class, 'getLatestProductsView'])->name('newProduct');
     });
 
     Route::group(['prefix' => 'contact', 'as' => 'contact.'], function () {
@@ -370,7 +410,7 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
 
         Route::controller(ForgotPasswordController::class)->group(function () {
             Route::get('recover-password', 'reset_password')->name('recover-password');
-            Route::post('forgot-password', 'resetPasswordRequest')->name('forgot-password');
+            Route::post('forgot-password', 'resetPasswordRequest')->middleware('throttle:5,1,customer-recovery:')->name('forgot-password');
             Route::post('verify-recover-password', 'verifyRecoverPassword')->name('verify-recover-password');
             Route::get('otp-verification', 'otp_verification')->name('otp-verification');
             Route::post('otp-verification', 'otp_verification_submit');
@@ -385,7 +425,7 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
         Route::get('set-shipping-method', 'setShippingMethod')->name('set-shipping-method');
         Route::post('choose-shipping-address', 'getChooseShippingAddress')->name('choose-shipping-address');
         Route::post('choose-shipping-address-other', 'getChooseShippingAddressOther')->name('choose-shipping-address-other');
-        Route::post('choose-billing-address', 'choose_billing_address')->name('choose-billing-address');
+        Route::post('choose-billing-address', 'getChooseShippingAddress')->name('choose-billing-address');
     });
 
     // Customer purchase packages are suspended. Historical data stays in the database.
@@ -399,7 +439,7 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
     Route::controller(PaymentController::class)->group(function () {
         Route::post('web-payment-request', 'payment')->name('web-payment-request');
         Route::post('customer-add-fund-request', 'customer_add_to_fund_request')->name('add-fund-request');
-        Route::post('customer-order-edit-pay-amount', 'customerOrderEditPayDueAmount')->name('customer-order-edit-pay-amount');
+        Route::post('customer-order-edit-pay-amount', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke'])->name('customer-order-edit-pay-amount');
     });
 });
 

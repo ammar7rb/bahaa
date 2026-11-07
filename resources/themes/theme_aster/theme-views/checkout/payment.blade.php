@@ -14,7 +14,7 @@
                             <div class="d-flex justify-content-center mb-30">
                                 <ul class="cart-step-list">
                                     <li class="done cursor-pointer get-view-by-onclick" data-link="{{ route('shop-cart') }}">
-                                        <span><i class="bi bi-check2"></i></span> {{ translate('cart') }}
+                                        <span><i class="bi bi-check2"></i></span> {{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart') }}
                                     </li>
                                     <li class="done cursor-pointer get-view-by-onclick text-capitalize"
                                         data-link="{{ route('checkout-details') }}">

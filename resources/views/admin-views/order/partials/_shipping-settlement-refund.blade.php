@@ -1,7 +1,6 @@
 @if(\Illuminate\Support\Facades\Schema::hasColumn('orders', 'shipping_promise_key'))
     @php($shippingProofs = \Illuminate\Support\Facades\Schema::hasTable('order_shipping_proofs') ? $order->shippingProofs()->latest()->get() : collect())
     @php($refundLedger = \Illuminate\Support\Facades\Schema::hasTable('order_refund_ledgers') ? $order->refundLedgers()->latest()->first() : null)
-    @php($postPurchaseInvoice = \Illuminate\Support\Facades\Schema::hasTable('post_purchase_invoices') ? $order->postPurchaseInvoice : null)
     <div class="card mb-3">
         <div class="card-body">
             <div class="d-flex justify-content-between gap-3 flex-wrap mb-3">
@@ -12,10 +11,9 @@
                 <span class="badge badge-soft-info">{{ strtoupper($order->shipping_promise_key ?: 'legacy') }}</span>
             </div>
             <div class="row g-3 mb-4">
-                <div class="col-md-3"><div class="bg-section rounded p-3 h-100"><small>{{ translate('customer_delivery_window') }}</small><div class="fw-bold">{{ optional($order->shipping_eta_from)->format('Y-m-d') ?: '-' }} — {{ optional($order->shipping_eta_to)->format('Y-m-d') ?: '-' }}</div></div></div>
+                <div class="col-md-4"><div class="bg-section rounded p-3 h-100"><small>{{ translate('customer_delivery_window') }}</small><div class="fw-bold">{{ optional($order->shipping_eta_from)->format('Y-m-d') ?: '-' }} — {{ optional($order->shipping_eta_to)->format('Y-m-d') ?: '-' }}</div></div></div>
                 <div class="col-md-3"><div class="bg-section rounded p-3 h-100"><small>{{ translate('sales_due_date') }}</small><div class="fw-bold">{{ optional($order->sales_settlement_due_at)->format('Y-m-d') ?: '-' }}</div></div></div>
                 <div class="col-md-3"><div class="bg-section rounded p-3 h-100"><small>{{ translate('shipping_due_date') }}</small><div class="fw-bold">{{ optional($order->shipping_settlement_due_at)->format('Y-m-d') ?: '-' }}</div></div></div>
-                <div class="col-md-3"><div class="bg-section rounded p-3 h-100"><small>{{ translate('insurance_due_date') }}</small><div class="fw-bold">{{ optional($order->sellerOrderInsurance?->expires_at)->format('Y-m-d') ?: optional($postPurchaseInvoice?->payment_due_at)->format('Y-m-d') ?: '-' }}</div></div></div>
             </div>
 
             <form method="post" action="{{ route('admin.orders.shipping-allocation', $order->id) }}" class="row g-3 align-items-end mb-4">
@@ -29,12 +27,11 @@
             <div class="border-top pt-4">
                 <h4 class="fs-14">{{ translate('Post-payment_stock-out_refund') }}</h4>
                 @if($refundLedger)
-                    <div class="alert alert-info mb-0">{{ translate('Refund_already_recorded') }}: {{ $refundLedger->purchase_amount }} / {{ $refundLedger->insurance_amount }} — {{ translate($refundLedger->status) }}</div>
+                    <div class="alert alert-info mb-0">{{ translate('Refund_already_recorded') }}: {{ $refundLedger->purchase_amount }} — {{ translate($refundLedger->status) }}</div>
                 @elseif($order->payment_status === 'paid')
                     <form method="post" action="{{ route('admin.orders.stock-out-refund', $order->id) }}" class="row g-3 align-items-end">
                         @csrf
                         <div class="col-md-3"><label class="form-label">{{ translate('purchase_refund') }}</label><input type="number" min="0.01" step="0.01" class="form-control" name="purchase_amount" required></div>
-                        <div class="col-md-3"><label class="form-label">{{ translate('insurance_refund') }}</label><input type="number" min="0" step="0.01" class="form-control" name="insurance_amount" value="{{ $postPurchaseInvoice?->insurance_amount ?: $order->insurance?->amount ?: 0 }}"></div>
                         <div class="col-md-3"><label class="form-label">{{ translate('available_on') }}</label><input type="date" class="form-control" name="available_at"></div>
                         <div class="col-md-3"><label class="form-label">{{ translate('reason') }}</label><input class="form-control" name="note" required><button class="btn btn-danger mt-2 w-100">{{ translate('execute_split_refund') }}</button></div>
                     </form>

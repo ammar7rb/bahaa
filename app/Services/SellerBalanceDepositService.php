@@ -23,7 +23,8 @@ class SellerBalanceDepositService
         unset($data['wallet_target']);
         $metadata = is_array($data['metadata'] ?? null) ? $data['metadata'] : [];
         $metadata['wallet_target'] = $walletTarget;
-        return SellerBalanceDeposit::create(array_merge($data, [
+        return DB::transaction(function () use ($seller, $data, $amount, $metadata) {
+        $deposit = SellerBalanceDeposit::create(array_merge($data, [
             'seller_id' => $seller->id,
             'amount' => $amount,
             'source' => SellerBalanceDeposit::SOURCE_OFFLINE,
@@ -31,6 +32,9 @@ class SellerBalanceDepositService
             'metadata' => $metadata,
             'idempotency_key' => 'offline-deposit:'.sha1($seller->id.'|'.microtime(true).'|'.bin2hex(random_bytes(8))),
         ]));
+        $this->notifyDeposit($deposit, 'pending', 'تم استلام طلب الإيداع، وجارٍ التحقق من عملية الدفع.');
+        return $deposit;
+        });
     }
 
     public function createDigital(Seller $seller, float $amount, string $currencyCode, string $paymentMethod, string $walletTarget = 'operating'): SellerBalanceDeposit
@@ -77,6 +81,10 @@ class SellerBalanceDepositService
             $eventType = $walletTarget === 'insurance'
                 ? 'seller_insurance_credit_deposit'
                 : 'operating_deposit';
+            $debtAllocation = null;
+            if ($bucket === SellerLedgerService::OPERATING && app(VendorDebtService::class)->available()) {
+                $debtAllocation = app(VendorDebtService::class)->allocateDeposit($deposit);
+            } else {
             $this->ledger->post(
                 sellerId: (int) $deposit->seller_id,
                 eventType: $eventType,
@@ -87,8 +95,10 @@ class SellerBalanceDepositService
                 metadata: ['source' => $deposit->source, 'payment_reference' => $paymentReference],
                 createdBy: $adminId,
             );
+            }
 
             $metadata = $deposit->metadata ?: [];
+            if ($debtAllocation) $metadata['debt_allocation'] = array_intersect_key($debtAllocation, array_flip(['gross_amount','debt_recovered','net_wallet_credit','remaining_debt']));
             $metadata['payment'] = array_merge($paymentData, ['paid_at' => now()->toDateTimeString()]);
             $deposit->update([
                 'status' => SellerBalanceDeposit::STATUS_PAID,
@@ -100,8 +110,14 @@ class SellerBalanceDepositService
                 'paid_at' => now(),
                 'metadata' => $metadata,
             ]);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('notifications', 'customer_event_key')) {
+                $balance = $this->ledger->summary((int) $deposit->seller_id)[$bucket] ?? 0;
+                $formatted = number_format(\App\Utils\Convert::default($balance), 2).' '.getCurrencyCode(type: 'default');
+                $allocationMessage = $debtAllocation ? 'تم تأكيد الإيداع: إجمالي '.number_format((float)$debtAllocation['gross_amount'],2).'، سداد دين '.number_format((float)$debtAllocation['debt_recovered'],2).'، وصافي مدفوعات '.number_format((float)$debtAllocation['net_wallet_credit'],2).' ج.م. ' : 'تمت إضافة الرصيد بنجاح. ';
+                $this->notifyDeposit($deposit, 'approve', $allocationMessage.'رصيدك الحالي: '.$formatted);
+            }
             return $deposit->fresh();
-        });
+        }, 3);
     }
 
     public function reject(SellerBalanceDeposit $deposit, int $adminId, string $reason): SellerBalanceDeposit
@@ -109,8 +125,10 @@ class SellerBalanceDepositService
         if (trim($reason) === '') {
             throw new DomainException('seller_balance_deposit_rejection_reason_required');
         }
+        return DB::transaction(function () use ($deposit, $adminId, $reason) {
         $this->ledger->lockSellerFinancialState((int) $deposit->seller_id);
             $deposit = SellerBalanceDeposit::query()->lockForUpdate()->findOrFail($deposit->id);
+        if ($deposit->status === SellerBalanceDeposit::STATUS_REJECTED && $deposit->source === SellerBalanceDeposit::SOURCE_OFFLINE) return $deposit;
         if ($deposit->status !== SellerBalanceDeposit::STATUS_PENDING || $deposit->source !== SellerBalanceDeposit::SOURCE_OFFLINE) {
             throw new DomainException('seller_balance_deposit_cannot_be_rejected');
         }
@@ -120,7 +138,19 @@ class SellerBalanceDepositService
             'reviewed_by_admin_id' => $adminId,
             'reviewed_at' => now(),
         ]);
+        $this->notifyDeposit($deposit, 'reject', 'عملية الإيداع فشلت، برجاء التحقق. السبب: '.trim($reason));
         return $deposit->fresh();
+        });
+    }
+
+    private function notifyDeposit(SellerBalanceDeposit $deposit, string $state, string $message): void
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('notifications', 'customer_event_key')) return;
+        DB::table('notifications')->insertOrIgnore([
+            'seller_id' => $deposit->seller_id, 'customer_event_key' => 'wallet-deposit-vendor-'.$deposit->id.'-'.$state,
+            'sent_by' => 'admin', 'sent_to' => 'seller', 'title' => 'تحديث إيداع المحفظة', 'description' => $message,
+            'status' => 1, 'notification_count' => 1, 'image' => '', 'created_at' => now(), 'updated_at' => now(),
+        ]);
     }
 
     public function reverse(SellerBalanceDeposit $deposit, int $adminId, string $reason): SellerBalanceDeposit
@@ -131,6 +161,7 @@ class SellerBalanceDepositService
         return DB::transaction(function () use ($deposit, $adminId, $reason) {
             $this->ledger->lockSellerFinancialState((int) $deposit->seller_id);
             $deposit = SellerBalanceDeposit::query()->lockForUpdate()->findOrFail($deposit->id);
+            if ($deposit->status === SellerBalanceDeposit::STATUS_REVERSED && app(VendorDebtService::class)->depositReceipt($deposit->id)) return $deposit;
             if ($deposit->status !== SellerBalanceDeposit::STATUS_PAID) {
                 throw new DomainException('seller_balance_deposit_cannot_be_reversed');
             }
@@ -141,6 +172,8 @@ class SellerBalanceDepositService
             $eventType = $walletTarget === 'insurance'
                 ? 'seller_insurance_credit_deposit_reversal'
                 : 'operating_deposit_reversal';
+            $debtReversal = $bucket === SellerLedgerService::OPERATING && app(VendorDebtService::class)->reverseDeposit($deposit, $adminId, trim($reason));
+            if (!$debtReversal) {
             $this->ledger->assertSufficient((int) $deposit->seller_id, $bucket, (float) $deposit->amount);
             $this->ledger->post(
                 sellerId: (int) $deposit->seller_id,
@@ -152,6 +185,7 @@ class SellerBalanceDepositService
                 metadata: ['reason' => trim($reason)],
                 createdBy: $adminId,
             );
+            }
             $metadata = $deposit->metadata ?: [];
             $metadata['reversal'] = ['reason' => trim($reason), 'admin_id' => $adminId, 'at' => now()->toDateTimeString()];
             $deposit->update(['status' => SellerBalanceDeposit::STATUS_REVERSED, 'reversed_at' => now(), 'reversed_by_admin_id' => $adminId, 'review_note' => trim($reason), 'metadata' => $metadata]);
@@ -168,3 +202,4 @@ class SellerBalanceDepositService
         return $target;
     }
 }
+

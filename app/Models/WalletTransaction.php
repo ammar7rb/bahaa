@@ -47,6 +47,8 @@ class WalletTransaction extends Model
         'admin_bonus',
         'balance',
         'payment_method',
+        'customer_subscription_payment_id',
+        'order_ids', 'customer_note', 'note_admin_id', 'note_updated_at',
         'created_at',
         'updated_at',
     ];
@@ -58,6 +60,7 @@ class WalletTransaction extends Model
         'admin_bonus' => 'float',
         'balance' => 'float',
         'reference' => 'string',
+        'order_ids' => 'array', 'note_updated_at' => 'datetime',
     ];
 
     public function user()

@@ -22,6 +22,20 @@ class ThemeController extends BaseController
     use SettingsTrait;
     use PushNotificationTrait;
 
+    public function preview(string $theme): RedirectResponse
+    {
+        abort_unless($theme === 'theme_sigma_care' && is_file(base_path('resources/themes/'.$theme.'/file_names.php')), 404);
+        return redirect('/')->withCookie(cookie(
+            'sigma_storefront_preview', json_encode(['theme' => $theme, 'expires' => now()->addMinutes(30)->timestamp]),
+            30, '/', null, request()->isSecure(), true, false, 'lax',
+        ));
+    }
+
+    public function endPreview(): RedirectResponse
+    {
+        return redirect('/')->withoutCookie('sigma_storefront_preview');
+    }
+
     public function __construct(
         private readonly NotificationRepositoryInterface $notificationRepo,
         private readonly ThemeService $themeService,

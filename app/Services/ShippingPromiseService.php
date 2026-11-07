@@ -94,11 +94,10 @@ class ShippingPromiseService
             throw ValidationException::withMessages(['reason' => translate('reason_is_required')]);
         }
 
-        $salesDue = $order->sales_settlement_due_at ?: $order->shipping_settlement_due_at ?: $dueAt;
         $order->forceFill([
-            'sales_settlement_due_at' => $salesDue,
+            'sales_settlement_due_at' => $dueAt,
             'shipping_settlement_due_at' => $dueAt,
-            'shipping_due_separated' => ! Carbon::parse($salesDue)->equalTo($dueAt),
+            'shipping_due_separated' => false,
             'shipping_due_override_reason' => $reason,
         ])->save();
 

@@ -14,7 +14,39 @@ class AdminWorkspaceController extends Controller
 {
     public function snapshot(AdminWorkspaceService $workspace)
     {
-        return response()->json($workspace->snapshot())->header('Cache-Control', 'private, no-store');
+        $snapshot = $workspace->snapshot();
+        request()->validate(['category'=>'nullable|in:'.implode(',', \App\Services\AdminNotificationInbox::CATEGORIES)]);
+        $snapshot['categories']['inbox'] = app(\App\Services\AdminNotificationInbox::class)->snapshot(request('category'));
+        return response()->json($snapshot)->header('Cache-Control', 'private, no-store');
+    }
+
+    public function notifications(Request $request, \App\Services\AdminNotificationInbox $inbox)
+    {
+        $request->validate(['category'=>'nullable|in:'.implode(',', $inbox::CATEGORIES), 'page'=>'nullable|integer|min:1']);
+        $items = $inbox->items();
+        if ($request->filled('category')) $items = $items->where('category', $request->category)->values();
+        $page = $request->integer('page', 1);
+        $items = new \Illuminate\Pagination\LengthAwarePaginator($items->forPage($page, 25), $items->count(), 25, $page, ['path'=>$request->url(), 'query'=>$request->query()]);
+        return response()->view('admin-views.system.notifications', compact('items'))->header('Cache-Control', 'private, no-store');
+    }
+
+    public function notificationRead(Request $request, \App\Services\AdminNotificationInbox $inbox)
+    {
+        $data = $request->validate(['key'=>'required|string|max:191', 'unread'=>'sometimes|boolean']);
+        abort_unless($inbox->items()->contains('key', $data['key']), 404);
+        $q = DB::table('admin_notification_reads')->where('admin_id', auth('admin')->id())->where('event_key', $data['key']);
+        if ($data['unread'] ?? false) $q->delete();
+        else DB::table('admin_notification_reads')->insertOrIgnore(['admin_id'=>auth('admin')->id(), 'event_key'=>$data['key'], 'read_at'=>now()]);
+        return response()->json($inbox->snapshot())->header('Cache-Control', 'private, no-store');
+    }
+
+    public function subscriptions(string $audience, \App\Services\AdminDashboardSummary $summary)
+    {
+        abort_unless(Helpers::module_permission_check('people'), 403);
+        $records = $summary->subscriptions($audience)->orderByDesc('id')->paginate(25);
+        $records->through(fn ($r) => ['title'=>($r->package_name ?? translate('seller_package')).' #'.$r->id, 'detail'=>translate($audience).' #'.($audience === 'vendor' ? $r->seller_id : $r->customer_id).' · '.($r->expires_at ?? translate('lifetime')), 'url'=>route($audience === 'vendor' ? 'admin.vendors.view' : 'admin.customer.view', $audience === 'vendor' ? $r->seller_id : $r->customer_id)]);
+        $title = translate('summary_'.$audience.'_subscriptions').' · '.translate('summary_active_subscriptions');
+        return view('admin-views.system.workspace-reviews', compact('records', 'title'));
     }
 
     public function reviews(string $kind, AdminWorkspaceService $workspace)
@@ -25,10 +57,7 @@ class AdminWorkspaceController extends Controller
             $records = $workspace->pendingOrders()->latest('id')->paginate(25);
             $records->through(fn ($o) => ['title' => translate('Order_id').' #'.$o->id, 'detail' => translate($o->order_status), 'url' => route('admin.orders.details', $o->id)]);
         } else {
-            abort_unless(Helpers::module_permission_check('orders') || Helpers::module_permission_check('people') || Helpers::module_permission_check('reports'), 403);
-            $query = $workspace->pendingPaymentRows();
-            abort_unless($query, 404);
-            $records = $query->orderByDesc('updated_at')->paginate(25)->through(fn ($r) => $workspace->paymentItem($r));
+            return app(PaymentReviewController::class)->index(request());
         }
         $title = translate($kind === 'orders' ? 'pending_Orders' : 'payments_waiting_for_review');
         return view('admin-views.system.workspace-reviews', compact('records', 'title'));
@@ -109,7 +138,6 @@ class AdminWorkspaceController extends Controller
         $entries = collect((new AdvanceSearch('admin', $keyword))->adminMenuWithRoutes());
         foreach ([
             ['workspace_communication_center', 'admin.workspace.communication', 'people', 'communication support messages مركز الاتصالات رسائل دعم', []],
-            ['account_activation_center', 'admin.activation-center.index', 'people', 'activation accounts تفعيل حسابات', []],
             ['payments_waiting_for_review', 'admin.workspace.reviews', '', 'payment review مدفوعات مراجعة الدفع', ['kind'=>'payments']],
             ['pending_Orders', 'admin.workspace.reviews', 'orders', 'order review مراجعة الطلبات', ['kind'=>'orders']],
             ['insurance_center', 'admin.insurance-center.index', 'reports', 'insurance تأمين ضمان', []],

@@ -12,7 +12,12 @@ class SellerBalanceDeposit extends Model
         return \App\Services\AdministrativeReferenceService::format(data_get($this->metadata, 'wallet_target') === 'insurance' ? 'seller_insurance_deposit' : 'seller_balance_deposit', (int) $this->id);
     }
 
-    protected $appends = ['transaction_number'];
+    protected $appends = ['transaction_number', 'debt_allocation'];
+
+    public function getDebtAllocationAttribute(): ?array
+    {
+        return app(\App\Services\VendorDebtService::class)->depositReceipt((int) $this->id);
+    }
 
     public const SOURCE_OFFLINE = 'offline';
     public const SOURCE_DIGITAL = 'digital';

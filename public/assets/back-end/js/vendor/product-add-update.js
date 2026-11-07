@@ -517,7 +517,10 @@ elementCustomUploadInputFileByID.on("change", function() {
     }
 });
 
+let vendorProductSubmissionPending = false;
 $(".product-add-requirements-check").on("click", async function() {
+    if (vendorProductSubmissionPending) return;
+    vendorProductSubmissionPending = true;
     Swal.fire({
         title: messageAreYouSure,
         text: messageWantAddOrUpdateThisProduct,
@@ -537,7 +540,10 @@ $(".product-add-requirements-check").on("click", async function() {
                 let formData = new FormData(
                     document.getElementById("product_form")
                 );
-                if (!await validateFormHelper($("#product_form"))) return false;
+                if (!await validateFormHelper($("#product_form"))) {
+                    vendorProductSubmissionPending = false;
+                    return false;
+                }
 
                 $.ajaxSetup({
                     headers: {
@@ -556,6 +562,7 @@ $(".product-add-requirements-check").on("click", async function() {
                     },
                     success: function(data) {
                         if (data.errors) {
+                            vendorProductSubmissionPending = false;
                             for (
                                 let index = 0;
                                 index < data.errors.length;
@@ -567,11 +574,14 @@ $(".product-add-requirements-check").on("click", async function() {
                                     );
                                 }, index * 500);
                             }
+                        } else if (data.saved === true && data.redirect_url) {
+                            window.location.assign(data.redirect_url);
                         } else {
                             $("#product_form").submit();
                         }
                     },
                     error: function(jqXHR, textStatus, errorThrown) {
+                        vendorProductSubmissionPending = false;
                         toastMagic.error(errorThrown);
                         $("#loading").fadeOut();
                     },
@@ -581,6 +591,8 @@ $(".product-add-requirements-check").on("click", async function() {
                     },
                 });
             }
+        } else {
+            vendorProductSubmissionPending = false;
         }
     });
 });

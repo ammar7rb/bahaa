@@ -26,6 +26,11 @@ class SellerShippingResponseService
 
     public function startResponseWindow(Order $order): void
     {
+        if(app(VendorFulfillmentDecisionService::class)->managed($order)){
+            $order->forceFill(['seller_shipping_response_status'=>'portion_decisions','seller_shipping_response_due_at'=>null])->save();
+            return;
+        }
+        if (app(VendorFulfillmentEligibilityService::class)->hasRestrictions($order)) return;
         if (! $this->isManagedOrder($order) || ($order->shipping_assignment_status ?? 'pending') !== 'assigned') {
             return;
         }
@@ -127,7 +132,7 @@ class SellerShippingResponseService
         foreach ($query->get() as $candidate) {
             $done = DB::transaction(function () use ($candidate): bool {
                 $locked = Order::query()->lockForUpdate()->find($candidate->id);
-                if (! $locked || $locked->seller_shipping_response_status !== self::PENDING || ! $locked->seller_shipping_response_due_at?->isPast()) {
+                if (! $locked || app(VendorFulfillmentDecisionService::class)->managed($locked) || app(VendorFulfillmentEligibilityService::class)->hasRestrictions($locked) || $locked->seller_shipping_response_status !== self::PENDING || ! $locked->seller_shipping_response_due_at?->isPast()) {
                     return false;
                 }
                 $before = $locked->commerce_flow_status;
@@ -194,6 +199,8 @@ class SellerShippingResponseService
 
     private function assertSellerCanRespond(Order $order, Seller $seller): void
     {
+        if(app(VendorFulfillmentDecisionService::class)->managed($order))throw new DomainException('استخدم قرار كل جزء من طلب التنفيذ.');
+        if (app(VendorFulfillmentEligibilityService::class)->hasRestrictions($order)) throw new DomainException(VendorFulfillmentEligibilityService::MESSAGE);
         if (! $this->isManagedOrder($order) || $order->seller_is !== 'seller' || (int) $order->seller_id !== (int) $seller->id) {
             throw new DomainException('seller_shipping_response_order_not_found');
         }

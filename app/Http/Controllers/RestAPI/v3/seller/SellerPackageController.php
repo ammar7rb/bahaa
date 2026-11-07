@@ -79,6 +79,8 @@ class SellerPackageController extends Controller
         $operatingBalance = (float) ($this->ledger->summary($request->seller->id)[SellerLedgerService::OPERATING] ?? 0);
 
         return response()->json([
+            'auto_renewal_available' => config('vendor_advertising.auto_renewal_enabled') && \Illuminate\Support\Facades\Schema::hasTable('vendor_auto_renewals'),
+            'auto_renewal_enabled' => config('vendor_advertising.auto_renewal_enabled') && \Illuminate\Support\Facades\Schema::hasTable('vendor_auto_renewals') && \Illuminate\Support\Facades\DB::table('vendor_auto_renewals')->where('seller_id', $request->seller->id)->where('enabled', true)->exists(),
             'packages' => SellerPackage::query()->active()->orderBy('sort_order')->orderBy('id')->get()
                 ->map(function (SellerPackage $package) {
                     $duration = $this->durationService->fromPackage($package);
@@ -93,6 +95,9 @@ class SellerPackageController extends Controller
                     ]);
                 })->values(),
             'subscription' => $this->formatSummary($summary),
+            'slot_creation_required' => false,
+            'transition_ends_at' => config('vendor_advertising.enabled') ? app(\App\Services\VendorAdvertisingAccessService::class)->rollout()?->grace_ends_at : null,
+            'product_creation_allowed' => $request->seller->activation_status === null || $request->seller->activation_status === 'active',
             'operating_balance' => $operatingBalance,
             'operating_balance_payment_available' => $summary['can_purchase'] && $operatingBalance > 0,
             'digital_payment_available' => false,

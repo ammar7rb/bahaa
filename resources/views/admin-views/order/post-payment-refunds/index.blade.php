@@ -61,7 +61,7 @@
                             <td>{{ $refund->id }}</td>
                             <td><a href="{{ route('admin.orders.details', $refund->order_id) }}">#{{ $refund->order_id }}</a></td>
                             <td>
-                                <div class="fw-semibold">{{ trim(($refund->customer?->f_name ?? '').' '.($refund->customer?->l_name ?? '')) ?: 'C'.$refund->customer_id }}</div>
+                                <div class="fw-semibold">{{ trim(($refund->customer?->f_name ?? '').' '.($refund->customer?->l_name ?? '')) ?: \App\Services\AdministrativeReferenceService::format('customer', (int) $refund->customer_id) }}</div>
                                 <small class="text-muted">{{ $refund->customer?->phone ?: $refund->customer?->email }}</small>
                             </td>
                             <td>{{ setCurrencySymbol(amount: $refund->purchase_amount, currencyCode: getCurrencyCode()) }}</td>

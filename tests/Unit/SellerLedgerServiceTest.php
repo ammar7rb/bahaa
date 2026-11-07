@@ -113,4 +113,18 @@ class SellerLedgerServiceTest extends TestCase
         $this->expectException(LogicException::class);
         $entry->delete();
     }
+
+    public function test_read_only_summary_does_not_initialize_legacy_ledger_entries(): void
+    {
+        $seller = \App\Models\Seller::create();
+        SellerWallet::withoutEvents(fn () => SellerWallet::create([
+            'seller_id' => $seller->id, 'total_earning' => 125,
+        ]));
+        $service = app(SellerLedgerService::class);
+        $summary = $service->summary($seller, initializeLegacy: false);
+        $this->assertSame(125.0, $summary[SellerLedgerService::AVAILABLE]);
+        $this->assertSame(0, SellerLedgerEntry::count());
+        $this->assertSame($summary, $service->summary($seller));
+        $this->assertGreaterThan(0, SellerLedgerEntry::count());
+    }
 }

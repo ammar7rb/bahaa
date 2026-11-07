@@ -15,5 +15,5 @@ use Modules\AI\app\Http\Controllers\AIController;
 */
 
 Route::group([], function () {
-    Route::resource('ai', AIController::class)->names('ai');
+    Route::resource('ai', AIController::class)->only(['index', 'create', 'show', 'edit'])->names('ai');
 });

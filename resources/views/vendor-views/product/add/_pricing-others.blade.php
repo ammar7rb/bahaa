@@ -1,13 +1,8 @@
 <div class="price_wrapper mt-3">
     <div class="outline-wrapper">
         <div class="card rest-part bg-animate">
+            @if(getActiveAIProviderConfigCache())
             <div class="card-header d-flex justify-content-between align-items-center border-0 shadow-none pb-0 pc-header-ai-btn">
-                <div>
-                    <h3 class="mb-1">{{ translate('Pricing_&_Others') }}</h3>
-                    <p class="fs-12 mb-0">
-                        {{ translate('Here_you_can_setup_the_price_and_other_information_for_the_product.') }}
-                    </p>
-                </div>
 
                 @if(getActiveAIProviderConfigCache())
                 <button type="button"
@@ -26,6 +21,7 @@
                 @endif
 
             </div>
+            @endif
             <div class="card-body">
                 <div class="bg-section rounded-10 p-12 p-sm-20">
                     <div class="row align-items-end">
@@ -33,7 +29,7 @@
                             <div class="form-group">
                                 <div class="d-flex gap-2 mb-2">
                                     <label class="title-color mb-0">
-                                        {{ translate('unit_price') }}
+                                        <span data-unit-price-text>{{ translate('unit_price') }}</span>
                                         ({{ getCurrencySymbol(currencyCode: getCurrencyCode()) }})
                                         <span class="input-required-icon">*</span>
                                     </label>
@@ -89,29 +85,8 @@
                                         >
                             </div>
                         </div>
-                        <div class="col-md-6 col-lg-4">
-                            <div class="form-group">
-                                <div class="d-flex gap-2">
-                                    <label class="title-color" for="discount">{{ translate('discount_amount') }} <span
-                                            class="discount_amount_symbol">
-                                            <span class="input-required-icon">*</span>({{ getCurrencySymbol(currencyCode: getCurrencyCode()) }})</span>
-                                    </label>
-                                    <span class="input-label-secondary cursor-pointer" data-toggle="tooltip"
-                                            title="{{ translate('add_the_discount_amount_in_percentage_or_a_fixed_value_here') }}.">
-                                    <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/info-circle.svg') }}" alt="">
-                                </span>
-                                </div>
-                                <div class="input-group input-group-merge input-group--merge">
-                                    <input type="number" min="0" value="0" step="0.01"
-                                            placeholder="{{ translate('ex: 5') }}"
-                                            name="discount" id="discount" class="form-control" required>
-                                    <select class="form-control input-group--merge-action" name="discount_type" id="discount_type">
-                                        <option value="flat">{{ translate('vendor_discount_fixed') }}</option>
-                                        <option value="percent">{{ translate('vendor_discount_percent') }}</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                        <input type="hidden" name="discount" id="discount" value="0">
+                        <input type="hidden" name="discount_type" id="discount_type" value="flat">
 
                         @if ($productWiseTax)
                             <div class="col-md-6 col-lg-4">

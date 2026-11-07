@@ -10,7 +10,7 @@ class OrderShippingProof extends Model
     protected $fillable = [
         'order_id', 'seller_id', 'shipping_status', 'file_path', 'disk', 'original_name',
         'mime_type', 'sha256', 'note', 'review_status', 'reviewed_by_admin_id',
-        'reviewed_at', 'review_note',
+        'reviewed_at', 'review_note', 'fulfillment_request_id',
     ];
 
     protected $casts = ['reviewed_at' => 'datetime'];

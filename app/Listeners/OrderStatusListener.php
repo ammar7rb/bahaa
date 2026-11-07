@@ -22,6 +22,9 @@ class OrderStatusListener
      */
     public function handle(OrderStatusEvent $event): void
     {
+        if ($event->type === 'customer') {
+            app(\App\Services\CustomerCommunicationService::class)->recordOrderStatus($event->order);
+        }
         $this->sendNotification($event);
     }
 

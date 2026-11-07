@@ -37,6 +37,7 @@
     }
 @endphp
 
+<link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/sigma-vendor-dashboard.css') }}?v={{ filemtime(public_path('assets/back-end/css/sigma-vendor-dashboard.css')) }}">
 <header class="v2-header">
     <div class="v2-header-brand">
         <a class="v2-brand-logo" href="{{ route('vendor.dashboard.index') }}" title="{{ $v2BrandLogoAlt }}">
@@ -66,7 +67,6 @@
             </svg>
         </button>
 
-        @include('layouts.vendor.partials.v2._account-navigation')
         {{-- Language switcher --}}
         <div class="v2-dropdown">
             <button class="v2-lang-btn" type="button" data-v2-dropdown-toggle
@@ -132,11 +132,11 @@
                 <span class="v2-avatar">
                     <img src="{{ getStorageImages(path: $v2Vendor->image_full_url ?? '', type: 'backend-profile') }}"
                          alt="{{ translate('image_description') }}">
-                    <span class="v2-avatar-status" aria-hidden="true"></span>
+                    @if($v2Vendor->status === 'approved')<span class="v2-avatar-status" aria-hidden="true"></span>@endif
                 </span>
-                <span class="v2-profile-inline" aria-hidden="true">
-                    <span class="v2-profile-inline-name">{{ $v2Vendor->f_name ?? '' }}</span>
-                    <span class="v2-profile-inline-role">{{ $v2Vendor->email ?? '' }}</span>
+                <span class="v2-profile-inline">
+                    <span class="v2-profile-name-line"><span class="v2-profile-inline-name">{{ trim(($v2Vendor->f_name ?? '').' '.($v2Vendor->l_name ?? '')) }}</span><span class="sigma-account-status {{ $v2Vendor->status === 'approved' ? 'is-active' : '' }}">{{ translate('sigma_account_status_'.$v2Vendor->status) }}</span></span>
+                    <span class="v2-profile-inline-role">{{ translate('vendor_account_id') }}: <bdi>{{ $v2Vendor->administrative_reference ?? $v2Vendor->id }}</bdi></span>
                 </span>
                 <span class="v2-avatar-caret" aria-hidden="true">
                     <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor"

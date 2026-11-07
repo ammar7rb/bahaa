@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Route;
 Route::group(['namespace' => 'RestAPI\v2', 'prefix' => 'v2', 'middleware' => ['api_lang']], function () {
     Route::group(['prefix' => 'seller', 'namespace' => 'seller'], function () {
 
-        Route::controller(SellerController::class)->group(function () {
+        Route::controller(SellerController::class)->middleware(\App\Http\Middleware\SellerApiAuthMiddleware::class)->group(function () {
             Route::get('seller-info', 'seller_info');
             Route::get('account-delete', 'account_delete');
             Route::get('seller-delivery-man', 'seller_delivery_man');
@@ -52,7 +52,7 @@ Route::group(['namespace' => 'RestAPI\v2', 'prefix' => 'v2', 'middleware' => ['a
         });
 
         Route::group(['prefix' => 'products'], function () {
-            Route::controller(ProductController::class)->group(function () {
+            Route::controller(ProductController::class)->middleware(\App\Http\Middleware\SellerApiAuthMiddleware::class)->group(function () {
                 Route::post('upload-images', 'upload_images');
                 Route::post('upload-digital-product', 'upload_digital_product');
                 Route::post('add', 'add_new');
@@ -68,7 +68,7 @@ Route::group(['namespace' => 'RestAPI\v2', 'prefix' => 'v2', 'middleware' => ['a
         });
 
         Route::group(['prefix' => 'orders'], function () {
-            Route::controller(OrderController::class)->group(function () {
+            Route::controller(OrderController::class)->middleware(\App\Http\Middleware\SellerApiAuthMiddleware::class)->group(function () {
                 Route::get('list', 'list');
                 Route::get('/{id}', 'details');
                 Route::put('order-detail-status/{id}', 'order_detail_status');
@@ -80,7 +80,7 @@ Route::group(['namespace' => 'RestAPI\v2', 'prefix' => 'v2', 'middleware' => ['a
             });
         });
 
-        Route::controller(RefundController::class)->prefix('refund')->group(function () {
+        Route::controller(RefundController::class)->middleware(\App\Http\Middleware\SellerApiAuthMiddleware::class)->prefix('refund')->group(function () {
             Route::get('list', 'list');
             Route::get('refund-details', 'refund_details');
             Route::post('refund-status-update', 'refund_status_update');

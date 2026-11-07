@@ -76,11 +76,11 @@
                         </div>
 
                         <div class="js-form-message form-group">
-                            <label class="input-label" for="signingVendorEmail">{{ translate('your_email') }}</label>
+                            <label class="input-label" for="signingVendorEmail">{{ translate('sigma_email_or_phone') }}</label>
 
-                            <input type="email" class="form-control form-control-lg" name="email"
-                                id="signingVendorEmail" tabindex="1" placeholder="email@address.com"
-                                aria-label="email@address.com" required data-msg="Please enter a valid email address.">
+                            <input type="text" class="form-control form-control-lg" name="email"
+                                id="signingVendorEmail" tabindex="1" placeholder="{{ translate('sigma_email_or_phone') }}"
+                                aria-label="{{ translate('sigma_email_or_phone') }}" required>
                         </div>
                         <div class="js-form-message form-group">
                             <label class="input-label" for="signingVendorPassword" tabindex="0">

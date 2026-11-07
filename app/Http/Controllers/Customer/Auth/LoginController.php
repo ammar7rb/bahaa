@@ -221,12 +221,12 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
-        $authAttemptRedirectUrl = $this->customerAuthService->getCustomerAuthReturnURL();
         auth()->guard('customer')->logout();
+        session()->forget(['keep_customer_login_redirect_url', 'checkout_login_return']);
         session()->forget('wish_list');
         session()->forget('customer_fcm_topic');
         Toastr::success(translate('come_back_soon') . '!');
-        return redirect($authAttemptRedirectUrl);
+        return redirect()->route('home');
     }
 
     public function getLoginModalView(Request $request): JsonResponse

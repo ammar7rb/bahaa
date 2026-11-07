@@ -1,0 +1,1 @@
+<nav class="ca-tabs" aria-label="تبويبات {{ $titles[$page] }}">@foreach($tabs as $value=>$label)<a href="{{ route('admin.customer.accounts.index',array_filter(['page'=>$page,'customer_id'=>$customer?->id,'tab'=>$value,'q'=>request('q')])) }}" @if($tab===$value)aria-current="page"@endif>{{ $label }}</a>@endforeach</nav>

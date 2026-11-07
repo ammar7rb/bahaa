@@ -47,7 +47,7 @@ class LoginController extends Controller
             ], 403);
         }
 
-        if (isset($seller) && $seller['status'] == 'approved' && auth('seller')->attempt($data)) {
+        if (isset($seller) && in_array($seller['status'], ['approved', 'pending'], true) && auth('seller')->attempt($data)) {
             $token = Str::random(50);
             Seller::where(['id' => auth('seller')->id()])->update(['auth_token' => $token]);
             if (SellerWallet::where('seller_id', $seller['id'])->first() == false) {

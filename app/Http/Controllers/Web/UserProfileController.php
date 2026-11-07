@@ -74,6 +74,7 @@ class UserProfileController extends Controller
 
     public function user_profile(Request $request)
     {
+        if (empty(VIEW_FILE_NAMES['user_profile'])) return redirect()->route('user-account');
         $wishlists = $this->wishlist->whereHas('wishlistProduct', function ($q) {
             return $q;
         })->where('customer_id', auth('customer')->id())->count();
@@ -96,24 +97,35 @@ class UserProfileController extends Controller
 
     public function getUserProfileUpdate(CustomerProfileUpdateRequest $request): RedirectResponse
     {
-        $imageName = $request->file('image') ? ImageManager::update('profile/', auth('customer')->user()->image, 'webp', $request->file('image')) : auth('customer')->user()->image;
-        $user = auth('customer')->user();
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+        $lockedCustomer = User::lockForUpdate()->findOrFail(auth('customer')->id());
+        if ($request->has('contact_phones_present')) {
+            $request->validate(['contact_phones_present' => 'in:1', 'phones' => 'sometimes|array|max:20', 'phones.*' => 'required|string|max:20']);
+        }
+        $password = app(\App\Services\CustomerPasswordChangeService::class)->password($lockedCustomer,$request);
+        $imageName = $request->file('image') ? ImageManager::update('profile/', $lockedCustomer->image, 'webp', $request->file('image')) : $lockedCustomer->image;
+        $user = $lockedCustomer;
         $phones = app(\App\Services\EgyptPhoneService::class);
-        $effectivePhone = $phones->normalizeLocal($user['is_phone_verified'] ? $user['phone'] : $request['phone']);
+        $effectivePhone = $phones->normalizeLocal($request['phone']);
         $phoneChanged = $effectivePhone !== $phones->normalizeLocal($user['phone']);
-        User::find($user['id'])->update([
-            'f_name' => $request['f_name'],
-            'l_name' => $request['l_name'],
+        $lockedCustomer->update([
+            'f_name' => $request->exists('f_name') ? (string) $request->input('f_name') : $user->getAttribute('f_name'),
+            'l_name' => $request->exists('l_name') ? (string) $request->input('l_name') : $user->getAttribute('l_name'),
+            'organization_name' => $request->input('organization_name', $user->organization_name),
             'phone' => $effectivePhone,
-            'email' => $request['email'],
+            'email' => $request->input('email', $user->email),
             'is_phone_verified' => $phoneChanged ? 0 : $user['is_phone_verified'],
-            'is_email_verified' => $request['email'] == $user['email'] ? $user['is_email_verified'] : 0,
+            'is_email_verified' => $request->input('email', $user->email) == $user['email'] ? $user['is_email_verified'] : 0,
             'image' => $imageName,
-            'password' => strlen($request['password']) > 5 ? bcrypt($request['password']) : auth('customer')->user()->password,
+            'password' => $password,
         ]);
 
+        if ($request->has('contact_phones_present')) {
+            app(\App\Services\CustomerContactPhoneService::class)->replace((int) $lockedCustomer->id, $request->input('phones', []));
+        }
         Toastr::info(translate('updated_successfully'));
         return redirect()->back();
+        });
     }
 
     public function account_address_add()
@@ -131,27 +143,7 @@ class UserProfileController extends Controller
 
     public function account_delete($id)
     {
-        if (auth('customer')->id() == $id) {
-            $user = User::find($id);
-
-            $ongoing = ['out_for_delivery', 'processing', 'confirmed', 'pending'];
-            $order = Order::where('customer_id', $user->id)->whereIn('order_status', $ongoing)->count();
-            if ($order > 0) {
-                Toastr::warning(translate('you_can_not_delete_account_due_ongoing_order'));
-                return redirect()->back();
-            }
-            auth()->guard('customer')->logout();
-
-            ImageManager::delete('/profile/' . $user['image']);
-            session()->forget('wish_list');
-
-            $user->delete();
-            Toastr::info(translate('Your_account_deleted_successfully!!'));
-            return redirect()->route('home');
-        }
-
-        Toastr::warning(translate('access_denied') . '!!');
-        return back();
+        abort(405, 'استخدم خطوات حذف الحساب الآمنة.');
     }
 
     public function account_address(): View|RedirectResponse
@@ -236,7 +228,7 @@ class UserProfileController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ], $locationService->persistedLocationFields($request->all(), $resolution));
-        DB::table('shipping_addresses')->insert($address);
+        ShippingAddress::create($address);
 
         if (($resolution['status'] ?? null) === GoogleMapsShippingLocationService::STATUS_RESOLVED) {
             Toastr::success(translate('address_added_successfully!'));
@@ -253,7 +245,7 @@ class UserProfileController extends Controller
 
     public function address_edit(Request $request, $id)
     {
-        $shippingAddress = ShippingAddress::where('customer_id', auth('customer')->id())->find($id);
+        $shippingAddress = ShippingAddress::where('customer_id', auth('customer')->id())->where('is_guest', 0)->find($id);
         $country_restrict_status = getWebConfig(name: 'delivery_country_restriction');
         $zip_restrict_status = getWebConfig(name: 'delivery_zip_code_area_restriction');
 
@@ -333,7 +325,7 @@ class UserProfileController extends Controller
             'updated_at' => now(),
         ], $locationService->persistedLocationFields($request->all(), $resolution));
         if (auth('customer')->check()) {
-            ShippingAddress::where('id', $request->id)->update($updateAddress);
+            ShippingAddress::where('customer_id', auth('customer')->id())->where('is_guest', 0)->findOrFail($request->id)->update($updateAddress);
             if (($resolution['status'] ?? null) === GoogleMapsShippingLocationService::STATUS_RESOLVED) {
                 Toastr::success(translate('address_updated_successfully!'));
             } else {
@@ -348,7 +340,7 @@ class UserProfileController extends Controller
     public function address_delete(Request $request)
     {
         if (auth('customer')->check()) {
-            ShippingAddress::destroy($request->id);
+            ShippingAddress::where('customer_id', auth('customer')->id())->where('is_guest', 0)->findOrFail($request->id)->delete();
             Toastr::success(translate('address_Delete_Successfully'));
             return redirect()->back();
         } else {
@@ -374,32 +366,20 @@ class UserProfileController extends Controller
         $offlinePaymentMethods = OfflinePaymentMethod::where('status', 1)->get();
         $offlinePaymentStatus = getWebConfig(name: 'offline_payment');
         $cashOnDeliveryStatus = getWebConfig(name: 'cash_on_delivery');
-        if (theme_root_path() == 'theme_fashion') {
-            $show_order = $request->show_order ?? 'ongoing';
-
-            $array = ['pending', 'confirmed', 'out_for_delivery', 'processing'];
-            $orders = $this->order->withSum('orderDetails', 'qty')
-                ->with('orderEditHistory', 'details.productAllStatus', 'seller.shop', 'postPurchaseInvoice')
-                ->where(['customer_id' => auth('customer')->id(), 'is_guest' => '0'])
-                ->when($show_order == 'ongoing', function ($query) use ($array) {
-                    $query->whereIn('order_status', $array);
-                })
-                ->when($show_order == 'previous', function ($query) use ($array) {
-                    $query->whereNotIn('order_status', $array);
-                })
-                ->when($request['search'], function ($query) use ($request) {
-                    $query->where('id', 'like', "%{$request['search']}%");
-                })
-                ->orderBy('id', $order_by)->paginate(10)->appends(['show_order' => $show_order, 'search' => $request->search]);
-        } else {
-            $orders = $this->order->with('orderEditHistory', 'details.productAllStatus', 'seller.shop', 'postPurchaseInvoice')
-                ->withSum('orderDetails', 'qty')
-                ->where(['customer_id' => auth('customer')->id(), 'is_guest' => '0'])
-                ->orderBy('id', $order_by)
-                ->paginate(10)->appends($request->all());
-        }
+        $show_order = $request->input('show_order') === 'previous' ? 'previous' : 'ongoing';
+        $activeStatuses = ['pending', 'confirmed', 'out_for_delivery', 'processing'];
+        $orders = $this->order->withSum('orderDetails', 'qty')
+            ->with('orderEditHistory', 'details.productAllStatus', 'seller.shop', 'postPurchaseInvoice')
+            ->where(['customer_id' => auth('customer')->id(), 'is_guest' => 0])
+            ->when($show_order === 'ongoing',
+                fn ($query) => $query->whereIn('order_status', $activeStatuses),
+                fn ($query) => $query->whereNotIn('order_status', $activeStatuses))
+            ->when($request->filled('search'), fn ($query) => $query->where('id', 'like', '%'.$request->input('search').'%'))
+            ->orderBy('id', $order_by === 'asc' ? 'asc' : 'desc')
+            ->paginate(10)->withQueryString();
         return view(VIEW_FILE_NAMES['account_orders'], compact(
             'orders',
+            'show_order',
             'order_by',
             'paymentGatewayList',
             'offlinePaymentMethods',
@@ -589,14 +569,15 @@ class UserProfileController extends Controller
 
     public function submitSupportTicket(Request $request): RedirectResponse|JsonResponse
     {
+        if ($request->input('ticket_type') === 'account_activation') {
+            abort(410);
+        }
         if ($request->boolean('care_support_drawer')) {
             abort_unless(auth('customer')->check(), 401);
             $request->validate([
-                'ticket_subject' => 'required|string|max:160',
-                'ticket_description' => 'required|string|max:5000',
-                'ticket_type' => 'required|in:Website problem,Partner request,Complaint,Info inquiry',
-                'ticket_priority' => 'required|in:Urgent,High,Medium,Low',
+                'ticket_description' => 'required|string|min:3|max:5000',
             ]);
+            $request->merge(['ticket_subject' => mb_substr(trim($request->ticket_description),0,100), 'ticket_type' => 'Website problem', 'ticket_priority' => 'Medium']);
         }
         $request->validate([
             'ticket_subject' => 'required',
@@ -679,6 +660,7 @@ class UserProfileController extends Controller
             Toastr::warning(translate('Invalid_ticket'));
             return back();
         }
+        app(\App\Services\CustomerCommunicationService::class)->markSupportRepliesRead($ticket, (int) auth('customer')->id());
         return view(VIEW_FILE_NAMES['ticket_view'], compact('ticket'));
     }
 
@@ -702,26 +684,30 @@ class UserProfileController extends Controller
     public function ticketMessages(int $id): JsonResponse
     {
         $ticket = SupportTicket::query()
-            ->with(['conversations' => fn ($query) => $query->orderBy('id')])
             ->where('id', $id)
             ->where('customer_id', auth('customer')->id())
             ->firstOrFail();
 
-        if ($ticket->purpose === \App\Services\CustomerActivationService::PURPOSE
-            && $ticket->review_status === 'approved') {
+        if (in_array(\App\Services\CustomerActivationService::PURPOSE, [$ticket->purpose, $ticket->type], true)
+            && in_array($ticket->review_status, ['approved', 'rejected'], true)) {
             return response()->json([
                 'ticket_id' => $ticket->id,
                 'status' => $ticket->status,
-                'activation_approved' => true,
-                'message' => translate('customer_account_activated'),
-                'redirect_url' => route('home'),
+                'activation_completed' => true,
+                'activation_approved' => $ticket->review_status === 'approved',
+                'message' => $ticket->review_status === 'approved' ? 'تم تفعيل الحساب بنجاح' : 'لم تتم الموافقة على تفعيل الحساب',
+                'redirect_url' => $ticket->review_status === 'approved' ? route('home') : route('account-tickets'),
                 'messages' => [],
-            ]);
+            ])->header('Cache-Control', 'no-store, private');
         }
 
         if ($ticket->hidden_from_subject_at) {
             abort(404);
         }
+
+        $ticket->load(['conversations' => fn ($query) => $query->orderBy('id')]);
+
+        app(\App\Services\CustomerCommunicationService::class)->markSupportRepliesRead($ticket, (int) auth('customer')->id());
 
         return response()->json([
             'ticket_id' => $ticket->id,
@@ -730,9 +716,10 @@ class UserProfileController extends Controller
                 'id' => $conversation->id,
                 'sender_type' => $conversation->admin_id ? 'admin' : 'customer',
                 'body' => $conversation->admin_message ?: $conversation->customer_message,
+                'attachments' => $conversation->attachment_full_url ?? [],
                 'created_at' => optional($conversation->created_at)->format('Y-m-d H:i'),
             ])->values(),
-        ]);
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     public function comment_submit(Request $request, $id): RedirectResponse|JsonResponse
@@ -748,6 +735,12 @@ class UserProfileController extends Controller
             return back();
         }
 
+        $request->validate([
+            'comment' => 'nullable|string|max:5000|required_without:image',
+            'image' => 'nullable|array',
+            'image.*' => 'required|file|mimes:jpeg,png,jpg,gif,webp,pdf,doc,docx|max:6000',
+        ]);
+
         DB::table('support_tickets')->where(['id' => $id])->update([
             'status' => 'open',
             'updated_at' => now(),
@@ -755,14 +748,11 @@ class UserProfileController extends Controller
 
         $image = [];
         if ($request->file('image')) {
-            $validator = $request->validate([
-                'image.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:6000'
-            ]);
             foreach ($request->image as $key => $value) {
                 $image_name = ImageManager::upload('support-ticket/', 'webp', $value);
                 $image[] = [
                     'file_name' => $image_name,
-                    'storage' => getWebConfig(name: 'storage_connection_type') ?? 'public',
+                    'storage' => config('filesystems.disks.default') ?? 'public',
                 ];
             }
         }
@@ -782,6 +772,7 @@ class UserProfileController extends Controller
                     'id' => $conversation->id,
                     'sender_type' => 'customer',
                     'body' => $conversation->customer_message,
+                    'attachments' => $conversation->attachment_full_url ?? [],
                     'created_at' => optional($conversation->created_at)->format('Y-m-d H:i'),
                 ],
             ]);
@@ -889,6 +880,11 @@ class UserProfileController extends Controller
 
     public function track_order_result(Request $request)
     {
+        $request->validate(['order_id'=>'required|integer|min:1']);
+        if (!auth('customer')->check() || !$request->boolean('from_order_details')) {
+            $request->merge(['phone_number'=>app(\App\Services\EgyptPhoneService::class)->normalizeLocal($request->input('phone_number'))]);
+            $request->validate(['phone_number'=>['required','regex:/^01[0125][0-9]{8}$/']]);
+        }
         $isOrderOnlyDigital = false;
         $user = auth('customer')->user();
         $user_phone = $request['phone_number'] ?? '';
@@ -909,7 +905,7 @@ class UserProfileController extends Controller
             ->first();
 
         if (!isset($user)) {
-            $userInfo = User::where('phone', $request['phone_number'])->orWhere('phone', 'like', "%{$request['phone_number']}%")->first();
+            $userInfo = User::where('phone', $request['phone_number'])->first();
 
             if ($order && $order->is_guest) {
 
@@ -995,7 +991,9 @@ class UserProfileController extends Controller
 
     public function track_last_order()
     {
-        $order_id = Order::where('customer_id', auth('customer')->id())->latest()->first()->id;
+        if (!auth('customer')->check()) return redirect()->route('customer.auth.login');
+        $order_id = Order::where('customer_id', auth('customer')->id())->latest()->value('id');
+        if (!$order_id) return redirect()->route('customer.tracking.index')->with('tracking_message','لا توجد طلبات لتتبعها بعد.');
         $orderDetails = Order::with(['deliveryMan', 'orderStatusHistory' => function ($query) {
             return $query->latest();
         }])->where(['id' => $order_id])->first();
@@ -1049,6 +1047,7 @@ class UserProfileController extends Controller
 
     public function store_refund(Request $request): RedirectResponse
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request): RedirectResponse {
         $request->validate([
             'order_details_id' => 'required',
             'amount' => 'required',
@@ -1067,6 +1066,15 @@ class UserProfileController extends Controller
         $orderDetailsReward = $this->orderDetailsRewardsRepo->getFirstWhere(params: ['order_details_id' => $request['order_details_id'], 'reward_type' => 'loyalty_point']);
         $orderDetails = OrderDetail::find($request->order_details_id);
         $user = auth('customer')->user();
+        if (!$orderDetails) {
+            abort(404);
+        }
+        $refundOrder = Order::whereKey($orderDetails->order_id)->lockForUpdate()->firstOrFail();
+        if ((int) $refundOrder->customer_id !== (int) $user->id || $refundOrder->order_status !== 'delivered'
+            || (\Illuminate\Support\Facades\Schema::hasTable('order_admin_purchase_refunds') && \Illuminate\Support\Facades\DB::table('order_admin_purchase_refunds')->where('order_id', $refundOrder->id)->where('reason', 'customer_canceled_waiting_for_package')->exists())) {
+            Toastr::warning('لا يمكن إنشاء طلب استرداد لهذا الطلب.');
+            return back();
+        }
 
         if ($orderDetailsReward && $user->loyalty_point < $orderDetailsReward['reward_amount']) {
             Toastr::warning(translate('you_have_not_sufficient_loyalty_point_to_refund_this_order') . '!!');
@@ -1101,6 +1109,7 @@ class UserProfileController extends Controller
 
         Toastr::success(translate('refund_requested_successful!!'));
         return redirect()->route('account-order-details', ['id' => $orderDetails->order_id]);
+        });
     }
 
     public function generate_invoice($id)

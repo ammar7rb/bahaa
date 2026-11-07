@@ -17,7 +17,12 @@ class VendorInboxService
     {
         if (preg_match('/#(\d+)/', (string) $notification->description, $match)) {
             $order = $this->orders($seller)->with('sellerOrderInsurance')->whereKey((int) $match[1])->first();
-            if ($order && !app(SellerOrderVisibilityService::class)->canSellerView($order)) {
+            if ($order && app(VendorFulfillmentEligibilityService::class)->hasRestrictions($order)) {
+                $summary = app(VendorFulfillmentEligibilityService::class)->summary($order);
+                $notification->title = $summary['pending_on_vendor_side'] ? $summary['pending_label'] : 'طلب تنفيذ محول إليك';
+                $notification->description = '#'.$order->id.' — '.VendorFulfillmentEligibilityService::MESSAGE;
+                $notification->image = null;
+            } elseif ($order && !app(SellerOrderVisibilityService::class)->canSellerView($order)) {
                 $notification->title = translate('order_received');
                 $notification->description = '***'.substr((string) $order->id, -3).' — '.translate('details_hidden_until_insurance_is_paid');
                 $notification->image = null;
@@ -56,6 +61,7 @@ class VendorInboxService
         $orderNotifications = [];
         $general = [];
         foreach ($notifications as $notification) {
+            $notification = $this->protectNotification($seller, $notification);
             if (preg_match('/#(\d+)/', (string) $notification->description, $match) && in_array((int) $match[1], $orderIds, true)) {
                 $orderNotifications[(int) $match[1]][] = $notification;
                 continue;
@@ -70,13 +76,17 @@ class VendorInboxService
             // alert record receive a persisted acknowledgement of their own.
             $unread = $linked ? collect($linked)->contains(fn ($n) => !in_array($n->id, $seenNotifications, true))
                 : !in_array($order->id, $readOrders, true);
+            $eligibility = app(VendorFulfillmentEligibilityService::class)->summary($order);
             $locked = !app(SellerOrderVisibilityService::class)->canSellerView($order);
             $reference = $locked ? app(OrderCommerceContractService::class)->restrictedAccessToken($order) : (string) $order->id;
             if (!$reference) continue;
             $general[] = ['kind' => 'order_alert', 'id' => $reference,
-                'title' => translate('order_received'), 'body' => translate($locked ? 'details_hidden_until_insurance_is_paid' : 'view_order'),
+                'title' => ($eligibility['pending_on_vendor_side'] ?? false) ? 'طلبات معلقة من جهة التاجر' : translate('order_received'),
+                'body' => ($eligibility['has_restrictions'] ?? false) ? VendorFulfillmentEligibilityService::MESSAGE : translate($locked ? 'vendor_order_waiting_for_administrative_release' : 'view_order'),
                 'order_reference' => $locked ? '***'.substr((string) $order->id, -3) : (string) $order->id,
-                'created_at' => $order->created_at?->toIso8601String(), 'unread' => $unread,
+                // Order alerts start at administrative release, not customer checkout.
+                'created_at' => $eligibility['forwarded_at'] ?? ($order->admin_order_reviewed_at ?? $order->created_at)?->toIso8601String(), 'unread' => $unread,
+                'fulfillment_eligibility' => $eligibility,
                 'action_url' => route('vendor.orders.details', $reference)];
         }
         $messages = $this->messages($seller)->with('thread')->latest('id')->get()->map(fn ($m) => [
@@ -93,8 +103,8 @@ class VendorInboxService
                 'action_url' => route('vendor.messages.thread', $latest['thread_id'])];
         })->values()->all();
         $general = collect($general)->sortByDesc('created_at')->values()->all();
-        return ['counts' => [
-            'orders' => $orders->filter(fn ($o) => $o->order_status === 'pending' || in_array($o->commerce_flow_status, ['seller_insurance_pending', 'seller_insurance_under_review'], true))->count(),
+        return ['subscription' => ['publishing_requires_subscription' => app(VendorAdvertisingAccessService::class)->requiresSubscription((int) $seller->id)], 'counts' => [
+            'orders' => $orders->filter(fn ($o) => app(VendorFulfillmentEligibilityService::class)->hasRestrictions($o) || $o->order_status === 'pending' || in_array($o->commerce_flow_status, ['seller_insurance_pending', 'seller_insurance_under_review'], true))->count(),
             'notifications' => collect($general)->where('unread', true)->count(),
             'messages' => collect($messages)->where('unread', true)->count(),
         ], 'notifications' => $general, 'messages' => $messages, 'threads' => $threads];

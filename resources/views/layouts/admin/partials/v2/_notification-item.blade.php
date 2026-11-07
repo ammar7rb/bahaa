@@ -1,4 +1,4 @@
-<a class="admin-notice {{ !empty($item['unread']) ? 'is-unread' : '' }}" data-notice-kind="{{ $kind }}" href="{{ $item['url'] }}">
+<a class="admin-notice {{ !empty($item['unread']) ? 'is-unread' : '' }}" data-notice-kind="{{ $kind }}" data-notice-key="{{ $item['key'] ?? '' }}" data-notice-category="{{ $item['category'] ?? '' }}" href="{{ $item['url'] }}">
     <span class="admin-notice-media">
         @if(!empty($item['images']))
             @foreach(array_slice($item['images'], 0, 3) as $image)

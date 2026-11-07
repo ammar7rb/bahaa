@@ -13,6 +13,16 @@ class AdminAccountDirectoryService
     {
         $customers = DB::table('users')->where(fn ($q) => $q->whereNull('email')->orWhere('email','!=','walking@customer.com'))
             ->selectRaw("id, 'customer' as kind, CASE WHEN COALESCE(f_name,'')='' AND COALESCE(l_name,'')='' THEN name ELSE f_name END as f_name, l_name, email, phone, NULL as store_name, CASE WHEN is_active=1 THEN 'active' ELSE 'frozen' END as account_status, created_at");
+        if (!empty($filters['guest_customers'])) {
+            // Registration origin remains immutable; a first activated package
+            // graduates the same account permanently, including after expiry.
+            $customers->where('onboarding_journey', 'checkout_first')
+                ->whereNotExists(function ($subscriptions) {
+                    $subscriptions->selectRaw('1')->from('customer_monthly_subscriptions as guest_package')
+                        ->whereColumn('guest_package.customer_id', 'users.id')
+                        ->whereNotNull('guest_package.package_id');
+                });
+        }
         $vendors = DB::table('sellers')->selectRaw("sellers.id, 'vendor' as kind, f_name, l_name, email, phone, (SELECT name FROM shops WHERE shops.seller_id=sellers.id ORDER BY shops.id LIMIT 1) as store_name, CASE status WHEN 'approved' THEN 'active' WHEN 'suspended' THEN 'frozen' ELSE status END as account_status, sellers.created_at");
         $q = DB::query()->fromSub($customers->unionAll($vendors), 'accounts');
         $customerOrders=DB::table('orders')->where('is_guest',0)->selectRaw("customer_id as account_id, 'customer' as kind, COUNT(*) as orders_count, COALESCE(SUM(order_amount),0) as order_amount")->groupBy('customer_id');
@@ -22,7 +32,11 @@ class AdminAccountDirectoryService
         $activeProducts=DB::table('products')->where('added_by','seller')->where('status',1)->where('request_status',1)->selectRaw('user_id, COUNT(*) as total')->groupBy('user_id');
         $q->leftJoinSub($activeProducts,'vendor_products',fn($join)=>$join->on('vendor_products.user_id','=','accounts.id')->where('accounts.kind','vendor'))
             ->selectRaw('COALESCE(vendor_products.total,0) as active_products_count');
-        if (!empty($filters['type'])) $q->where('accounts.kind',$filters['type']);
+        if (!empty($filters['guest_customers'])) {
+            $q->where('accounts.kind', 'customer');
+        } elseif (!empty($filters['type'])) {
+            $q->where('accounts.kind', $filters['type']);
+        }
         if (!empty($filters['status'])) $q->where('account_status',$filters['status']);
         $search = trim($filters['q'] ?? '');
         if ($search !== '') {

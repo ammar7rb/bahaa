@@ -10,7 +10,7 @@ class Authenticate extends Middleware
     public function handle($request, \Closure $next, ...$guards)
     {
         return parent::handle($request, function ($request) use ($next,$guards) {
-            if (in_array('api',$guards,true) && auth('api')->user() && !auth('api')->user()->is_active) {
+            if (in_array('api',$guards,true) && auth('api')->user() && (!auth('api')->user()->is_active || auth('api')->user()->account_deleted_at)) {
                 return response()->json(['errors'=>[['code'=>'account_frozen','message'=>translate('the_account_is_suspended')]]],403);
             }
             return $next($request);

@@ -30,11 +30,7 @@
                                         <i class="tio-more-vertical"></i>
                                     </button>
                                     <div class="dropdown-menu delete-account-dropdown-menu">
-                                        <a class="dropdown-item call-route-alert" href="javascript:"
-                                           data-route="{{ route('account-delete',[$customerDetail['id']]) }}"
-                                           data-message="{{translate('want_to_delete_this_account')}}?">
-                                            {{translate('delete_account')}}
-                                        </a>
+                                        <a class="dropdown-item" href="{{ route('customer.settings') }}">{{ translate('settings') }}</a>
                                     </div>
                                 </div>
                             </div>
@@ -71,7 +67,7 @@
                                         <label for="firstName"
                                                class="mb-2 text-capitalize">{{translate('first_name')}} </label>
                                         <input type="text" class="form-control" id="f_name" name="f_name"  data-required-msg="{{ translate('first_name_is_required') }}"
-                                               value="{{$customerDetail['f_name']}}" required>
+                                               value="{{$customerDetail['f_name']}}">
                                     </div>
                                     <div class="form-group col-md-6 mb-0">
                                         <label for="lastName"
@@ -81,14 +77,16 @@
                                     </div>
 
                                     <div class="form-group col-md-6 mb-0">
-                                        <label for="phone" class="mb-2 text-capitalize">
+                                        <label for="organization-name">{{ getLanguageCode(country_code: getDefaultLanguage()) === 'ar' ? 'اسم المؤسسة' : 'Organization name' }}</label>
+                                                <input type="text" class="form-control mb-3" id="organization-name" name="organization_name" maxlength="255" value="{{ old('organization_name', $customerDetail['organization_name'] ?? '') }}">
+                                                <label for="phone" class="mb-2 text-capitalize">
                                             {{ translate('phone_number') }}
                                         </label>
                                         <div class="position-relative d-flex align-items-center">
 
-                                        <input class="form-control phone-input-with-country-picker" id="phone" type="tel" name="phone"
+                                        <input data-egypt-phone class="form-control" inputmode="tel" dir="ltr" id="phone" type="tel" name="phone"
                                                value="{{ $customerDetail['phone'] }}" placeholder="{{ translate('enter_phone_number') }}" required
-                                            {{ $customerDetail['is_phone_verified'] ? 'disabled' : '' }}>
+                                            >
 
                                         @if($customerDetail['phone'] && getLoginConfig(key: 'phone_verification'))
                                             @if($customerDetail['is_phone_verified'])
@@ -132,6 +130,7 @@
                                             @endif
                                         </div>
                                     </div>
+<div class="form-group col-12 mb-3"><label for="current-password">كلمة المرور الحالية</label><input class="form-control" type="password" id="current-password" name="current_password" autocomplete="current-password"><small>مطلوبة فقط عند تغيير كلمة المرور. أدخل الحالية أو التي أعطتها لك الإدارة.</small></div>
                                     <div class="form-group col-md-6 mb-0">
                                         <label for="si-password"
                                                class="mb-2 text-capitalize">{{translate('new_password')}}</label>

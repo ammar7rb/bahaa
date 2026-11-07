@@ -289,15 +289,6 @@
                                                value="{{ $monthlyInsuranceDiscountType == 'fixed' ? Convert::default($monthlyInsuranceDiscountValue) : $monthlyInsuranceDiscountValue }}">
                                     </div>
                                 </div>
-                                @php($activationHoldMessage = getWebConfig(name: 'customer_activation_hold_message'))
-                                <div class="col-xl-8 col-md-6">
-                                    <div class="form-group">
-                                        <label class="form-label" for="customer_activation_hold_message">
-                                            {{ translate('Activation_Hold_Message') }}
-                                        </label>
-                                        <textarea name="customer_activation_hold_message" id="customer_activation_hold_message" class="form-control" rows="3">{{ $activationHoldMessage }}</textarea>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>

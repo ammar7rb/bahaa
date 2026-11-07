@@ -1,0 +1,77 @@
+{
+  "browser": "157.0.8103.39",
+  "results": [
+    {
+      "label": "template/checkout-register/390",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "template/sign-up/390",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "template/profile/390",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "template/checkout/390",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "template/dynamic-checkout/390",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "template/checkout-register/1280",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "template/sign-up/1280",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "template/profile/1280",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "template/checkout/1280",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "template/dynamic-checkout/1280",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "live-html-with-local-script/https://sigma-eg.net/customer/auth/checkout-register",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    },
+    {
+      "label": "live-html-with-local-script/https://sigma-eg.net/customer/auth/sign-up",
+      "typed": "01000000003",
+      "submitted": "01000000003",
+      "passed": true
+    }
+  ]
+}

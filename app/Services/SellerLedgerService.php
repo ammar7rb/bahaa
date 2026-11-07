@@ -121,14 +121,18 @@ class SellerLedgerService
         });
     }
 
-    public function summary(int|Seller $seller): array
+    public function summary(int|Seller $seller, bool $initializeLegacy = true): array
     {
         $sellerId = $seller instanceof Seller ? (int) $seller->id : (int) $seller;
         if ($sellerId <= 0 || !Schema::hasTable('seller_ledger_entries')) {
             return $this->legacySummary($sellerId);
         }
 
-        $this->ensureLegacyOpeningBalance($sellerId);
+        if ($initializeLegacy) {
+            $this->ensureLegacyOpeningBalance($sellerId);
+        } elseif (!SellerLedgerEntry::where('seller_id', $sellerId)->exists()) {
+            return $this->legacySummary($sellerId);
+        }
         $summary = array_fill_keys($this->buckets(), 0.0);
         $rows = SellerLedgerEntry::query()
             ->select('bucket')
@@ -169,6 +173,11 @@ class SellerLedgerService
             throw new InvalidArgumentException('Seller id is required to lock financial state.');
         }
 
+        // SQLite ignores SELECT FOR UPDATE. Acquire its writer lock before reading
+        // balances, so local/staging concurrency has the same serialization boundary.
+        if (DB::getDriverName() === 'sqlite') {
+            DB::table('sellers')->where('id', $sellerId)->update(['id' => DB::raw('id')]);
+        }
         Seller::query()->lockForUpdate()->findOrFail($sellerId);
     }
 
@@ -280,6 +289,7 @@ class SellerLedgerService
             self::PENDING => 0.0,
             self::AVAILABLE => (float) ($wallet?->total_earning ?? 0),
             self::OPERATING => 0.0,
+            self::ORDER_INSURANCE_CREDIT => 0.0,
             self::PENDING_WITHDRAW => (float) ($wallet?->pending_withdraw ?? 0),
             self::WITHDRAWN => (float) ($wallet?->withdrawn ?? 0),
         ];
@@ -308,6 +318,7 @@ class SellerLedgerService
     {
         $event = strtolower($eventType);
         return match (true) {
+            str_contains($event, 'vendor_charge'), str_contains($event, 'vendor_debt') => 'vendor_debt',
             str_contains($event, 'insurance') => 'insurance',
             str_contains($event, 'settlement'), str_contains($event, 'shipping') => 'shipping',
             str_contains($event, 'package'), str_contains($event, 'promotion') => 'package',

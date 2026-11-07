@@ -432,6 +432,7 @@ class CustomerPurchaseLimitService
 
     public function returnOrderLimit(Order $order, string $transactionType = 'order_cancel_return', ?string $reference = null, ?float $amount = null, array $metadata = []): array
     {
+        if (app(CustomerMonthlyAllowanceService::class)->enabled() && DB::table('customer_monthly_limit_entries')->where('order_id',$order->id)->exists()) return app(CustomerMonthlyAllowanceService::class)->restoreOrder($order, $amount, $transactionType.':'.($reference ?: $order->id));
         if ((int) $order->is_guest === 1 || !$order->customer_id) {
             return ['status' => 0, 'message' => 'guest_order'];
         }

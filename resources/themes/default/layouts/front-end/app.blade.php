@@ -124,6 +124,8 @@
             })(window,document,'script','dataLayer','GTM-TTLMKMHQ');</script>
         <!-- End Google Tag Manager -->
     @endif
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261027.2">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-communication.css') }}?v=20261014">
 </head>
 
 <body class="toolbar-enabled {{ env('APP_MODE')=='demo'?'demo':'' }}" id="demo">
@@ -182,7 +184,12 @@
     <span class="loader"></span>
 </div>
 
+@if(!request()->routeIs('shop-cart') && !request()->is('checkout*','customer/checkout*'))
+<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'browsing'])</div>
+@endif
+@include('customer-account.profile-header')
 @yield('content')
+@include('web-views.users-profile.partials.customer-payment-notices')
 
 <span id="message-otp-sent-again" data-text="{{ translate('OTP_has_been_sent_again.') }}"></span>
 <span id="message-wait-for-new-code" data-text="{{ translate('please_wait_for_new_code.') }}"></span>
@@ -204,7 +211,7 @@
 <span id="message-item-has-been-removed-from-cart" data-text="{{ translate('item_has_been_removed_from_cart') }}"></span>
 <span id="message-sorry-stock-limit-exceeded" data-text="{{ translate('sorry_stock_limit_exceeded') }}"></span>
 <span id="message-sorry-the-minimum-order-quantity-not-match" data-text="{{ translate('sorry_the_minimum_order_quantity_does_not_match') }}"></span>
-<span id="message-cart" data-text="{{ translate('cart') }}"></span>
+<span id="message-cart" data-text="{{ (getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'سلة المشتريات' : 'Shopping cart') }}"></span>
 
 {{-- Direct messages between customers, sellers and delivery staff are disabled.
      Keep the legacy hook for JavaScript, but point it to the official support
@@ -308,14 +315,14 @@
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/slick.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/sweet_alert.js') }}"></script>
 <script src="{{ theme_asset(path: "public/assets/back-end/js/toastr.js") }}"></script>
-<script src="{{ theme_asset(path: 'public/assets/front-end/js/custom.js') }}?v=20260906.3"></script>
+<script src="{{ theme_asset(path: 'public/assets/front-end/js/custom.js') }}?v={{ filemtime(public_path('assets/front-end/js/custom.js')) }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/seller-filter.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/account-order-details.js') }}"></script>
 <script src="{{ theme_asset(path: 'public/assets/front-end/js/customer-dark-mode.js') }}?v=20260930.1"></script>
 @if (!request()->routeIs('vendor.auth.registration.*'))
     <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInput.js') }}"></script>
     <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/utils.js') }}"></script>
-    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInout-validation.js') }}"></script>
+    <script src="{{ dynamicAsset(path: 'public/assets/backend/libs/intl-tel-input/js/intlTelInout-validation.js') }}?v=20261104.2"></script>
 @endif
 
 <script src="{{ dynamicAsset(path: 'public/assets/backend/file-validation/polyfills.js') }}"></script>
@@ -478,7 +485,11 @@
 @endif
 
 @stack('script')
+@include('web-views.users-profile.partials.profile-image-shortcut')
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261027.2" defer></script>
 @include('customer-checkout.entry')
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>
 </html>
+
+

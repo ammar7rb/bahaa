@@ -29,6 +29,7 @@ class OrderWorkflowService
 
     public function assertTransition(string $from, string $to, string $actorType = 'admin', bool $override = false, ?string $reason = null): void
     {
+        if($actorType==='seller'&&$to==='canceled')throw new DomainException('استخدم رفض أو إلغاء جزء التنفيذ لتطبيق القرار والغرامة الصحيحة.');
         if ($from === $to || in_array($to, self::TRANSITIONS[$from] ?? [], true)) {
             return;
         }
@@ -42,6 +43,10 @@ class OrderWorkflowService
 
     public function assertAdminOrderCanAdvance(Order $order, string $to): void
     {
+        if(app(VendorFulfillmentDecisionService::class)->managed($order)
+            && in_array($to,['processing','out_for_delivery','delivered'],true) && $to!==$order->order_status) {
+            throw new DomainException('استخدم إجراءات أجزاء التنفيذ؛ يلزم قبول التاجر أولًا ولا تتغير الأجزاء الأخرى تلقائيًا.');
+        }
         if ($order->seller_is !== 'seller'
             || ! in_array($to, ['confirmed', 'processing', 'out_for_delivery', 'delivered', 'returned', 'failed'], true)) {
             return;
@@ -145,6 +150,7 @@ class OrderWorkflowService
             ->orderBy('id')
             ->chunkById(100, function ($orders) use ($now, &$created): void {
                 foreach ($orders as $order) {
+                    if (app(VendorFulfillmentEligibilityService::class)->hasRestrictions($order)) continue;
                     $minutes = $this->delayMinutes($order->order_status);
                     if ($minutes <= 0) {
                         continue;

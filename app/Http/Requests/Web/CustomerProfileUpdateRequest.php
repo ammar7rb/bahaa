@@ -27,8 +27,12 @@ class CustomerProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'f_name' => 'required',
-            'l_name' => 'required',
+            'password' => ['nullable','string','min:8','max:255'],
+            'current_password' => ['required_with:password','nullable','string','max:255'],
+            'password_confirmation' => ['required_with:password','nullable','string','same:password'],
+            'f_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'l_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'organization_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'phone' => [
                 'required',
                 'regex:/^01[0125][0-9]{8}$/',
@@ -52,8 +56,9 @@ class CustomerProfileUpdateRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'f_name.required' => translate('first_name_is_required'),
-            'l_name.required' => translate('last_name_is_required'),
+            'current_password.required_with'=>'أدخل كلمة المرور الحالية لتغييرها.',
+            'password.min'=>'كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف.',
+            'password_confirmation.same'=>'تأكيد كلمة المرور لا يطابق الجديدة.',
             'phone.required' => translate('phone_number_is_required'),
             'phone.unique' => translate('phone_number_already_has_been_taken'),
             'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
@@ -86,6 +91,7 @@ class CustomerProfileUpdateRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
+            'password_confirmation' => $this->input('confirm_password'),
             'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
         ]);
     }

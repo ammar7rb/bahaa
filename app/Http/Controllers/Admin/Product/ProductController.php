@@ -285,6 +285,7 @@ class ProductController extends BaseController
             ToastMagic::error(translate('product_not_found') . '!');
             return redirect()->route('admin.products.list', ['in_house']);
         }
+        if (config('vendor_product_workspace.enabled')) app(\App\Services\VendorProductWorkspaceService::class)->projectForEditorial($product);
         $productAuthorIds = $this->productService->getProductAuthorsInfo(product: $product)['ids'];
         $productPublishingHouseIds = $this->productService->getProductPublishingHouseInfo(product: $product)['ids'];
 
@@ -311,8 +312,36 @@ class ProductController extends BaseController
             return response()->json([], 200);
         }
         $product = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $id], relations: ['digitalVariation', 'seoInfo']);
+        if (config('vendor_product_workspace.enabled')) app(\App\Services\VendorProductWorkspaceService::class)->projectForEditorial($product);
         $dataArray = $service->getUpdateProductData(request: $request, product: $product, updateBy: 'admin');
         $dataArray = array_merge($dataArray, $this->getAdminManagedShippingRates($request));
+        if (config('vendor_product_workspace.enabled') && $product->added_by === 'seller') {
+            $revision = $request->validate(['vendor_content_revision' => 'required|integer|min:1', 'vendor_inventory_stock' => 'required|integer|min:0']);
+            if ($request->boolean('publish_after_edit')) {
+                try {
+                    \Illuminate\Support\Facades\DB::transaction(function () use ($product, $dataArray, $revision) {
+                    $fromRequestStatus = (int) $product->request_status;
+                    $fromStatus = (int) $product->status;
+                    app(\App\Services\VendorProductWorkspaceService::class)->saveEditorialDraft($product, $dataArray, (int) $revision['vendor_content_revision'], true, (int) $revision['vendor_inventory_stock']);
+                    app(SellerProductReviewService::class)->transition($product, SellerProductReviewService::APPROVED_PUBLISHED, adminId: auth('admin')->id());
+                    ProductReviewDecision::create([
+                        'product_id' => $product->id, 'seller_id' => $product->user_id,
+                        'admin_id' => auth('admin')->id(), 'decision' => 'approve', 'reason' => null,
+                        'from_request_status' => $fromRequestStatus, 'to_request_status' => 1,
+                        'from_status' => $fromStatus, 'to_status' => 1,
+                    ]);
+                    });
+                } catch (DomainException $error) {
+                    return back()->withInput()->withErrors(['review' => $error->getMessage()]);
+                }
+                ToastMagic::success('تم نشر المنتج بعد التعديل.');
+                return redirect()->route('admin.products.view', ['addedBy' => 'vendor', 'id' => $product->id]);
+            }
+            app(\App\Services\VendorProductWorkspaceService::class)->saveEditorialDraft($product, $dataArray, (int) $revision['vendor_content_revision'], true, (int) $revision['vendor_inventory_stock']);
+            ToastMagic::success('تم تأكيد التحرير. يمكنك الآن اعتماد ونشر المنتج.');
+            return redirect()->route('admin.products.view', ['addedBy' => 'vendor', 'id' => $product->id])->with('editorial_confirmed', true);
+        }
+
         $this->updateProductAuthorAndPublishingHouse(request: $request, product: $product);
 
         $this->productRepo->update(id: $id, data: $dataArray);
@@ -346,10 +375,20 @@ class ProductController extends BaseController
         return redirect()->route('admin.products.view', ['addedBy' => $product['added_by'] == "admin" ? 'in-house' : $product['added_by'], 'id' => $product['id']]);
     }
 
+    public function addProductViews(Request $request, int $product): RedirectResponse
+    {
+        $values = $request->validate(['amount' => ['required', 'integer', 'min:1', 'max:1000000']]);
+        $item = \App\Models\Product::withoutGlobalScopes()->where('added_by', 'seller')->findOrFail($product);
+        app(\App\Services\ProductViewCountService::class)->add((int) $item->id, (int) auth('admin')->id(), (int) $values['amount']);
+        ToastMagic::success('تمت إضافة المشاهدات.');
+        return back();
+    }
+
     public function updateProductImages(ProductEditImageRequest $request, ProductService $productService, int|string $id): RedirectResponse
     {
         $product = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $id], relations: ['translations', 'seoInfo']);
         $storage = config('filesystems.disks.default') ?? 'public';
+        if (config('vendor_product_workspace.enabled')) app(\App\Services\VendorProductWorkspaceService::class)->projectForEditorial($product);
         $processedImages = $productService->getProcessedUpdateAdditionalImages(request: $request, product: $product);
         $updateData = [
             'color_image' => json_encode($processedImages['colored_image_names']),
@@ -630,6 +669,7 @@ class ProductController extends BaseController
         $this->deleteFile(filePath: '/product/' . $request['image']);
         $product = $this->productRepo->getFirstWhere(params: ['id' => $request['id']]);
 
+        if (config('vendor_product_workspace.enabled')) app(\App\Services\VendorProductWorkspaceService::class)->projectForEditorial($product);
         if (count(json_decode($product['images'])) < 2) {
             ToastMagic::warning(translate('you_can_not_delete_all_images'));
             return back();
@@ -987,12 +1027,13 @@ class ProductController extends BaseController
     public function approveStatus(Request $request): JsonResponse
     {
         $product = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $request['id']]);
-        if ((int) $product->request_status !== 0) {
+        $pendingWorkspace = config('vendor_product_workspace.enabled') && in_array(app(\App\Services\VendorProductWorkspaceService::class)->state($product)?->review_state, ['submitted', 'under_review'], true);
+        if ((int) $product->request_status !== 0 && !$pendingWorkspace) {
             return response()->json([
                 'message' => translate('use_product_review_form_to_change_an_existing_decision'),
             ], 422);
         }
-        if (! $product->expiry_date || ! $product->expiry_date->isFuture()) {
+        if (!config('vendor_product_workspace.enabled') && !$product->no_production_expiry_dates && (! $product->expiry_date || ! $product->expiry_date->isFuture())) {
             return response()->json(['message' => translate('expired_product_cannot_be_approved')], 422);
         }
 
@@ -1034,7 +1075,7 @@ class ProductController extends BaseController
         ]);
 
         $product = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $validated['product_id']]);
-        if ($validated['decision'] === 'approve' && (! $product->expiry_date || ! $product->expiry_date->isFuture())) {
+        if ($validated['decision'] === 'approve' && !config('vendor_product_workspace.enabled') && !$product->no_production_expiry_dates && (! $product->expiry_date || ! $product->expiry_date->isFuture())) {
             return back()->withErrors(['decision' => translate('expired_product_cannot_be_approved')]);
         }
         $fromRequestStatus = (int) $product->request_status;
@@ -1139,11 +1180,12 @@ class ProductController extends BaseController
 
     public function getProductGalleryView(Request $request): View
     {
+        $request->validate(['summary_scope' => 'nullable|in:all']);
         $searchValue = $request['searchValue'];
         $filters = [
             'searchValue' => $searchValue,
             'request_status' => 1,
-            'product_search_type' => 'product_gallery',
+            'product_search_type' => $request->input('summary_scope') === 'all' ? 'admin_summary_all' : 'product_gallery',
             'seller_id' => ($request['vendor_id'] == 'in_house' || $request['added_by'] == 'in_house') ? '' : $request['vendor_id'],
             'filter_sort_by' => $request['filter_sort_by'] ?? 'latest',
             'filter_category_ids' => $request['filter_category_ids'] ?? [],

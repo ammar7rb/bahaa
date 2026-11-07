@@ -14,6 +14,9 @@
     <details class="directory-panel directory-filter-panel" open data-directory-filters>
         <summary class="directory-filter-heading"><span id="directory-filter-title"><i class="fi fi-rr-settings-sliders" aria-hidden="true"></i>{{ translate('directory_filter_title') }}</span><i class="fi fi-rr-angle-small-down" aria-hidden="true"></i></summary>
         <form id="directory-filter-form" class="directory-filters" method="get" action="{{ route('admin.account-directory.index') }}">
+            @if(request()->boolean('guest_customers'))
+                <input type="hidden" name="guest_customers" value="1">
+            @endif
             <label><span>{{ translate('directory_type') }}</span><select name="type"><option value="">{{ translate('directory_all') }}</option>@foreach(['customer','vendor'] as $type)<option value="{{ $type }}" @selected(request('type')===$type)>{{ translate($type) }}</option>@endforeach</select></label>
             <label><span>{{ translate('directory_status') }}</span><select name="status"><option value="">{{ translate('directory_all') }}</option>@foreach(['active','frozen','pending','rejected'] as $status)<option value="{{ $status }}" @selected(request('status')===$status)>{{ translate('directory_'.$status) }}</option>@endforeach</select></label>
             <label><span>{{ translate('directory_first') }}</span><input type="number" name="first" min="1" max="100000" value="{{ request('first') }}" placeholder="{{ translate('directory_no_limit') }}"></label>

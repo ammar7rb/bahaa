@@ -33,6 +33,7 @@ class IdentityAndSupportBatchTest extends TestCase
             $table->string('l_name')->nullable();
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
+            $table->string('canonical_phone')->nullable()->unique();
             $table->string('password');
             $table->string('image')->nullable();
             $table->boolean('is_active')->default(true);
@@ -152,8 +153,8 @@ class IdentityAndSupportBatchTest extends TestCase
         $this->assertSame(['type' => 'users', 'id' => 123], AdministrativeReferenceService::parse('c-123'));
         $this->assertSame(['type' => 'sellers', 'id' => 55], AdministrativeReferenceService::parse('M#55'));
         $this->assertNull(AdministrativeReferenceService::parse('123'));
-        $this->assertSame('C8', AdministrativeReferenceService::format('customer', 8));
-        $this->assertSame('M8', AdministrativeReferenceService::format('seller', 8));
+        $this->assertSame('C000008', AdministrativeReferenceService::format('customer', 8));
+        $this->assertSame('M000008', AdministrativeReferenceService::format('seller', 8));
     }
 
     public function test_vendor_repository_can_find_the_visible_m_reference(): void

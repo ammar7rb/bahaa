@@ -55,6 +55,34 @@ class CustomerBalanceDepositServiceTest extends TestCase
         $this->assertSame($deposit->transaction_number, DB::table('wallet_transactions')->value('transaction_id'));
     }
 
+    public function test_each_wallet_review_notifies_the_right_customer_once(): void
+    {
+        $notice = \Mockery::mock(\App\Services\CustomerPaymentNotificationService::class);
+        $notice->shouldReceive('notify')->once()->with(1, 'wallet-deposit-1-approve', \Mockery::on(fn ($message) => str_contains($message, 'تمت إضافة الرصيد') && str_contains($message, 'رصيدك الحالي:')));
+        $notice->shouldReceive('notify')->once()->with(1, 'wallet-deposit-2-reject', \Mockery::on(fn ($message) => str_contains($message, 'تعذّر اعتماد') && str_contains($message, 'المرجع غير صحيح')));
+        $this->app->instance(\App\Services\CustomerPaymentNotificationService::class, $notice);
+        $service = app(CustomerBalanceDepositService::class);
+        $approved = $this->deposit();
+        $service->review($approved, 'approve', 9, null);
+        try { $service->review($approved, 'approve', 9, null); } catch (DomainException $e) { $this->assertSame('deposit_already_reviewed', $e->getMessage()); }
+        $service->review($this->deposit(), 'reject', 9, 'المرجع غير صحيح');
+    }
+
+    public function test_receipts_are_read_from_their_own_deposit(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $imageA = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lX8AAAAASUVORK5CYII=');
+        $imageB = $imageA.'different';
+        foreach (['a.enc' => $imageA, 'b.enc' => $imageB] as $path => $bytes) {
+            \Illuminate\Support\Facades\Storage::disk('local')->put($path, \Illuminate\Support\Facades\Crypt::encryptString($bytes));
+        }
+        $first = $this->deposit(); $first->update(['payment_proof' => 'a.enc']);
+        $second = $this->deposit(); $second->update(['payment_proof' => 'b.enc']);
+        $service = app(CustomerBalanceDepositService::class);
+        $this->assertSame($imageA, $service->receiptResponse($first)->getContent());
+        $this->assertSame($imageB, $service->receiptResponse($second)->getContent());
+    }
+
     public function test_insurance_approval_never_credits_purchase_balance(): void
     {
         $deposit = $this->deposit('insurance');
@@ -136,6 +164,10 @@ class CustomerBalanceDepositServiceTest extends TestCase
 
     public function test_offline_submission_uses_platform_settings_and_waits_for_review(): void
     {
+        $notice = \Mockery::mock(\App\Services\CustomerPaymentNotificationService::class);
+        $notice->shouldReceive('notify')->once()->with(1, 'wallet-deposit-1-pending', \Mockery::on(fn ($text) => str_contains($text, 'جارٍ التحقق من عملية الدفع')));
+        $notice->shouldReceive('notify')->once()->with(2, 'wallet-deposit-2-pending', \Mockery::on(fn ($text) => str_contains($text, 'جارٍ التحقق من عملية الدفع')));
+        $this->app->instance(\App\Services\CustomerPaymentNotificationService::class, $notice);
         Schema::create('business_settings', function (Blueprint $table) { $table->id(); $table->string('type'); $table->text('value'); });
         foreach (['language'=>'[{"code":"en","status":1,"default":true}]','add_funds_to_wallet'=>'1','wallet_status'=>'1','offline_payment'=>'{"status":1}', 'currency_model'=>'single_currency','system_default_currency'=>'1'] as $key=>$value) {
             DB::table('business_settings')->insert(['type'=>$key,'value'=>$value]);
@@ -187,6 +219,7 @@ class CustomerBalanceDepositServiceTest extends TestCase
     public function test_sender_deposit_uses_editable_amount_and_does_not_credit_before_review(): void
     {
         $this->test_offline_submission_uses_platform_settings_and_waits_for_review();
+        app(\App\Services\CustomerPaymentNotificationService::class)->shouldReceive('notify')->once()->with(1, 'wallet-deposit-3-pending', \Mockery::on(fn ($text) => str_contains($text, 'جارٍ التحقق من عملية الدفع')));
         $key=(string)\Illuminate\Support\Str::uuid();
         $request=\Illuminate\Http\Request::create('/customer-balances/offline','POST',[
             'transfer_schema'=>'sender_v2','wallet_type'=>'purchase','amount'=>75.50,'method_id'=>1,'request_key'=>$key,'sender_phone'=>'٠١١ ١٢٣٤-٥٦٧٨','sender_name'=>'محفظة العميل',

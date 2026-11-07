@@ -4,6 +4,7 @@
 @section('title', translate('Customer_List'))
 
 @section('content')
+    <div class="content container-fluid pb-0"><a class="btn btn-outline-primary" href="{{ route('admin.customer.password-recovery.index') }}">طلبات استعادة كلمة المرور</a></div>
     <div class="content container-fluid">
         <div class="mb-4">
             <h2 class="h1 mb-0 text-capitalize d-flex align-items-center gap-2">
@@ -191,12 +192,12 @@
                                 <td>
                                     @php($activePackage = $customerActivePackages[$customer['id']] ?? null)
                                     @if($activePackage)
-                                        @php($totalLimit = (float) $activePackage->package_purchase_limit + (float) $activePackage->extra_credit_limit + (float) $activePackage->admin_adjustment_limit)
-                                        @php($availableLimit = max($totalLimit - (float) $activePackage->used_purchase_limit, 0))
-                                        <div class="fw-semibold text-dark">{{ Str::limit($activePackage?->package?->name ?? translate('package'), 24) }}</div>
+                                        @php($totalLimit = (float)$activePackage->granted_allowance+(float)$activePackage->additional_allowance)
+                                        @php($availableLimit = max($totalLimit-(float)$activePackage->committed_allowance,0))
+                                        <div class="fw-semibold text-dark">{{ Str::limit($activePackage->package_name ?? translate('package'),24) }}</div>
                                         <div class="fs-12 text-muted">
                                             {{ translate('available') }}:
-                                            <span class="fw-semibold">{{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $availableLimit)) }}</span>
+                                            <span class="fw-semibold">{{ rtrim(rtrim(number_format($availableLimit,3,'.',','),'0'),'.') }} ج.م</span>
                                         </div>
                                     @else
                                         <span class="badge badge-danger text-bg-danger">{{ translate('no_active_package') }}</span>

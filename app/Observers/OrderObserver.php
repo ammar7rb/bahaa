@@ -16,11 +16,22 @@ class OrderObserver
 //        $order->flushCache();
     }
 
+    public function updating(Order $order): void
+    {
+        if($order->isDirty('order_status')){
+            $before=clone $order; $before->setRawAttributes($order->getOriginal(),true);
+            app(\App\Services\VendorFulfillmentDecisionService::class)->assertAggregateProgress($before,(string)$order->order_status);
+        }
+    }
+
     /**
      * Handle the Order "updated" event.
      */
     public function updated(Order $order): void
     {
+        if($order->wasChanged('order_status') && $order->order_status==='canceled') {
+            app(\App\Services\VendorFulfillmentDecisionService::class)->synchronizeExternalCancellation($order);
+        }
 //        $order->flushCache();
     }
 

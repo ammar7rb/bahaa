@@ -27,6 +27,15 @@ class ProductController extends Controller
         private readonly SellerProductEntitlementService $sellerProductEntitlementService,
     ) {}
 
+    public function stock_violations(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        $seller = $request->input('seller');
+        abort_unless($seller instanceof \App\Models\Seller, 401);
+        $violations = \App\Models\SellerStockViolation::where('seller_id', $seller->id)->latest('id')->paginate(20);
+
+        return response()->json($violations);
+    }
+
     public function list(Request $request):JsonResponse
     {
         $data = Helpers::get_seller_by_token($request);
@@ -121,6 +130,7 @@ class ProductController extends Controller
 
     public function add_new(Request $request):JsonResponse
     {
+        $request->merge(['discount' => 0, 'discount_type' => 'flat']);
         $data = Helpers::get_seller_by_token($request);
         if ($data['success'] == 1) {
             $seller = $data['data'];
@@ -141,8 +151,8 @@ class ProductController extends Controller
             'digital_product_type'  => 'required_if:product_type,==,digital',
             'digital_file_ready'    => 'required_if:digital_product_type,==,ready_product',
             'unit'                  => 'required_if:product_type,==,physical',
-            'images'                => 'required',
-            'thumbnail'             => 'required',
+            'images'                => 'nullable',
+            'thumbnail'             => 'nullable|string',
             'discount_type'         => 'required|in:percent,flat',
             'tax'                   => 'required|min:0',
             'lang'                  => 'required',
@@ -179,12 +189,6 @@ class ProductController extends Controller
         $submittedImages = is_string($request->images)
             ? (json_decode($request->images, true) ?: [])
             : ($request->images ?: []);
-        if (count(array_filter((array) $submittedImages)) < 5) {
-            $validator->after(fn ($validator) => $validator->errors()->add(
-                'images',
-                translate('at_least_five_product_images_are_required')
-            ));
-        }
 
         $brand_setting = BusinessSetting::where('type', 'product_brand')->value('value') ?? 0;
         if ($brand_setting && empty($request->brand_id)) {
@@ -261,7 +265,7 @@ class ProductController extends Controller
         $product->minimum_order_qty     = $request->minimum_order_qty;
         $product->details               = $this->resolveLocalizedField($request, 'description');
 
-        $product->images                = json_encode($request->images);
+        $product->images                = json_encode($submittedImages);
         $product->thumbnail             = $request->thumbnail;
         $product->digital_file_ready    = $request->digital_file_ready;
 
@@ -412,6 +416,7 @@ class ProductController extends Controller
 
     public function update(Request $request, $id):JsonResponse
     {
+        $request->merge(['discount' => 0, 'discount_type' => 'flat']);
         $data = Helpers::get_seller_by_token($request);
         if ($data['success'] == 1) {
             $seller = $data['data'];
@@ -472,11 +477,8 @@ class ProductController extends Controller
         $submittedImages = is_string($request->images)
             ? (json_decode($request->images, true) ?: [])
             : ($request->images ?: []);
-        if (count(array_filter((array) $submittedImages)) < 5) {
-            $validator->after(fn ($validator) => $validator->errors()->add(
-                'images',
-                translate('at_least_five_product_images_are_required')
-            ));
+        if (!$request->has('images')) {
+            $submittedImages = json_decode($product->images ?? '[]', true) ?: [];
         }
 
         $brand_setting = BusinessSetting::where('type', 'product_brand')->value('value') ?? 0;
@@ -551,8 +553,8 @@ class ProductController extends Controller
         $product->minimum_order_qty     = $request->minimum_order_qty;
         $product->details               = $this->resolveLocalizedField($request, 'description');
 
-        $product->images                = json_encode($request->images);
-        $product->thumbnail             = $request->thumbnail;
+        $product->images                = json_encode($submittedImages);
+        $product->thumbnail             = $request->input('thumbnail') ?: $product->thumbnail;
 
         if($request->product_type == 'digital') {
             if($request->digital_product_type == 'ready_product' && $request->digital_file_ready){
@@ -679,6 +681,10 @@ class ProductController extends Controller
             $product->seller_reviewed_at = null;
             $product->seller_reviewed_by = null;
         }
+        if (config('vendor_product_workspace.enabled')) {
+            $draft = app(\App\Services\VendorProductWorkspaceService::class)->saveSellerDraft($product, $product->getAttributes());
+            return response()->json(['message' => translate('product_updated_successfully'), 'review_status' => $draft->review_state]);
+        }
         $product->save();
         if ($wasRejected) {
             app(\App\Services\SellerProductReviewService::class)->submit($product);
@@ -749,13 +755,6 @@ class ProductController extends Controller
             return response()->json(['errors' => [[
                 'code' => 'seller_product_content_policy_violation',
                 'message' => translate('seller_product_content_policy_violation'),
-            ]]], 422);
-        }
-
-        if ($policy->countImages($request->input('images'), $request->input('color_image')) < 5) {
-            return response()->json(['errors' => [[
-                'code' => 'seller_product_minimum_images_required',
-                'message' => translate('seller_product_minimum_images_required'),
             ]]], 422);
         }
 

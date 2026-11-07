@@ -58,7 +58,12 @@ class OrderManager
     public static function getOrderSummaryBeforePlaceOrder($cart, $coupon_discount): array
     {
         $coupon_code = session()->has('coupon_code') ? session('coupon_code') : 0;
-        $coupon = Coupon::where(['code' => $coupon_code])->where('status', 1)->first();
+        $customerCheckout = !auth('admin')->check() && !auth('seller')->check();
+        if ($customerCheckout) {
+            session()->forget(['coupon_code','coupon_discount','coupon_type','coupon_bearer','coupon_seller_id']);
+            $coupon_discount = 0;
+        }
+        $coupon = $customerCheckout ? null : Coupon::where(['code' => $coupon_code])->where('status', 1)->first();
 
         $subTotal = 0;
         $totalDiscountOnProduct = 0;
@@ -82,10 +87,12 @@ class OrderManager
 
     public static function getStockUpdateOnOrderStatusChange($order, $status): void
     {
+        if(!in_array($status,['canceled','returned','failed'],true))app(\App\Services\VendorFulfillmentDecisionService::class)->assertLegacyMutationAllowed(Order::findOrFail($order['id']));
         if ($status == 'returned' || $status == 'failed' || $status == 'canceled') {
+            app(\App\Services\OrderFinancialAuditService::class)->holdForReview($order, $status);
             foreach ($order->details as $detail) {
                 if ($detail['is_stock_decreased'] == 1) {
-                    $product = Product::find($detail['product_id']);
+                    $product = Product::withoutGlobalScopes()->findOrFail($detail['product_id']);
                     $type = $detail['variant'];
                     $variationData = [];
                     foreach (json_decode($product['variation'], true) as $var) {
@@ -116,7 +123,7 @@ class OrderManager
         } else {
             foreach ($order->details as $detail) {
                 if ($detail['is_stock_decreased'] == 0) {
-                    $product = Product::find($detail['product_id']);
+                    $product = Product::withoutGlobalScopes()->findOrFail($detail['product_id']);
 
                     $type = $detail['variant'];
                     $variationData = [];
@@ -142,6 +149,7 @@ class OrderManager
     public static function getWalletManageOnOrderStatusChange($order, $received_by): void
     {
         $model = Order::findOrFail($order['id']);
+        app(\App\Services\VendorFulfillmentDecisionService::class)->assertLegacyMutationAllowed($model);
         app(\App\Services\SellerDeliveredEarningService::class)->record($model, fn () => self::calculateLegacyDeliveredWallet($order, $received_by));
     }
 
@@ -407,6 +415,7 @@ class OrderManager
 
     public static function getOrderAddressId(string|null $type = 'shipping_address', int|null $id = null): int|null
     {
+        if (request()->is('api/*') && $id !== null) return $type === 'billing_address' && !getWebConfig('billing_input_by_customer') ? null : $id;
         $addressId = 0;
         if ($type == 'shipping_address') {
             $addressId = session('address_id') ? session('address_id') : 0;
@@ -433,6 +442,9 @@ class OrderManager
 
     public static function getTotalCouponAmount($request, $couponCode): array
     {
+        if (!auth('admin')->check() && !auth('seller')->check()) {
+            return ['status' => false, 'discount' => 0, 'total_cart_amount' => 0, 'messages' => 'أزيلت القسائم من سلة المشتريات.'];
+        }
         $user = Helpers::getCustomerInformation($request);
         if ($user == 'offline') {
             return [
@@ -896,15 +908,34 @@ class OrderManager
         return $vendorWiseCartList;
     }
 
+    public static function checkoutAddressIds(array|object|null $data): array
+    {
+        $input = $data['requestObj'] ?? null;
+        $ids = ['address_id' => $data['address_id'] ?? data_get($input, 'address_id') ?? session('address_id'),
+            'billing_address_id' => $data['billing_address_id'] ?? data_get($input, 'billing_address_id') ?? session('billing_address_id')];
+        $ids = \Illuminate\Support\Facades\Validator::make($ids, ['address_id'=>'nullable|integer|min:0', 'billing_address_id'=>'nullable|integer|min:0'])->validate();
+        foreach ($ids as $key => $id) $ids[$key] = $id ? (int)$id : null;
+        if ($input instanceof \Illuminate\Http\Request && $input->is('api/*')) {
+            $customer = Helpers::getCustomerInformation($input);
+            $guest = $customer === 'offline';
+            $customerId = $guest ? (int)$input->input('guest_id', session('guest_id', 0)) : (int)$customer->id;
+            foreach ($ids as $id) if ($id) {
+                abort_unless($customerId > 0 && ShippingAddress::where('customer_id', $customerId)->where('is_guest', $guest)->whereKey($id)->exists(), 404);
+            }
+        }
+        return $ids;
+    }
+
     public static function processOrderGenerateData(array|object|null $data = []): array
     {
         $taxConfig = self::getTaxSystemType();
         $cartItemsArray = [];
+        $addressIds = self::checkoutAddressIds($data);
 
         $vendorWiseCartList = OrderManager::getVendorWiseCartList(data: [
             'coupon_code' => $data['coupon_code'] ?? (session('coupon_code') ?? ''),
-            'address_id' => $data['address_id'] ?? session('address_id'),
-            'billing_address_id' => $data['billing_address_id'] ?? session('billing_address_id'),
+            'address_id' => $addressIds['address_id'],
+            'billing_address_id' => $addressIds['billing_address_id'],
             'requestObj' => $data['requestObj'] ?? null,
         ]);
 
@@ -1012,6 +1043,23 @@ class OrderManager
         return round(max(0, $lineAmount - $discountShare) * 0.14, 4);
     }
 
+    /** New vendor orders stay private until paid and administratively forwarded.
+     * The admin queue separately filters confirmed payments, including later confirmations.
+     */
+    public static function vendorReviewCreationFields(string $sellerIs): array
+    {
+        if ($sellerIs !== 'seller') return [];
+        return [
+            'commerce_flow_version' => config('order_commerce.new_flow_version'),
+            'commerce_flow_status' => \App\Support\Commerce\OrderCommerceState::PENDING_ADMIN_REVIEW,
+            'commerce_flow_status_updated_at' => now(),
+            'admin_order_review_status' => 'pending_admin_review',
+            'order_status' => 'pending',
+            'operational_blocked_by' => 'admin_review',
+            'operational_block_reason' => 'paid_order_requires_admin_assignment',
+        ];
+    }
+
     public static function getOrderAddData(int $orderId, string $orderGroupId, object|array $customerData = [], object|array $cartData = [], object|array $orderData = [], object|array $totalTax = []): array
     {
         $taxConfig = self::getTaxSystemType();
@@ -1021,7 +1069,7 @@ class OrderManager
         $shippingPromise = app(\App\Services\ShippingPromiseService::class)
             ->orderDatabaseSnapshot($cartData['shipping_method_id'] ?? null);
 
-        return [
+        return array_replace([
             'id' => $orderId,
             'verification_code' => rand(100000, 999999),
             'customer_id' => $customerData['customer_id'],
@@ -1088,8 +1136,8 @@ class OrderManager
             'shipping_type' => $cartData['shipping_type'],
             'created_at' => now(),
             'updated_at' => now(),
-            'order_note' => $orderData['order_note'] ?? session('order_note'),
-        ];
+            'order_note' => auth('admin')->check() ? ($orderData['order_note'] ?? session('order_note')) : null,
+        ], self::vendorReviewCreationFields($cartData['seller_is']));
     }
 
     public static function addOrderDetailsData(int $orderId, object|array|null $vendorCart = []): void
@@ -1182,6 +1230,7 @@ class OrderManager
             Product::where(['id' => $product['id']])->update([
                 'current_stock' => $product['current_stock'] - $cartSingleItem['quantity']
             ]);
+            $orderDetails = app(\App\Services\VendorProductWorkspaceService::class)->snapshotOrderLine($orderDetails);
             $orderDetailsId = DB::table('order_details')->insertGetId($orderDetails);
 
             foreach ($vendorCart['applied_tax_cart_list'] as $cartItem) {
@@ -1331,6 +1380,16 @@ class OrderManager
             $data['customer_checkout_operation_id'] = $operation->id;
             $data['customer_checkout_cart_snapshot'] = isset($operation->cart_snapshot) ? json_decode($operation->cart_snapshot, true) : null;
             $ids = self::generateCustomerOrderInternal($data);
+            if ($operation->first_exception && \Illuminate\Support\Facades\Schema::hasColumn('orders', 'customer_initial_payment_review_status')) {
+                DB::table('orders')->whereIn('id', $ids)->update(['customer_initial_payment_review_status' => 'pending', 'order_status' => 'pending']);
+            }
+            if (!$operation->first_exception && app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+                foreach ($ids as $id) {
+                    if (!app(\App\Services\CustomerMonthlyAllowanceService::class)->reserveOrder(Order::findOrFail($id))) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['purchasing_limit' => 'الحد الائتماني غير كافٍ. أعد مراجعة سلة المشتريات.']);
+                    }
+                }
+            }
             DB::table('customer_checkout_operations')->where('id', $operation->id)->update(['consumed_at' => now(), 'order_ids' => json_encode($ids), 'updated_at' => now()]);
             $eligibility->reevaluateCustomer((int) $info['customer_id']);
             return $ids;
@@ -1358,6 +1417,12 @@ class OrderManager
             'billing_address_id' => $data['billing_address_id'] ?? session('billing_address_id'),
             'requestObj' => $data['requestObj'] ?? null,
         ]);
+
+        if (($data['payment_method'] ?? null) === 'offline_payment' && isset($data['offline_payment_submitted_amount'])) {
+            $amountService = app(\App\Services\CheckoutTransferAmountService::class);
+            $amountService->assertSubmitted($data['offline_payment_submitted_amount'],
+                (float) webCurrencyConverterOnlyDigit($amountService->total($vendorWiseCartList)));
+        }
 
         foreach ($vendorWiseCartList as $vendorWiseGroupId => $vendorWiseCart) {
             $order_id = OrderManager::generateNewOrderID();
@@ -1418,7 +1483,11 @@ class OrderManager
             DB::table('orders')->insertGetId($ordersData);
 
             if ($data['payment_method'] == 'offline_payment') {
-                OfflinePayments::insert(['order_id' => $order_id, 'payment_info' => json_encode($data['offline_payment_info']), 'created_at' => Carbon::now()]);
+                $paymentInfo = app(\App\Services\CheckoutTransferAmountService::class)->snapshot(
+                    $data['offline_payment_info'] ?? [], (float) $ordersData['order_amount'],
+                    (float) $ordersData['shipping_cost']
+                );
+                OfflinePayments::insert(['order_id' => $order_id, 'payment_info' => json_encode($paymentInfo), 'created_at' => Carbon::now()]);
             }
 
             self::add_order_status_history($order_id, $getCustomerInfo['customer_id'], $ordersData['order_status'] == 'confirmed' ? 'confirmed' : 'pending', 'customer');
@@ -1595,8 +1664,7 @@ class OrderManager
     public static function getGenerateOrderNotificationInfo(string $vendorType, int $vendorId, object|array $order, mixed $customer): array
     {
         $orderPlacedNotificationEvents = [];
-        $isBlockedByPostPurchaseInvoice = ($order['commerce_flow_version'] ?? null) === \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION
-            && ($order['post_purchase_status'] ?? null) !== \App\Services\PostPurchaseInvoiceService::ORDER_STATUS_RELEASED;
+        $isBlockedByPostPurchaseInvoice = !app(\App\Services\SellerOrderVisibilityService::class)->canSellerAccess($order);
         if ($vendorType == 'seller' && ! $isBlockedByPostPurchaseInvoice) {
             $seller = Seller::find($vendorId);
             if ($seller) {
@@ -1682,8 +1750,7 @@ class OrderManager
                 ]
             ];
 
-            $isBlockedByPostPurchaseInvoice = ($order['commerce_flow_version'] ?? null) === \App\Services\PostPurchaseInvoiceService::CONTRACT_VERSION
-                && ($order['post_purchase_status'] ?? null) !== \App\Services\PostPurchaseInvoiceService::ORDER_STATUS_RELEASED;
+            $isBlockedByPostPurchaseInvoice = $vendorType === 'seller' && !app(\App\Services\SellerOrderVisibilityService::class)->canSellerAccess($order);
             if (! $isBlockedByPostPurchaseInvoice) {
                 $orderPlacedMailEvents[] = [
                     'email' => $vendor['email'],
@@ -1767,7 +1834,7 @@ class OrderManager
         $debitAmount = currencyConverter($debit);
         $walletTransaction->credit = $creditAmount;
         $walletTransaction->debit = $debitAmount;
-        $walletTransaction->balance = $currentBalance + $creditAmount - $debitAmount;
+        $walletTransaction->balance = $currentBalance + $addFundToWalletBonus + $creditAmount - $debitAmount;
         $walletTransaction->created_at = now();
         $walletTransaction->updated_at = now();
         $user->wallet_balance = $currentBalance + $addFundToWalletBonus + $creditAmount - $debitAmount;
@@ -2219,12 +2286,24 @@ class OrderManager
         $response['physical_product_view'] = false;
         $customer = Helpers::getCustomerInformation($request);
         $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
+        if ($customer === 'offline') {
+            return ['status'=>0, 'physical_product_view'=>false, 'registration_required'=>true,
+                'message'=>['أدخل الاسم ورقم الموبايل وكلمة المرور للمتابعة إلى إتمام الشراء.'],
+                'redirect'=>route('customer.auth.checkout-register')];
+        }
         if ($customer !== 'offline' && $eligibility->enabled()) {
             $state = $eligibility->status($customer);
             if (!$state['can_checkout']) return ['status' => 0, 'physical_product_view' => false,
                 'message' => [$state['message']], 'redirect' => route('customer.subscription.index')];
         }
         $message = [];
+        if (app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+            $limitCustomerId = $customer === 'offline' ? 0 : (int) $customer->id;
+            $provisional = !$limitCustomerId || ($state['initial_order_exception_available'] ?? false) || ($state['can_resume_initial_checkout'] ?? false) || ($state['can_pay_before_subscription'] ?? false);
+            $limitSummary = app(\App\Services\CustomerMonthlyAllowanceService::class)->summary($limitCustomerId,
+                app(\App\Services\CustomerPurchaseLimitService::class)->getCheckedCartProductTotal(), $provisional);
+            if (!$limitSummary['can_checkout']) return ['status' => 0, 'physical_product_view' => false, 'message' => ['الحد الائتماني المتاح '.number_format($limitSummary['available_limit'],2).' ج.م لا يغطي سلة المشتريات.'], 'redirect' => route('shop-cart')];
+        }
 
         $verifyStatus = OrderManager::verifyCartListMinimumOrderAmount($request);
         if ($verifyStatus['status'] == 0) {
@@ -2317,10 +2396,8 @@ class OrderManager
                     if ($shippingCost === null && !$isShippingDetailsPage) {
                         $response['status'] = 0;
                         $response['errorType'] = 'shipping-rate-missing';
-                        $response['redirect'] = route('shop-cart');
-                        $message[] = $shippingAddress
-                            ? translate('Please_select_shipping_method')
-                            : translate('select_your_location_on_the_map_to_calculate_shipping');
+                        $response['redirect'] = route('checkout-details');
+                        $message[] = $shippingAddress ? 'اختر طريقة الشحن المتاحة لعنوانك قبل متابعة الدفع.' : 'أكمل عنوان الشحن واختر طريقة الشحن قبل متابعة الدفع.';
                     }
 
                     continue;
@@ -2369,19 +2446,19 @@ class OrderManager
 
                         if ($sellerShippingCount > 0 && $shippingMethod == 'inhouse_shipping' && $inhouseShippingMsgCount < 1) {
                             $cartShipping = CartShipping::where('cart_group_id', $cart->cart_group_id)->first();
-                            if (!isset($cartShipping)) {
+                            if (!isset($cartShipping) && !$isShippingDetailsPage) {
                                 $response['status'] = 0;
                                 $response['errorType'] = 'empty-shipping';
-                                $response['redirect'] = route('shop-cart');
+                                $response['redirect'] = route('checkout-details');
                                 $message[] = translate('select_shipping_method');
                             }
                             $inhouseShippingMsgCount++;
                         } elseif ($sellerShippingCount > 0 && $shippingMethod != 'inhouse_shipping') {
                             $cartShipping = CartShipping::where('cart_group_id', $cart->cart_group_id)->first();
-                            if (!isset($cartShipping)) {
+                            if (!isset($cartShipping) && !$isShippingDetailsPage) {
                                 $response['status'] = 0;
                                 $response['errorType'] = 'empty-shipping';
-                                $response['redirect'] = route('shop-cart');
+                                $response['redirect'] = route('checkout-details');
                                 $shopIdentity = $cart->seller_is == 'admin' ? getInHouseShopConfig(key: 'name') : $cart->seller->shop->name;
                                 $message[] = translate('select') . ' ' . $shopIdentity . ' ' . translate('shipping_method');
                             }
@@ -2507,7 +2584,7 @@ class OrderManager
             ->unique('status')
             ->keyBy('status');
 
-        $order = Order::where('id', $orderId)->select('created_at')->first();
+        $order = Order::where('id', $orderId)->select('created_at', 'updated_at', 'order_status')->first();
 
         if (!$isOrderOnlyDigital) {
             $orderTracking = [
@@ -2552,6 +2629,19 @@ class OrderManager
             }
         }
         unset($statusData);
+
+        // A completed delivery remains authoritative even when an older order
+        // is missing its history entry, or contains an earlier terminal event.
+        if ($order->order_status === 'delivered') {
+            $orderTracking['order_delivered']['status'] = true;
+            $orderTracking['order_delivered']['date_time'] ??= $order->updated_at;
+            foreach (['order_canceled', 'order_returned', 'order_failed'] as $previousTerminal) {
+                if (isset($orderTracking[$previousTerminal])) {
+                    $orderTracking[$previousTerminal]['status'] = false;
+                    $orderTracking[$previousTerminal]['date_time'] = null;
+                }
+            }
+        }
 
         $statusKeys = array_keys($orderTracking);
 

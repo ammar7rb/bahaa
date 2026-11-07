@@ -35,6 +35,8 @@ class OrderShippingProofService
 
     private function storeProof(Order $order, int $sellerId, string $status, UploadedFile $file, ?string $note, ?string &$path): OrderShippingProof
     {
+        if(app(VendorFulfillmentDecisionService::class)->managed($order))throw ValidationException::withMessages(['order'=>'أرفق الإثبات لجزء التنفيذ المعني.']);
+        abort_if(app(VendorFulfillmentEligibilityService::class)->hasRestrictions($order), 423, VendorFulfillmentEligibilityService::MESSAGE);
         $sellerIsResponsible = $order->shipping_fulfillment_mode === 'seller_shipping'
             || $order->shipping_responsible_party === 'seller'
             || $order->shipping_responsibility === 'sellerwise_shipping';

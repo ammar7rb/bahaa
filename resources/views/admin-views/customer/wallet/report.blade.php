@@ -5,6 +5,7 @@
 @section('content')
     <div class="content container-fluid">
         <a class="btn btn--primary mb-3" href="{{ route('admin.customer.wallet.deposits') }}">{{ translate('customer_deposit_requests') }}</a>
+        <a class="btn btn-outline-primary mb-3" href="{{ route('admin.customer.password-recovery.index') }}">طلبات استعادة كلمة المرور</a>
         <h2 class="h1 mb-20 text-capitalize d-flex align-items-center gap-2">
             {{ translate('Customer_Wallet') }}
         </h2>
@@ -256,7 +257,14 @@
                                         {{ translate($transaction['transaction_type']) }}
                                     </span>
                                 </td>
-                                <td>{{ $transaction['reference'] ? translate(str_replace('_', ' ', $transaction['reference'])) : "N/A" }}</td>
+                                <td><bdi>{{ $transaction['reference'] ?: '—' }}</bdi>
+                                    <form method="post" action="{{ route('admin.customer.wallet.transaction-note',$transaction->id) }}" class="mt-2">
+                                        @csrf
+                                        <label for="wallet-note-{{ $transaction->id }}" class="form-label">ملاحظة للعميل</label>
+                                        <textarea id="wallet-note-{{ $transaction->id }}" name="customer_note" class="form-control" maxlength="2000" rows="2">{{ $transaction->customer_note }}</textarea>
+                                        <button class="btn btn-sm btn--primary mt-1">حفظ الملاحظة</button>
+                                    </form>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

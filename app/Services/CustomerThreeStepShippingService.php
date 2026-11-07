@@ -10,6 +10,31 @@ use Illuminate\Support\Facades\DB;
 
 class CustomerThreeStepShippingService
 {
+    /** All groups are supplied from the current customer's checked cart. Prices never come from the browser. */
+    public function applyCheckoutOption(array $groupIds, \App\Models\ShippingAddress $address, string $option): array
+    {
+        if (!in_array($option, ['normal', 'sigma'], true)) throw new \DomainException('اختر طريقة الشحن.');
+        $selections = [];
+        $totals = ['normal' => 0.0, 'sigma' => 0.0];
+        foreach ($groupIds as $groupId) {
+            if (!Cart::where('cart_group_id', $groupId)->where('is_checked', 1)->where('product_type', 'physical')->exists()) continue;
+            $quote = $this->quoteAutomaticDistanceDeliveryOptions($groupId, $address);
+            $selected = $quote['options'][$option] ?? null;
+            if (!$selected || !is_finite((float)$selected['cost']) || $selected['cost'] < 0) {
+                throw new \DomainException('تعذر حساب الشحن لهذا العنوان. راجع بيانات العنوان وحاول مجددًا.');
+            }
+            $selections[$groupId] = ['shipping_method_id'=>$selected['method']->id, 'shipping_cost'=>$selected['cost']];
+            foreach (array_keys($totals) as $key) {
+                if (!isset($quote['options'][$key])) unset($totals[$key]);
+                else $totals[$key] += (float) $quote['options'][$key]['cost'];
+            }
+        }
+        if (!$selections) throw new \DomainException('لا توجد منتجات قابلة للشحن في السلة.');
+        DB::transaction(function () use ($selections) {
+            foreach ($selections as $groupId=>$selection) CartShipping::updateOrCreate(['cart_group_id'=>$groupId], $selection);
+        });
+        return $totals;
+    }
     private const SETTING_METHOD_IDS = 'customer_three_step_shipping_method_ids';
     private ?array $syncedMethodIds = null;
 
@@ -250,9 +275,8 @@ class CustomerThreeStepShippingService
             ];
         }
 
-        // This checkout is intentionally two-choice: neither option may be
-        // silently substituted for the other.
-        if (!isset($options['normal'], $options['sigma'])) {
+        // Keep each option independent; an unavailable service must not block the other.
+        if (!$options) {
             return null;
         }
 
@@ -339,6 +363,45 @@ class CustomerThreeStepShippingService
 
         if ($zoneRatesConfigured) {
             $shippingCost = (float) $zoneCost;
+            $owner = $cartItems->first();
+            if ($owner) {
+                // The zone tariff buys one delivery to one address, irrespective
+                // of how many seller orders the checked basket will generate.
+                $checkoutItems = Cart::where('customer_id', $owner->customer_id)
+                    ->where('is_guest', $owner->is_guest)
+                    ->where('product_type', 'physical')->where('is_checked', 1)
+                    ->whereHas('allProducts', fn ($query) => $query->where('status', 1))
+                    ->get();
+                $groups = $checkoutItems->pluck('cart_group_id')->unique()->sort()->values();
+                $index = $groups->search($cartGroupId, strict: true);
+                if ($index !== false) {
+                    $checkoutQuantity = $checkoutItems->sum(fn ($item) => max(0, (int) $item->quantity));
+                    $checkoutTotal = $this->applyQuantitySurcharge($shippingCost, $checkoutQuantity);
+                    // Allocate integer thousandths, including the remainder,
+                    // so seller invoices sum exactly to the quoted delivery.
+                    $share = static function (float $amount) use ($groups, $index): float {
+                        $units = (int) round($amount * 1000);
+                        return (intdiv($units, $groups->count()) + ($index < $units % $groups->count() ? 1 : 0)) / 1000;
+                    };
+                    $groupBase = $share($shippingCost);
+                    $groupTotal = $share($checkoutTotal);
+                    return [
+                        'shipping_quantity' => $totalQuantity,
+                        'shipping_product_subtotal' => $groupBase,
+                        'shipping_quantity_surcharge' => round($groupTotal - $groupBase, 3),
+                        'total_shipping_cost' => $groupTotal,
+                        'shipping_price_snapshot' => array_merge($zoneQuote, [
+                            'allocation' => 'one_delivery_across_seller_orders',
+                            'checkout_quantity' => $checkoutQuantity,
+                            'checkout_total' => round($checkoutTotal, 3),
+                            'group_count' => $groups->count(),
+                            'quantity' => $totalQuantity,
+                            'quantity_surcharge' => round($groupTotal - $groupBase, 3),
+                            'final_total' => $groupTotal,
+                        ]),
+                    ];
+                }
+            }
         }
 
         $totalShippingCost = $this->applyQuantitySurcharge($shippingCost, $totalQuantity);

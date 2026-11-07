@@ -37,6 +37,10 @@ $(document).ready(function () {
         syncEgyptianPhone();
     });
 
+    $('#seller-registration').on('input', '.first-el [required]', function () {
+        this.setCustomValidity('');
+    });
+
     $('.proceed-to-next-btn').click(function () {
         const registrationForm = document.getElementById('seller-registration');
         const firstStepRequiredInputs = registrationForm
@@ -160,81 +164,61 @@ function submitRegistration() {
         $('.second-el').fadeOut(0);
         return;
     }
-    let getText = $('#get-confirm-and-cancel-button-text');
-    const getFormId = 'seller-registration';
-    Swal.fire({
-        title: getText.data('sure'),
-        text: getText.data('message'),
-        type: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        cancelButtonText: getText.data('cancel'),
-        confirmButtonText: getText.data('confirm'),
-        reverseButtons: true
-    }).then((result) => {
-        if (result.value) {
-
-            let formData = new FormData(document.getElementById(getFormId));
-            $.ajaxSetup({
-                headers: {
-                    'X-XSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                }
-            });
-            $.post({
-                url: $('#' + getFormId).attr('action'),
-                data: formData,
-                contentType: false,
-                processData: false,
-                beforeSend: function () {
-                    $("#loading").addClass("d-grid");
-                },
-                success: function (data) {
-                    if (data.errors) {
-                        for (let index = 0; index < data.errors.length; index++) {
-                            toastr.error(data.errors[index].message, {
-                                CloseButton: true,
-                                ProgressBar: true
-                            });
-                        }
-                    } else if (data.error) {
-                        toastr.error(data.error, {
-                            CloseButton: true,
-                            ProgressBar: true
-                        });
-                    } else {
-                        $('.registration-success-modal').modal('show');
-                        setTimeout(function () {
-                            location.href = data.redirectRoute;
-                        }, 2000);
-                    }
-                }, error: function (xhr) {
-                    if (xhr.status === 422) {
-                        const errors = xhr.responseJSON?.errors;
-                        if (errors) {
-                            Object.keys(errors).forEach(function (key) {
-                                toastr.error(errors[key][0]);
-                            });
-                        } else if (xhr.responseJSON?.error) {
-                            toastr.error(xhr.responseJSON.error);
-                        } else if (xhr.responseJSON?.message) {
-                            toastr.error(xhr.responseJSON.message);
-                        }
-                    } else {
-                        const errorMessage = xhr.responseJSON?.error || xhr.responseJSON?.message || 'Something went wrong!';
-                        toastr.error(errorMessage);
-                    }
-                }, complete: function () {
-                    $("#loading").removeClass("d-grid");
-                },
-            })
+    if (registrationForm.dataset.submitting) return;
+    registrationForm.dataset.submitting = "true";
+    const getFormId = "seller-registration";
+    let formData = new FormData(document.getElementById(getFormId));
+    $.ajaxSetup({
+        headers: {
+            'X-XSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         }
+    });
+    $.post({
+        url: $('#' + getFormId).attr('action'),
+        data: formData,
+        contentType: false,
+        processData: false,
+        beforeSend: function () {
+            $("#loading").addClass("d-grid");
+        },
+        success: function (data) {
+            if (data.errors) {
+                for (let index = 0; index < data.errors.length; index++) {
+                    toastr.error(data.errors[index].message, {
+                        CloseButton: true,
+                        ProgressBar: true
+                    });
+                }
+            } else if (data.error) {
+                toastr.error(data.error, {
+                    CloseButton: true,
+                    ProgressBar: true
+                });
+            } else {
+                $('.registration-success-modal').modal('show');
+                setTimeout(function () {
+                    location.href = data.redirectRoute;
+                }, 2000);
+            }
+        }, error: function (xhr) {
+            if (xhr.status === 422) {
+                const errors = xhr.responseJSON?.errors;
+                if (errors) {
+                    Object.keys(errors).forEach(function (key) {
+                        toastr.error(errors[key][0]);
+                    });
+                } else if (xhr.responseJSON?.error) {
+                    toastr.error(xhr.responseJSON.error);
+                } else if (xhr.responseJSON?.message) {
+                    toastr.error(xhr.responseJSON.message);
+                }
+            } else {
+                const errorMessage = xhr.responseJSON?.error || xhr.responseJSON?.message || 'Something went wrong!';
+                toastr.error(errorMessage);
+            }
+        }, complete: function () {
+            $("#loading").removeClass("d-grid");
+            delete registrationForm.dataset.submitting;
+        },
     })
 }
-$('#terms-checkbox').on('click', function () {
-    if ($(this).is(':checked')) {
-        $('#vendor-apply-submit').removeClass('disabled')
-    } else {
-        $('#vendor-apply-submit').addClass('disabled')
-    }
-})

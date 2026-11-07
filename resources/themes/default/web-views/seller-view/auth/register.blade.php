@@ -69,7 +69,7 @@
                                                         <span class="text-danger fs-12 password-error"></span>
                                                     </label>
                                                     <div class="password-toggle rtl">
-                                                        <input class="form-control text-align-direction password-check"
+                                                        <input class="form-control text-align-direction password-check" data-special-character-optional="true"
                                                             name="password" type="password" id="password"
                                                             placeholder="{{ translate('minimum_8_characters_long') }}"
                                                             required>
@@ -99,14 +99,6 @@
                                                     </div>
                                                     <small class="text-danger confirm-password-error"></small>
                                                 </div>
-                                            </div>
-                                            <div class="col-12 mb-4">
-                                                <label class="d-flex align-items-start gap-2" for="seller-combined-terms">
-                                                    <input type="checkbox" id="seller-combined-terms" name="terms_accepted" value="1" required>
-                                                    <span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'أقر بأنني موافق على' : 'I acknowledge that I agree to the' }}
-                                                        <a href="{{ route('business-page.view', ['slug'=>'terms-and-conditions']) }}" target="_blank" rel="noopener">{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}</a>
-                                                    </span>
-                                                </label>
                                             </div>
                                             @if($requiredSellerPolicies->isNotEmpty())
                                                 <div class="col-12">
@@ -173,9 +165,6 @@
             </div>
         </div>
     </div>
-    <span id="get-confirm-and-cancel-button-text" data-sure ="{{ translate('are_you_sure') . '?' }}"
-        data-message="{{ translate('want_to_apply_as_a_vendor') . '?' }}" data-confirm="{{ translate('yes') }}"
-        data-cancel="{{ translate('no') }}"></span>
     <span id="registration-availability-endpoint" data-url="{{ route('vendor.auth.registration.check-availability') }}"></span>
     <span id="proceed-to-next-validation-message" data-mail-error="{{ translate('please_enter_your_email') . '.' }}"
         data-phone-error="{{ translate('please_enter_your_phone_number') . '.' }}"

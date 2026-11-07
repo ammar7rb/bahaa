@@ -59,7 +59,7 @@ function colorWiseImageFunctionality(t) {
                     <input type="file" name="${color}" class="single_file_input upload-file__input action-upload-color-image"
                     id="color-img-upload-${key}" data-index="1" data-imgpreview="additional_Image_${key}"
                      data-validation-error-msg="Only allowed extensions are: .jpg, .jpeg, .png, .webp"
-                    accept=".jpg, .webp, .png, .jpeg" data-max-size="${maxFileSizeLimit}" required>
+                    accept=".jpg, .webp, .png, .jpeg" data-max-size="${maxFileSizeLimit}">
                 </label>
 
                 <div class="position-absolute start-0 z-10">

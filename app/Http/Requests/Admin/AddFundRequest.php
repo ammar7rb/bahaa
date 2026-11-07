@@ -42,6 +42,9 @@ class AddFundRequest extends FormRequest
         return [
             'customer_id' => 'required|exists:users,id',
             'amount' => 'required|numeric|min:.01|max:10000000',
+            'request_key' => 'required|uuid',
+            'reference' => 'required|string|max:2000',
+            'confirmation' => ['required','string',\Illuminate\Validation\Rule::in([\App\Services\AdministrativeReferenceService::format('customer',(int)$this->input('customer_id'))])],
         ];
     }
 

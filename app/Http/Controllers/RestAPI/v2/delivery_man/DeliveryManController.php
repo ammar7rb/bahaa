@@ -35,6 +35,16 @@ class DeliveryManController extends Controller
 {
     use CommonTrait;
 
+    public function order_list_date_filter(Request $request): JsonResponse
+    {
+        $request->validate([
+            'date_type' => 'nullable|in:today,this_week,this_month,this_year,custom_date',
+            'start_date' => 'required_if:date_type,custom_date|date',
+            'end_date' => 'required_if:date_type,custom_date|date|after_or_equal:start_date',
+        ]);
+        return $this->get_all_orders($request);
+    }
+
     public function __construct(
         private Order $order,
     )
@@ -123,6 +133,18 @@ class DeliveryManController extends Controller
     }
 
     public function update_order_status(Request $request):JsonResponse
+    {
+        $request->validate(['order_id'=>'required|integer|min:1','status'=>'required|in:pending,confirmed,processing,out_for_delivery,delivered,returned,failed,canceled']);
+        try{return \Illuminate\Support\Facades\DB::transaction(function()use($request){
+            $driver=$request->input('delivery_man');
+            $order=Order::where('delivery_man_id',$driver['id']??null)->lockForUpdate()->findOrFail($request->order_id);
+            app(\App\Services\VendorFulfillmentDecisionService::class)->assertLegacyMutationAllowed($order);
+            app(\App\Services\OrderWorkflowService::class)->assertTransition($order->order_status,$request->status,'delivery_man');
+            return $this->applyLegacyOrderStatus($request);
+        },3);}catch(\DomainException $error){return response()->json(['message'=>$error->getMessage()],422);}
+    }
+
+    private function applyLegacyOrderStatus(Request $request):JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'order_id' => 'required',

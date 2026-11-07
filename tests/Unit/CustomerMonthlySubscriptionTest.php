@@ -45,7 +45,7 @@ class CustomerMonthlySubscriptionTest extends TestCase
         $this->assertSame('01012345678',$p->fresh()->method_information['sender_phone']);
         $this->assertSame(0,CustomerMonthlySubscription::count());
     }
-    public function test_sender_form_uses_server_reference_and_quote_and_retry_does_not_duplicate_proof(): void
+    public function test_retired_subscription_transfer_endpoint_never_writes_proof_or_charges(): void
     {
         $p=$this->checkout();
         $method=OfflinePaymentMethod::create(['method_name'=>'InstaPay','payment_channel'=>'instapay','status'=>1,'method_informations'=>[['customer_input'=>'transaction_number','is_required'=>true]]]);
@@ -55,13 +55,11 @@ class CustomerMonthlySubscriptionTest extends TestCase
         ],[],['payment_proof'=>\Illuminate\Http\UploadedFile::fake()->image('receipt.png')]);
         $request->setUserResolver(fn()=>\App\Models\User::find(1));
         $controller=app(\App\Http\Controllers\Customer\MonthlySubscriptionController::class);
-        $controller->offline($request,$p->id);
-        $controller->offline($request,$p->id);
-        $this->assertSame('subscription-transfer-'.$p->id.'-'.$p->request_key,$p->fresh()->payment_reference);
-        $this->assertSame('01012345678',$p->fresh()->method_information['sender_phone']);
-        $this->assertSame('حساب العميل',$p->fresh()->method_information['sender_name']);
-        $this->assertSame('pending_review',$p->fresh()->status);
-        $this->assertCount(1,\Illuminate\Support\Facades\Storage::disk('local')->allFiles());
+        for($retry=0;$retry<2;$retry++){try{$controller->offline($request,$p->id);$this->fail('Retired transfer accepted');}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){$this->assertSame(410,$e->getStatusCode());}}
+        $this->assertNull($p->fresh()->payment_reference);
+        $this->assertSame('draft',$p->fresh()->status);
+        $this->assertCount(0,\Illuminate\Support\Facades\Storage::disk('local')->allFiles());
+        $this->assertSame(0,DB::table('wallet_transactions')->count());
         $this->assertSame(0,CustomerMonthlySubscription::count());
     }
     private function checkout(?string $key=null): CustomerSubscriptionPayment {return app(CustomerMonthlySubscriptionService::class)->checkout(1,$key ?? (string)Str::uuid());}
@@ -147,15 +145,15 @@ class CustomerMonthlySubscriptionTest extends TestCase
             ->assertJsonMissingPath('subscription.open_payment.payment_proof');
         $this->actingAs(\App\Models\User::find(2),'api')->getJson('http://localhost/api/v1/customer/subscription')->assertOk()->assertJsonPath('subscription.open_payment',null);
     }
-    public function test_starting_payment_with_empty_wallet_only_creates_draft_and_never_debits(): void {
+    public function test_retired_quote_endpoint_does_not_create_a_draft_or_debit(): void {
         DB::table('users')->where('id',1)->update(['wallet_balance'=>0]);
         $key=(string)Str::uuid();
         $this->actingAs(\App\Models\User::find(1),'api')
             ->postJson('http://localhost/api/v1/customer/subscription/checkout',['request_key'=>$key])
-            ->assertOk()->assertJsonPath('payment.status','draft');
+            ->assertStatus(410);
         $this->postJson('http://localhost/api/v1/customer/subscription/checkout',['request_key'=>$key])
-            ->assertOk()->assertJsonPath('payment.status','draft');
-        $this->assertSame(1,CustomerSubscriptionPayment::count());
+            ->assertStatus(410);
+        $this->assertSame(0,CustomerSubscriptionPayment::count());
         $this->assertSame(0,DB::table('wallet_transactions')->count());
         $this->assertSame(0,CustomerMonthlySubscription::count());
         $this->assertEquals(0,DB::table('users')->where('id',1)->value('wallet_balance'));
@@ -163,9 +161,10 @@ class CustomerMonthlySubscriptionTest extends TestCase
 
     public function test_api_rejects_user_supplied_price_and_foreign_payment_id(): void {
         $this->actingAs(\App\Models\User::find(1),'api')->postJson('http://localhost/api/v1/customer/subscription/checkout',['request_key'=>(string)Str::uuid(),'quoted_amount'=>1])
-            ->assertOk()->assertJsonPath('payment.quoted_amount','100.000');
-        $p=CustomerSubscriptionPayment::first();
-        $this->actingAs(\App\Models\User::find(2),'api')->postJson('http://localhost/api/v1/customer/subscription/'.$p->id.'/wallet')->assertNotFound();
+            ->assertStatus(410);
+        $p=$this->checkout();
+        $this->actingAs(\App\Models\User::find(2),'api')->postJson('http://localhost/api/v1/customer/subscription/'.$p->id.'/wallet')->assertStatus(410);
+        $this->assertEquals(300,DB::table('users')->where('id',1)->value('wallet_balance'));
     }
     public function test_transfer_amount_mismatch_leaves_payment_draft_and_subscription_inactive(): void {
         $p=$this->checkout();$method=OfflinePaymentMethod::create(['method_name'=>'InstaPay','payment_channel'=>'instapay']);

@@ -29,7 +29,7 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'f_name', 'l_name', 'name', 'email', 'password', 'country_code', 'phone', 'image', 'login_medium',
+        'f_name', 'l_name', 'organization_name', 'name', 'email', 'password', 'country_code', 'phone', 'image', 'login_medium',
         'is_active', 'social_id', 'is_phone_verified', 'temporary_token', 'referral_code', 'referred_by',
         'street_address', 'country', 'city', 'zip', 'terms_accepted_at', 'privacy_accepted_at',
         'monthly_insurance_started_at', 'monthly_insurance_paid_until', 'monthly_insurance_last_paid_at'
@@ -116,23 +116,21 @@ class User extends Authenticatable
 
     public function getImageFullUrlAttribute(): array
     {
-        $value = $this->image;
-        if (count($this->storage) > 0 && $this->storageConnectionCheck() == 's3') {
-            foreach ($this->storage as $storage) {
-                if ($storage['key'] == 'image') {
-                    return $this->storageLink('profile', $value, $storage['value']);
-                }
-            }
-        }
-        return $this->storageLink('profile', $value, 'public');
+        return app(\App\Services\AccountPhotoAccess::class)->link('customer', (int) $this->id, $this->image);
     }
 
     protected $with = ['storage'];
-    protected $appends = ['image_full_url'];
+    protected $appends = ['image_full_url', 'administrative_reference'];
+
+    public function getAdministrativeReferenceAttribute(): string
+    {
+        return \App\Services\AdministrativeReferenceService::format('customer', (int) $this->id);
+    }
 
     protected static function boot(): void
     {
         parent::boot();
+        static::updated(fn ($user) => app(\App\Services\CustomerProfileAuditService::class)->profile($user));
         static::saved(function ($model) {
             if ($model->isDirty('image')) {
                 $value = getWebConfig(name: 'storage_connection_type') ?? 'public';

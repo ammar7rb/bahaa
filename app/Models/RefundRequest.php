@@ -13,6 +13,7 @@ class RefundRequest extends Model
     use HasFactory,StorageTrait;
 
     protected $fillable = [
+        'fulfillment_request_id',
         'order_details_id',
         'customer_id',
         'status',

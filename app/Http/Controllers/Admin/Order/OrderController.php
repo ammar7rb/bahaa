@@ -201,7 +201,7 @@ class OrderController extends BaseController
             searchValue: $searchValue,
             filters: $filters,
             whereIn: $filterWhereIn,
-            relations: ['details', 'customer', 'seller.shop', 'orderEditHistory', 'postPurchaseInvoice', 'insurance'],
+            relations: ['details', 'customer', 'seller.shop', 'orderEditHistory', 'latestEditHistory'],
             dataLimit: getWebConfig(name: WebConfigKey::PAGINATION_LIMIT)
         );
 
@@ -637,6 +637,28 @@ class OrderController extends BaseController
         $this->generatePdf(view: $mpdfView, filePrefix: 'order_invoice_', filePostfix: $order['id'], pdfType: 'invoice');
     }
 
+    public function rejectCancellation(Request $request, int $id): RedirectResponse
+    {
+        $input = $request->validate(['reason' => 'required|string|max:1000']);
+        DB::transaction(function () use ($id, $input) {
+            $order = Order::lockForUpdate()->findOrFail($id);
+            abort_unless($order->customer_cancel_request_status === 'pending', 409);
+            $order->customer_cancel_request_status = 'rejected';
+            $order->save();
+            if (\Illuminate\Support\Facades\Schema::hasTable('order_admin_purchase_refunds')) {
+                DB::table('order_admin_purchase_refunds')->where('order_id', $id)
+                    ->where('reason', 'customer_canceled_waiting_for_package')->where('status', 'customer_requested')
+                    ->update(['status' => 'rejected', 'admin_id' => auth('admin')->id(), 'admin_note' => $input['reason'], 'updated_at' => now()]);
+            }
+            app(\App\Services\CustomerPaymentNotificationService::class)->notify(
+                (int) $order->customer_id, 'order-status-'.$id.'-cancel-request-rejected',
+                'تم رفض طلب إلغاء الطلب #'.$id.'. '.$input['reason'],
+            );
+        });
+
+        return back()->with('success', 'تم رفض طلب الإلغاء.');
+    }
+
     public function updateStatus(
         Request                       $request,
         DeliveryManTransactionService $deliveryManTransactionService,
@@ -644,13 +666,20 @@ class OrderController extends BaseController
         OrderStatusHistoryService     $orderStatusHistoryService,
     ): JsonResponse
     {
+        return DB::transaction(function () use ($request, $deliveryManTransactionService, $deliveryManWalletService, $orderStatusHistoryService): JsonResponse {
+            $locked = Order::query()->lockForUpdate()->findOrFail($request['id']);
+            if ($locked->order_status === $request['order_status']) return response()->json(['status' => 1, 'already_applied' => true]);
+            $request->validate(['workflow_reason' => ['required', 'string', 'max:5000']]);
+
         $order = $this->orderRepo->getFirstWhere(params: ['id' => $request['id']], relations: ['customer', 'seller.shop', 'deliveryMan', 'latestEditHistory']);
 
         if ($order->customer_checkout_operation_id && in_array($request['order_status'], ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) {
             $eligibility = app(\App\Services\CustomerPurchaseEligibilityService::class);
-            $eligibility->reevaluateCustomer((int) $order->customer_id);
-            $order->refresh();
-            if (!$order->customer_eligible_at || !$order->customer->is_active || $order->is_pause) return response()->json(['status' => 0, 'message' => (!$order->customer->is_active || $order->is_pause) ? $eligibility->message(['administrative_freeze']) : $eligibility->orderPayload($order)['message']]);
+            try {
+                $eligibility->assertCanFulfill($order);
+            } catch (\Illuminate\Validation\ValidationException $exception) {
+                return response()->json(['status' => 0, 'message' => collect($exception->errors())->flatten()->first()]);
+            }
         }
         if (!$order['is_guest'] && !isset($order['customer'])) {
             return response()->json([
@@ -724,6 +753,10 @@ class OrderController extends BaseController
         }
         $this->orderRepo->updateStockOnOrderStatusChange($request['id'], $request['order_status']);
         $this->orderRepo->update(id: $request['id'], data: ['order_status' => $request['order_status']]);
+        if ($request['order_status'] === 'canceled' && $locked->customer_cancel_request_status === 'pending') {
+            $locked->customer_cancel_request_status = 'approved';
+            $locked->save();
+        }
         if ($request['order_status'] == 'delivered') {
             $this->orderRepo->update(id: $request['id'], data: ['payment_status' => 'paid', 'is_pause' => 0]);
             $this->orderDetailRepo->updateWhere(params: ['order_id' => $order['id']], data: ['delivery_status' => $request['order_status'], 'payment_status' => 'paid']);
@@ -781,7 +814,7 @@ class OrderController extends BaseController
             }
         }
 
-        $orderStatusHistoryData = $orderStatusHistoryService->getOrderHistoryData(orderId: $request['id'], userId: 0, userType: 'admin', status: $request['order_status']);
+        $orderStatusHistoryData = $orderStatusHistoryService->getOrderHistoryData(orderId: $request['id'], userId: (int) auth('admin')->id(), userType: 'admin', status: $request['order_status']);
         $this->orderStatusHistoryRepo->add($orderStatusHistoryData);
         OrderManager::removeOldStatusHistory(orderId: $request['id'], orderStatus: $request['order_status']);
 
@@ -806,6 +839,7 @@ class OrderController extends BaseController
             'status' => 1,
             'message' => translate('status_change_successfully'),
         ]);
+        });
     }
 
     public function updateAddress(Request $request): RedirectResponse
@@ -963,32 +997,7 @@ class OrderController extends BaseController
         string|int $id,
         SellerOrderInsuranceService $service,
     ): RedirectResponse {
-        $validated = $request->validate([
-            'action' => ['required', 'in:extend,waive,keep_locked,transfer_to_operations,request_cancellation'],
-            'reason' => ['required', 'string', 'max:5000'],
-            'extension_days' => ['nullable', 'required_if:action,extend', 'integer', 'min:1', 'max:90'],
-        ]);
-
-        $order = Order::query()->with('sellerOrderInsurance')->find($id);
-        if (! $order?->sellerOrderInsurance) {
-            ToastMagic::error(translate('seller_order_insurance_not_found'));
-            return back();
-        }
-
-        try {
-            $service->decideExpired(
-                insurance: $order->sellerOrderInsurance,
-                action: $validated['action'],
-                reason: $validated['reason'],
-                adminId: auth('admin')->id(),
-                extensionDays: $validated['extension_days'] ?? null,
-            );
-            ToastMagic::success(translate('seller_order_insurance_decision_saved'));
-        } catch (\Throwable $exception) {
-            ToastMagic::error(translate($exception->getMessage()));
-        }
-
-        return back();
+        abort(410, translate('seller_insurance_retired'));
     }
 
     public function addDeliveryMan(string|int $order_id, string|int $delivery_man_id): JsonResponse
@@ -1085,12 +1094,7 @@ class OrderController extends BaseController
                     'message' => translate('purchase_payment_approved_customer_insurance_created'),
                 ]);
             }
-            $insurance = OrderInsurance::where('order_id', $request['id'])
-                ->where('status', 'pending_payment')
-                ->first();
-            if ($insurance) {
-                app(OrderInsuranceService::class)->markPaid($insurance, auth('admin')->id(), translate('payment_status_approved_by_admin'));
-            }
+            // Historical deposit payments are settled only by their own financial record.
         }
         return response()->json([
             'status' => 1,

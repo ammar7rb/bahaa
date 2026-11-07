@@ -58,12 +58,16 @@ class AccountActivationCenterService
     public function saveField(AccountActivationCase $case, array $data, int $adminId): AccountActivationProfileField
     {
         return DB::transaction(function () use ($case, $data, $adminId) {
+            $case = AccountActivationCase::query()->lockForUpdate()->findOrFail($case->id);
             $this->assertEditable($case);
-            $fieldKey = $this->resolveProfileFieldKey($case, (string) $data['label']);
-            $field = AccountActivationProfileField::query()->firstOrNew([
-                'account_activation_case_id' => $case->id,
-                'field_key' => $fieldKey,
-            ]);
+            if (!empty($data['field_id'])) {
+                $field = $case->fields()->whereKey($data['field_id'])->firstOrFail();
+            } else {
+                $fieldKey = $this->resolveProfileFieldKey($case, (string) $data['label']);
+                $field = AccountActivationProfileField::query()->firstOrNew([
+                    'account_activation_case_id' => $case->id, 'field_key' => $fieldKey,
+                ]);
+            }
             $created = ! $field->exists;
             $field->fill([
                 'label' => $data['label'],
@@ -171,6 +175,41 @@ class AccountActivationCenterService
 
     public function storeDocument(AccountActivationCase $case, array $data, UploadedFile $file, int $adminId): AccountActivationDocument
     {
+        return DB::transaction(function () use ($case, $data, $file, $adminId) {
+            $locked = AccountActivationCase::query()->lockForUpdate()->findOrFail($case->id);
+            return $this->persistDocument($locked, $data, $file, $adminId);
+        });
+    }
+
+    public function replaceDocument(AccountActivationCase $case, AccountActivationDocument $document, UploadedFile $file, int $adminId): AccountActivationDocument
+    {
+        abort_unless((int) $document->account_activation_case_id === (int) $case->id, 404);
+        return DB::transaction(function () use ($case, $document, $file, $adminId) {
+            $locked = AccountActivationCase::query()->lockForUpdate()->findOrFail($case->id);
+            $document->refresh();
+            $data = ['document_type' => $document->document_type, 'other_document_name' => $document->custom_name,
+                'document_number' => $document->document_number, 'expires_at' => $document->expires_at,
+                'is_required' => $document->is_required, 'is_verified' => false];
+            return $this->persistDocument($locked, $data, $file, $adminId, $document);
+        });
+    }
+
+    public function removeDocument(AccountActivationCase $case, AccountActivationDocument $document, int $adminId): void
+    {
+        abort_unless((int) $document->account_activation_case_id === (int) $case->id, 404);
+        DB::transaction(function () use ($case, $document, $adminId) {
+            $locked = AccountActivationCase::query()->lockForUpdate()->findOrFail($case->id);
+            $this->assertEditable($locked);
+            $document->refresh();
+            if ($document->is_required) throw new DomainException('required_activation_evidence_must_be_verified');
+            // Preserve private evidence and its account association for audit retention.
+            $document->delete();
+            $this->event($locked, 'document_removed', $adminId, null, null, null, ['document_id' => $document->id]);
+        });
+    }
+
+    private function persistDocument(AccountActivationCase $case, array $data, UploadedFile $file, int $adminId, ?AccountActivationDocument $existing = null): AccountActivationDocument
+    {
         $this->assertEditable($case);
         $disk = (string) config('account_workflows.activation_center.private_disk', 'local');
         $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin');
@@ -186,7 +225,16 @@ class AccountActivationCenterService
             throw new DomainException('activation_document_storage_failed');
         }
 
-        $document = AccountActivationDocument::query()->create([
+        $metadata = ['source' => 'activation_center', 'encrypted_at_rest' => $encryptAtRest];
+        if ($existing) {
+            $metadata['previous_versions'] = array_merge($existing->metadata['previous_versions'] ?? [], [[
+                'storage_disk' => $existing->storage_disk, 'storage_path' => $existing->storage_path,
+                'sha256' => $existing->sha256, 'original_name' => $existing->original_name,
+                'replaced_at' => now()->toIso8601String(), 'admin_id' => $adminId,
+            ]]);
+        }
+        $document = $existing ?? new AccountActivationDocument();
+        $document->fill([
             'account_activation_case_id' => $case->id,
             'document_type' => $data['document_type'],
             'custom_name' => $data['document_type'] === 'other' ? trim((string) $data['other_document_name']) : null,
@@ -203,10 +251,10 @@ class AccountActivationCenterService
             'uploaded_by_admin_id' => $adminId,
             'verified_by_admin_id' => ! empty($data['is_verified']) ? $adminId : null,
             'verified_at' => ! empty($data['is_verified']) ? now() : null,
-            'metadata' => ['source' => 'activation_center', 'encrypted_at_rest' => $encryptAtRest],
-        ]);
+            'metadata' => $metadata,
+        ])->save();
 
-        $this->event($case, 'document_added', $adminId, null, null, null, [
+        $this->event($case, $existing ? 'document_replaced' : 'document_added', $adminId, null, null, null, [
             'document_id' => $document->id,
             'document_type' => $document->document_type,
             'document_name' => $document->custom_name,
@@ -218,24 +266,25 @@ class AccountActivationCenterService
         return $document;
     }
 
-    public function verifyDocument(AccountActivationCase $case, AccountActivationDocument $document, string $status, int $adminId): AccountActivationDocument
+    public function verifyDocument(AccountActivationCase $case, AccountActivationDocument $document, string $status, int $adminId, ?string $expectedHash = null): AccountActivationDocument
     {
-        $this->assertEditable($case);
-        if ((int) $document->account_activation_case_id !== (int) $case->id) {
-            throw new DomainException('activation_document_case_mismatch');
-        }
-
-        $document->update([
-            'verification_status' => $status,
-            'verified_by_admin_id' => $adminId,
-            'verified_at' => now(),
-        ]);
-        $this->event($case, 'document_verification_changed', $adminId, null, null, null, [
-            'document_id' => $document->id,
-            'verification_status' => $status,
-        ]);
-
-        return $document->fresh();
+        $expectedHash ??= $document->sha256;
+        abort_unless((int) $document->account_activation_case_id === (int) $case->id, 404);
+        return DB::transaction(function () use ($case, $document, $status, $adminId, $expectedHash) {
+            $locked = AccountActivationCase::query()->lockForUpdate()->findOrFail($case->id);
+            $this->assertEditable($locked);
+            $current = $locked->documents()->whereKey($document->id)->lockForUpdate()->firstOrFail();
+            if (!hash_equals($current->sha256, $expectedHash)) {
+                throw new DomainException('activation_document_changed_refresh_before_verifying');
+            }
+            $current->update([
+                'verification_status' => $status, 'verified_by_admin_id' => $adminId, 'verified_at' => now(),
+            ]);
+            $this->event($locked, 'document_verification_changed', $adminId, null, null, null, [
+                'document_id' => $current->id, 'verification_status' => $status, 'sha256' => $current->sha256,
+            ]);
+            return $current->fresh();
+        });
     }
 
     public function recordDocumentAccess(AccountActivationCase $case, AccountActivationDocument $document, int $adminId): void
@@ -251,7 +300,37 @@ class AccountActivationCenterService
         ]);
     }
 
-    public function reply(AccountActivationCase $case, string $message, int $adminId): void
+    /** Persist the retry key under the same case lock as the original message. */
+    public function reply(AccountActivationCase $case, string $message, int $adminId, ?string $requestId = null, array $files = []): void
+    {
+        $stored = [];
+        $directory = $case->source_type === 'support_ticket' ? 'support-ticket' : 'seller-activation-ticket';
+        try {
+            DB::transaction(function () use ($case, $message, $adminId, $requestId, $files, $directory, &$stored) {
+                $locked = AccountActivationCase::query()->lockForUpdate()->findOrFail($case->id);
+                if ($requestId && $locked->events()->where('event_type', 'message_request_completed')
+                    ->where('admin_id', $adminId)->where('metadata->request_id', $requestId)->exists()) return;
+                $this->assertEditable($locked);
+                $attachments = [];
+                foreach ($files as $file) {
+                    $name = Str::uuid().'.'.$file->extension();
+                    $path = Storage::disk('public')->putFileAs($directory, $file, $name);
+                    if (!$path) throw new DomainException('activation_document_storage_failed');
+                    $stored[] = $path;
+                    $attachments[] = ['file_name' => $name, 'storage' => 'public',
+                        'original_name' => $file->getClientOriginalName(), 'mime_type' => $file->getMimeType()];
+                }
+                $this->persistReply($locked, $message, $adminId, $attachments);
+                $locked->touch();
+                if ($requestId) $this->event($locked, 'message_request_completed', $adminId, null, null, null, ['request_id' => $requestId]);
+            });
+        } catch (\Throwable $exception) {
+            foreach ($stored as $path) Storage::disk('public')->delete($path);
+            throw $exception;
+        }
+    }
+
+    private function persistReply(AccountActivationCase $case, string $message, int $adminId, array $attachments): void
     {
         if ($case->isCompleted()) {
             throw new DomainException('completed_activation_case_is_read_only');
@@ -263,6 +342,7 @@ class AccountActivationCenterService
                 'admin_id' => $adminId,
                 'admin_message' => $message,
                 'position' => 1,
+                'attachment' => json_encode($attachments),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -273,7 +353,7 @@ class AccountActivationCenterService
                 'sender_type' => 'admin',
                 'sender_admin_id' => $adminId,
                 'body' => $message,
-                'attachments' => null,
+                'attachments' => json_encode($attachments),
                 'is_automatic' => false,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -298,7 +378,10 @@ class AccountActivationCenterService
     public function approve(AccountActivationCase $case, string|null $note, int $adminId): AccountActivationCase
     {
         return DB::transaction(function () use ($case, $note, $adminId) {
-            if ($case->subject_type === AccountActivationCase::SUBJECT_CUSTOMER) \App\Models\User::lockForUpdate()->findOrFail($case->subject_id);
+            if ($case->subject_type === AccountActivationCase::SUBJECT_CUSTOMER) {
+                $customer = \App\Models\User::lockForUpdate()->findOrFail($case->subject_id);
+                if ($customer->account_deleted_at) throw new DomainException('حساب العميل محذوف نهائيًا. لا يمكن إعادة تفعيله.');
+            }
             $locked = AccountActivationCase::query()->lockForUpdate()->findOrFail($case->id);
             $this->assertEditable($locked);
             $this->assertRequiredEvidenceIsVerified($locked);
@@ -330,15 +413,15 @@ class AccountActivationCenterService
         if ($case->source_type === 'support_ticket' && Schema::hasTable('support_tickets')) {
             $ticket = DB::table('support_tickets')->where('id', $case->source_id)->first();
             $initial = $ticket && $ticket->description ? collect([[
-                'sender_type' => 'customer', 'body' => $ticket->description,
+                'id' => 'initial', 'sender_type' => 'customer', 'body' => $ticket->description,
                 'created_at' => $ticket->created_at,
                 'attachments' => $this->normalizeMessageAttachments($ticket->attachment ?? null),
             ]]) : collect();
             $conversation = Schema::hasTable('support_ticket_convs')
                 ? DB::table('support_ticket_convs')->where('support_ticket_id', $case->source_id)->orderBy('id')->get()->map(fn ($row) => [
                     'id' => $row->id,
-                    'sender_type' => $row->admin_message ? 'admin' : 'customer',
-                    'body' => $row->admin_message ?: $row->customer_message,
+                    'sender_type' => $row->admin_id || $row->admin_message !== null ? 'admin' : 'customer',
+                    'body' => $row->admin_message ?? $row->customer_message,
                     'created_at' => $row->created_at,
                     'attachments' => $this->normalizeMessageAttachments($row->attachment ?? null),
                 ]) : collect();
@@ -388,7 +471,7 @@ class AccountActivationCenterService
             $attachments = [$attachments];
         }
 
-        return collect($attachments)->map(function ($attachment): ?array {
+        return collect(array_values($attachments))->map(function ($attachment, $index): ?array {
             if (is_object($attachment)) {
                 $attachment = (array) $attachment;
             }
@@ -411,6 +494,7 @@ class AccountActivationCenterService
                 'url' => $url,
                 'name' => (string) ($item['original_name'] ?? $item['name'] ?? basename($fileName) ?: translate('attachment')),
                 'mime_type' => (string) ($item['mime_type'] ?? ''),
+                'attachment_index' => (int) ($item['attachment_index'] ?? $index),
             ];
         })->filter()->values()->all();
     }
@@ -468,6 +552,7 @@ class AccountActivationCenterService
 
     private function activateCustomer(int $customerId, int $adminId): void
     {
+        app(CustomerPurchaseEligibilityService::class)->assertActivationAvailable(\App\Models\User::findOrFail($customerId));
         $updates = [];
         if (Schema::hasColumn('users', 'activation_status')) $updates['activation_status'] = 'active';
         if (Schema::hasColumn('users', 'activation_approved_at')) $updates['activation_approved_at'] = now();
@@ -539,9 +624,10 @@ class AccountActivationCenterService
                     'subject_type' => AccountActivationCase::SUBJECT_CUSTOMER,
                     'subject_id' => $ticket->customer_id,
                 ]);
+                if ($case->exists) continue;
                 $case->fill([
                     'source_type' => 'support_ticket',
-                    'source_id' => $ticket->id,
+                    'source_id' => $case->source_id ?: $ticket->id,
                     'status' => $case->isCompleted() ? $case->status : $status,
                     'subject_hidden_at' => $case->subject_hidden_at ?: ($completed ? ($ticket->hidden_from_subject_at ?? now()) : null),
                     'completed_at' => $case->completed_at ?: ($completed ? ($ticket->reviewed_at ?? $ticket->updated_at ?? now()) : null),
@@ -566,9 +652,10 @@ class AccountActivationCenterService
                     'subject_type' => AccountActivationCase::SUBJECT_SELLER,
                     'subject_id' => $ticket->seller_id,
                 ]);
+                if ($case->exists) continue;
                 $case->fill([
                     'source_type' => 'seller_activation_ticket',
-                    'source_id' => $ticket->id,
+                    'source_id' => $case->source_id ?: $ticket->id,
                     'status' => $case->isCompleted() ? $case->status : $status,
                     'assigned_admin_id' => $case->assigned_admin_id ?: ($ticket->assigned_admin_id ?? null),
                     'subject_hidden_at' => $case->subject_hidden_at ?: ($completed ? ($ticket->hidden_from_subject_at ?? now()) : null),

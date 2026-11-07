@@ -1,0 +1,383 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-02T06:30:54Z",
+  "title": "Design System: Sigma Care",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Medical Blue",
+        "canonical": "#1a428a",
+        "tonalRamp": [
+          "oklch(15% 0.12851 261.04)",
+          "oklch(25% 0.12851 261.04)",
+          "oklch(35% 0.12851 261.04)",
+          "oklch(45% 0.12851 261.04)",
+          "oklch(55% 0.12851 261.04)",
+          "oklch(65% 0.12851 261.04)",
+          "oklch(80% 0.12851 261.04)",
+          "oklch(95% 0.12851 261.04)"
+        ]
+      },
+      "primary-dark": {
+        "role": "primary",
+        "displayName": "Deep Medical Blue",
+        "canonical": "#14356f",
+        "tonalRamp": [
+          "oklch(15% 0.10795 260.75)",
+          "oklch(25% 0.10795 260.75)",
+          "oklch(35% 0.10795 260.75)",
+          "oklch(45% 0.10795 260.75)",
+          "oklch(55% 0.10795 260.75)",
+          "oklch(65% 0.10795 260.75)",
+          "oklch(80% 0.10795 260.75)",
+          "oklch(95% 0.10795 260.75)"
+        ]
+      },
+      "primary-light": {
+        "role": "primary",
+        "displayName": "Pale Medical Blue",
+        "canonical": "#edf2fb",
+        "tonalRamp": [
+          "oklch(15% 0.01321 262.38)",
+          "oklch(25% 0.01321 262.38)",
+          "oklch(35% 0.01321 262.38)",
+          "oklch(45% 0.01321 262.38)",
+          "oklch(55% 0.01321 262.38)",
+          "oklch(65% 0.01321 262.38)",
+          "oklch(80% 0.01321 262.38)",
+          "oklch(95% 0.01321 262.38)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Blue Ink",
+        "canonical": "#172942",
+        "tonalRamp": [
+          "oklch(15% 0.05231 256.83)",
+          "oklch(25% 0.05231 256.83)",
+          "oklch(35% 0.05231 256.83)",
+          "oklch(45% 0.05231 256.83)",
+          "oklch(55% 0.05231 256.83)",
+          "oklch(65% 0.05231 256.83)",
+          "oklch(80% 0.05231 256.83)",
+          "oklch(95% 0.05231 256.83)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Slate Text",
+        "canonical": "#52627a",
+        "tonalRamp": [
+          "oklch(15% 0.04339 258.35)",
+          "oklch(25% 0.04339 258.35)",
+          "oklch(35% 0.04339 258.35)",
+          "oklch(45% 0.04339 258.35)",
+          "oklch(55% 0.04339 258.35)",
+          "oklch(65% 0.04339 258.35)",
+          "oklch(80% 0.04339 258.35)",
+          "oklch(95% 0.04339 258.35)"
+        ]
+      },
+      "placeholder": {
+        "role": "neutral",
+        "displayName": "Readable Slate Hint",
+        "canonical": "#59677d",
+        "tonalRamp": [
+          "oklch(15% 0.03905 259.36)",
+          "oklch(25% 0.03905 259.36)",
+          "oklch(35% 0.03905 259.36)",
+          "oklch(45% 0.03905 259.36)",
+          "oklch(55% 0.03905 259.36)",
+          "oklch(65% 0.03905 259.36)",
+          "oklch(80% 0.03905 259.36)",
+          "oklch(95% 0.03905 259.36)"
+        ]
+      },
+      "page": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "#f4f7fb",
+        "tonalRamp": [
+          "oklch(15% 0.00623 255.47)",
+          "oklch(25% 0.00623 255.47)",
+          "oklch(35% 0.00623 255.47)",
+          "oklch(45% 0.00623 255.47)",
+          "oklch(55% 0.00623 255.47)",
+          "oklch(65% 0.00623 255.47)",
+          "oklch(80% 0.00623 255.47)",
+          "oklch(95% 0.00623 255.47)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White Surface",
+        "canonical": "#fff",
+        "tonalRamp": [
+          "oklch(15% 0.00000 89.88)",
+          "oklch(25% 0.00000 89.88)",
+          "oklch(35% 0.00000 89.88)",
+          "oklch(45% 0.00000 89.88)",
+          "oklch(55% 0.00000 89.88)",
+          "oklch(65% 0.00000 89.88)",
+          "oklch(80% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
+        ]
+      },
+      "product-surface": {
+        "role": "neutral",
+        "displayName": "Catalog Paper",
+        "canonical": "#f8faff",
+        "tonalRamp": [
+          "oklch(15% 0.00697 268.55)",
+          "oklch(25% 0.00697 268.55)",
+          "oklch(35% 0.00697 268.55)",
+          "oklch(45% 0.00697 268.55)",
+          "oklch(55% 0.00697 268.55)",
+          "oklch(65% 0.00697 268.55)",
+          "oklch(80% 0.00697 268.55)",
+          "oklch(95% 0.00697 268.55)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Panel Border",
+        "canonical": "#dce4f0",
+        "tonalRamp": [
+          "oklch(15% 0.01848 258.35)",
+          "oklch(25% 0.01848 258.35)",
+          "oklch(35% 0.01848 258.35)",
+          "oklch(45% 0.01848 258.35)",
+          "oklch(55% 0.01848 258.35)",
+          "oklch(65% 0.01848 258.35)",
+          "oklch(80% 0.01848 258.35)",
+          "oklch(95% 0.01848 258.35)"
+        ]
+      },
+      "subtle-border": {
+        "role": "neutral",
+        "displayName": "Quiet Divider",
+        "canonical": "#e1e8f2",
+        "tonalRamp": [
+          "oklch(15% 0.01551 257.20)",
+          "oklch(25% 0.01551 257.20)",
+          "oklch(35% 0.01551 257.20)",
+          "oklch(45% 0.01551 257.20)",
+          "oklch(55% 0.01551 257.20)",
+          "oklch(65% 0.01551 257.20)",
+          "oklch(80% 0.01551 257.20)",
+          "oklch(95% 0.01551 257.20)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "General heading upper bound; implemented CSS is clamp(28px, 3.3vw, 46px), with a separate mobile hero override."
+      },
+      "display-mobile": {
+        "displayName": "Mobile hero",
+        "purpose": "Stacked hero at or below 767px."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "General second-level heading."
+      },
+      "shelf-title": {
+        "displayName": "Shelf title",
+        "purpose": "Desktop product shelf heading."
+      },
+      "shelf-title-mobile": {
+        "displayName": "Mobile shelf title",
+        "purpose": "Product shelf heading at or below 767px."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Everyday Arabic and Latin content."
+      },
+      "product-title": {
+        "displayName": "Product title",
+        "purpose": "Two-line product name; 12px on mobile."
+      },
+      "navigation": {
+        "displayName": "Navigation",
+        "purpose": "Desktop category navigation."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Standard commerce controls; preserve local utility overrides."
+      }
+    },
+    "shadows": [
+      {
+        "name": "modal",
+        "value": "0 16px 48px rgba(23,41,66,.18)",
+        "purpose": "Dialogs over the storefront."
+      },
+      {
+        "name": "dropdown",
+        "value": "0 10px 30px rgba(23,41,66,.1)",
+        "purpose": "Language, account, category, and cart menus."
+      },
+      {
+        "name": "purchase-dock",
+        "value": "0 -4px 16px rgba(23,41,66,.1)",
+        "purpose": "Product purchase controls above bottom navigation."
+      }
+    ],
+    "motion": [
+      {
+      "name": "control-color",
+        "value": "background-color .16s ease-out, color .16s ease-out",
+        "purpose": "Button hover/focus color response; product hover transitions background-color only."
+      },
+      {
+        "name": "reduced-duration",
+        "value": ".01ms",
+        "purpose": "Transition and animation duration under prefers-reduced-motion: reduce; scrolling becomes auto."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "bootstrap-sm-min",
+        "value": "576px"
+      },
+      {
+        "name": "care-mobile-max",
+        "value": "767px"
+      },
+      {
+        "name": "bootstrap-md-min",
+        "value": "768px"
+      },
+      {
+        "name": "care-purchase-dock-max",
+        "value": "991px"
+      },
+      {
+        "name": "bootstrap-lg-min",
+        "value": "992px"
+      },
+      {
+        "name": "care-compact-max",
+        "value": "1199px"
+      },
+      {
+        "name": "bootstrap-xl-min",
+        "value": "1200px"
+      },
+      {
+        "name": "care-wide-min",
+        "value": "1400px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Standard shopping action; retains existing real form and commerce handlers in production.",
+      "html": "<button class=\"ds-primary ds-focus\" type=\"button\">Shop now</button>",
+      "css": ".ds-primary{font-family:Care,sans-serif;font-size:.75rem;font-weight:650;line-height:1.7;min-height:44px;padding:.5rem 1.5rem;border:1px solid var(--care-blue,#1a428a);border-radius:12px;transition:background-color .16s ease-out,color .16s ease-out;cursor:pointer;background:var(--care-blue,#1a428a);color:#fff}.ds-primary:hover,.ds-primary:active{background:#14356f;border-color:#14356f}.ds-primary:disabled{opacity:.65;cursor:not-allowed}.ds-focus:focus-visible{outline:3px solid var(--care-focus,#1a428a);outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-focus{transition-duration:.01ms!important;animation-duration:.01ms!important}}"
+    },
+    {
+      "name": "Outlined Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary commerce action with a primary border and filled hover state.",
+      "html": "<button class=\"ds-outline ds-focus\" type=\"button\">View all</button>",
+      "css": ".ds-outline{font-family:Care,sans-serif;font-size:.75rem;font-weight:650;line-height:1.7;min-height:44px;padding:.5rem 1.5rem;border:1px solid var(--care-blue,#1a428a);border-radius:12px;transition:background-color .16s ease-out,color .16s ease-out;cursor:pointer;background:transparent;color:var(--care-blue,#1a428a)}.ds-outline:hover,.ds-outline:active{background:var(--care-blue,#1a428a);color:#fff}.ds-focus:focus-visible{outline:3px solid var(--care-focus,#1a428a);outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-focus{transition-duration:.01ms!important;animation-duration:.01ms!important}}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "White field with readable hint and the global Care focus treatment.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-email\">Email</label><input id=\"ds-email\" class=\"ds-field ds-focus\" type=\"email\" placeholder=\"Email address\" autocomplete=\"email\">",
+      "css": ".ds-field-label{display:block;font:14px/1.7 Care,sans-serif;color:var(--care-ink,#172942);margin-bottom:8px}.ds-field{font:14px/1.7 Care,sans-serif;background:#fff;color:var(--care-ink,#172942);border:1px solid #dce4f0;border-radius:10px;min-height:44px;padding:.375rem .75rem;caret-color:var(--care-blue,#1a428a)}.ds-field::placeholder{color:#59677d;opacity:1}.ds-field:disabled{background:#f4f7fb}.ds-focus:focus-visible{outline:3px solid var(--care-focus,#1a428a);outline-offset:4px}"
+    },
+    {
+      "name": "Category Navigation",
+      "kind": "nav",
+      "description": "Compact text navigation with blue active/hover state and mobile horizontal scrolling.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Store navigation\"><a class=\"ds-nav-link ds-focus\" href=\"#\" aria-current=\"page\">Home</a><a class=\"ds-nav-link ds-focus\" href=\"#\">Products</a><a class=\"ds-nav-link ds-focus\" href=\"#\">Offers</a><a class=\"ds-nav-link ds-focus\" href=\"#\">Brands</a></nav>",
+      "css": ".ds-nav{display:flex;gap:24px;align-items:center;background:#fff;border-bottom:1px solid #e1e8f2;padding-bottom:16px;overflow-x:auto;scrollbar-width:none}.ds-nav-link{font:600 13px/1.7 Care,sans-serif;color:var(--care-ink,#172942);white-space:nowrap;text-decoration:none;padding:10px 0;min-height:44px;display:flex;align-items:center}.ds-nav-link:hover,.ds-nav-link[aria-current]{color:var(--care-blue,#1a428a)}@media(max-width:767px){.ds-nav{gap:20px;padding-bottom:12px}.ds-nav-link{font-size:12px}}.ds-focus:focus-visible{outline:3px solid var(--care-focus,#1a428a);outline-offset:4px}"
+    },
+    {
+      "name": "Commerce Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat white container used for inherited account and shopping forms.",
+      "html": "<section class=\"ds-card\" aria-labelledby=\"ds-card-title\"><h2 id=\"ds-card-title\" class=\"ds-card-title\">Account details</h2><p class=\"ds-card-copy\">Manage your profile and saved addresses.</p></section>",
+      "css": ".ds-card{background:#fff;border:1px solid #dce4f0;border-radius:var(--care-radius,16px);padding:24px;box-shadow:none;font-family:Care,sans-serif;color:var(--care-ink,#172942)}.ds-card-title{font-size:24px;font-weight:750;line-height:1.4;margin:0 0 12px}.ds-card-copy{font-size:14px;line-height:1.7;color:var(--care-muted,#52627a);margin:0}@media(max-width:767px){.ds-card{padding:18px}}"
+    },
+    {
+      "name": "Discount Badge",
+      "kind": "chip",
+      "refersTo": "discount-badge",
+      "description": "Compact catalog discount indicator; sample text is a specimen, not a configured offer.",
+      "html": "<span class=\"ds-badge\">−10%</span>",
+      "css": ".ds-badge{display:inline-block;background:var(--care-blue,#1a428a);color:#fff;border-radius:7px;font:10px/1.7 Care,sans-serif;padding:0 .375rem}"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "refersTo": "bottom-navigation",
+      "description": "Five equal destinations; minimum link height and safe-area padding remain visible on mobile.",
+      "html": "<nav class=\"ds-bottom\" aria-label=\"Mobile navigation\"><a class=\"ds-bottom-link ds-focus\" href=\"#\" aria-current=\"page\">Home</a><a class=\"ds-bottom-link ds-focus\" href=\"#\">Categories</a><a class=\"ds-bottom-link ds-focus\" href=\"#\">Cart</a><a class=\"ds-bottom-link ds-focus\" href=\"#\">Wishlist</a><a class=\"ds-bottom-link ds-focus\" href=\"#\">Profile</a></nav>",
+      "css": ".ds-bottom{display:grid;grid-template-columns:repeat(5,1fr);background:#fff;padding:9px 4px max(9px,env(safe-area-inset-bottom));border-top:1px solid #dce4f0}.ds-bottom-link{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:44px;font:10px/1.7 Care,sans-serif;text-decoration:none;color:var(--care-muted,#52627a)}.ds-bottom-link[aria-current],.ds-bottom-link:hover{color:var(--care-blue,#1a428a)}.ds-focus:focus-visible{outline:3px solid var(--care-focus,#1a428a);outline-offset:4px}"
+    },
+    {
+      "name": "Product Purchase Dock",
+      "kind": "custom",
+      "description": "Dock specimen in normal flow; production fixes it above the safe-area-aware bottom navigation at or below 991px.",
+      "html": "<section class=\"ds-dock\" aria-label=\"Product purchase\"><label class=\"ds-quantity-label\" for=\"ds-quantity\">Quantity</label><div class=\"ds-dock-row\"><input id=\"ds-quantity\" class=\"ds-quantity ds-focus\" type=\"number\" value=\"1\" min=\"1\"><div class=\"ds-dock-actions\"><button class=\"ds-dock-button ds-focus\" type=\"button\">Buy now</button><button class=\"ds-dock-button ds-focus\" type=\"button\">Add to cart</button></div></div></section>",
+      "css": ".ds-dock{background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -4px 16px rgba(23,41,66,.1);padding:12px;font-family:Care,sans-serif}.ds-quantity-label{display:block;font-size:12px;color:var(--care-ink,#172942);margin-bottom:8px}.ds-dock-row{display:grid;grid-template-columns:88px minmax(0,1fr);gap:8px;align-items:center}.ds-quantity{width:88px;min-width:88px;height:44px;border:1px solid #dce4f0;border-radius:10px;font:14px/1.7 Care,sans-serif;text-align:center;color:var(--care-ink,#172942)}.ds-dock-actions{display:flex;gap:8px;width:100%}.ds-dock-button{background:var(--care-blue,#1a428a);color:#fff;border:1px solid var(--care-blue,#1a428a);border-radius:12px;min-height:44px;font:650 12px/1.5 Care,sans-serif;padding:8px 10px;transition:background-color .16s ease-out,color .16s ease-out}.ds-dock-button:hover,.ds-dock-button:active{background:#14356f}.ds-focus:focus-visible{outline:3px solid var(--care-focus,#1a428a);outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-focus{transition-duration:.01ms!important;animation-duration:.01ms!important}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Sigma Care",
+    "overview": "The approved preview 4 establishes this theme's visual identity: a cool light field, white shopping surfaces, a broad photographic medical hero, circular category shortcuts, and framed product shelves. Compact supporting navigation and generously padded panels make real catalog content easy to scan. Blue carries the primary shopping actions and active states; product photography remains the main visual material.\n\nThis document applies only to the selectable storefront theme `theme_sigma_care`. Its overrides load before maintained Aster commerce views, and its stylesheet loads after the inherited styles. Shared Default customer forms enter through the Care layout bridge. Default and Aster keep their configured colors and appearance; this document does not prescribe an admin or merchant dashboard redesign.\n\nSource authority is [sigma-care.css](public/assets/css/sigma-care.css), the theme's layout/header/home/card views, and the inherited Aster Bootstrap/runtime styles. The [final review verdict](.impeccable/review/finish-verdict.md) resolves six scored corrections after thirteen required captures; its ship disposition covers that correction batch and does not certify every commerce flow or deployment.\n\nThe integration is prepared for dormant installation and private review. Deployment and public activation are separate rollout steps and are not established by this document. The deployment target keeps Default active until the owner explicitly selects another theme. An authenticated admin can initiate an encrypted, HttpOnly, two-hour browser preview; admin pages, APIs, and the merchant portal ignore that preview, with merchant registration explicitly included in storefront preview scope.",
+    "keyCharacteristics": [
+      "Fixed light appearance with a medical blue accent.",
+      "Local Arabic and Latin typography supporting RTL and LTR.",
+      "White and pale-blue containment with restrained overlay shadows.",
+      "Original SIGMA user-app silhouettes and configured store identity.",
+      "Visible commerce actions, readable field hints, and separate mobile purchase/navigation docks."
+    ],
+    "rules": [
+      {
+        "name": "The Care Palette Rule",
+        "body": "Care stays light and uses its fixed primary palette. Preserve the configured Default/Aster themes and factual brand assets; retain business-driven announcements and semantic commerce feedback where their existing contracts require them.",
+        "section": "colors"
+      },
+      {
+        "name": "The Original Silhouette Rule",
+        "body": "Use the copied Flutter user-app silhouettes, tinted through CSS masks where implemented. Do not replace shopping/account shapes with a newly drawn icon family.",
+        "section": "typography"
+      },
+      {
+        "name": "The Two Docks Rule",
+        "body": "Product purchase controls and mobile navigation must remain simultaneously visible and tappable. Preserve the measured navigation/safe-area offset, opaque purchase surface, (44px) quantity/buttons, and final scroll clearance.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Do keep Care light, use its fixed palette, and preserve configured SIGMA brand assets.",
+      "Do preserve the original Flutter user-app silhouettes and local Vazirmatn font/license.",
+      "Do keep real catalog, variant, price, stock, discount, account, checkout, invoice, support, and policy content governed by existing settings and authentication.",
+      "Do keep product actions visible at rest with 44px targets and retain visible keyboard focus.",
+      "Do maintain two-column mobile shopping grids, visible search, and safe-area separation between purchase and navigation docks.",
+      "Do keep theme identity/configuration separate from the Aster runtime family and validate inherited/shared forms inside the Care shell."
+    ],
+    "donts": [
+      "Don't apply Care's palette or layout to Default, Aster, admin pages, or the merchant dashboard.",
+      "Don't hide product shopping actions behind hover or restore inherited photo overlays.",
+      "Don't reserve login columns for unavailable providers or reduce placeholder opacity.",
+      "Don't tint or redraw the factual SIGMA wordmark; preserve its readable white footer backing.",
+      "Don't add entrance motion that hides commerce content or ignore reduced-motion preference.",
+      "Don't treat private browser preview, installation, or the addon's available flag as public theme activation."
+    ]
+  }
+}

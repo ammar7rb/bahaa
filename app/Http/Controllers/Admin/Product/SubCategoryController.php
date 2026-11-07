@@ -24,6 +24,13 @@ class SubCategoryController extends BaseController
 {
     use PaginatorTrait;
 
+    public function getUpdateView(Request $request, int $id): View
+    {
+        \App\Models\Category::where('position', 1)->findOrFail($id);
+        $request->merge(['edit_category_id' => $id]);
+        return $this->index($request);
+    }
+
     public function __construct(
         private readonly CategoryRepositoryInterface    $categoryRepo,
         private readonly SeoMetaInfoService             $seoMetaInfoService,
@@ -59,14 +66,14 @@ class SubCategoryController extends BaseController
         $categories = $this->categoryRepo->getListWhereIn(
             orderBy: $orderBy,
             searchValue: $request->get('searchValue'),
-            filters: ['position' => 1],
+            filters: array_filter(['position' => 1, 'id' => $request->integer('edit_category_id') ?: null], fn ($value) => $value !== null),
             whereIn: ['parent_id' => $parentCategoryIDs],
             dataLimit: getWebConfig(name: 'pagination_limit'));
 
         $categoriesWithTrans = $this->categoryRepo->getListWhereIn(
             orderBy: $orderBy,
             searchValue: $request->get('searchValue'),
-            filters: ['position' => 1],
+            filters: array_filter(['position' => 1, 'id' => $request->integer('edit_category_id') ?: null], fn ($value) => $value !== null),
             whereIn: ['parent_id' => $parentCategoryIDs],
             relations: ['translations', 'seo'],
             dataLimit: getWebConfig(name: 'pagination_limit'));

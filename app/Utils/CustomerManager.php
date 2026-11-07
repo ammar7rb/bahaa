@@ -20,6 +20,7 @@ class CustomerManager
 {
     public static function create_support_ticket($data)
     {
+        abort_if(($data['type'] ?? null) === 'account_activation', 410);
         $support = new SupportTicket();
         $support->customer_id = $data['customer_id'];
         $support->subject = $data['subject'];
@@ -52,6 +53,11 @@ class CustomerManager
     {
         app(\App\Services\CustomerPurchaseWalletPolicyService::class)->assertTransactionAllowed((string) $transaction_type);
         if (BusinessSetting::where('type', 'wallet_status')->first()->value != 1) return false;
+        if ($transaction_type === 'order_place' && !empty($payment_data['order_ids'])) {
+            return app(\App\Services\CustomerOrderWalletPaymentService::class)->debit(
+                (int) $user_id, (float) Convert::usd($amount), $payment_data['order_ids'], $payment_data['payment_method'] ?? 'wallet_balance'
+            );
+        }
         $user = User::find($user_id);
         $current_balance = $user->wallet_balance;
 
@@ -63,6 +69,9 @@ class CustomerManager
         $wallet_transaction->reference = $reference;
         $wallet_transaction->transaction_type = $transaction_type;
         $wallet_transaction->payment_method = isset($payment_data['payment_method']) ? $payment_data['payment_method'] : null;
+        if (\Illuminate\Support\Facades\Schema::hasColumn('wallet_transactions','order_ids') && isset($payment_data['order_ids'])) {
+            $wallet_transaction->order_ids = array_values(array_map('intval',$payment_data['order_ids']));
+        }
 
         $debit = 0.0;
         $credit = 0.0;
@@ -89,13 +98,23 @@ class CustomerManager
         $debit_amount = Convert::usd($debit);
         $wallet_transaction->credit = $credit_amount;
         $wallet_transaction->debit = $debit_amount;
-        $wallet_transaction->balance = $current_balance + $credit_amount - $debit_amount;
+        $wallet_transaction->balance = $current_balance + $add_fund_to_wallet_bonus + $credit_amount - $debit_amount;
         $wallet_transaction->created_at = now();
         $wallet_transaction->updated_at = now();
         $user->wallet_balance = $current_balance + $add_fund_to_wallet_bonus + $credit_amount - $debit_amount;
 
         try {
             DB::beginTransaction();
+            if ($transaction_type === 'add_fund') {
+                $user = User::query()->lockForUpdate()->findOrFail($user_id);
+                $allocation = app(\App\Services\CustomerAccountDebtService::class)->allocate((int)$user_id, $credit_amount, (string)$wallet_transaction->transaction_id);
+                $wallet_transaction->credit = $allocation['net'];
+                $wallet_transaction->balance = round((float)$user->wallet_balance + $allocation['net'] + $add_fund_to_wallet_bonus, 3);
+                $user->wallet_balance = $wallet_transaction->balance;
+                if ($allocation['recovered'] > 0) app(\App\Services\CustomerPaymentNotificationService::class)->notify((int)$user_id,
+                    'funding-allocation-'.$wallet_transaction->transaction_id,
+                    'تم تأكيد الشحن '.number_format($allocation['gross'],3).'؛ سداد المديونية '.number_format($allocation['recovered'],3).'؛ صافي الإضافة للمحفظة '.number_format($allocation['net'],3).'؛ المديونية المتبقية '.number_format($allocation['remaining_debt'],3).'.');
+            }
             $user->save();
             $wallet_transaction->save();
             DB::commit();
@@ -219,6 +238,8 @@ class CustomerManager
 
     public static function getReferralDiscountAmount($user = null, $couponDiscount = null)
     {
+        // Customer checkout uses catalogue prices without checkout discount mechanisms.
+        if (!auth('admin')->check() && !auth('seller')->check()) return 0;
         if ($user && isset($user['id'])) {
             $cart = CartManager::getCartListQuery(type: 'checked');
             $totalAmount = 0;

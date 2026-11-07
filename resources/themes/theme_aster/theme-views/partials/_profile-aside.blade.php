@@ -13,11 +13,7 @@
                     </button>
                     <ul class="dropdown-menu">
                         <li>
-                            <a href="javascript:" class="delete-action"
-                               data-action="{{route('account-delete',[$customer_info['id']])}}"
-                               data-text="{{translate('want_to_delete_this_account').'?'}}">
-                                {{ translate('delete_my_account') }}
-                            </a>
+                            <a class="d-flex align-items-center gap-2" href="{{ route('customer.settings') }}">{{ translate('settings') }}</a>
                         </li>
                     </ul>
                 </div>
@@ -34,6 +30,8 @@
 
                 <div class="text-lg-center">
                     <h5 class="mb-1">{{$customer_info->f_name}} {{$customer_info->l_name}}</h5>
+                    <bdi class="d-block mb-1" dir="ltr">{{ $customer_info->administrative_reference }}</bdi>
+                    <p class="mb-1" data-account-status="{{ $customer_info->is_active ? 'active' : 'suspended' }}">{{ app()->getLocale() === 'ar' ? ($customer_info->is_active ? 'نشط' : 'معلق') : ($customer_info->is_active ? 'Active' : 'Suspended') }}</p>
                     <p class="fw-medium">{{translate('joined')}} {{date('d M, Y',strtotime($customer_info->created_at))}}</p>
                 </div>
             </div>
@@ -42,6 +40,8 @@
                     <i class="bi bi-x-lg text-primary"></i>
                 </div>
                 <ul class="list-unstyled profile-menu gap-1 mt-3">
+
+
                     <li class="{{Request::is('user-profile') || Request::is('user-account') ||Request::is('account-address-*') ? 'active' :''}}">
                         <a href="{{ route('user-profile') }}">
                             <img width="20" src="{{ theme_asset('assets/img/icons/profile-icon.png') }}"
@@ -49,11 +49,12 @@
                             <span class="text-capitalize">{{translate('my_profile')}}</span>
                         </a>
                     </li>
+<li><a href="{{ route('customer.tracking.index') }}">@include('customer-subscription.icon',['name'=>'orders'])<span>تتبع الطلبات</span></a></li>
                     <li class="{{Request::is('account-oder*') || Request::is('account-order-details*') || Request::is('refund-details*') || Request::is('track-order/order-wise-result-view') ? 'active' :''}}">
                         <a href="{{route('account-oder')}}">
                             <img width="20" src="{{ theme_asset('assets/img/icons/profile-icon2.png') }}"
                                  class="dark-support" alt="">
-                            <span>{{translate('Orders')}}</span>
+                            <span>{{(getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'طلبات' : 'Orders')}}</span>
                         </a>
                     </li>
                     <li class="{{ Request::is('post-purchase-invoices*') ? 'active' : '' }}">
@@ -78,7 +79,7 @@
                         </a>
                     </li>
 
-                    <li class="{{ request()->routeIs('customer.subscription.*') ? 'active' : '' }}"><a href="{{ route('customer.subscription.index') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>الاشتراك الشهري</span></a></li>
+                    <li class="{{ request()->routeIs('customer.subscription.*') ? 'active' : '' }}"><a href="{{ route('customer.subscription.index') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span>الاشتراكات</span></a></li>
                     @if ($web_config['wallet_status'] == 1)
                         <li class="{{Request::is('wallet') ? 'active' :''}}">
                             <a href="{{route('wallet')}}">
@@ -102,7 +103,7 @@
                         <a href="{{route('account-tickets')}}">
                             <img width="20" src="{{theme_asset('assets/img/icons/profile-icon8.png')}}"
                                  class="dark-support" alt="">
-                            <span class="text-capitalize">{{translate('support_ticket')}}</span>
+                            <span class="text-capitalize">{{(getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'التواصل مع الدعم' : 'Contact Support')}}</span>
                         </a>
                     </li>
                     @if ($web_config['ref_earning_status'])
@@ -122,16 +123,14 @@
                         </a>
                     </li>
                     <li class="d-lg-none">
-                        <a class="d-flex align-items-center" href="javascript:"
-                           class="delete-action"
-                           data-action="{{route('account-delete',[$customer_info['id']])}}"
-                           data-text="{{translate('want_to_delete_this_account').'?'}}">
-                            <i class="bi bi-trash3-fill text-danger fs-16"></i>
-                            {{ translate('delete_my_account') }}
-                        </a>
+                        <a class="d-flex align-items-center gap-2" href="{{ route('customer.settings') }}">{{ translate('settings') }}</a>
                     </li>
-                </ul>
+                
+<li><a href="{{ route('customer.settings') }}"><i class="bi bi-gear" aria-hidden="true"></i><span>{{ translate('settings') }}</span></a></li>
+<li><a href="{{ route('customer.messages.index') }}"><i class="bi bi-headset" aria-hidden="true"></i><span>{{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الدعم الفني' : 'Technical support' }}</span></a></li>
+</ul>
             </div><div class="aside-overlay"></div>
         </div>
     </div>
 </div>
+

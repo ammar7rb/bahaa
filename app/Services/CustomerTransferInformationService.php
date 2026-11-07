@@ -7,11 +7,11 @@ use Illuminate\Validation\ValidationException;
 /** Customer transfer data; never changes vendor payment method configuration. */
 class CustomerTransferInformationService
 {
-    public function sender(array $data): array
+    public function sender(array $data, bool $requireName = true): array
     {
         $phone = app(EgyptPhoneService::class);
         $number = $data['sender_phone'] ?? $data['sender_identifier'] ?? '';
-        $name = $data['sender_name'] ?? '';
+        $name = $requireName ? ($data['sender_name'] ?? '') : '';
         if (!is_string($number) || !is_string($name)) {
             throw ValidationException::withMessages(['sender_name' => 'أدخل رقم المرسل واسم الحساب بشكل صحيح.']);
         }
@@ -19,10 +19,10 @@ class CustomerTransferInformationService
         if (!$phone->isValid($number)) {
             throw ValidationException::withMessages(['sender_phone' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015']);
         }
-        if ($name === '' || mb_strlen($name) > 150) {
+        if ($requireName && ($name === '' || mb_strlen($name) > 150)) {
             throw ValidationException::withMessages(['sender_name' => 'أدخل اسم المحفظة أو الحساب الذي حولت منه، بحد أقصى 150 حرفًا.']);
         }
-        return ['sender_phone' => $phone->normalizeLocal($number), 'sender_name' => $name];
+        return ['sender_phone' => $phone->normalizeLocal($number)] + ($requireName ? ['sender_name' => $name] : []);
     }
 
     public function recipientIsNumber(array $field): bool

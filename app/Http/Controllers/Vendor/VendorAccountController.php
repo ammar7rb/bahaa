@@ -49,13 +49,27 @@ class VendorAccountController extends Controller
         foreach (['phone_numbers', 'store_addresses'] as $key) {
             if (is_string($request->input($key))) $request->merge([$key => json_decode($request->input($key), true)]);
         }
+        foreach (['l_name', 'email', 'store_name'] as $key) {
+            if (is_string($request->input($key)) && trim($request->input($key)) === '') $request->merge([$key => null]);
+        }
+        $phones = $request->input('phone_numbers');
+        if (is_array($phones)) {
+            $request->merge(['phone_numbers' => array_values(array_map(
+                fn ($phone) => is_string($phone) ? app(\App\Services\EgyptPhoneService::class)->normalizeLocal($phone) : $phone,
+                $phones
+            ))]);
+        }
+        $addresses = $request->input('store_addresses');
+        if (is_array($addresses)) {
+            $request->merge(['store_addresses' => array_values(array_filter($addresses, fn ($address) => !is_string($address) || trim($address) !== ''))]);
+        }
         $data = $request->validate([
-            'f_name' => 'required|string|max:100', 'l_name' => 'required|string|max:100',
-            'email' => ['required', 'email', 'max:191', Rule::unique('sellers')->ignore($seller->id)],
-            'store_name' => 'required|string|max:191',
+            'f_name' => 'required|string|max:100', 'l_name' => 'nullable|string|max:100',
+            'email' => ['nullable', 'email', 'max:191', Rule::unique('sellers')->ignore($seller->id)],
+            'store_name' => 'nullable|string|max:191',
             'phone_numbers' => 'required|array|list|min:1|max:10',
-            'phone_numbers.*' => ['required', 'string', 'min:4', 'max:20', 'distinct', 'regex:/^\+?[0-9 ()-]+$/'],
-            'store_addresses' => 'required|array|list|min:1|max:10', 'store_addresses.*' => 'required|string|max:1000|distinct',
+            'phone_numbers.*' => ['required', 'string', 'distinct', 'regex:/^01[0125][0-9]{8}$/'],
+            'store_addresses' => 'nullable|array|list|max:10', 'store_addresses.*' => 'string|max:1000|distinct',
             'commercial_registration' => 'nullable|string|max:5000', 'tax_card' => 'nullable|string|max:5000',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'commercial_document' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -69,6 +83,7 @@ class VendorAccountController extends Controller
             DB::transaction(function () use ($seller, $request, $data, &$stored, &$oldFiles, &$avatar) {
                 $profile = VendorAccountProfile::firstOrNew(['seller_id' => $seller->id]);
                 $profile->seller_id = $seller->id;
+                $data['store_addresses'] = $data['store_addresses'] ?? [];
                 $profile->fill(collect($data)->only(['phone_numbers', 'store_addresses', 'commercial_registration', 'tax_card'])->all());
                 foreach (['commercial_document', 'tax_document'] as $key) {
                     if ($request->hasFile($key)) {
@@ -78,7 +93,9 @@ class VendorAccountController extends Controller
                     }
                 }
                 $profile->save();
-                $seller->fill(collect($data)->only(['f_name', 'l_name', 'email'])->all());
+                $seller->f_name = $data['f_name'];
+                $seller->l_name = $data['l_name'] ?? '';
+                if (!empty($data['email'])) $seller->email = $data['email'];
                 // Store contacts are independent of the verified login number.
                 // Changing authentication identity must use the OTP workflow.
                 if ($request->hasFile('image')) {
@@ -88,8 +105,8 @@ class VendorAccountController extends Controller
                 $seller->save();
                 $shop = $seller->shop;
                 abort_unless($shop, 422, translate('store_not_found'));
-                $shop->name = $data['store_name'];
-                $shop->address = $data['store_addresses'][0];
+                $shop->name = $data['store_name'] ?? '';
+                $shop->address = $data['store_addresses'][0] ?? '';
                 $shop->contact = $data['phone_numbers'][0];
                 $shop->save();
             });
@@ -102,6 +119,23 @@ class VendorAccountController extends Controller
         if ($avatar && $previousAvatar) ImageManager::delete('seller/'.$previousAvatar);
         return $request->is('api/*') ? response()->json(['message' => translate('profile_updated_successfully')])
             : back()->with('account_saved', true);
+    }
+
+    public function updateImage(Request $request)
+    {
+        $seller = $this->seller($request);
+        $request->validate(['image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120']);
+        $previousAvatar = $seller->image;
+        $avatar = ImageManager::upload('seller/', 'webp', $request->file('image'));
+        try {
+            $seller->image = $avatar;
+            $seller->save();
+        } catch (\Throwable $exception) {
+            ImageManager::delete('seller/'.$avatar);
+            throw $exception;
+        }
+        if ($previousAvatar && $previousAvatar !== $avatar) ImageManager::delete('seller/'.$previousAvatar);
+        return back()->with('vendor_image_saved', true);
     }
 
     public function password(Request $request)

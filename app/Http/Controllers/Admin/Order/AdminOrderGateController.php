@@ -21,13 +21,20 @@ class AdminOrderGateController extends Controller
 
     public function index(Request $request): View
     {
-        $query = Order::query()->with(['customer', 'seller.shop', 'insurance', 'sellerOrderInsurance', 'riskInvestigations'])
+        $query = Order::query()->where('payment_status', 'paid')->where(fn ($paymentReview) => $paymentReview->whereNull('customer_initial_payment_review_status')->orWhere('customer_initial_payment_review_status','approved')) ->with(['customer', 'seller.shop', 'insurance', 'sellerOrderInsurance', 'riskInvestigations'])
             ->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), PostPurchaseInvoiceService::CONTRACT_VERSION])
-            ->whereIn('commerce_flow_status', [
-                OrderCommerceState::PENDING_ADMIN_REVIEW,
-                OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS,
-                OrderCommerceState::UNDER_INVESTIGATION,
-            ])
+            ->where(function ($gate) use ($request) {
+                if (in_array($request->input('fulfillment'), ['restricted', 'pending_vendor'], true) && app(\App\Services\VendorFulfillmentEligibilityService::class)->available()) {
+                    $statuses = $request->input('fulfillment') === 'pending_vendor' ? ['pending_vendor'] : ['locked', 'pending_vendor'];
+                    $gate->whereExists(fn ($requests) => $requests->selectRaw('1')->from('vendor_fulfillment_requests as r')
+                        ->whereColumn('r.order_id', 'orders.id')->whereColumn('r.seller_id', 'orders.seller_id')->whereIn('r.status', $statuses));
+                    return;
+                }
+                $gate->whereIn('commerce_flow_status', [OrderCommerceState::PENDING_ADMIN_REVIEW,
+                    OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS, OrderCommerceState::UNDER_INVESTIGATION])
+                    ->orWhere(fn ($legacy) => $legacy->where('payment_status', 'paid')->whereIn('commerce_flow_status', [
+                        OrderCommerceState::CUSTOMER_INSURANCE_PENDING, OrderCommerceState::CUSTOMER_INSURANCE_UNDER_REVIEW]));
+            })
             ->when($request->filled('q'), function ($query) use ($request): void {
                 $value = trim((string) $request->input('q'));
                 $id = preg_replace('/\D+/', '', $value);
@@ -37,20 +44,16 @@ class AdminOrderGateController extends Controller
                 });
             })
             ->when($request->filled('payment_status'), fn ($q) => $q->where('payment_status', $request->input('payment_status')))
-            ->when($request->filled('customer_insurance'), function ($q) use ($request): void {
-                $status = $request->input('customer_insurance');
-                if ($status === 'none') $q->whereDoesntHave('insurance');
-                else $q->whereHas('insurance', fn ($insurance) => $insurance->where('payment_status', $status));
-            })
             ->when($request->filled('shipping_status'), fn ($q) => $q->where('shipping_assignment_status', $request->input('shipping_status')))
             ->when($request->filled('risk_level'), fn ($q) => $q->whereHas('riskInvestigations', fn ($risk) => $risk->where('status', 'open')->where('risk_level', $request->input('risk_level'))))
-            ->when($request->input('deadline') === 'overdue', fn ($q) => $q->whereHas('insurance', fn ($insurance) => $insurance->where('payment_due_at', '<', now())))
             ->latest('id');
 
         $orders = $query->paginate(25)->withQueryString();
         $counts = [
-            'waiting' => Order::query()->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), PostPurchaseInvoiceService::CONTRACT_VERSION])->where('commerce_flow_status', OrderCommerceState::PENDING_ADMIN_REVIEW)->count(),
-            'assignment' => Order::query()->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), PostPurchaseInvoiceService::CONTRACT_VERSION])->where('commerce_flow_status', OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS)->count(),
+            'waiting' => Order::query()->where('payment_status', 'paid')->where(fn ($paymentReview) => $paymentReview->whereNull('customer_initial_payment_review_status')->orWhere('customer_initial_payment_review_status','approved')) ->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), PostPurchaseInvoiceService::CONTRACT_VERSION])->where(fn ($gate) => $gate->where('commerce_flow_status', OrderCommerceState::PENDING_ADMIN_REVIEW)
+                ->orWhere(fn ($legacy) => $legacy->where('payment_status', 'paid')->whereIn('commerce_flow_status', [
+                    OrderCommerceState::CUSTOMER_INSURANCE_PENDING, OrderCommerceState::CUSTOMER_INSURANCE_UNDER_REVIEW])))->count(),
+            'assignment' => Order::query()->where('payment_status', 'paid')->where(fn ($paymentReview) => $paymentReview->whereNull('customer_initial_payment_review_status')->orWhere('customer_initial_payment_review_status','approved')) ->whereIn('commerce_flow_version', [config('order_commerce.new_flow_version'), PostPurchaseInvoiceService::CONTRACT_VERSION])->where('commerce_flow_status', OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS)->count(),
             'investigations' => OrderRiskInvestigation::query()->where('status', 'open')->count(),
         ];
         return view('admin-views.order.admin-gate.index', compact('orders', 'counts'));
@@ -64,15 +67,49 @@ class AdminOrderGateController extends Controller
         ])->findOrFail($id);
         $suggestion = $this->service->sellerInsuranceSuggestion($order);
         $shippingMethods = ShippingMethod::query()->where('creator_type', 'admin')->where('status', 1)->orderBy('title')->get();
-        return view('admin-views.order.admin-gate.show', compact('order', 'suggestion', 'shippingMethods'));
+         $pricing = app(\App\Services\OrderVendorPricingService::class)->summary($order);
+        $approvedPricing = \App\Models\OrderVendorPricing::where('order_id', $id)->first();
+        return view('admin-views.order.admin-gate.show', compact('order', 'suggestion', 'shippingMethods', 'pricing', 'approvedPricing'));
+    }
+
+    public function approveAndRelease(Request $request, int $id): RedirectResponse
+    {
+        $data = $request->validate([
+            'review_version' => ['required', 'string', 'size:64'],
+            'shipping_seller_entitlement' => ['required', 'numeric', 'min:0'],
+            'vendor_order_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+            'accessible_procurement_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+            'accessible_shipping_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+            'shipping_expected_delivery_date' => ['required', 'date'],
+            'shipping_settlement_due_at' => ['required', 'date'],
+            'sales_settlement_due_at' => ['nullable', 'date'],
+            'shipping_instructions' => ['nullable', 'string', 'max:5000'],
+        ]);
+        try {
+            $this->service->approveAndRelease(Order::findOrFail($id), $data, (int) auth('admin')->id());
+            ToastMagic::success('تم اعتماد الطلب وإرساله إلى التاجر.');
+            return redirect()->route('admin.orders.details', [$id]);
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            throw $exception;
+        } catch (\DomainException $exception) {
+            return back()->withInput()->withErrors(['approval' => translate($exception->getMessage())]);
+        }
+    }
+
+    public function approveVendorPrice(int $id): RedirectResponse
+    {
+        try {
+            app(\App\Services\OrderVendorPricingService::class)->approve(Order::findOrFail($id), (int) auth('admin')->id());
+            ToastMagic::success('تم اعتماد سعر التاجر دون تغيير مبلغ العميل.');
+        } catch (\DomainException $exception) {
+            ToastMagic::error($exception->getMessage());
+        }
+        return back();
     }
 
     public function saveAssignment(Request $request, int $id): RedirectResponse
     {
         $data = $request->validate([
-            'seller_insurance_mode' => ['required', 'in:default,manual,waive'],
-            'seller_insurance_calculation_type' => ['nullable', 'required_if:seller_insurance_mode,manual', 'in:percentage,fixed'],
-            'seller_insurance_calculation_value' => ['nullable', 'required_if:seller_insurance_mode,manual', 'numeric', 'min:0'],
             'shipping_mode' => ['required', 'in:admin_shipping,seller_shipping'],
             'shipping_method_id' => ['nullable', 'integer'],
             'shipping_customer_cost' => ['nullable', 'numeric', 'min:0'],
@@ -92,10 +129,14 @@ class AdminOrderGateController extends Controller
         return back();
     }
 
-    public function release(int $id): RedirectResponse
+    public function release(Request $request, int $id): RedirectResponse
     {
+        $allocation = $request->validate([
+            'accessible_procurement_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+            'accessible_shipping_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+        ]);
         try {
-            $this->service->releaseToSeller(Order::query()->findOrFail($id), 'اعتماد الإدارة وإرسال الطلب إلى التاجر', auth('admin')->id());
+            $this->service->releaseToSeller(Order::query()->findOrFail($id), 'اعتماد الإدارة وإرسال الطلب إلى التاجر', auth('admin')->id(), $allocation);
             ToastMagic::success(translate('order_released_to_seller_successfully'));
         } catch (\Throwable $exception) {
             ToastMagic::error(translate($exception->getMessage()));

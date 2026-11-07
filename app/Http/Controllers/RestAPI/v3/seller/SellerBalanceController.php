@@ -47,6 +47,9 @@ class SellerBalanceController extends Controller
         $deposits = \App\Models\SellerBalanceDeposit::query()->where('seller_id', $seller->id)->when($request->wallet_target, fn ($q) => $q->where(fn ($target) => $target->where('metadata->wallet_target', $request->wallet_target)->when($request->wallet_target === 'operating', fn ($legacy) => $legacy->orWhereNull('metadata->wallet_target'))))->latest('id')->paginate(min(100, max(1, $request->integer('limit', 10))), ['*'], 'deposits_page', max(1, $request->integer('deposits_page', 1)));
 
         return response()->json([
+            'vendor_debt' => app(\App\Services\VendorDebtService::class)->presentation((int) $seller->id),
+            'transfer_currency_code' => \App\Models\Currency::find(getWebConfig(name: 'system_default_currency'))?->code ?: getCurrencyCode(type: 'default'),
+            'transfer_owner_id' => (int) $seller->id,
             'transactions' => app(\App\Services\VendorFinancialWorkspaceService::class)->transactions((int) $seller->id, $request->integer('transactions_page', 1), $request->wallet_target === 'insurance' ? SellerLedgerService::ORDER_INSURANCE_CREDIT : ($request->wallet_target === 'operating' ? SellerLedgerService::OPERATING : $request->ledger_bucket)),
             'summary' => $summary,
             'security_deposits' => app(\App\Services\VendorFinancialWorkspaceService::class)->securityDeposits((int) $seller->id, $request->integer('security_page', 1)),
@@ -121,7 +124,7 @@ class SellerBalanceController extends Controller
             $this->fundingSettings->assertAmountAllowed($amount);
             $proofName = $this->upload(dir: 'seller-balance/payment-proof/', format: 'webp', image: $request->file('payment_proof'));
             $deposit = $this->depositService->createOffline($request->seller, ['amount' => $amount, 'currency_code' => getCurrencyCode(type: 'default'), 'payment_method' => 'offline_payment', 'offline_payment_method_id' => $method->id, 'offline_information' => $information, 'payment_proof' => ['image_name' => $proofName, 'storage' => config('filesystems.disks.default') ?? 'public'], 'payment_note' => $request->get('payment_note'), 'wallet_target' => $request->get('wallet_target', 'operating')]);
-            return response()->json(['message' => translate('seller_balance_deposit_submitted'), 'deposit' => $deposit], 200);
+            return response()->json(['message' => 'تم استلام طلب الإيداع، وجارٍ التحقق من عملية الدفع.', 'deposit' => $deposit], 200);
         } catch (DomainException $exception) { return response()->json(['message' => translate($exception->getMessage())], 422); }
     }
 

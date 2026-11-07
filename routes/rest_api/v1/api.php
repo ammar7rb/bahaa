@@ -48,12 +48,37 @@ use App\Http\Controllers\Customer\PaymentController;
  */
 
 Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
+    Route::controller(\App\Http\Controllers\Customer\PasswordRecoveryController::class)->prefix('customer/password-recovery')->group(function(){
+        Route::post('request','request')->middleware('throttle:5,1,customer-recovery:');
+        Route::get('conversation','conversation')->middleware('throttle:30,1,customer-recovery-chat:');
+        Route::post('conversation','reply')->middleware('throttle:10,1,customer-recovery-chat-reply:');
+        Route::get('status','status')->middleware('auth:api');
+        Route::post('change','change')->middleware(['auth:api','throttle:5,1,customer-recovery-change:']);
+    });
+    Route::get('customer/communication', [\App\Http\Controllers\Customer\CommunicationController::class, 'index'])->middleware(['auth:api', 'throttle:60,1']);
+    Route::get('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'index'])->middleware('auth:api');
+    Route::put('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'update'])->middleware(['auth:api','throttle:10,1']);
+    Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['auth:api', 'throttle:10,1,customer-support-report:']);
+    Route::get('customer/purchasing-limit', [\App\Http\Controllers\Customer\PurchasingLimitController::class, 'show']);
+    Route::post('customer/profile-image', [\App\Http\Controllers\Customer\ProfileImageController::class, 'update'])->middleware(['auth:api', 'throttle:10,1,customer-profile-image:']);
+    Route::get('customer/wallet/withdrawals', [\App\Http\Controllers\Customer\WalletWithdrawalController::class, 'index'])->middleware('auth:api');
+    Route::post('customer/wallet/withdrawals', [\App\Http\Controllers\Customer\WalletWithdrawalController::class, 'store'])->middleware(['auth:api', 'throttle:5,1']);
+
+    Route::prefix('customer/account-deletion')->middleware('auth:api')->controller('\App\Http\Controllers\Customer\AccountDeletionController')->group(function () {
+        Route::post('begin', 'begin')->middleware('throttle:5,1,customer-deletion-password:');
+        Route::post('reason', 'reason')->middleware('throttle:10,1,customer-deletion-reason:');
+        Route::post('finish', 'finish')->middleware('throttle:5,1,customer-deletion-password:');
+    });
+    Route::post('customer/order/{order}/package-cancellation', [\App\Http\Controllers\Customer\PackageOrderCancellationController::class, 'request'])->middleware(['auth:api', 'throttle:10,1']);
     Route::post('customer/order/{order}/payment-proof/retry', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'submit'])->middleware(['auth:api','throttle:10,1']);
     Route::prefix('customer/subscription')->middleware('auth:api')->controller('\App\Http\Controllers\Customer\MonthlySubscriptionController')->group(function () {
         Route::get('/', 'index');
-        Route::post('checkout', 'checkout')->middleware('throttle:10,1');
-        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1');
-        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1');
+        Route::post('{payment}/cancel', 'cancel')->middleware('throttle:10,1,customer-package-cancel:');
+        Route::post('checkout', 'checkout')->middleware('throttle:10,1,customer-package-quote:');
+        Route::post('auto-renew', 'enableAutoRenew')->middleware('throttle:5,1');
+        Route::post('transact','transact')->middleware('throttle:10,1,customer-package-transaction:');
+        Route::post('{payment}/wallet', 'wallet')->middleware('throttle:10,1,customer-package-wallet:');
+        Route::post('{payment}/offline', 'offline')->middleware('throttle:10,1,customer-package-transfer:');
     });
     Route::get('customer/post-payment-refunds', [CustomerController::class, 'postPaymentRefunds'])
         ->middleware('auth:api');
@@ -62,15 +87,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::controller(PostPurchaseInvoiceController::class)->group(function () {
             Route::get('/', 'index');
             Route::get('{invoice}', 'show');
-            Route::post('{invoice}/use-insurance-balance', 'useInsuranceBalance');
+            Route::post('{invoice}/use-insurance-balance', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
         });
     });
 
     Route::group(['prefix' => 'customer/order-insurance', 'middleware' => 'auth:api'], function () {
         Route::controller(PostPurchaseInvoiceController::class)->group(function () {
             Route::get('{order}', 'mobileClaim');
-            Route::post('{order}/pay', 'mobilePay');
-            Route::post('{order}/offline', 'mobileOffline');
+            Route::post('{order}/pay', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
+            Route::post('{order}/offline', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
             Route::post('{order}/support', 'mobileSupport');
             Route::post('{order}/decline', 'mobileDecline');
         });
@@ -101,7 +126,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
             Route::post('registration-with-otp', 'registrationWithOTP');
             Route::post('existing-account-check', 'existingAccountCheck');
             Route::post('registration-with-social-media', 'registrationWithSocialMedia');
-            Route::post('forgot-password', 'passwordResetRequest');
+            Route::post('forgot-password', 'passwordResetRequest')->middleware('throttle:5,1,customer-recovery:');
         });
 
         Route::group(['middleware' => 'apiGuestCheck'], function () {
@@ -158,7 +183,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
 
     Route::group(['prefix' => 'customer/order', 'middleware' => 'apiGuestCheck'], function () {
         Route::controller(CustomerController::class)->group(function () {
-            Route::get('get-order-by-id', 'getOrderById');
+            Route::get('get-order-by-id', 'getOrderById')->middleware(\App\Http\Middleware\CustomerOrderTrackingBoundary::class);
         });
     });
 
@@ -286,8 +311,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
                     Route::post('place-by-offline-payment', 'placeOrderByOfflinePayment');
                 });
                 Route::controller(CustomerController::class)->group(function () {
-                    Route::get('details', 'get_order_details');
-                    Route::get('generate-invoice', 'getOrderInvoice');
+                    Route::get('details', 'get_order_details')->middleware(\App\Http\Middleware\CustomerOrderTrackingBoundary::class);
+                    Route::get('generate-invoice', 'getOrderInvoice')->middleware(\App\Http\Middleware\CustomerOrderTrackingBoundary::class);
                 });
                 Route::group(['prefix' => 'deliveryman-review'], function () {
                     Route::controller(ReviewController::class)->group(function () {
@@ -303,7 +328,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::controller(CustomerController::class)->group(function () {
             Route::get('info', 'info');
             Route::put('update-profile', 'update_profile');
-            Route::get('account-delete/{id}', 'account_delete');
         });
 
         Route::group(['prefix' => 'address'], function () {
@@ -313,14 +337,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         });
 
         Route::group(['prefix' => 'support-ticket'], function () {
+            Route::get('{id}/attachments/{message}/{index}/download', [\App\Http\Controllers\ChatAttachmentController::class, 'customerApi'])->whereNumber('id')->whereNumber('index')->middleware('throttle:30,1');
             Route::controller(CustomerController::class)->group(function () {
                 Route::post('create', 'create_support_ticket');
                 Route::get('get', 'get_support_tickets');
                 Route::get('conv/{ticket_id}', 'get_support_ticket_conv');
                 Route::post('reply/{ticket_id}', 'reply_support_ticket');
-                Route::get('close/{id}', 'support_ticket_close');
                 Route::get('activation/status', 'activationStatus');
-                Route::post('activation/ticket', 'activationTicket');
             });
         });
 
@@ -407,21 +430,24 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::post('/', [PaymentController::class, 'customer_add_to_fund_request']);
     });
 
-    Route::group(['prefix' => 'order'], function () {
+    Route::post('order/cancel-order', [\App\Http\Controllers\Customer\OrderCancellationRequestController::class, 'store'])
+        ->middleware(['auth:api', 'throttle:10,1']);
+
+    Route::group(['prefix' => 'order', 'middleware' => [\App\Http\Middleware\CustomerOrderTrackingBoundary::class]], function () {
         Route::controller(OrderController::class)->group(function () {
             Route::get('track', 'track_by_order_id');
             Route::get('track-order-details', 'track_order_details_history');
-            Route::get('cancel-order', 'order_cancel');
+
             Route::post('track-order', 'track_order');
         });
     });
 
     Route::group(['prefix' => 'edit-order', 'middleware' => 'apiGuestCheck'], function () {
         Route::controller(OrderEditController::class)->group(function () {
-            Route::post('due-payment-by-offline-payment', 'duePaymentByOfflinePayment');
-            Route::post('due-payment-by-wallet', 'duePaymentByWallet');
-            Route::post('due-payment-by-cod', 'duePaymentByCod');
-            Route::post('due-payment-by-digital-payment', 'duePaymentByDigitalPayment');
+            Route::post('due-payment-by-offline-payment', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
+            Route::post('due-payment-by-wallet', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
+            Route::post('due-payment-by-cod', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
+            Route::post('due-payment-by-digital-payment', [\App\Http\Controllers\Customer\RetiredAdditionalOrderPaymentController::class, '__invoke']);
         });
     });
 

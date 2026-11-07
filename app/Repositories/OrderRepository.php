@@ -60,7 +60,10 @@ class OrderRepository implements OrderRepositoryInterface
     public function getListWhere(array $orderBy = [], ?string $searchValue = null, array $filters = [], array $relations = [], int|string $dataLimit = DEFAULT_DATA_LIMIT, ?int $offset = null): Collection|LengthAwarePaginator
     {
         $query = $this->order->with($relations)
-            ->when(!empty($filters['seller_visible_only']), fn ($query) => $query->sellerAccessible())
+            ->when(!empty($filters['seller_visible_only']), function ($query) use ($filters, $searchValue) {
+                $query->sellerAccessible();
+                app(\App\Services\VendorFulfillmentEligibilityService::class)->constrainVendorFilters($query, $filters, $searchValue);
+            })
             ->when(isset($filters['seller_is']) && $filters['seller_is'] != 'all', function ($query) use ($filters) {
                 return $query->where('seller_is', $filters['seller_is']);
             })
@@ -209,8 +212,9 @@ class OrderRepository implements OrderRepositoryInterface
             )->when(isset($filters['seller_id']) && $filters['seller_id'] !== 'all', function ($query) use ($filters) {
                     $query->where('seller_id', $filters['seller_id']);
                 }
-            )->when(!empty($filters['seller_visible_only']), function ($query) {
+            )->when(!empty($filters['seller_visible_only']), function ($query) use ($filters, $searchValue) {
                     $query->sellerAccessible();
+                    app(\App\Services\VendorFulfillmentEligibilityService::class)->constrainVendorFilters($query, $filters, $searchValue);
                 }
             )->when(!empty($filters['exclude_seller_insurance_pending']), function ($query) {
                     $query->where(fn ($flow) => $flow->whereNull('commerce_flow_status')->orWhereNotIn('commerce_flow_status', ['seller_insurance_pending', 'seller_insurance_under_review']));
@@ -388,8 +392,9 @@ class OrderRepository implements OrderRepositoryInterface
             )->when(isset($filters['seller_id']) && $filters['seller_id'] !== 'all', function ($query) use ($filters) {
                     $query->where('seller_id', $filters['seller_id']);
                 }
-            )->when(!empty($filters['seller_visible_only']), function ($query) {
+            )->when(!empty($filters['seller_visible_only']), function ($query) use ($filters) {
                     $query->sellerAccessible();
+                    app(\App\Services\VendorFulfillmentEligibilityService::class)->constrainVendorFilters($query, $filters, null);
                 }
             )->when(!empty($filters['exclude_seller_insurance_pending']), function ($query) {
                     $query->where(fn ($flow) => $flow->whereNull('commerce_flow_status')->orWhereNotIn('commerce_flow_status', ['seller_insurance_pending', 'seller_insurance_under_review']));
@@ -500,8 +505,21 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function update(string $id, array $data): bool
     {
+        if(isset($data['order_status']) && ($initial=$this->order->find($id))
+            && app(\App\Services\VendorFulfillmentDecisionService::class)->managed($initial)){
+            return DB::transaction(function()use($id,$data){
+                $locked=$this->order->lockForUpdate()->findOrFail($id);
+                app(\App\Services\VendorFulfillmentDecisionService::class)->assertAggregateProgress($locked,(string)$data['order_status']);
+                if(in_array($data['order_status'],['confirmed','processing','out_for_delivery','delivered'],true)&&$locked->customer_checkout_operation_id)
+                    app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($locked);
+                $result=(bool)$this->order->where('id',$id)->update($data);
+                if($data['order_status']==='canceled')app(\App\Services\VendorFulfillmentDecisionService::class)->synchronizeExternalCancellation($locked->fresh());
+                return $result;
+            },3);
+        }
         if (!in_array($data['order_status'] ?? '', ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) return $this->order->where('id', $id)->update($data);
         $order = $this->order->findOrFail($id);
+        app(\App\Services\VendorFulfillmentDecisionService::class)->assertAggregateProgress($order,(string)$data['order_status']);
         if (!$order->customer_checkout_operation_id) return $this->order->where('id', $id)->update($data);
         return DB::transaction(function () use ($id, $data, $order) {
             \App\Models\User::lockForUpdate()->findOrFail($order->customer_id);
@@ -513,11 +531,20 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function updateWhere(array $params, array $data): bool
     {
+        if(($data['order_status']??null)==='canceled')return DB::transaction(function()use($params,$data){
+            $rows=$this->order->where($params)->orderBy('id')->lockForUpdate()->get();
+            $result=(bool)$this->order->where($params)->update($data);
+            foreach($rows as $row)app(\App\Services\VendorFulfillmentDecisionService::class)->synchronizeExternalCancellation($row->fresh());
+            return $result;
+        },3);
         if (!in_array($data['order_status'] ?? '', ['confirmed', 'processing', 'out_for_delivery', 'delivered'], true)) return $this->order->where($params)->update($data);
         return DB::transaction(function () use ($params, $data) {
             $customerIds = $this->order->where($params)->whereNotNull('customer_checkout_operation_id')->orderBy('customer_id')->pluck('customer_id')->unique();
             foreach ($customerIds as $id) \App\Models\User::lockForUpdate()->findOrFail($id);
-            foreach ($this->order->where($params)->lockForUpdate()->get() as $order) app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
+            foreach ($this->order->where($params)->lockForUpdate()->get() as $order) {
+                app(\App\Services\VendorFulfillmentDecisionService::class)->assertAggregateProgress($order,(string)$data['order_status']);
+                app(\App\Services\CustomerPurchaseEligibilityService::class)->assertCanFulfill($order);
+            }
             return (bool) $this->order->where($params)->update($data);
         }, 3);
     }

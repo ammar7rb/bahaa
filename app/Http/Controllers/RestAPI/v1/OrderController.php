@@ -41,6 +41,19 @@ class OrderController extends Controller
 {
     use CommonTrait, FileManagerTrait;
 
+    public function confirmReceipt(Request $request, int $id, \App\Services\OrderLogisticsService $logistics): JsonResponse
+    {
+        $customer = $request->user('api');
+        abort_unless($customer, 401);
+        $order = Order::where('customer_id', $customer->id)->where('is_guest', false)->findOrFail($id);
+        try {
+            $logistics->confirmCustomerReceipt($order, (int) $customer->id);
+        } catch (\DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+        return response()->json(['message' => 'تم تأكيد استلام الطلب.']);
+    }
+
     public function insuranceQuote(Request $request): JsonResponse
     {
         $carts = OrderManager::processOrderGenerateData(data: [
@@ -76,6 +89,11 @@ class OrderController extends Controller
         if ($eligibility->enabled()) {
             $state = $eligibility->status($user);
             if (!$state['can_checkout']) return response()->json(['message'=>$state['message'],'code'=>'customer_purchase_restricted'], 403);
+            if (app(\App\Services\CustomerMonthlyAllowanceService::class)->enabled()) {
+                $summary = app(\App\Services\CustomerMonthlyAllowanceService::class)->summary((int)$user->id,
+                    app(CustomerPurchaseLimitService::class)->getCartProductTotal($carts), $state['initial_order_exception_available'] || $state['can_resume_initial_checkout'] || $state['can_pay_before_subscription']);
+                if (!$summary['can_checkout']) return response()->json(['message' => 'الحد الائتماني غير كافٍ. زد الحد أو اختر باقة أعلى أو قلل المنتجات.', 'code' => 'customer_purchase_limit_insufficient', 'limit' => $summary], 403);
+            }
         }
 
         if (app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled()) {
@@ -609,7 +627,7 @@ class OrderController extends Controller
                 'requestObj' => $request,
             ]);
 
-            if (!CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment')) throw \Illuminate\Validation\ValidationException::withMessages(['wallet' => 'تعذر تأكيد الخصم. لم يتم إنشاء الطلب.']);
+            if (!CustomerManager::create_wallet_transaction($user->id, Convert::default($paymentAmount), 'order_place', 'order payment', ['order_ids'=>$orderIds,'payment_method'=>'wallet_balance'])) throw \Illuminate\Validation\ValidationException::withMessages(['wallet' => 'تعذر تأكيد الخصم. لم يتم إنشاء الطلب.']);
             $postPurchaseInvoices = \App\Models\PostPurchaseInvoice::query()->whereIn('order_id', $orderIds)->get();
             return response()->json([
                 'messages' => translate('order_placed_successfully'),
@@ -673,8 +691,14 @@ class OrderController extends Controller
 
     public function store_refund(RefundStoreRequest $request): JsonResponse
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request): JsonResponse {
         $orderDetails = OrderDetail::find($request->order_details_id);
         $user = $request->user();
+        $refundOrder = Order::whereKey($orderDetails->order_id)->lockForUpdate()->firstOrFail();
+        if ((int) $refundOrder->customer_id !== (int) $user->id || $refundOrder->order_status !== 'delivered'
+            || (\Illuminate\Support\Facades\Schema::hasTable('order_admin_purchase_refunds') && \Illuminate\Support\Facades\DB::table('order_admin_purchase_refunds')->where('order_id', $refundOrder->id)->where('reason', 'customer_canceled_waiting_for_package')->exists())) {
+            return response()->json(['message' => 'لا يمكن إنشاء طلب استرداد لهذا الطلب.'], 422);
+        }
 
         $orderDetailsReward = OrderDetailsRewards::where('order_details_id', $request->order_details_id)
             ->where('reward_type', '!=', 'loyalty_point')
@@ -730,6 +754,7 @@ class OrderController extends Controller
             translate('refunded_request_updated_successfully!!'),
             200
         );
+        });
     }
 
     public function refund_details(Request $request): JsonResponse

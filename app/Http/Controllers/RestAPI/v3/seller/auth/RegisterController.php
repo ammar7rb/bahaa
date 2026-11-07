@@ -67,8 +67,8 @@ class RegisterController extends Controller
             // The account is usable immediately; activation is an independent
             // admin review case represented by the red banner in the client.
             $seller->status = 'approved';
-            $seller->activation_status = 'pending';
-            $seller->activation_requested_at = now();
+            $seller->activation_status = 'active';
+            $seller->activation_requested_at = null;
             $seller->phone_verified_at = null;
             $seller->registration_reference = (string) Str::uuid();
             if (Schema::hasColumn('sellers', 'auth_token')) {
@@ -116,9 +116,6 @@ class RegisterController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            if (Schema::hasTable('seller_activation_tickets')) {
-                $activationService->openRegistrationTicket($seller);
-            }
             DB::commit();
             $data = [
                 'vendorName' => $request['f_name'],
@@ -263,74 +260,19 @@ class RegisterController extends Controller
 
     public function activationTicket(Request $request, SellerRegistrationVerificationService $verificationService, SellerActivationService $activationService): JsonResponse
     {
-        $seller = $this->sellerFromRegistrationReference($request, $verificationService);
-        if ($seller instanceof JsonResponse) return $seller;
-        if ($seller->activation_status === 'active') {
-            return response()->json(['code' => 'seller_activation_already_completed', 'message' => translate('seller_activation_already_completed')], 409);
-        }
-
-        return response()->json(['activation_ticket' => $this->ticketSummary($activationService->openRegistrationTicket($seller))]);
+        abort(410);
     }
 
     public function activationTicketMessages(Request $request, SellerRegistrationVerificationService $verificationService): JsonResponse
     {
         $seller = $this->sellerFromRegistrationReference($request, $verificationService);
         if ($seller instanceof JsonResponse) return $seller;
-        if ($seller->activation_status === 'active') {
-            return response()->json(['activation_completed' => true, 'activation_ticket' => null, 'messages' => []]);
-        }
-        $ticket = $this->findTicketForSeller($seller, $request->integer('ticket_id'));
-        if (! $ticket) return response()->json(['activation_ticket' => null, 'messages' => []]);
-
-        return response()->json([
-            'activation_ticket' => $this->ticketSummary($ticket),
-            'messages' => $ticket->messages()->get()->map(fn ($message) => [
-                'id' => $message->id,
-                'sender_type' => $message->sender_type,
-                'body' => $message->body,
-                'attachments' => $message->attachment_full_url,
-                'is_automatic' => $message->is_automatic,
-                'created_at' => $message->created_at?->toISOString(),
-            ])->values(),
-        ]);
+        return response()->json(['activation_completed'=>true, 'activation_ticket'=>null, 'messages'=>[]])->header('Cache-Control','private, no-store');
     }
 
     public function sendActivationTicketMessage(Request $request, SellerRegistrationVerificationService $verificationService, SellerActivationService $activationService): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'registration_reference' => 'required|uuid',
-            'body' => 'nullable|string|max:2000|required_without:attachments',
-            'attachments' => 'nullable|array|max:5|required_without:body',
-            'attachments.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:6144',
-            'ticket_id' => 'nullable|integer',
-        ]);
-        if ($validator->fails()) return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 422);
-
-        $seller = $verificationService->findByReference($request->input('registration_reference'));
-        if (! $seller) return $this->registrationNotFoundResponse();
-        if ($seller->activation_status === 'active') {
-            return response()->json(['code' => 'seller_activation_already_completed', 'message' => translate('seller_activation_already_completed')], 409);
-        }
-        $ticket = $this->findTicketForSeller($seller, $request->integer('ticket_id')) ?? $activationService->openRegistrationTicket($seller);
-        if (! $ticket->isOpen()) {
-            return response()->json(['code' => 'seller_activation_ticket_closed', 'message' => translate('seller_activation_ticket_closed')], 409);
-        }
-
-        $message = $ticket->messages()->create([
-            'sender_type' => 'seller',
-            'body' => $request->string('body')->trim()->toString(),
-            'attachments' => $this->storeActivationAttachments($request),
-            'is_automatic' => false,
-        ]);
-
-        return response()->json([
-            'activation_ticket' => $this->ticketSummary($ticket->fresh()),
-            'message' => [
-                'id' => $message->id, 'sender_type' => $message->sender_type,
-                'body' => $message->body, 'attachments' => $message->attachment_full_url,
-                'is_automatic' => $message->is_automatic, 'created_at' => $message->created_at?->toISOString(),
-            ],
-        ], 201);
+        abort(410);
     }
 
     private function sellerFromRegistrationReference(Request $request, SellerRegistrationVerificationService $verificationService): Seller|JsonResponse
@@ -354,20 +296,8 @@ class RegisterController extends Controller
 
     private function activationPayload(Seller $seller, SellerRegistrationVerificationService $verificationService): array
     {
-        $ticket = $this->findTicketForSeller($seller);
-        $active = $seller->activation_status === 'active';
-        // Account activation is always handled through the unified ticket. The
-        // verification mode controls OTP only, never whether the ticket exists.
-        $supportTicketRequired = true;
-
-        return [
-            'status' => $seller->activation_status,
-            'support_ticket_required' => $supportTicketRequired,
-            'ticket' => $ticket ? $this->ticketSummary($ticket) : null,
-            'banner' => $active
-                ? ['visible' => false, 'state' => 'activated', 'color' => 'green', 'message' => translate('seller_account_activated')]
-                : ['visible' => true, 'state' => 'activation_required', 'color' => 'red', 'message' => translate('seller_activation_required'), 'action' => 'open_activation_ticket'],
-        ];
+        return ['enabled'=>false, 'status'=>'not_required', 'is_active'=>true, 'support_ticket_required'=>false, 'ticket'=>null,
+            'banner'=>['visible'=>false, 'state'=>'not_required', 'message'=>'', 'action'=>null]];
     }
 
     private function findTicketForSeller(Seller $seller, ?int $ticketId = null): ?SellerActivationTicket

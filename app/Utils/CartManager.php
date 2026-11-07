@@ -20,14 +20,14 @@ class CartManager
 {
     use VatTaxManagement;
 
-    public static function cartListSessionToDatabase($request = null): void
+    public static function cartListSessionToDatabase($request = null, int|string|null $guestCartId = null): void
     {
         $user = Helpers::getCustomerInformation($request);
         if (!is_object($user) || !$user->id) {
             return;
         }
         if (session()->has('guest_id') || (!is_null($request) && !is_null($request->guest_id)) ) {
-            $guestId = session('guest_id') ?? $request->guest_id;
+            $guestId = $guestCartId ?? session('guest_id') ?? $request->guest_id;
             \Illuminate\Support\Facades\DB::transaction(function () use ($user, $guestId) {
             \App\Models\User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
             $cartList = Cart::where(['is_guest' => 1, 'customer_id' => $guestId])->lockForUpdate()->get();
@@ -197,6 +197,21 @@ class CartManager
 
     public static function get_shipping_cost($groupId = null, $type = null)
     {
+        $automaticShipping = app(CustomerThreeStepShippingService::class)->isEnabled();
+        if ($automaticShipping && !request()->is('api/*', 'admin/*', 'vendor/*', 'seller/*')) {
+            $addressId = session('address_id');
+            $address = $addressId ? \App\Models\ShippingAddress::where('customer_id', auth('customer')->id() ?? session('guest_id'))
+                ->where('is_guest', auth('customer')->check() ? 0 : 1)->find($addressId) : null;
+            if (!$address) return 0;
+            if (app(\App\Services\EgyptShippingRateService::class)->hasConfiguredRates()) {
+                // Refresh existing selections as a single address delivery.
+                // This also repairs baskets quoted before seller allocation
+                // was introduced, without changing completed order charges.
+                foreach (self::get_cart_group_ids(type: 'checked') as $selectedGroup) {
+                    app(CustomerThreeStepShippingService::class)->recalculateCartGroupCost($selectedGroup, $address);
+                }
+            }
+        }
         self::updateOrderSummaryShippingCost($groupId, $type);
         $cartShippingCost = Cart::where(['product_type' => 'physical'])
             ->whereHas('product', function ($query) {
@@ -236,7 +251,9 @@ class CartManager
             $data = $orderWiseShippingCostData->first();
             $orderWiseShippingCost = isset($data) ? $data->shipping_cost : 0;
         }
-        return ($orderWiseShippingCost + $cartShippingCost);
+        // Automatic delivery is charged once per quoted group. Legacy item costs
+        // must not be added again to that authoritative selection.
+        return $automaticShipping ? $orderWiseShippingCost : ($orderWiseShippingCost + $cartShippingCost);
     }
 
     public static function updateOrderSummaryShippingCost($groupId = null, $type = null): void
@@ -540,6 +557,14 @@ class CartManager
             }
 
             if ($product['product_type'] == 'physical' && $shippingType == 'order_wise') {
+                if (app(CustomerThreeStepShippingService::class)->isEnabled() && !$request['shipping_method_exist']) {
+                    return [
+                        'status' => 1,
+                        'redirect_to' => 'checkout',
+                        'cart' => $cart,
+                        'message' => translate('successfully_added') . '!',
+                    ];
+                }
                 if ($request['shipping_method_exist'] && $request['shipping_method_id'] && count($sellerShippingList) > 0) {
                     $cart->update(['is_checked' => 1]);
                     $cartGroupIds = Cart::where(['customer_id' => ($user == 'offline' ? $guestId : $user['id']), 'is_guest' => ($user == 'offline' ? 1 : 0)])
@@ -718,7 +743,7 @@ class CartManager
             return $query->active();
         }])->where(['id' => $request['id']])->first();
 
-        if($product['status'] == 0){
+        if(!$product || $product['status'] == 0 || !app(\App\Services\VendorAdvertisingAccessService::class)->visible($product, true)){
             return ['status' => 0, 'message' => translate('Product_is_unavailable')];
         }
 
@@ -906,6 +931,10 @@ class CartManager
         foreach ($carts as $cart) {
             if ($cart->product) {
                 $product = $cart->product;
+                if (!app(\App\Services\VendorAdvertisingAccessService::class)->visible($product, true)) {
+                    $status = false;
+                    continue;
+                }
                 $count = count(json_decode($product->variation));
                 if ($count) {
                     for ($i = 0; $i < $count; $i++) {

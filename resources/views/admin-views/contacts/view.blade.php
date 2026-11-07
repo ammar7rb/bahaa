@@ -71,7 +71,7 @@
                         <div class="card-body d-flex flex-column gap-2">
                             @foreach(\Illuminate\Support\Facades\DB::table('contact_conversation_messages')->where('contact_id', $contact->id)->orderBy('id')->get() as $conversationMessage)
                                 <div class="border rounded p-3">
-                                    <strong>{{ in_array($conversationMessage->sender, ['admin', 'admin_password']) ? translate('admin') : $contact->name }}</strong>
+                                    <strong>{{ in_array($conversationMessage->sender, ['admin', 'admin_password','admin_temp_password']) ? translate('admin') : $contact->name }}</strong>
                                     <p class="mb-0 mt-2" style="white-space:pre-wrap;overflow-wrap:anywhere">{{ \App\Services\ContactPasswordResetService::displayBody($conversationMessage) }}</p>
                                     @foreach(json_decode($conversationMessage->attachments ?? '[]', true) ?: [] as $attachment)
                                         <a class="btn btn-outline-primary btn-sm mt-2" target="_blank" rel="noopener" href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($attachment['path']) }}">{{ $attachment['name'] }}</a>
@@ -112,12 +112,12 @@
                     <div class="card">
                         <div class="card-body border-bottom">
                             <h3>{{ translate('admin_reset_account_password') }}</h3>
+                            <p><a href="{{ route('admin.customer.password-recovery.index',['contact_id'=>$contact->id]) }}">استعادة كلمة مرور العميل بكلمة مؤقتة وتغيير إلزامي</a></p>
                             <p class="text-muted">{{ translate('admin_reset_identity_notice') }} <bdi>{{ $contact->email }}</bdi></p>
                             <form method="post" action="{{ route('admin.contact.reset-password', $contact->id) }}" autocomplete="off">
                                 @csrf
                                 <label for="reset-account-type">{{ translate('account_type') }}</label>
                                 <select class="form-control mb-3" id="reset-account-type" name="account_type" required>
-                                    <option value="customer">{{ translate('customer') }}</option>
                                     <option value="seller">{{ translate('seller') }}</option>
                                 </select>
                                 <label for="admin-new-password">{{ translate('new_password') }}</label>

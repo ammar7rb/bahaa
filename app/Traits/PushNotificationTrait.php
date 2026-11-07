@@ -71,6 +71,13 @@ trait PushNotificationTrait
             /**for seller */
             if ($type == 'seller') {
                 $sellerFcmToken = $order->seller?->cm_firebase_token;
+                if ($sellerFcmToken && $order instanceof Order && app(\App\Services\VendorFulfillmentEligibilityService::class)->hasRestrictions($order)) {
+                    $this->sendPushNotificationToDevice($sellerFcmToken, [
+                        'title' => 'طلب تنفيذ محول إليك', 'description' => \App\Services\VendorFulfillmentEligibilityService::MESSAGE,
+                        'order_id' => $order->id, 'image' => '', 'type' => 'order', 'message_key' => $key,
+                    ]);
+                    return;
+                }
                 if ($sellerFcmToken) {
                     $lang = $order->seller?->app_language ?? $lang;
                     $value_seller = $this->pushNotificationMessage($key, 'seller', $lang);

@@ -18,7 +18,7 @@ class CustomerMiddleware
      */
     public function handle(Request $request, Closure $next): mixed
     {
-        if (Auth::guard('customer')->check() && auth('customer')->user()->is_active) {
+        if (Auth::guard('customer')->check() && auth('customer')->user()->is_active && !auth('customer')->user()->account_deleted_at) {
             return $next($request);
         } elseif (Auth::guard('customer')->check()) {
             auth()->guard('customer')->logout();

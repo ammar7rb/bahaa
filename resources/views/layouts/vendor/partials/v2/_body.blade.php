@@ -66,6 +66,7 @@
     </script>
 
     <main class="v2-main" id="content" role="main">
+        @include('layouts.vendor.partials.v2._identity-strip')
         @yield('content')
         @include('layouts.vendor.partials.image-modal')
     </main>

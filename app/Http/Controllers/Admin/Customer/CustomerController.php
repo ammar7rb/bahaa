@@ -120,17 +120,9 @@ class CustomerController extends BaseController
             appends: $request->all(),
         );
         $totalCustomers = $this->customerRepo->getListWhereBetween(filters: ['avoid_walking_customer' => 1], dataLimit: 'all')->count();
-        $customerActivePackages = CustomerPurchasePackageSubscription::with('package')
+        $customerActivePackages = \App\Models\CustomerMonthlySubscription::query()
             ->whereIn('customer_id', $customers->getCollection()->pluck('id')->toArray())
-            ->where('status', 'active')
-            ->where('payment_status', 'paid')
-            ->where(function ($query) {
-                $query->whereNull('starts_at')->orWhere('starts_at', '<=', Carbon::now());
-            })
-            ->where(function ($query) {
-                $query->whereNull('expires_at')->orWhere('expires_at', '>=', Carbon::now());
-            })
-            ->orderByDesc('activated_at')
+            ->whereNotNull('package_id')->where('starts_at','<=',Carbon::now())->where('expires_at','>',Carbon::now())
             ->orderByDesc('id')
             ->get()
             ->groupBy('customer_id')
@@ -146,6 +138,7 @@ class CustomerController extends BaseController
 
     public function updateStatus(Request $request): JsonResponse
     {
+        if (\App\Models\User::findOrFail($request['id'])->account_deleted_at) return response()->json(['message' => 'حساب محذوف نهائيًا. لا يمكن إعادة تفعيله؛ السجل المالي محفوظ.'], 422);
         $this->customerRepo->update(id: $request['id'], data: ['is_active' => $request->get('is_active', 0)]);
         app(\App\Services\CustomerPurchaseEligibilityService::class)->reevaluateCustomer((int) $request['id']);
         $this->customerRepo->deleteAuthAccessTokens(id: $request['id']);
@@ -547,7 +540,6 @@ class CustomerController extends BaseController
             value: $insuranceDiscountType === 'fixed' ? currencyConverter(amount: $insuranceDiscountValue) : $insuranceDiscountValue
         );
         $this->businessSettingRepo->updateOrInsert(type: 'customer_monthly_insurance_period_days', value: $request->get('customer_monthly_insurance_period_days', 30));
-        $this->businessSettingRepo->updateOrInsert(type: 'customer_activation_hold_message', value: $request->get('customer_activation_hold_message'));
         $this->businessSettingRepo->updateOrInsert(type: 'customer_three_step_shipping_status', value: $request->get('customer_three_step_shipping_status', 0));
         $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_sigma_status', value: $request->get('customer_shipping_sigma_status', 0));
         $this->businessSettingRepo->updateOrInsert(type: 'customer_shipping_sigma_title', value: $request->get('customer_shipping_sigma_title', 'Sigma Shipping'));

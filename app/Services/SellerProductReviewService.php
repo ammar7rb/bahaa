@@ -22,7 +22,17 @@ class SellerProductReviewService
         return $this->transition($product, self::SUBMITTED, changedFields: $changedFields);
     }
 
-    public function transition(
+    public function transition(Product $product, string $status, ?string $reason = null, ?int $adminId = null, array $changedFields = []): Product
+    {
+        if (!config('vendor_product_workspace.enabled')) return $this->transitionLocked($product, $status, $reason, $adminId, $changedFields);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($product, $status, $reason, $adminId, $changedFields) {
+            \App\Models\Seller::whereKey($product->user_id)->lockForUpdate()->firstOrFail();
+            $product = Product::withoutGlobalScopes()->whereKey($product->id)->lockForUpdate()->firstOrFail();
+            return $this->transitionLocked($product, $status, $reason, $adminId, $changedFields);
+        });
+    }
+
+    private function transitionLocked(
         Product $product,
         string $status,
         ?string $reason = null,
@@ -39,8 +49,16 @@ class SellerProductReviewService
             throw new DomainException('seller_product_review_reason_is_required');
         }
         if ($status === self::APPROVED_PUBLISHED) {
+            if (config('vendor_product_workspace.enabled')) {
+                app(\App\Services\VendorProductWorkspaceService::class)->approve($product);
+            }
+            if ((config('vendor_advertising.enabled') || config('vendor_product_workspace.enabled')) && !app(VendorAdvertisingAccessService::class)->visible($product)) {
+                throw new DomainException('يلزم ربط المنتج بمساحة إعلانية سارية قبل اعتماد النشر.');
+            }
             if ($product->category_review_required) throw new DomainException('category_assignment_required_before_publish');
-            app(ProductDateComplianceService::class)->assertPublishable($product);
+            $publicationCandidate = clone $product;
+            $publicationCandidate->syncOriginal();
+            app(ProductDateComplianceService::class)->assertPublishable($publicationCandidate);
         }
 
         $now = now();
@@ -72,6 +90,18 @@ class SellerProductReviewService
             ],
         };
 
+        if (config('vendor_product_workspace.enabled')) {
+            $workspace = app(VendorProductWorkspaceService::class)->state($product);
+            if ($workspace) {
+                $workspaceUpdate = ['review_state' => $status];
+                if (in_array($status, [self::SUSPENDED, self::DELETED], true)) $workspaceUpdate['publication_suspended'] = true;
+                if ($status === self::APPROVED_PUBLISHED) $workspaceUpdate['publication_suspended'] = false;
+                $workspace->update($workspaceUpdate);
+                if (in_array($status, [self::SUBMITTED, self::UNDER_REVIEW, self::REJECTED], true)) {
+                    $workspace->update(['publication_suspended' => true]);
+                }
+            }
+        }
         $data['seller_review_status'] = $status;
         if ($status === self::SUBMITTED) {
             $data['seller_submitted_at'] = $now;
@@ -83,6 +113,15 @@ class SellerProductReviewService
         }
 
         $product->forceFill($data)->save();
+        if (config('vendor_advertising.creation_slots_enabled') && in_array($status, [self::REJECTED, self::DELETED], true)) {
+            app(VendorAdvertisingSlotService::class)->releaseRejected($product);
+        }
+        if (config('vendor_product_workspace.enabled') && $status === self::APPROVED_PUBLISHED) {
+            app(VendorProductWorkspaceService::class)->syncPublishedTranslations($product);
+        }
+        if (config('vendor_advertising.enabled')) {
+            app(VendorAdvertisingSlotService::class)->refreshScheduled((int) $product->user_id);
+        }
         SellerProductReviewDecision::create([
             'product_id' => $product->id,
             'seller_id' => $product->user_id,
@@ -93,6 +132,10 @@ class SellerProductReviewService
             'decided_at' => $now,
         ]);
 
+        if ($status === self::SUBMITTED && config('vendor_product_workspace.enabled')) {
+            $workspace = app(VendorProductWorkspaceService::class)->state($product);
+            if ($workspace) app(VendorProductWorkspaceService::class)->notifyAdminSubmission($workspace);
+        }
         if (in_array($status, [self::APPROVED_PUBLISHED, self::SUSPENDED, self::REJECTED], true)) {
             $this->notifySeller($product->fresh(['seller']), $status);
         }
@@ -102,11 +145,22 @@ class SellerProductReviewService
 
     public function statusFor(Product $product): string
     {
+        if (config('vendor_product_workspace.enabled')) {
+            $workspace = app(VendorProductWorkspaceService::class)->state($product);
+            if ($workspace) return $workspace->review_state;
+        }
         if ($product->seller_review_status) return $product->seller_review_status;
         if ((int) $product->request_status === 2) return self::REJECTED;
         if ((int) $product->request_status === 1 && (int) $product->status === 1) return self::APPROVED_PUBLISHED;
         if ((int) $product->request_status === 1 && (int) $product->status === 0) return self::SUSPENDED;
         return self::SUBMITTED;
+    }
+
+    public function hasExtraSlot(Product $product): bool
+    {
+        return config('vendor_advertising.enabled') && \Illuminate\Support\Facades\Schema::hasColumn('vendor_advertising_slots', 'extra_ad_purchase_id')
+            && \App\Models\VendorAdvertisingSlot::where('seller_id', $product->user_id)->where('product_id', $product->id)
+                ->whereNotNull('extra_ad_purchase_id')->where('expires_at', '>', now())->exists();
     }
 
     public function statuses(): array
@@ -155,6 +209,7 @@ class SellerProductReviewService
 
     private function notifySeller(Product $product, string $status): void
     {
+        if (config('vendor_product_workspace.enabled')) return;
         $seller = $product->seller;
         if (!$seller?->cm_firebase_token) return;
         $key = match ($status) {

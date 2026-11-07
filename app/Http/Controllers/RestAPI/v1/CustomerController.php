@@ -59,8 +59,21 @@ class CustomerController extends Controller
         return response()->json($user, 200);
     }
 
+    public function activationStatus(Request $request, CustomerActivationService $activationService): JsonResponse
+    {
+        return response()->json($activationService->payload($request->user()));
+    }
+
+    public function activationTicket(Request $request, CustomerActivationService $activationService): JsonResponse
+    {
+        abort(410);
+    }
+
     public function create_support_ticket(SupportTicketRequest $request)
     {
+        if ($request->input('type') === 'account_activation') {
+            abort(410);
+        }
         $images = [];
         if ($request->file('image')) {
             foreach ($request->image as $key => $value) {
@@ -91,19 +104,7 @@ class CustomerController extends Controller
 
     public function account_delete(Request $request, $id): JsonResponse
     {
-        if ($request->user()->id == $id) {
-            $user = User::find($id);
-            $ongoing = ['out_for_delivery', 'processing', 'confirmed', 'pending'];
-            $order = Order::where('customer_id', $user->id)->where('is_guest', 0)->whereIn('order_status', $ongoing)->count();
-            if ($order > 0) {
-                return response()->json(['message' => 'Due to ongoing orders, you are unable to delete your account.'], 403);
-            }
-            $this->delete('/profile/' . $user['image']);
-            $user->delete();
-            return response()->json(['message' => 'Your account deleted successfully'], 200);
-        } else {
-            return response()->json(['message' => 'access_denied!!'], 403);
-        }
+        abort(405, 'استخدم خطوات حذف الحساب الآمنة.');
     }
 
     public function reply_support_ticket(Request $request, $ticket_id)
@@ -112,6 +113,14 @@ class CustomerController extends Controller
             ->where('id', $ticket_id)->where('customer_id', $request->user()->id)->first();
         if (! $ticket) {
             return response()->json(['message' => 'Ticket not found'], 404);
+        }
+        $request->validate([
+            'message' => ['nullable', 'string', 'max:5000', 'required_without:image'],
+            'image' => ['nullable', 'array', 'max:10'],
+            'image.*' => ['required', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:6000'],
+        ]);
+        if (trim((string) $request->input('message')) === '' && !$request->hasFile('image')) {
+            return response()->json(['message' => translate('type_something')], 422);
         }
         DB::table('support_tickets')->where(['id' => $ticket_id])->update([
             'status' => 'open',
@@ -247,6 +256,15 @@ class CustomerController extends Controller
         return response()->json($wishlist, 200);
     }
 
+    public function get_address(Request $request, int $id): JsonResponse
+    {
+        $user = Helpers::getCustomerInformation($request);
+        abort_if($user === 'offline', 401);
+        $address = ShippingAddress::where('customer_id', $user->id)->where('is_guest', 0)->findOrFail($id);
+
+        return response()->json($address);
+    }
+
     public function address_list(Request $request): JsonResponse
     {
         $user = Helpers::getCustomerInformation($request);
@@ -310,7 +328,7 @@ class CustomerController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ], $locationService->persistedLocationFields($request->all(), $resolution));
-        $addressId = ShippingAddress::query()->insertGetId($address);
+        $addressId = ShippingAddress::create($address)->id;
         return response()->json([
             'message' => translate('successfully added!'),
             'address_id' => $addressId,
@@ -346,6 +364,7 @@ class CustomerController extends Controller
 
         $shippingAddress = ShippingAddress::where([
             'customer_id' => $user == 'offline' ? $request->guest_id : $user->id,
+            'is_guest' => $user == 'offline' ? 1 : 0,
             'id' => $request->id
         ])->first();
 
@@ -569,6 +588,7 @@ class CustomerController extends Controller
 
     private function attachRefundSummary(Order $order): void
     {
+        $order->setAttribute('purchase_eligibility', app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order));
         if (! Schema::hasTable('order_refund_ledgers')) {
             $order->setAttribute('refund_summary', null);
             return;
@@ -594,33 +614,33 @@ class CustomerController extends Controller
 
     public function update_profile(UpdateProfileApiRequest $request):JsonResponse
     {
-        $user = User::where(['id' => $request->user()->id])->first();
-        $imageName = $request->user()->image;
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+        $user = User::lockForUpdate()->findOrFail($request->user()->id);
+        $password = app(\App\Services\CustomerPasswordChangeService::class)->password($user,$request);
+        $imageName = $user->image;
         if ($request->has('image')) {
-            $imageName = $this->update('profile/', $request->user()->image, 'webp', $request->file('image'));
+            $imageName = $this->update('profile/', $user->image, 'webp', $request->file('image'));
         }
 
-        $password = $request->user()->password;
-        if ($request['password'] != null && strlen($request['password']) > 5) {
-            $password = bcrypt($request['password']);
-        }
 
         $phones = app(\App\Services\EgyptPhoneService::class);
-        $effectivePhone = $phones->normalizeLocal($user['is_phone_verified'] ? $user['phone'] : $request['phone']);
+        $effectivePhone = $phones->normalizeLocal($request['phone']);
         $phoneChanged = $effectivePhone !== $phones->normalizeLocal($user['phone']);
         $user->update([
-            'f_name' => $request->f_name,
-            'l_name' => $request->l_name,
+            'f_name' => $request->exists('f_name') ? (string) $request->input('f_name') : $user->getAttribute('f_name'),
+            'l_name' => $request->exists('l_name') ? (string) $request->input('l_name') : $user->getAttribute('l_name'),
             'image' => $imageName,
+            'organization_name' => $request->input('organization_name', $user->organization_name),
             'phone' => $effectivePhone,
-            'email' => $request['email'],
+            'email' => $request->input('email', $user->email),
             'is_phone_verified' => $phoneChanged ? 0 : $user['is_phone_verified'],
-            'is_email_verified' => $request['email'] == $user['email'] ? $user['is_email_verified'] : 0,
-            'email_verified_at' => $request['email'] == $user['email'] ? $user['email_verified_at'] : null,
+            'is_email_verified' => $request->input('email', $user->email) == $user['email'] ? $user['is_email_verified'] : 0,
+            'email_verified_at' => $request->input('email', $user->email) == $user['email'] ? $user['email_verified_at'] : null,
             'password' => $password,
             'updated_at' => now(),
         ]);
         return response()->json(['message' => translate('successfully updated!')], 200);
+        });
     }
 
     public function update_cm_firebase_token(Request $request):JsonResponse

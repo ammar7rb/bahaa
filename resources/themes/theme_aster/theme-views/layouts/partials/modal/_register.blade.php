@@ -1,10 +1,15 @@
+@php($inlineRegistration = $inlineRegistration ?? false)
+@if($inlineRegistration)
+<div class="card mx-auto" style="max-width: 54rem">
+@else
 <div class="modal fade max-z-index-for-auth-modal" id="registerModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header border-0 pb-0">
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body px-4 px-lg-5">
+@endif
+            <div @class(['card-body p-4 p-lg-5' => $inlineRegistration, 'modal-body px-4 px-lg-5' => !$inlineRegistration])>
                 <div class="mb-4 text-center">
                     <img width="200" alt="" class="dark-support ba-platform-logo"
                          src="{{ getStorageImages(path: $web_config['web_logo'], type: 'logo') }}">
@@ -20,106 +25,7 @@
                 </div>
                 <form action="{{ route('customer.auth.sign-up') }}" method="POST" id="customer-form"
                       enctype="multipart/form-data">
-                    @csrf
-                    <div class="custom-scrollbar height-45vh">
-                        <div class="row">
-                            <div class="col-sm-6">
-                                <div class="form-group mb-4">
-                                    <label class="text-capitalize" for="f_name"> {{ translate('first_name') }}</label>
-                                    <input type="text" id="f_name" name="f_name" class="form-control"
-                                           placeholder="{{ translate('ex') . ': ' . translate('Jhone') }}"
-                                           value="{{ old('f_name') }}" required/>
-                                </div>
-                            </div>
-                            <div class="col-sm-6">
-                                <div class="form-group mb-4">
-                                    <label class="text-capitalize" for="l_name">{{ translate('last_name') }}</label>
-                                    <input type="text" id="l_name" name="l_name" value="{{ old('l_name') }}"
-                                           class="form-control"
-                                           placeholder="{{ translate('ex') . ': ' . translate('doe') }}" required/>
-                                </div>
-                            </div>
-                            <div class="col-sm-6">
-                                <div class="form-group mb-4">
-                                    <label for="r_email">{{ translate('email') }}</label>
-                                    <input type="text" id="r_email" value="{{ old('email') }}" name="email"
-                                           class="form-control"
-                                           placeholder="{{ translate('enter_email_or_phone_number') }}"
-                                           autocomplete="off"
-                                           required/>
-                                </div>
-                            </div>
-                            <div class="col-sm-6">
-                                <div class="form-group mb-4">
-                                    <label for="phone">{{ translate('phone') }}</label>
-                                    <input type="tel" id="phone" value="{{ old('phone') }}"
-                                           class="form-control phone-input-with-country-picker" name="phone"
-                                           placeholder="{{ translate('enter_phone_number') }}" required/>
-                                </div>
-                            </div>
-                            <div class="col-sm-6">
-                                <div class="mb-4">
-                                    @php($randomLabelId=rand(1111, 9999))
-                                    <label for="password-{{ $randomLabelId }}">
-                                        {{ translate('password') }}
-                                        <span class="text-danger mx-1 password-error"></span>
-                                    </label>
-                                    <div class="input-inner-end-ele">
-                                        <input type="password" id="password-{{ $randomLabelId }}" name="password"
-                                               class="form-control"
-                                               placeholder="{{ translate('minimum_8_characters_long') }}"
-                                               autocomplete="off" required/>
-                                        <i class="bi bi-eye-slash-fill togglePassword"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-6">
-                                <div class="mb-4">
-                                    <label class="text-capitalize"
-                                           for="confirm_password-{{ $randomLabelId }}">
-                                        {{ translate('confirm_password') }}
-                                    </label>
-                                    <div class="input-inner-end-ele">
-                                        <input type="password" id="confirm_password-{{ $randomLabelId }}"
-                                               class="form-control" name="con_password"
-                                               placeholder="{{ translate('minimum_8_characters_long') }}"
-                                               autocomplete="off" required/>
-                                        <i class="bi bi-eye-slash-fill togglePassword"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            @if ($web_config['ref_earning_status'])
-                                <div class="col-sm-12">
-                                    <div class="mb-4">
-                                        <div class="form-group">
-                                            <label class="form-label form--label text-capitalize"
-                                                   for="referral_code">{{ translate('refer_code') }} <small
-                                                    class="text-muted">({{ translate('optional') }})</small></label>
-                                            <input type="text" id="referral_code" class="form-control"
-                                                   name="referral_code"
-                                                   placeholder="{{ translate('use_referral_code') }}">
-                                        </div>
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-
-                        <div class="d-flex justify-content-center mt-4">
-                            <label for="input-checked" class="d-flex gap-1 align-items-center mb-0 user-select-none">
-                                <input type="checkbox" id="input-checked" name="terms_accepted" value="1" required/>
-                                {{ translate('i_agree_with_the') }}
-                                <a href="{{ route('business-page.view', ['slug' => 'terms-and-conditions']) }}"
-                                   class="text-info text-capitalize" target="_blank" rel="noopener">
-                                    {{ getLanguageCode(country_code:getDefaultLanguage()) === 'ar' ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms and Conditions and Privacy Policy' }}
-                                </a>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-center mt-4 mb-3">
-                        <button type="submit" id="customer-sign-up-btn" class="btn btn-primary px-5 text-capitalize"
-                                disabled>{{ translate('sign_up') }}</button>
-                    </div>
+                    @include('customer-account.registration-fields')
                 </form>
 
                 @if ($web_config['social_login_text'])
@@ -142,20 +48,15 @@
                     @endif
                 </div>
             </div>
+@unless($inlineRegistration)
         </div>
     </div>
+@endunless
 </div>
 
 @push('script')
     <script>
         "use strict";
-        $('#input-checked').change(function () {
-            if ($('#input-checked').is(':checked')) {
-                $('#customer-sign-up-btn').removeAttr('disabled');
-            } else {
-                $('#customer-sign-up-btn').attr('disabled', 'disabled');
-            }
-        });
         $('#customer-form').submit(function (event) {
             event.preventDefault();
             let formData = $(this).serialize();
@@ -210,6 +111,4 @@
             });
         });
     </script>
-
-    <script src="{{ theme_asset('assets/js/password-strength.js') }}"></script>
 @endpush

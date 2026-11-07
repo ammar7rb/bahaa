@@ -69,6 +69,48 @@ class VendorFinanceWorkspaceController extends Controller
         return $request->is('api/*') ? response()->json($data)->header('Cache-Control', 'private, no-store') : view('vendor-views.finance.invoices', compact('data'));
     }
 
+    public function invoicePreview(Request $request)
+    {
+        $data = app(VendorFinancialWorkspaceService::class)->invoices($this->seller($request)->id, 1);
+        return response()->view('vendor-views.finance.invoice-preview', compact('data'))
+            ->header('Cache-Control', 'private, no-store');
+    }
+
+    public function transferQuote(Request $request)
+    {
+        $this->seller($request);
+        $input = $request->validate(['amount' => 'required|numeric|decimal:0,2|gt:0|max:100000000']);
+        try {
+            $quote = app(\App\Services\SellerCashTransferService::class)->quote((float) \App\Utils\Convert::usd($input['amount']));
+        } catch (\DomainException $exception) {
+            throw ValidationException::withMessages(['amount' => translate($exception->getMessage())]);
+        }
+        $currencyCode = \App\Models\Currency::find(getWebConfig(name: 'system_default_currency'))?->code ?: getCurrencyCode(type: 'default');
+        return response()->json(['quote' => $quote, 'currency_code' => $currencyCode, 'display' => [
+            'amount' => \App\Utils\Convert::default($quote['amount']),
+            'fee' => \App\Utils\Convert::default($quote['fee']),
+            'net' => \App\Utils\Convert::default($quote['net']),
+        ]])->header('Cache-Control', 'private, no-store');
+    }
+
+    public function transferToCash(Request $request)
+    {
+        $input = $request->validate(['amount' => 'required|numeric|decimal:0,2|gt:0|max:100000000', 'request_key' => 'required|uuid',
+            'quoted_amount' => 'required|numeric|gt:0', 'currency_code' => 'required|string|max:10', 'fee_type' => 'required|in:fixed,percent', 'fee_value' => 'required|numeric|min:0', 'fee' => 'required|numeric|min:0']);
+        $currencyCode = \App\Models\Currency::find(getWebConfig(name: 'system_default_currency'))?->code ?: getCurrencyCode(type: 'default');
+        try {
+            $quote = app(\App\Services\SellerCashTransferService::class)->transfer($this->seller($request)->id,
+                (float) $input['quoted_amount'], $input['request_key'], $input, function () use ($input, $currencyCode) {
+                    if ($input['currency_code'] !== $currencyCode || abs((float) \App\Utils\Convert::usd($input['amount']) - (float) $input['quoted_amount']) > 0.000000001) {
+                        throw new \DomainException('sales_cash_transfer_quote_changed');
+                    }
+                });
+        } catch (\DomainException $exception) {
+            throw ValidationException::withMessages(['amount' => translate($exception->getMessage())]);
+        }
+        return $request->is('api/*') ? response()->json(['quote' => $quote]) : back()->with('success', translate('sales_cash_transfer_success'))->with('vendor_transfer_success', true);
+    }
+
     public function invoiceDocument(Request $request, int $order)
     {
         $seller = $this->seller($request);
@@ -94,5 +136,25 @@ class VendorFinanceWorkspaceController extends Controller
             throw ValidationException::withMessages(['amount' => translate($exception->getMessage())]);
         }
         return $request->is('api/*') ? response()->json(['request' => $result]) : back()->with('success', translate('withdraw_request_has_been_sent'));
+    }
+
+    public function operatingRefunds(Request $request)
+    {
+        $seller = $this->seller($request);
+        return response()->json([
+            'requests' => WithdrawRequest::where('seller_id', $seller->id)->where('source_bucket', 'operating')->latest('id')->paginate(20),
+            'days' => app(SellerWithdrawalService::class)->payoutDays('operating'),
+        ]);
+    }
+
+    public function operatingRefund(Request $request)
+    {
+        $input = $request->validate(['amount' => 'required|numeric|min:0.01|max:999999999', 'request_key' => 'required|uuid', 'currency_code' => 'required|exists:currencies,code']);
+        try {
+            $result = app(SellerWithdrawalService::class)->operatingRefund($this->seller($request)->id, (float) \App\Utils\Convert::usdPaymentModule($input['amount'], $input['currency_code']), $input['request_key']);
+        } catch (\DomainException | \InvalidArgumentException $error) {
+            throw ValidationException::withMessages(['amount' => translate($error->getMessage())]);
+        }
+        return $request->is('api/*') ? response()->json(['request' => $result], 201) : back()->with('success', 'تم حجز المبلغ وإرسال طلب استرداد رصيد التشغيل للإدارة.');
     }
 }

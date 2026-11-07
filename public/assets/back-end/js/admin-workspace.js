@@ -39,7 +39,7 @@
         a.append(title, detail); return a;
     }
     function notification(item, kind) {
-        const a=document.createElement('a'); a.className='admin-notice'+(item.unread?' is-unread':''); a.dataset.noticeKind=kind; a.href=item.url;
+        const a=document.createElement('a'); a.className='admin-notice'+(item.unread?' is-unread':''); a.dataset.noticeKind=kind; a.dataset.noticeKey=item.key || ''; a.dataset.noticeCategory=item.category || ''; a.href=item.url;
         const media=document.createElement('span'); media.className='admin-notice-media';
         if (item.images?.length) item.images.slice(0,3).forEach(photo=>{const img=document.createElement('img'); img.className='admin-notice-thumb'; img.src=photo.url; img.alt=photo.alt || ''; img.loading='lazy'; img.width=56; img.height=56; media.append(img);});
         else {const icon=document.createElement('i'); icon.className='fi fi-rr-'+(item.icon || 'bell'); icon.setAttribute('aria-hidden','true'); media.append(icon);}
@@ -102,12 +102,19 @@
     async function refresh() {
         if (refreshing || document.hidden) return;
         refreshing = true;
+        const activeFilter = document.querySelector('[data-inbox-filter]')?.value || '';
         try {
-            const response = await fetch(config.snapshot, {credentials:'same-origin', headers:{Accept:'application/json'}});
+            const response = await fetch(config.snapshot + (activeFilter ? '?category='+encodeURIComponent(activeFilter) : ''), {credentials:'same-origin', headers:{Accept:'application/json'}});
             if (!response.ok) throw new Error('snapshot');
             const data = await response.json();
+            const status=document.querySelector('[data-inbox-status]'); if(status) status.hidden=true;
             Object.entries(data.totals).forEach(([key, total]) => { const el = document.querySelector('[data-workspace-total="' + key + '"]'); if (el && total !== null) el.textContent = new Intl.NumberFormat(document.documentElement.lang).format(total); });
             Object.entries(data.categories).forEach(([key, category]) => {
+                document.querySelectorAll('[data-nav-workspace-count="'+key+'"]').forEach(badge => {
+                    badge.textContent = category.count > 99 ? '99+' : category.count;
+                    badge.classList.toggle('d-none', category.count === 0);
+                    badge.setAttribute('aria-label', String(category.count));
+                });
                 const badge = document.querySelector('[data-workspace-count="' + key + '"]');
                 if (badge) {badge.textContent = category.count > 99 ? '99+' : category.count; badge.classList.toggle('d-none', category.count === 0); badge.setAttribute('aria-label', String(category.count));}
                 if (badge) { const button = badge.closest('[data-workspace-label]'); button?.setAttribute('aria-label', button.dataset.workspaceLabel + ' (' + category.count + ')'); }
@@ -116,13 +123,35 @@
                 if (!list) return;
                 // Preserve keyboard focus while a preview is being used.
                 if (list.contains(document.activeElement)) return;
-                list.replaceChildren(...category.items.map(item => notification(item, key)));
-                if (!category.items.length) { const p = document.createElement('p'); p.className = 'admin-empty'; p.textContent = config.pendingEmpty; list.append(p); }
+                const filter = document.querySelector('[data-inbox-filter]')?.value;
+                list.replaceChildren(...category.items.filter(item => !filter || item.category === filter).map(item => notification(item, key)));
+                if (!category.items.length) { const p = document.createElement('p'); p.className = 'admin-empty'; p.textContent = config.notificationEmpty || config.pendingEmpty; list.append(p); }
             });
             updateTimes();
-        } catch (_) { /* Retain the last data until the next navigation or return. */ }
-        finally { refreshing = false; }
+        } catch (_) { const status=document.querySelector('[data-inbox-status]'); if(status) {status.hidden=false; status.textContent=config.notificationError || config.error;} }
+        finally { refreshing = false; if ((document.querySelector('[data-inbox-filter]')?.value || '') !== activeFilter) refresh(); }
     }
+    document.querySelector('[data-inbox-filter]')?.addEventListener('change', event => {
+        const filter=event.target.value;
+        const status=document.querySelector('[data-inbox-status]'); if(status) {status.hidden=false;status.textContent=config.notificationLoading || config.loading;}
+        const all=document.querySelector('.admin-inbox-view-all');
+        if(all) all.href=config.notifications+(filter?'?category='+encodeURIComponent(filter):'');
+        refresh();
+    });
+    document.addEventListener('click', async event => {
+        const toggle=event.target.closest('[data-notice-toggle]');
+        const notice=event.target.closest('a[data-notice-key]');
+        const key=toggle?.dataset.noticeToggle || notice?.dataset.noticeKey;
+        if(!key || (!toggle && (event.ctrlKey || event.metaKey || event.shiftKey || event.button!==0))) return;
+        event.preventDefault();
+        try {
+            const response=await fetch(config.notificationRead,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json',Accept:'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},body:JSON.stringify({key,unread:toggle?.dataset.unread==='1'})});
+            if(!response.ok) throw new Error('read');
+            if(notice) window.location.assign(notice.href); else window.location.reload();
+        } catch (_) { if(notice) window.location.assign(notice.href); else {const status=document.querySelector('[data-inbox-status]');if(status){status.hidden=false;status.textContent=config.notificationError || config.error;}} }
+    });
+    refresh();
+    window.setInterval(refresh, 20000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     window.addEventListener('pageshow', event => { if (event.persisted) refresh(); });
     document.addEventListener('v2:page-loaded', () => { open(false); refresh(); });

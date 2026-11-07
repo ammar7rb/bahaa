@@ -19,6 +19,10 @@ trait FileManagerTrait
      */
     protected function upload(string $dir, string $format, $image = null): string
     {
+        if ($image !== null && in_array($dir, ['profile/', 'seller/'], true)) {
+            return \App\Utils\ImageManager::upload($dir, $format, $image);
+        }
+
         $storage = config('filesystems.disks.default') ?? 'public';
         Cache::forget("cache_all_files_for_public_storage");
         if (!is_null($image)) {
@@ -83,6 +87,10 @@ trait FileManagerTrait
      */
     public function update(string $dir, $oldImage, string $format, $image, string $fileType = 'image'): string
     {
+        if ($fileType === 'image' && $image !== null && in_array($dir, ['profile/', 'seller/'], true)) {
+            return \App\Utils\ImageManager::update($dir, $oldImage, $format, $image);
+        }
+
         if ($this->checkFileExists(filePath: $dir . $oldImage)['status']) {
             Storage::disk($this->checkFileExists(filePath: $dir . $oldImage)['disk'])->delete($dir . $oldImage);
         }

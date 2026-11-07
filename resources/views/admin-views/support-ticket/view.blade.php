@@ -37,7 +37,7 @@
                                 <div class="select-wrapper flex-grow-1 max-w-200 min-w-100-mobile">
                                     <select class="form-select fs-12 filter-tickets" data-value="purpose">
                                         <option value="all">{{ translate('all_ticket_types') }}</option>
-                                        <option value="account_activation" {{ request('purpose') === 'account_activation' ? 'selected' : '' }}>{{ translate('customer_account_activation') }}</option>
+                                        
                                         <option value="general" {{ request('purpose') === 'general' ? 'selected' : '' }}>{{ translate('general_support') }}</option>
                                     </select>
                                 </div>

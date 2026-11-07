@@ -13,8 +13,11 @@ class SellerDeliveredEarningService
 {
     public function record(Order $order, callable $legacyCalculation): mixed
     {
+        app(VendorFulfillmentDecisionService::class)->assertLegacyMutationAllowed($order);
         if ($order->seller_is !== 'seller') return $legacyCalculation();
         return DB::transaction(function () use ($order, $legacyCalculation) {
+            $lockedOrder=Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+            app(VendorFulfillmentDecisionService::class)->assertLegacyMutationAllowed($lockedOrder);
             $ledger = app(SellerLedgerService::class);
             $ledger->lockSellerFinancialState((int) $order->seller_id);
             $ledger->initializeFromLegacy((int) $order->seller_id);

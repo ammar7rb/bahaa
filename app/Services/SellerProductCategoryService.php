@@ -6,9 +6,10 @@ use App\Models\Category;
 
 class SellerProductCategoryService
 {
-    public function validate(array $input): array
+    public function validate(array $input, bool $allowMissing = false): array
     {
         $categoryId = $input['category_id'] ?? null;
+        if ($allowMissing && !$categoryId && empty($input['sub_category_id']) && empty($input['sub_sub_category_id'])) return [];
         if ($categoryId === 'other') return [];
         if (!$categoryId || !Category::withoutGlobalScopes()->where(['id' => $categoryId, 'position' => 0, 'is_active' => 1])->exists()) {
             return ['category_id' => 'seller_product_category_invalid'];

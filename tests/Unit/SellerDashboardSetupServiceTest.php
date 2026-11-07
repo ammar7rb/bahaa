@@ -49,8 +49,9 @@ class SellerDashboardSetupServiceTest extends TestCase
         $summary = $service->getSummary($this->seller());
 
         $this->assertSame('add_first_product', $summary['next_step']);
-        $this->assertSame(1, $summary['completed_steps']);
-        $this->assertSame(50, $summary['completion_percentage']);
+        $this->assertSame(0, $summary['completed_steps']);
+        $this->assertSame(0, $summary['completion_percentage']);
+        $this->assertSame(['products'], array_column($summary['steps'], 'key'));
         $this->assertTrue($summary['advertising_package_optional']);
     }
 
@@ -76,8 +77,9 @@ class SellerDashboardSetupServiceTest extends TestCase
         $summary = $service->getSummary($this->seller());
 
         $this->assertSame('manage_products', $summary['next_step']);
-        $this->assertSame(2, $summary['completed_steps']);
+        $this->assertSame(1, $summary['completed_steps']);
         $this->assertSame(100, $summary['completion_percentage']);
+        $this->assertSame(['products'], array_column($summary['steps'], 'key'));
         $this->assertSame(1, $summary['published_products_count']);
         $this->assertSame(7, $summary['products']['remaining_product_limit']);
     }
@@ -88,11 +90,9 @@ class SellerDashboardSetupServiceTest extends TestCase
         $registrationService->shouldReceive('getEligibility')->once()->andReturn([
             'can_login' => true,
             'activation_status' => 'active',
-            'next_step' => 'ready_for_insurance',
+            'next_step' => 'ready_for_products',
         ]);
 
-        $insuranceService = Mockery::mock(SellerInsuranceService::class);
-        $insuranceService->shouldReceive('getSummary')->once()->andReturn($insurance);
 
         $packageService = Mockery::mock(SellerPackagePurchaseService::class);
         $packageService->shouldReceive('getSummary')->once()->andReturn($package);
@@ -120,7 +120,6 @@ class SellerDashboardSetupServiceTest extends TestCase
 
         return new SellerDashboardSetupService(
             $registrationService,
-            $insuranceService,
             $packageService,
             $productService,
             $promotionService,

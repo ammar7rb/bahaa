@@ -128,7 +128,8 @@
                                                 <input name="street" id="street" class="form-control mb-3" required placeholder="مثال: شارع أحمد الزمر">
                                                 <label for="building-number">رقم العقار</label>
                                                 <input name="building_number" id="building-number" class="form-control mb-3" required placeholder="مثال: 12">
-                                                <label for="landmark">أقرب علامة مميزة</label>
+                                                @include('customer-account.address-extra-fields',['addressDetails'=>$shippingAddress ?? null])
+<label for="landmark">أقرب علامة مميزة</label>
                                                 <input name="landmark" id="landmark" class="form-control mb-3" placeholder="مثال: بجوار مسجد السلام">
                                                 <label for="address">تفاصيل إضافية للعنوان</label>
                                                 <textarea name="address" id="address" rows="5" class="form-control"

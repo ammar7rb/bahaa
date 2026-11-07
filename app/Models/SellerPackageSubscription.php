@@ -17,6 +17,8 @@ class SellerPackageSubscription extends Model
 
     public const STATUS_ACTIVE = 'active';
 
+    public const STATUS_SCHEDULED = 'scheduled';
+
     public const STATUS_EXPIRED = 'expired';
 
     public const STATUS_REPLACED = 'replaced';

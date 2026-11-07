@@ -21,7 +21,10 @@ class CustomerBalanceDepositController extends Controller
             : redirect()->route('customer-balances')->with('deposit_message', translate('deposit_submitted_for_review'));
         abort_unless(getWebConfig('add_funds_to_wallet') == 1 && (getWebConfig('offline_payment')['status'] ?? 0), 403);
         if ($request->input('transfer_schema') === 'sender_v2') {
-            $sender = app(\App\Services\CustomerTransferInformationService::class)->sender($request->all());
+            $selection = $request->validate(['method_id' => 'required|integer']);
+            $channel = OfflinePaymentMethod::where('status', 1)->whereIn('payment_channel', ['wallet', 'instapay'])
+                ->whereKey($selection['method_id'])->value('payment_channel');
+            $sender = app(\App\Services\CustomerTransferInformationService::class)->sender($request->all(), $channel !== 'instapay');
             $request->merge(['payment_reference' => 'deposit-transfer-'.$customerId.':'.$request->input('request_key'), 'method_information' => $sender]);
         }
         $data = $request->validate([
@@ -41,7 +44,7 @@ class CustomerBalanceDepositController extends Controller
         $information = $modern ? $data['method_information'] : [];
         foreach ($modern ? [] : ($method->method_informations ?? []) as $field) {
             $key = $field['customer_input'] ?? '';
-            if ($key === '' || $key === 'payment_screenshot') continue;
+            if ($key === '' || $key === 'payment_screenshot' || ($method->payment_channel === 'instapay' && $key === 'sender_name')) continue;
             $value = trim($data['method_information'][$key] ?? '');
             if (($field['is_required'] ?? false) && $value === '') {
                 throw \Illuminate\Validation\ValidationException::withMessages(['method_information' => translate('required_offline_payment_information_is_missing')]);
@@ -60,13 +63,16 @@ class CustomerBalanceDepositController extends Controller
         $path = 'customer-balance-deposits/' . \Illuminate\Support\Str::uuid() . '.enc';
         Storage::disk('local')->put($path, \Illuminate\Support\Facades\Crypt::encryptString(file_get_contents($request->file('payment_proof')->getRealPath())));
         try {
-            CustomerBalanceDeposit::create([
+            \Illuminate\Support\Facades\DB::transaction(function () use ($customerId, $data, $amount, $currency, $method, $information, $path, $requestKey): void {
+            $deposit = CustomerBalanceDeposit::create([
                 'customer_id' => $customerId, 'wallet_type' => $data['wallet_type'],
                 'amount' => round($amount, 3), 'submitted_amount' => $data['amount'], 'currency_code' => $currency,
                 'offline_payment_method_id' => $method->id, 'method_name' => $method->method_name,
                 'method_information' => $information, 'payment_reference' => $data['payment_reference'],
                 'payment_proof' => $path, 'payment_note' => $data['payment_note'] ?? null, 'request_key' => $requestKey,
             ]);
+            app(\App\Services\CustomerPaymentNotificationService::class)->notify($customerId, 'wallet-deposit-'.$deposit->id.'-pending', 'تم استلام طلب شحن محفظتك بنجاح، وجارٍ التحقق من عملية الدفع. سنخطرك بنتيجة المراجعة.');
+            });
         } catch (\Throwable $exception) {
             Storage::disk('local')->delete($path);
             if (CustomerBalanceDeposit::where('request_key', $requestKey)->exists()) return $success();

@@ -38,10 +38,11 @@ function shipping_method_select(get_value){
     $('#area').val(shipping_value.area);
     $('#street').val(shipping_value.street);
     $('#building-number').val(shipping_value.building_number);
+    ['floor','unit_number','company_details'].forEach(field=>$('[name="'+field+'"]').val(shipping_value[field] || ''));
     $('#landmark').val(shipping_value.landmark);
-    $('#select2-zip-container').val(shipping_value.zip).selectpicker('refresh');
+    $('#select2-zip-container').text(shipping_value.zip || '');
     $('#zip').val(shipping_value.zip);
-    $('#country').val(shipping_value.country).selectpicker('refresh');
+    $('#country').val(shipping_value.country);
     $('#address_type').val(shipping_value.address_type);
     let update_address = `<input type="hidden" name="shipping_method_id" id="shipping_method_id" value="${shipping_method_id}">
             <input type="checkbox" name="update_address" id="update_address">`+ messageUpdateThisAddress;
@@ -49,6 +50,7 @@ function shipping_method_select(get_value){
 
     $('[name="latitude"]').val(shipping_value.latitude);
     $('[name="longitude"]').val(shipping_value.longitude);
+    document.getElementById('address-form')?.dispatchEvent(new Event('care:saved-address'));
 }
 
 const addressItemsBilling = document.querySelectorAll('.select_billing_address');

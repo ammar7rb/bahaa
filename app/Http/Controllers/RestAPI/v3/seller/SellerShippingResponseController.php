@@ -25,7 +25,9 @@ class SellerShippingResponseController extends Controller
             $saved = $data['decision'] === 'accept'
                 ? $this->responses->accept($order, $request->seller, $data['reason'] ?? null)
                 : $this->responses->reject($order, $request->seller, (string) ($data['reason'] ?? ''));
-            return response()->json(['message' => translate('seller_shipping_response_saved'), 'order' => $this->payload($saved)]);
+            $result = ['order' => $this->payload($saved)];
+            if ($data['decision'] === 'reject') $result['message'] = translate('seller_shipping_response_saved');
+            return response()->json($result);
         } catch (DomainException $exception) {
             return response()->json(['message' => translate($exception->getMessage())], 422);
         }

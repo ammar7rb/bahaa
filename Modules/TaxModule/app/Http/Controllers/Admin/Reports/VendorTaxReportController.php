@@ -36,7 +36,9 @@ class VendorTaxReportController extends Controller
         private readonly ShopRepositoryInterface $shopRepo
     )
     {
-        DB::statement("SET sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));");
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement("SET sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));");
+        }
     }
 
     public function getVendorWiseTaxes(Request $request)

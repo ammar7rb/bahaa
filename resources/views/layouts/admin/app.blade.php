@@ -20,7 +20,7 @@
 
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-v2.css') }}?v=20260910.7">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-dark-mode.css') }}?v=20260910.4">
-    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-workspace.css') }}?v=20261010.4">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-workspace.css') }}?v={{ substr(hash_file('sha256', public_path('assets/back-end/css/admin-workspace.css')), 0, 16) }}">
     <script>
         (function () {
             var storageKey = 'ba_admin_theme';
@@ -118,7 +118,7 @@
 <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/full-page-print.js') }}?v={{ filemtime(public_path('assets/back-end/js/full-page-print.js')) }}"></script>
 
 @stack('script')
-<script src="{{ dynamicAsset(path: 'public/assets/front-end/js/egypt-phone-validation.js') }}" defer></script>
+<script src="{{ dynamicAsset(path: 'public/assets/front-end/js/egypt-phone-validation.js') }}?v=20261104.2" defer></script>
 
 
 </body>

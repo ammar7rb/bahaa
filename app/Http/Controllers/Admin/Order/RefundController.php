@@ -87,6 +87,7 @@ class RefundController extends BaseController
         $couponDiscount = $order->discount_amount > 0 ? ($order->discount_amount * $subtotal) / $totalProductPrice : 0;
         $referralDiscount = $order?->refer_and_earn_discount ?? 0;
         $refundAmount = $subtotal - $couponDiscount - $referralDiscount;
+        if($refund->fulfillment_request_id)$refundAmount=(float)$refund->amount;
 
         $walletStatus = getWebConfig(name: 'wallet_status');
         $walletAddRefund = getWebConfig(name: 'wallet_add_refund');
@@ -110,6 +111,12 @@ class RefundController extends BaseController
     public function updateRefundStatus(RefundStatusRequest $request, RefundStatusService $refundStatusService, RefundTransactionService $refundTransactionService): JsonResponse
     {
         $refund = $this->refundRequestRepo->getFirstWhere(params: ['id' => $request['id']]);
+        if($refund?->fulfillment_request_id){
+            try{
+                app(\App\Services\VendorFulfillmentRefundService::class)->process((int)$refund->id,$request->all(),(int)auth('admin')->id());
+                return response()->json(['message'=>'تم حفظ مراجعة رد العميل دون خصم سعر البيع من رصيد التاجر.']);
+            }catch(\DomainException $e){return response()->json(['error'=>$e->getMessage()],422);}
+        }
         if ($refund['status'] == 'refunded') {
             return response()->json(['error' => translate('when_refund_status_refunded') . ',' . translate('then_you_can`t_change_refund_status') . '.']);
         }

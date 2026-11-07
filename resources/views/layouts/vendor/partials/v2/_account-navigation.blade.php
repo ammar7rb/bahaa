@@ -2,7 +2,7 @@
     @foreach(['messages', 'notifications'] as $channel)
         <div class="v2-dropdown vendor-inbox-dropdown">
             <button class="vendor-inbox-trigger" type="button" data-v2-dropdown-toggle aria-expanded="false" aria-controls="vendor-popover-{{ $channel }}" aria-label="{{ translate($channel === 'messages' ? 'administration_messages' : 'notifications') }}">
-                @include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>$channel])<span class="vendor-count {{ $channel === 'messages' ? 'is-green' : '' }}" data-inbox-count="{{ $channel }}" {{ $vendorInboxCounts[$channel] ? '' : 'hidden' }}>+{{ $vendorInboxCounts[$channel] }}</span>
+                @include('layouts.vendor.partials.v2._workspace-icon', ['icon'=>$channel])<span class="vendor-inbox-label">{{ translate($channel === 'messages' ? 'administration_messages' : 'notifications') }}</span><span class="vendor-count {{ $channel === 'messages' ? 'is-green' : '' }}" data-inbox-count="{{ $channel }}" {{ $vendorInboxCounts[$channel] ? '' : 'hidden' }}>{{ $vendorInboxCounts[$channel] }}</span>
             </button>
             <div class="v2-dropdown-menu vendor-inbox-popover" id="vendor-popover-{{ $channel }}">
                 <div class="vendor-popover-heading"><strong>{{ translate($channel === 'messages' ? 'administration_messages' : 'notifications') }}</strong><span class="vendor-popover-total" data-unread-label="{{ translate('vendor_unread') }}">{{ $vendorInboxCounts[$channel] }} {{ translate('vendor_unread') }}</span></div>

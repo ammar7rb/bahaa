@@ -1,6 +1,7 @@
 <form action="{{ route('admin.customer.wallet.add-fund') }}" method="post"
     enctype="multipart/form-data" id="add-fund" class="" novalidate="novalidate">
     @csrf
+    <input type="hidden" name="request_key" value="{{ \Illuminate\Support\Str::uuid() }}">
     <div class="offcanvas offcanvas-end" tabindex="-1" id="add-fund-modal"
         aria-labelledby="add-fund-modal" style="--bs-offcanvas-width: 500px;">
         <div class="offcanvas-header bg-body">
@@ -11,6 +12,8 @@
             </button>
         </div>
         <div class="offcanvas-body">
+            <p>هذه إضافة إدارية مستقلة عن الشحن الخارجي. اعتمد التحويلات الخارجية من المدفوعات.</p>
+            <label class="form-label">رقم حساب العميل للتأكيد «مثل C000123»<input class="form-control" name="confirmation" required autocomplete="off" dir="ltr"></label>
             <div class="p-12 p-sm-20 bg-section rounded mb-3 mb-sm-20 overflow-wrap-anywhere">
                 <div class="form-group mb-20">
                     <label class="form-label mb-2" for="customer">
@@ -23,7 +26,7 @@
                         @foreach($sidebarCustomers as $customer)
                             <option value="{{ $customer['id'] }}"
                                 {{ (request('customer_id', 'all') === (string) $customer['id']) ? 'selected' : '' }}>
-                                {{ $customer['text'] }}
+                                {{ \App\Services\AdministrativeReferenceService::format('customer',(int)$customer['id']) }} — {{ $customer['text'] }}
                             </option>
                         @endforeach
                     </select>
@@ -45,9 +48,9 @@
                 <div class="form-group mb-0">
                     <label class="form-label mb-2 d-flex align-items-center gap-1"
                         for="reference">{{ translate('reference') }}
-                        <small>({{ translate('optional') }})</small></label>
+                        <small>(سبب الإضافة الإدارية مطلوب)</small></label>
                     <input type="text" class="form-control" name="reference"
-                        placeholder="{{ translate('ex') . ' : ' . translate('Amount_for_Reword') }}" id="reference" data-maxlength="30">
+                        placeholder="سبب الإضافة الإدارية" id="reference" data-maxlength="2000" maxlength="2000" required>
                     <div class="d-flex justify-content-end">
                         <span class="text-body-light">0/30</span>
                     </div>

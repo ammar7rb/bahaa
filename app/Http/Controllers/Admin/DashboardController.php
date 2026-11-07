@@ -62,10 +62,15 @@ class DashboardController extends BaseController
      */
     public function index(Request|null $request, ?string $type = null): View|Collection|LengthAwarePaginator|null|callable|RedirectResponse
     {
-        $workspace = app(\App\Services\AdminWorkspaceService::class);
-        $totals = $workspace->totals();
-        $data = \App\Utils\Helpers::module_permission_check('people') ? $workspace->activation() : [];
-        return view('admin-views.system.dashboard', compact('totals', 'data'));
+        $summaryError = false;
+        try {
+            $cards = app(\App\Services\AdminDashboardSummary::class)->cards();
+        } catch (\Throwable $exception) {
+            report($exception);
+            $cards = [];
+            $summaryError = true;
+        }
+        return view('admin-views.system.dashboard', compact('cards', 'summaryError'));
     }
 
     public function getOrderStatus(Request $request)

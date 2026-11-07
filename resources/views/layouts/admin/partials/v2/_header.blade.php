@@ -5,13 +5,8 @@
     $v2Local = session('local', app()->getLocale());
     $v2Languages = getWebConfig(name: 'language') ?? [];
     $v2LocalFlag = getLanguageFlagCode($v2Local);
-    $workspaceSnapshot = app(\App\Services\AdminWorkspaceService::class)->snapshot();
-    $workspaceMenus = [
-        'payments' => ['payments_waiting_for_review', 'credit-card', route('admin.workspace.reviews', ['kind' => 'payments'])],
-        'orders' => ['pending_Orders', 'shopping-bag', route('admin.workspace.reviews', ['kind' => 'orders'])],
-        'products' => ['product_pending_review', 'box', route('admin.products.list', ['type' => 'vendor', 'request_status' => 0])],
-        'messages' => ['messages', 'comment', route('admin.workspace.communication')],
-    ];
+    $workspaceSnapshot = ['categories'=>['inbox'=>app(\App\Services\AdminNotificationInbox::class)->snapshot()]];
+    $workspaceMenus = ['inbox'=>['inbox_title', 'bell', route('admin.workspace.notifications')]];
 @endphp
 <header class="v2-header">
     <div class="v2-header-brand">
@@ -50,22 +45,23 @@
     </div>
     <div class="v2-header-right">
         @foreach($workspaceMenus as $kind => [$label, $icon, $url])
-            @if(isset($workspaceSnapshot['categories'][$kind]) && ($kind !== 'payments' || Helpers::module_permission_check('orders') || Helpers::module_permission_check('people') || Helpers::module_permission_check('reports')))
+            @if(isset($workspaceSnapshot['categories'][$kind]) && ($kind !== 'payments' || Helpers::module_permission_check('orders') || Helpers::module_permission_check('people')))
                 @php
                     $category = $workspaceSnapshot['categories'][$kind];
                 @endphp
                 <div class="v2-dropdown">
                     <button class="v2-icon-btn admin-inbox-toggle" type="button" data-v2-dropdown-toggle data-workspace-label="{{ translate($label) }}" aria-expanded="false" aria-label="{{ translate($label) }} ({{ $category['count'] }})" title="{{ translate($label) }}">
                         <i class="fi fi-rr-{{ $icon }}" aria-hidden="true"></i>
-                        <span class="v2-badge-dot {{ $category['count'] ? '' : 'd-none' }}" data-workspace-count="{{ $kind }}">{{ $category['count'] > 99 ? '99+' : $category['count'] }}</span>
+                        <span class="v2-badge-dot {{ $category['count'] ? '' : 'd-none' }}" data-workspace-count="{{ $kind }}" role="status" aria-live="polite">{{ $category['count'] > 99 ? '99+' : $category['count'] }}</span>
                     </button>
                     <div class="v2-dropdown-menu admin-inbox">
                         <div class="admin-inbox-heading"><span class="admin-inbox-heading-icon"><i class="fi fi-rr-{{ $icon }}" aria-hidden="true"></i></span><div><h4>{{ translate($label) }}</h4><span>{{ translate('workspace_notifications_hint') }}</span></div><span class="admin-inbox-total" data-workspace-preview-count="{{ $kind }}">{{ $category['count'] }}</span></div>
+                        <label class="admin-inbox-filter">{{ translate('inbox_filter') }}<select data-inbox-filter class="form-control"><option value="">{{ translate('all') }}</option>@foreach(\App\Services\AdminNotificationInbox::CATEGORIES as $filter)<option value="{{ $filter }}">{{ translate('inbox_'.$filter) }}</option>@endforeach</select></label><p class="admin-empty" data-inbox-status role="status" hidden></p>
                         <div class="v2-pop-scroll" data-workspace-items="{{ $kind }}">
                             @forelse($category['items'] as $item)
                                 @include('layouts.admin.partials.v2._notification-item', ['item'=>$item, 'kind'=>$kind])
                             @empty
-                                <p class="admin-empty">{{ translate('workspace_no_pending') }}</p>
+                                <p class="admin-empty">{{ translate('inbox_empty') }}</p>
                             @endforelse
                         </div>
                         <a class="admin-inbox-view-all" href="{{ $url }}">{{ translate('view_all') }}<i class="fi fi-rr-arrow-small-left" aria-hidden="true"></i></a>

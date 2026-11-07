@@ -138,7 +138,8 @@
                                                 <input name="street" id="street" class="form-control mb-3" required value="{{ $shippingAddress->street }}">
                                                 <label for="building-number">رقم العقار</label>
                                                 <input name="building_number" id="building-number" class="form-control mb-3" required value="{{ $shippingAddress->building_number }}">
-                                                <label for="landmark">أقرب علامة مميزة</label>
+                                                @include('customer-account.address-extra-fields',['addressDetails'=>$shippingAddress ?? null])
+<label for="landmark">أقرب علامة مميزة</label>
                                                 <input name="landmark" id="landmark" class="form-control mb-3" value="{{ $shippingAddress->landmark }}">
                                                 <label for="address">تفاصيل إضافية للعنوان</label>
                                                 <textarea name="address" id="address" rows="5" class="form-control"

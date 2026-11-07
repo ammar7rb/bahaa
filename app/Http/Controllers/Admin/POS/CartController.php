@@ -26,6 +26,16 @@ class CartController extends BaseController
 {
     use CalculatorTrait;
 
+    public function getCartItems(): JsonResponse
+    {
+        $cartId = session(SessionKey::CURRENT_USER);
+        abort_unless(is_string($cartId) && $cartId !== '', 422);
+        $cartItems = $this->getCartData($cartId);
+        return response()->json([
+            'cart_view' => view('admin-views.pos.partials._cart', compact('cartId', 'cartItems'))->render(),
+        ]);
+    }
+
     /**
      * @param ProductRepositoryInterface $productRepo
      * @param ColorRepositoryInterface $colorRepo

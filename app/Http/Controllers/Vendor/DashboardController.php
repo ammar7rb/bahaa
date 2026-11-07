@@ -134,7 +134,18 @@ class DashboardController extends BaseController
             relations: ['withdraw_method'],
             dataLimit: 'all'
         );
+        $activeProducts = \App\Models\Product::withoutGlobalScopes()
+            ->where('added_by', 'seller')->where('user_id', $vendorId)
+            ->where(fn ($query) => $query->active());
+        $activeProductIds = $activeProducts->pluck('id');
+        $activeVisits = \Illuminate\Support\Facades\Schema::hasTable('seller_package_product_metrics')
+            ? (int) \Illuminate\Support\Facades\DB::table('seller_package_product_metrics')
+                ->where('seller_id', $vendorId)->whereIn('product_id', $activeProductIds)->sum('visits')
+            : null;
+
         return view('vendor-views.dashboard.index', [
+            'activeAdvertisementCount' => $activeProductIds->count(),
+            'activeProductVisits' => $activeVisits,
             'vendorWallet' => $vendorWallet,
             'withdrawRequests' => $withdrawRequests,
             'vendorWithdrawMethods' => $vendorWithdrawMethods,

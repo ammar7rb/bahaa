@@ -67,14 +67,7 @@ if (!function_exists('getProductDiscount')) {
      */
     function getProductDiscount(object|array $product, string|float|int $price): float
     {
-        $discount = 0;
-        if (isset($product['discount_type']) && $product['discount_type'] == 'percent') {
-            $discount = ($price * $product['discount']) / 100;
-        } elseif (isset($product['discount_type']) && $product['discount_type'] == 'flat') {
-            $discount = $product['discount'];
-        }
-
-        return floatval($discount);
+        return app(\App\Services\FlashSalePriceService::class)->discountedAmount($product, (float) $price);
     }
 }
 

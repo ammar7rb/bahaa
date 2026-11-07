@@ -6,7 +6,7 @@ function egyptPlace(place) {
 }
 $(document).ready(function () {
     mapsLoading();
-    if ($('[name="shipping_method_id"]').prop('checked')) {
+    if ($('[name="shipping_method_id"]:checked').length) {
         let cardBody = $('[name="shipping_method_id"]:checked').parents('.card-header').siblings('.card-body')
         shippingMethodSelect(cardBody);
     }
@@ -51,12 +51,14 @@ function shippingMethodSelect(cardBody) {
     $('#street').val(shippingStreet);
     $('#building-number').val(shippingBuildingNumber);
     $('#landmark').val(shippingLandmark);
+    ['floor','unit_number','company_details'].forEach(field=>$('[name="'+field+'"]').val(cardBody.find('.shipping-contact-'+field).text()));
     $('#zip').val(shippingZip);
     $('#select2-zip-container').text(shippingZip);
     $('#country').val(shippingCountry);
     $('#select2-country-container').text(shippingCountry);
     $('#address-type').val(shippingContactAddressType);
     $('#save-address-label').html(updateAddress);
+    document.getElementById('address-form')?.dispatchEvent(new Event('care:saved-address')); 
 
     $('[name="latitude"]').val(cardBody.find('.shipping-contact-latitude-type').text());
     $('[name="longitude"]').val(cardBody.find('.shipping-contact-longitude-type').text());
@@ -302,6 +304,7 @@ function mapsLoading() {
 }
 
 $('#proceed-to-next-action').on('click', function () {
+    if (window.CareCheckoutShipping) return;
     let physicalProduct = $('#physical-product').val();
     if (physicalProduct === 'yes' && Number($('#automatic-shipping-selected').data('value')) === 1) {
         location.href = $('#route-checkout-payment').data('url');
@@ -386,7 +389,7 @@ $('#proceed-to-next-action').on('click', function () {
             $('#loading').removeClass('d-grid');
         },
         error: function (data) {
-            let errorMessage = data.responseJSON.errors;
+            let errorMessage = window.CheckoutErrors ? window.CheckoutErrors.message(data) : 'تعذر حفظ العنوان. راجع البيانات وحاول مرة أخرى.';
             toastr.error(errorMessage, {
                 CloseButton: true,
                 ProgressBar: true

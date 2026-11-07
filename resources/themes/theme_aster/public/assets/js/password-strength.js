@@ -16,7 +16,7 @@ $('.password-check').on('keyup keypress change click', function () {
         case !(/\d/.test(password)):
             passwordError.html(passwordErrorMessage.data('number')).removeClass('d-none');
             break;
-        case !(/[@.#$!%*?&]/.test(password)):
+        case !this.hasAttribute('data-special-character-optional') && !(/[@.#$!%*?&]/.test(password)):
             passwordError.html(passwordErrorMessage.data('symbol')).removeClass('d-none');
             break;
         default:
@@ -34,7 +34,7 @@ function isPasswordStrong(password) {
         return false;
     } else if (!(/\d/.test(password))) {
         return false;
-    } else if (!(/[@.#$!%*?&]/.test(password))) {
+    } else if (!document.querySelector('#seller-registration [data-special-character-optional]') && !(/[@.#$!%*?&]/.test(password))) {
         return false;
     } else {
         return true;
@@ -52,7 +52,7 @@ function isPasswordStrongErrorMessage(password) {
         return passwordErrorMessage.data('uppercase-character');
     } else if (!(/\d/.test(password))) {
         return passwordErrorMessage.data('number');
-    } else if (!(/[@.#$!%*?&]/.test(password))) {
+    } else if (!document.querySelector('#seller-registration [data-special-character-optional]') && !(/[@.#$!%*?&]/.test(password))) {
         return passwordErrorMessage.data('symbol');
     } else {
         return null;

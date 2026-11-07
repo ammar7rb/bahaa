@@ -14,7 +14,7 @@
             </div>
             <div class="row">
                 @foreach(['f_name' => 'first_Name', 'l_name' => 'last_Name', 'store_name' => 'store_name', 'email' => 'email'] as $key => $label)
-                <div class="col-md-6 form-group"><label for="account-{{ $key }}">{{ translate($label) }}</label><input class="form-control" id="account-{{ $key }}" name="{{ $key }}" type="{{ $key === 'email' ? 'email' : 'text' }}" value="{{ old($key, $data[$key]) }}" required maxlength="191"></div>
+                <div class="col-md-6 form-group"><label for="account-{{ $key }}">{{ translate($label) }}</label><input class="form-control" id="account-{{ $key }}" name="{{ $key }}" type="{{ $key === 'email' ? 'email' : 'text' }}" value="{{ old($key, $data[$key]) }}" @if($key === 'f_name') required @endif maxlength="{{ in_array($key, ['f_name', 'l_name']) ? 100 : 191 }}">@if($key === 'email')<small>{{ translate('sigma_email_preserved') }}</small>@endif</div>
                 @endforeach
                 <div class="col-md-6 form-group"><label for="account-id">{{ translate('vendor_account_id') }}</label><div class="vendor-account-id-actions"><input class="form-control" id="account-id" value="{{ $data['account_id'] }}" readonly dir="ltr"><a class="btn btn-outline-primary" href="{{ route('vendor.account.withdrawal-methods') }}">{{ translate('vendor_manage_payment_methods') }}</a></div></div>
             </div>
@@ -24,10 +24,10 @@
                     <p class="text-muted">{{ translate('vendor_primary_contact_hint') }}</p>
                     <div data-repeat-list="{{ $key }}">
                         @foreach(old($key, $data[$key]) as $value)
-                        <div class="vendor-repeat-row"><label class="sr-only">{{ translate($label) }} {{ $loop->iteration }}</label><input class="form-control" aria-label="{{ translate($label) }} {{ $loop->iteration }}" name="{{ $key }}[]" value="{{ $value }}" type="{{ $key === 'phone_numbers' ? 'tel' : 'text' }}" maxlength="{{ $key === 'phone_numbers' ? 20 : 1000 }}" required><button type="button" class="btn btn-outline-danger" data-repeat-remove>{{ translate('delete') }}</button></div>
+                        <div class="vendor-repeat-row"><label class="sr-only">{{ translate($label) }} {{ $loop->iteration }}</label><input class="form-control" aria-label="{{ translate($label) }} {{ $loop->iteration }}" name="{{ $key }}[]" value="{{ $value }}" type="{{ $key === 'phone_numbers' ? 'tel' : 'text' }}" maxlength="{{ $key === 'phone_numbers' ? 20 : 1000 }}" @if($key === 'phone_numbers') required @endif><button type="button" class="btn btn-outline-danger" data-repeat-remove>{{ translate('delete') }}</button></div>
                         @endforeach
                     </div>
-                    <template data-repeat-template="{{ $key }}"><div class="vendor-repeat-row"><input class="form-control" aria-label="{{ translate($label) }}" name="{{ $key }}[]" type="{{ $key === 'phone_numbers' ? 'tel' : 'text' }}" maxlength="{{ $key === 'phone_numbers' ? 20 : 1000 }}" required><button type="button" class="btn btn-outline-danger" data-repeat-remove>{{ translate('delete') }}</button></div></template>
+                    <template data-repeat-template="{{ $key }}"><div class="vendor-repeat-row"><input class="form-control" aria-label="{{ translate($label) }}" name="{{ $key }}[]" type="{{ $key === 'phone_numbers' ? 'tel' : 'text' }}" maxlength="{{ $key === 'phone_numbers' ? 20 : 1000 }}" @if($key === 'phone_numbers') required @endif><button type="button" class="btn btn-outline-danger" data-repeat-remove>{{ translate('delete') }}</button></div></template>
                     <button type="button" class="btn btn-outline-primary" data-repeat-add="{{ $key }}">{{ translate('add') }}</button>
                 </fieldset>
             @endforeach
@@ -44,7 +44,7 @@
             <button class="btn btn--primary" type="submit">{{ translate('save_Changes') }}</button>
         </div>
     </form>
-    <section class="card mt-4"><div class="card-body"><h2>{{ translate('change_Password') }}</h2>
+    <section class="card mt-4" id="account-settings"><div class="card-body"><h2>{{ translate('change_Password') }}</h2>
         <form method="post" action="{{ route('vendor.account.password') }}">@csrf
             <div class="row">
             @foreach(['current_password', 'password', 'password_confirmation'] as $key)

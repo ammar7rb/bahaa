@@ -25,7 +25,7 @@ class SellerShippingResponseController extends Controller
             $data['decision'] === 'accept'
                 ? $this->responses->accept($order, auth('seller')->user(), $data['reason'] ?? null)
                 : $this->responses->reject($order, auth('seller')->user(), (string) ($data['reason'] ?? ''));
-            ToastMagic::success(translate('seller_shipping_response_saved'));
+            if ($data['decision'] === 'reject') ToastMagic::success(translate('seller_shipping_response_saved'));
         } catch (DomainException $exception) {
             ToastMagic::error(translate($exception->getMessage()));
         }

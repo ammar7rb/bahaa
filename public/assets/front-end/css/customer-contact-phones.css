@@ -1,0 +1,13 @@
+.customer-primary-phone-row,.customer-contact-phone-row{display:flex;align-items:center;gap:8px}
+.customer-primary-phone-row>.position-relative{flex:1;min-width:0}
+.customer-contact-phone-row{margin-top:10px}
+.customer-contact-phone-row .form-control{flex:1;min-width:0;font-size:16px}
+button.customer-contact-icon{appearance:none;display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:44px;min-height:44px;padding:0;border:1px solid #c5d6f0;border-radius:10px;background:#edf3fc;color:#1a428a;cursor:pointer}
+button.customer-contact-icon svg{display:block;width:20px;height:20px;stroke:currentColor;fill:none}
+button.customer-contact-icon:focus-visible{outline:3px solid #1a428a;outline-offset:3px}
+button.customer-contact-icon:disabled{opacity:.5;cursor:default}
+button.customer-contact-remove{background:transparent;color:#52627a;border-color:#dce4f0}
+.customer-contact-editor p{font-size:13px;margin:8px 0 0;line-height:1.6}
+.customer-contact-announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(hover:hover){button.customer-contact-icon:hover:not(:disabled){background:#e1ecfc}button.customer-contact-remove:hover{color:#b42332;background:#fff1f2}}
+:is([data-ba-storefront-theme=dark],[data-bs-theme=dark],[data-theme=dark]) button.customer-contact-icon{background:#233d62;border-color:#4c6d99;color:#e3edff}

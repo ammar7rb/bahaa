@@ -38,13 +38,12 @@ class VendorAddRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'terms_accepted' => 'required|accepted',
             'f_name' => 'required|string|max:100',
             'l_name' => 'nullable|string|max:100',
             'phone' => ['required', 'string', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueSellerPhone],
             'email' => 'required|email|max:255|unique:sellers',
             'image' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
-            'password' => 'required|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W)(?!.*\s).{8,}$/|same:confirm_password',
+            'password' => 'required|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?!.*\s).{8,}$/|same:confirm_password',
             'shop_name' => 'required|string|max:255',
             'shop_address' => 'required|string|max:1000',
             'logo' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
@@ -70,9 +69,7 @@ class VendorAddRequest extends FormRequest
             'image.mimes' => translate('The_image_type_must_be') . '.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',
             'password.required' => translate('The_password_field_is_required'),
             'password.same' => translate('The_password_and_confirm_password_must_match'),
-            'password.regex' => translate('The_password_must_be_at_least_8_characters_long_and_contain_at_least_one_uppercase_letter') . ',' . translate('_one_lowercase_letter') . ',' . translate('_one_digit_') . ',' . translate('_one_special_character') . ',' . translate('_and_no_spaces') . '.',
-            'terms_accepted.required' => translate('you_must_accept_the_terms_and_conditions'),
-            'terms_accepted.accepted' => translate('you_must_accept_the_terms_and_conditions'),
+            'password.regex' => translate('The_password_must_be_at_least_8_characters_long_and_contain_at_least_one_uppercase_letter') . ',' . translate('_one_lowercase_letter') . ',' . translate('_one_digit_') . ',' . translate('_and_no_spaces') . '.',
             'shop_name.required' => translate('The_shop_name_field_is_required'),
             'logo.mimes' => translate('The_logo_type_must_be') . '.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',
             'banner.mimes' => translate('The_banner_type_must_be') . '.jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff,.webp',

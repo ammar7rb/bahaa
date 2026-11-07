@@ -18,7 +18,7 @@
                     <div class="text-muted mb-2">{{ translate('sales_summary') }}</div>
                     <h2 class="mb-2">{{ $money($sellerOverview['sales']['total_amount']) }}</h2>
                     <div class="d-flex justify-content-between text-muted">
-                        <span>{{ translate('orders') }}: <strong class="text-dark">{{ $sellerOverview['sales']['orders_count'] }}</strong></span>
+                        <span>{{ translate('orders') }}: <strong class="text-dark">{{ $sellerOverview['sales']['received_orders_count'] }}</strong></span>
                         <span>{{ translate('sold_units') }}: <strong class="text-dark">{{ $sellerOverview['sales']['sold_units'] }}</strong></span>
                     </div>
                 </div>
@@ -58,7 +58,6 @@
             ['label' => 'available_balance', 'value' => $sellerOverview['balances']['available'], 'class' => 'success'],
             ['label' => 'pending_from_platform', 'value' => $sellerOverview['balances']['pending_from_platform'], 'class' => 'warning'],
             ['label' => 'purchase_and_operating_wallet_balance', 'value' => $sellerOverview['balances']['operating'], 'class' => 'primary'],
-            ['label' => 'order_insurance_credit', 'value' => $sellerOverview['balances']['order_insurance_credit'], 'class' => 'info'],
             ['label' => 'shipping_due_total', 'value' => $sellerOverview['balances']['shipping_due_total'], 'class' => 'warning'],
         ] as $balance)
             <div class="col-sm-6 col-lg-3">
@@ -100,8 +99,7 @@
                     <th>{{ translate('shipping_entitlement') }}</th>
                     <th>{{ translate('settlement_status') }}</th>
                     <th>{{ translate('sales_due_at') }}</th>
-                    <th>{{ translate('shipping_due_at') }}</th>
-                    <th>{{ translate('insurance_reuse_due_at') }}</th>
+                    
                 </tr></thead>
                 <tbody>
                 @forelse($sellerOverview['due_rows'] as $row)
@@ -118,24 +116,10 @@
                         </td>
                         <td><span class="badge badge-soft-info">{{ translate($row['settlement_status']) }}</span></td>
                         <td>{{ $row['sales_due_at'] ? \Carbon\Carbon::parse($row['sales_due_at'])->translatedFormat('d M Y') : '-' }}</td>
-                        <td>{{ $row['shipping_due_at'] ? \Carbon\Carbon::parse($row['shipping_due_at'])->translatedFormat('d M Y') : '-' }}</td>
-                        <td>
-                            @if($row['insurance_amount'] > 0)
-                                <span class="d-block">{{ $money($row['insurance_amount']) }}</span>
-                                <small class="text-muted">{{ translate($row['insurance_status'] ?: 'pending') }}</small>
-                                @if($row['insurance_paid_at'])
-                                    <small class="d-block text-muted">{{ translate('paid_at') }}: {{ \Carbon\Carbon::parse($row['insurance_paid_at'])->translatedFormat('d M Y') }}</small>
-                                @endif
-                                @if($row['insurance_reuse_due_at'])
-                                    <small class="d-block text-muted">{{ \Carbon\Carbon::parse($row['insurance_reuse_due_at'])->translatedFormat('d M Y') }}</small>
-                                @endif
-                            @else
-                                -
-                            @endif
-                        </td>
+                        
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="text-center text-muted py-4">{{ translate('no_financial_due_dates_found') }}</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted py-4">{{ translate('no_financial_due_dates_found') }}</td></tr>
                 @endforelse
                 </tbody>
             </table>

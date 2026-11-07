@@ -21,12 +21,6 @@
             </a>
         </li>
 
-        <li class="nav-item">
-            <a class="nav-link {{ Request::is('admin/system-setup/software-update') ? 'active' : '' }}"
-               href="{{ route('admin.system-setup.software-update') }}">
-                {{ translate('Software_Update') }}
-            </a>
-        </li>
 
         <li class="nav-item">
             <a class="nav-link {{ Request::is('admin/system-setup/language') ? 'active' : '' }}"

@@ -2665,4 +2665,5 @@ return [
 	"Invalid_image_file" => "Invalid image file",
 	"Invalid_image_format_type_must_be" => "Invalid image format type must be",
 	"هذا_الرقم_مسجل_بالفعل._سجّل_الدخول_إلى_حسابك." => "هذا الرقم مسجل بالفعل. سجّل الدخول إلى حسابك.",
+	"Monthly_Packages" => "Monthly Packages",
 ];

@@ -22,6 +22,13 @@ class DeliveryManAuth
             $d_man = DeliveryMan::where(['auth_token' => $token['1']])->first();
             if (isset($d_man)) {
                 $request['delivery_man'] = $d_man;
+                if(!$request->isMethod('GET')&&$request->filled('order_id')){
+                    try{return \Illuminate\Support\Facades\DB::transaction(function()use($request,$next,$d_man){
+                        $order=\App\Models\Order::where('delivery_man_id',$d_man->id)->lockForUpdate()->findOrFail($request->input('order_id'));
+                        app(\App\Services\VendorFulfillmentDecisionService::class)->assertLegacyMutationAllowed($order);
+                        return $next($request);
+                    },3);}catch(\DomainException $error){return response()->json(['message'=>$error->getMessage()],422);}
+                }
                 return $next($request);
             }
         }

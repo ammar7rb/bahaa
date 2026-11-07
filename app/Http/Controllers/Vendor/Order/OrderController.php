@@ -125,7 +125,7 @@ class OrderController extends BaseController
         $paymentPaidStatus = $request['payment_status'] ?? [];
         $orderStatus = $request['order_current_status'] ?? [];
 
-        $relation = ['customer', 'shipping', 'shippingAddress', 'deliveryMan', 'billingAddress', 'postPurchaseInvoice', 'insurance'];
+        $relation = ['customer', 'shipping', 'shippingAddress', 'deliveryMan', 'billingAddress', 'latestEditHistory'];
         $filters = [
             'order_status' => $status == 'all' ? $orderStatus : $status,
             'order_type' => $request['filter'],
@@ -498,18 +498,6 @@ class OrderController extends BaseController
         }
 
         if (! app(\App\Services\SellerOrderVisibilityService::class)->canSellerView($order)) {
-            $sellerOrderInsurance = $order->sellerOrderInsurance()->first();
-            $releasedForInsurance = in_array($order->commerce_flow_status, [
-                \App\Support\Commerce\OrderCommerceState::SELLER_INSURANCE_PENDING,
-                \App\Support\Commerce\OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW,
-            ], true) && $order->admin_order_review_status === 'approved';
-
-            if (app(\App\Services\SellerOrderVisibilityService::class)->canSellerAccess($order) && $sellerOrderInsurance) {
-                $accessReference = $order->seller_restricted_access_token ?: $order->id;
-
-                return view('vendor-views.order.seller-order-insurance-gate', compact('order', 'sellerOrderInsurance', 'accessReference'));
-            }
-
             ToastMagic::warning(translate('order_is_waiting_for_admin_release'));
             return back();
         }

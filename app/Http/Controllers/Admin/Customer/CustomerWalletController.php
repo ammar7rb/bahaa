@@ -80,33 +80,27 @@ class CustomerWalletController extends BaseController
         return view('admin-views.customer.wallet.report', compact('data', 'transactions', 'customerStatus', 'customer','customers','sidebarCustomers'));
     }
 
+    public function updateNote(Request $request, \App\Models\WalletTransaction $transaction): RedirectResponse
+    {
+        abort_unless(\App\Utils\Helpers::module_permission_check('people'),403);
+        $data=$request->validate(['customer_note'=>'nullable|string|max:2000']);
+        $transaction->update(['customer_note'=>trim($data['customer_note']??'') ?: null,
+            'note_admin_id'=>auth('admin')->id(),'note_updated_at'=>now()]);
+        ToastMagic::success('تم حفظ ملاحظة الحركة وعرضها للعميل.');
+        return back();
+    }
+
     public function addFund(AddFundRequest $request, CustomerWalletService $customerWalletService): JsonResponse
     {
-        $walletTransaction = $this->walletTransactionRepo->addWalletTransaction(
-            user_id: $request['customer_id'],
-            amount: $request['amount'],
-            transactionType: 'add_fund_by_admin',
-            reference: ($request['reference'] ?? 'add_fund_by_admin'));
-
-        $customer = $this->customerRepo->getFirstWhere(params: ['id' => $request['customer_id']]);
-        $customerWalletService->sendPushNotificationMessage(request: $request, customer: $customer);
-
-        if ($walletTransaction) {
-            $data = [
-                'walletTransaction' => $walletTransaction,
-                'userName' => $customer['f_name'],
-                'userType' => 'customer',
-                'templateName' => 'add-fund-to-wallet',
-                'subject' => translate('add_fund_to_wallet'),
-                'title' => translate('add_fund_to_wallet'),
-            ];
-            event(new AddFundToWalletEvent(email: $customer['email'], data: $data));
-            return response()->json(['message' => translate('transaction_successful')], 200);
+        \App\Services\CustomerAccountAccess::authorize('wallet_adjust');
+        try {
+            app(\App\Services\CustomerAccountAdjustmentService::class)->credit((int)$request['customer_id'],
+                (string)currencyConverter(amount: (float)$request['amount']), trim($request['reference']),
+                (int)auth('admin')->id(), $request['request_key']);
+            return response()->json(['message'=>translate('transaction_successful')]);
+        } catch (\DomainException $error) {
+            return response()->json(['errors'=>[['message'=>$error->getMessage()]]], 422);
         }
-
-        return response()->json(['errors' => [
-            'message' => translate('failed_to_create_transaction')
-        ]], 200);
     }
 
     public function exportList(Request $request): BinaryFileResponse

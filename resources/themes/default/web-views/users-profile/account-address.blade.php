@@ -129,7 +129,8 @@
                                             <input class="form-control" type="text" id="building-number" name="building_number" required>
                                         </div>
                                         <div class="form-group col-md-6">
-                                            <label for="landmark">أقرب علامة مميزة</label>
+                                            @include('customer-account.address-extra-fields',['addressDetails'=>$shippingAddress ?? null])
+<label for="landmark">أقرب علامة مميزة</label>
                                             <input class="form-control" type="text" id="landmark" name="landmark">
                                         </div>
                                     </div>

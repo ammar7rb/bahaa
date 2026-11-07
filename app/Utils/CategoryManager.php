@@ -119,7 +119,7 @@ class CategoryManager
                         });
                     })
                     ->when(request('offer_type') == 'discounted', function ($query) {
-                        return $query->where('discount', '>', 0);
+                        return $query->whereHas('clearanceSale', fn ($sale) => $sale->active());
                     })
                     ->when(request('data_from') == 'publishing_house', function ($query) {
                         return $query->where(['product_type' => 'digital']);
@@ -140,7 +140,7 @@ class CategoryManager
                                 });
                             })
                             ->when(request('offer_type') == 'discounted', function ($query) {
-                                return $query->where('discount', '>', 0);
+                                return $query->whereHas('clearanceSale', fn ($sale) => $sale->active());
                             })
                             ->when(request('data_from') == 'publishing_house', function ($query) {
                                 return $query->where(['product_type' => 'digital']);
@@ -156,7 +156,7 @@ class CategoryManager
                             });
                         })
                         ->when(request('offer_type') == 'discounted', function ($query) {
-                            return $query->where('discount', '>', 0);
+                            return $query->whereHas('clearanceSale', fn ($sale) => $sale->active());
                         })
                         ->when(request('data_from') == 'publishing_house', function ($query) {
                             return $query->where(['product_type' => 'digital']);

@@ -4,9 +4,6 @@
             <div class="card-header d-flex justify-content-end align-items-center gap-3 border-0 pc-header-ai-btn shadow-none">
                 <div class="flex-grow-1">
                     <h3 class="mb-1">{{ translate('Product_Variation_Setup') }}</h3>
-                    <p class="fs-12 mb-0">
-                        {{ translate('seller_product_variation_help') }}
-                    </p>
                 </div>
 
                 @if(getActiveAIProviderConfigCache())

@@ -35,7 +35,7 @@ class LoginController extends Controller
 
     public function login(LoginRequest $request): RedirectResponse
     {
-        $vendor = $this->vendorRepo->getFirstWhere(['identity' => $request['email']]);
+        $vendor = app(\App\Services\SellerLoginIdentityService::class)->resolve((string) $request['email']);
         if (!$vendor) {
             ToastMagic::error(translate('credentials_doesnt_match') . '!');
             return back();
@@ -54,7 +54,7 @@ class LoginController extends Controller
             ToastMagic::error(translate('Not_approve_yet') . '!');
             return back();
         }
-        if ($this->vendorService->isLoginSuccessful($request->email, $request->password, $request->remember)) {
+        if (auth('seller')->attempt(['id' => $vendor->id, 'password' => $request->password], (bool) $request->remember)) {
             if ($this->vendorWalletRepo->getFirstWhere(params: ['id' => auth('seller')->id()]) === false) {
                 $this->vendorWalletRepo->add($this->vendorService->getInitialWalletData(vendorId: auth('seller')->id()));
             }

@@ -55,4 +55,23 @@ class ThemeAssetPublisherTest extends TestCase
 
         $publisher->sync('../theme_aster');
     }
+
+    public function test_sigma_care_publishes_its_assets_and_requires_the_inherited_aster_runtime(): void
+    {
+        $themes = $this->temporaryRoot.'/source';
+        $public = $this->temporaryRoot.'/published';
+        File::ensureDirectoryExists($themes.'/theme_aster/public/assets');
+        File::ensureDirectoryExists($themes.'/theme_aster/public/addon');
+        File::ensureDirectoryExists($themes.'/theme_sigma_care/public/assets/css');
+        File::put($themes.'/theme_aster/public/addon/theme_routes.php', '<?php return [];');
+        File::put($themes.'/theme_sigma_care/public/assets/css/sigma-care.css', 'body{color:#123}');
+        $publisher = new ThemeAssetPublisher($themes, $public);
+        $this->assertFalse($publisher->isReady('theme_sigma_care'));
+        $publisher->sync('theme_sigma_care');
+        $this->assertTrue($publisher->isReady('theme_aster'));
+        $this->assertTrue($publisher->isReady('theme_sigma_care'));
+        $this->assertSame('body{color:#123}', File::get($public.'/theme_sigma_care/public/assets/css/sigma-care.css'));
+        File::delete($public.'/theme_aster/public/addon/theme_routes.php');
+        $this->assertFalse($publisher->isReady('theme_sigma_care'));
+    }
 }

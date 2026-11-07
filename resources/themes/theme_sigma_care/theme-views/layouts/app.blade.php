@@ -76,9 +76,12 @@
     </style>
 
     <meta name="color-scheme" content="light">
-    <link rel="stylesheet" href="{{ theme_asset('assets/css/sigma-care.css') }}?v=25">
+    <link rel="stylesheet" href="{{ theme_asset('assets/css/sigma-care.css') }}?v=28">
+    <link rel="stylesheet" href="{{ asset('assets/front-end/css/care-basket.css') }}?v=20261017.1">
 
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261027.2">
+<link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-communication.css') }}?v=20261014">
 </head>
 <body class="toolbar-enabled sigma-care" theme="light">
 @if(theme_root_path() !== (env('WEB_THEME') ?: 'default'))
@@ -108,7 +111,12 @@
 @include('web-views.users-profile.partials.customer-activation-banner')
 @include('customer-subscription.expiry-banner')
 
+@if(!request()->routeIs('shop-cart') && !request()->is('checkout*','customer/checkout*','user-profile','user-account','account-*','support-ticket*','wallet*','customer/subscription*','customer/account-deletion*'))
+<div class="container">@include('web-views.users-profile.partials.purchasing-limit-strip', ['limitVariant'=>'browsing'])</div>
+@endif
+@include('customer-account.profile-header')
 @yield('content')
+@include('web-views.users-profile.partials.customer-payment-notices')
 @include('theme-views.layouts.partials._feature')
 @include('theme-views.layouts.partials._footer')
 
@@ -141,7 +149,9 @@
 @endif
 
 @if(!auth()->guard('customer')->check())
-    @include('theme-views.layouts.partials.modal._register')
+    @unless(request()->routeIs('customer.auth.sign-up'))
+        @include('theme-views.layouts.partials.modal._register')
+    @endunless
     @include('theme-views.layouts.partials.modal._login')
 @endif
 
@@ -276,8 +286,12 @@
 </script>
 <script src="{{ theme_asset('assets/js/care-home.js') }}?v=5" defer></script>
 @stack('script')
+@include('web-views.users-profile.partials.profile-image-shortcut')
+<script src="{{ asset('assets/front-end/js/customer-purchasing-limit.js') }}?v=20261027.2" defer></script>
 
-<script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}" defer></script>
+<script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}?v=20261104.2" defer></script>
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
 </body>
 </html>
+
+
