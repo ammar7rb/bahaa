@@ -36,9 +36,10 @@
                     dialog = document.createElement('dialog'); dialog.id = 'ca-profile-modal'; dialog.className = 'ca-dialog ca-profile-modal';
                     dialog.setAttribute('aria-label', 'ملف العميل الكامل');
                     const header = document.createElement('header'); header.textContent = 'ملف العميل الكامل';
-                    const close = document.createElement('button'); close.type='button';close.className='btn btn-secondary';close.textContent='إغلاق';close.dataset.caClose='';header.append(close);
+                    const close = document.createElement('button'); close.type='button';close.className='ca-profile-close';close.setAttribute('aria-label','إغلاق ملف العميل');close.title='إغلاق';close.dataset.caClose='';
+                    const icon=document.createElement('i');icon.className='fi fi-rr-cross-small';icon.setAttribute('aria-hidden','true');close.append(icon);header.append(close);
                     const frame = document.createElement('iframe');frame.title='بيانات العميل وحركاته';
-                    frame.addEventListener('load',()=>{try{const style=frame.contentDocument.createElement('style');style.textContent='.v2-header,.v2-rail,.v2-ctxpanel{display:none!important}.app-v2{display:block!important}.v2-main{margin:0!important;padding:16px!important;width:100%!important}';frame.contentDocument.head.append(style);}catch{}});
+                    frame.addEventListener('load',()=>{try{const style=frame.contentDocument.createElement('style');style.textContent='html,body{height:auto!important;min-height:100%!important;overflow:auto!important}.v2-header,.v2-rail,.v2-ctxpanel{display:none!important}.app-v2{display:block!important;height:auto!important;min-height:100vh!important;overflow:visible!important}.v2-main{margin:0!important;padding:16px!important;width:100%!important;height:auto!important;overflow:visible!important}';frame.contentDocument.head.append(style);}catch{}});
                     dialog.append(header,frame);root.append(dialog);dialog.addEventListener('cancel',e=>{e.preventDefault();closeDialog(dialog)});
                 }
                 dialog.querySelector('iframe').src=url.href;openDialog(dialog.id,remote);return;

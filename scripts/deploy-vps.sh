@@ -1,17 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-site=/home/sigma-eg/htdocs/sigma-eg.net
-cd "$site"
-
-# Fail instead of installing against an incomplete or incorrect checkout.
-test -f .env
-test -f storage/oauth-private.key
-test -f composer.lock
-test -f artisan
-
-php8.3 /usr/local/bin/composer install \
-  --no-dev --no-interaction --prefer-dist --optimize-autoloader
-php8.3 artisan optimize:clear
-php8.3 artisan migrate --force --no-interaction
-php8.3 artisan queue:restart
+repo=/home/sigma-eg/git/sigma-site.git
+target=${1:-$(git --git-dir="$repo" rev-parse refs/heads/main)}
+runner="$repo/source-runner-$target.py"
+git --git-dir="$repo" show "$target:scripts/vps/deploy-source.py" > "$runner"
+chmod 600 "$runner"
+exec python3 "$runner" "$target"

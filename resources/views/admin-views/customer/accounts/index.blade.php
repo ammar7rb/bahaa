@@ -1,7 +1,7 @@
 @extends('layouts.admin.app')
 @section('title', 'العملاء')
 @push('css_or_js')
-<link rel="stylesheet" href="{{ dynamicAsset(path:'public/assets/back-end/css/customer-accounts.css') }}?v=20261107.3">
+<link rel="stylesheet" href="{{ dynamicAsset(path:'public/assets/back-end/css/customer-accounts.css') }}?v=20261107.4">
 @endpush
 @section('content')
 @php
@@ -85,4 +85,4 @@
     @if($customer && $page!=='subscriptions')@include('admin-views.customer.accounts.action-history')@endif
 </div>
 @endsection
-@push('script')<script src="{{ dynamicAsset(path:'public/assets/back-end/js/customer-accounts.js') }}?v=20261107.3" defer></script>@endpush
+@push('script')<script src="{{ dynamicAsset(path:'public/assets/back-end/js/customer-accounts.js') }}?v=20261107.4" defer></script>@endpush

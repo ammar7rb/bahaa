@@ -1,38 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
+umask 077
 repo=/home/sigma-eg/git/sigma-site.git
-site=/home/sigma-eg/htdocs/sigma-eg.net
 target=
-
 while read -r oldrev newrev refname; do
-  if [[ "$refname" == refs/heads/main ]]; then
-    target=$newrev
-  fi
+  if [[ "$refname" == refs/heads/main ]]; then target=$newrev; fi
 done
-
 [[ -n "$target" ]] || exit 0
-exec 9>"$repo/deploy.lock"
-flock -x 9
-
-test -f "$site/.env"
-test -f "$site/storage/oauth-private.key"
-test -d "$site/vendor"
-
-if [[ ! -f "$site/.deploy-current" ]]; then
-  backup="/home/sigma-eg/git/pre-direct-deploy-$(date +%Y%m%d%H%M%S)"
-  mkdir -p "$backup"
-  rsync -a \
-    --exclude='/.env*' \
-    --exclude='/storage/' \
-    --exclude='/vendor/' \
-    --exclude='/public/storage' \
-    --exclude='/public/themes/' \
-    "$site/" "$backup/"
-  echo "Previous site code saved at $backup"
+if [[ -f "$repo/DEPLOY_DISABLED" ]]; then
+  echo 'Automatic deployment is disabled; main was received but production was not changed.'
+  exit 0
 fi
-
-GIT_INDEX_FILE="$repo/live.index" git --git-dir="$repo" --work-tree="$site" checkout -f main
-bash "$site/scripts/deploy-vps.sh"
-printf '%s\n' "$target" > "$site/.deploy-current"
-echo "Deployed $target"
+log="$repo/source-deploy-$target.log"
+runner="$repo/source-runner-$target.py"
+git --git-dir="$repo" show "$target:scripts/vps/deploy-source.py" > "$runner"
+chmod 600 "$runner"
+if ! python3 "$runner" "$target" > "$log" 2>&1; then
+  echo "DEPLOYMENT FAILED; source retained in main; inspect $log"
+  tail -n 8 "$log"
+  exit 1
+fi
+tail -n 1 "$log"
