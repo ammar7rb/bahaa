@@ -42,6 +42,33 @@ class VendorDebtService
         return $this->available() ? (string) $this->amount(DB::table('vendor_debt_charges')->where('seller_id', $sellerId)->sum('outstanding')) : '0.00000000';
     }
 
+    /** An administrative debt records the full liability; it does not silently spend wallet money. */
+    public function createAdministrativeDebt(int $sellerId, mixed $value, string $reason, string $requestKey, int $adminId): object
+    {
+        if (!$this->available()) throw new DomainException('دفتر ديون التاجر غير مهيأ.');
+        $amount = $this->amount($value);
+        $reason = trim($reason);
+        if ($amount->isZero() || $reason === '' || strlen($reason) > 2000) throw new DomainException('المبلغ والسبب مطلوبان.');
+        $key = hash('sha256', 'admin-manual|'.$sellerId.'|'.$requestKey);
+        $fingerprint = hash('sha256', json_encode([$sellerId, (string) $amount, $reason], JSON_THROW_ON_ERROR));
+        return DB::transaction(function () use ($sellerId, $amount, $reason, $adminId, $key, $fingerprint, $requestKey) {
+            $this->ledger->lockSellerFinancialState($sellerId);
+            if ($existing = DB::table('vendor_debt_charges')->where('idempotency_key', $key)->first()) {
+                if (!hash_equals($existing->fingerprint, $fingerprint)) throw new DomainException('مفتاح الطلب مستخدم لمديونية مختلفة.');
+                return $existing;
+            }
+            $id = DB::table('vendor_debt_charges')->insertGetId([
+                'seller_id' => $sellerId, 'kind' => 'admin_manual', 'source_type' => 'admin_manual',
+                'source_id' => $requestKey, 'idempotency_key' => $key, 'fingerprint' => $fingerprint,
+                'amount' => (string) $amount, 'wallet_collected' => '0', 'debt_assessed' => (string) $amount,
+                'outstanding' => (string) $amount, 'rule_snapshot' => json_encode(['reason' => $reason], JSON_THROW_ON_ERROR),
+                'created_by' => $adminId, 'assessed_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->event($sellerId, 'charge_assessed', $amount, $id, null, 'charge:'.$id.':assessed');
+            return DB::table('vendor_debt_charges')->find($id);
+        }, 3);
+    }
+
     private function event(int $sellerId, string $type, BigDecimal $amount, ?int $chargeId, ?int $depositId, string $key): void
     {
         DB::table('vendor_debt_events')->insert([

@@ -19,9 +19,9 @@ class SellerPackagePurchaseService
     ) {}
 
     /** Persisted request key prevents charging again after a lost response. */
-    public function purchaseWithPaymentsBalance(Seller $seller, SellerPackage $package, string $requestKey, ?float $expectedPrice = null): array
+    public function purchaseWithPaymentsBalance(Seller $seller, SellerPackage $package, string $requestKey, ?float $expectedPrice = null, ?int $adminId = null): array
     {
-        return DB::transaction(function () use ($seller, $package, $requestKey, $expectedPrice) {
+        return DB::transaction(function () use ($seller, $package, $requestKey, $expectedPrice, $adminId) {
             $this->ledger->lockSellerFinancialState((int) $seller->id);
             $subscription = SellerPackageSubscription::where('seller_id', $seller->id)
                 ->where(fn ($query) => $query->where('metadata->purchase_request_key', $requestKey)
@@ -41,13 +41,13 @@ class SellerPackagePurchaseService
             $metadata['purchase_request_keys'] = array_values(array_unique(array_merge($metadata['purchase_request_keys'] ?? [], array_filter([$metadata['purchase_request_key'] ?? null, $requestKey]))));
             $metadata['purchase_request_key'] = $requestKey;
             $subscription->update(['metadata' => $metadata]);
-            return $this->payFromOperatingBalance($subscription);
+            return $this->payFromOperatingBalance($subscription, $adminId);
         });
     }
 
-    public function payFromOperatingBalance(SellerPackageSubscription $subscription): array
+    public function payFromOperatingBalance(SellerPackageSubscription $subscription, ?int $adminId = null): array
     {
-        return DB::transaction(function () use ($subscription) {
+        return DB::transaction(function () use ($subscription, $adminId) {
             $this->ledger->lockSellerFinancialState((int) $subscription->seller_id);
             $subscription = SellerPackageSubscription::query()->lockForUpdate()->findOrFail($subscription->id);
             if ($subscription->payment_status === 'paid') {
@@ -60,6 +60,11 @@ class SellerPackagePurchaseService
             }
 
             $amount = (float) $subscription->paid_package_price;
+            $previousPackage = SellerPackageSubscription::where('seller_id', $subscription->seller_id)
+                ->where('id', '!=', $subscription->id)->where('payment_status', 'paid')->latest('id')->first();
+            $operationType = !$previousPackage ? 'subscribe' : ((int) $subscription->seller_package_id === (int) $previousPackage->seller_package_id
+                ? 'renew' : ((int) $subscription->product_limit > (int) $previousPackage->product_limit ? 'upgrade'
+                    : ((int) $subscription->product_limit < (int) $previousPackage->product_limit ? 'downgrade' : 'change_package')));
             try {
                 $this->ledger->assertSufficient((int) $subscription->seller_id, SellerLedgerService::OPERATING, $amount);
             } catch (\InvalidArgumentException $exception) {
@@ -73,7 +78,8 @@ class SellerPackagePurchaseService
                 movements: [['bucket' => SellerLedgerService::OPERATING, 'direction' => 'debit', 'amount' => $amount]],
                 referenceType: SellerPackageSubscription::class,
                 referenceId: (int) $subscription->id,
-                metadata: ['payment_method' => 'operating_balance'],
+                metadata: ['payment_method' => 'operating_balance', 'admin_assisted' => $adminId !== null],
+                createdBy: $adminId,
             );
 
             $result = $this->markPaid($subscription, [
@@ -81,7 +87,8 @@ class SellerPackagePurchaseService
                 'transaction_id' => 'operating-balance-package-'.$subscription->id,
                 'payment_amount' => $amount,
                 'currency_code' => getCurrencyCode(type: 'default'),
-            ]);
+                'operation_type' => $operationType,
+            ], $adminId);
             if (($result['status'] ?? 0) !== 1) {
                 throw new DomainException($result['message'] ?? 'seller_package_subscription_cannot_be_activated');
             }
@@ -351,8 +358,9 @@ class SellerPackagePurchaseService
                 'payment_amount' => $paymentData['payment_amount'] ?? $subscription->paid_package_price,
                 'currency_code' => $paymentData['currency_code'] ?? null,
                 'paid_at' => now()->toDateTimeString(),
+                'operation_type' => $paymentData['operation_type'] ?? null,
             ];
-            if ($reviewedByAdminId) {
+            if ($reviewedByAdminId && ($paymentData['payment_method'] ?? $subscription->payment_method) === 'offline_payment') {
                 app(VendorTransferReferenceService::class)->release('package_subscription',$subscription->id);
             $metadata['offline_payment_review'] = [
                     'action' => 'approved',
@@ -360,6 +368,10 @@ class SellerPackagePurchaseService
                     'reviewed_at' => $startsAt->toDateTimeString(),
                     'note' => $reviewNote,
                 ];
+            }
+            if ($reviewedByAdminId && ($paymentData['payment_method'] ?? $subscription->payment_method) === 'operating_balance') {
+                $metadata['admin_assisted'] = ['admin_id' => $reviewedByAdminId, 'at' => $startsAt->toDateTimeString(),
+                    'operation_type' => $paymentData['operation_type'] ?? null];
             }
 
             $subscription->update([
@@ -518,7 +530,7 @@ class SellerPackagePurchaseService
             'payment_request_id' => $paymentData['id'] ?? $subscription->payment_request_id,
             'reference' => $paymentData['transaction_id'] ?? $subscription->payment_reference,
             'created_by_admin_id' => $createdByAdminId,
-            'metadata' => ['package_name' => $subscription->package_name],
+            'metadata' => ['package_name' => $subscription->package_name, 'operation_type' => $paymentData['operation_type'] ?? null],
         ];
 
         SellerPackageTransaction::create(array_merge($baseData, [

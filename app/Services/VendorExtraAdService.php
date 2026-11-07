@@ -17,10 +17,10 @@ class VendorExtraAdService
             'duration_policy' => 'subscription_expiry', 'content_rejection_available' => true];
     }
 
-    public function purchase(Seller $seller, array $data, ?array $proof = null): VendorExtraAdPurchase
+    public function purchase(Seller $seller, array $data, ?array $proof = null, ?int $adminId = null): VendorExtraAdPurchase
     {
         if (!config('vendor_advertising.enabled')) throw new DomainException('شراء الإضافات غير متاح.');
-        return DB::transaction(function () use ($seller, $data, $proof) {
+        return DB::transaction(function () use ($seller, $data, $proof, $adminId) {
             app(SellerLedgerService::class)->lockSellerFinancialState($seller->id);
             $existing = VendorExtraAdPurchase::where('seller_id', $seller->id)->where('request_key', $data['request_key'])->first();
             if ($existing) {
@@ -55,7 +55,7 @@ class VendorExtraAdService
                 'terms' => ['duration_policy' => 'subscription_expiry', 'expires_at' => $subscription->expires_at->toIso8601String(),
                     'price_is_final' => true, 'tax_included' => true, 'guaranteed_featured_placement' => false,
                     'renewal_included' => false, 'content_rejection_available' => true],
-                'payment_details' => $proof,
+                'payment_details' => $proof, 'reviewed_by' => $adminId,
             ]);
             if ($data['payment_method'] === 'offline_payment' && ($proof['transfer_reference'] ?? null)) app(VendorTransferReferenceService::class)->reserve((int)$proof['method_id'],$proof['transfer_reference'],'extra_ad',$purchase->id);
             if ($wallet) {
@@ -63,7 +63,7 @@ class VendorExtraAdService
                 if (($ledger->summary($seller->id)['operating'] ?? 0) < (float) $total) throw new DomainException('رصيد المدفوعات غير كافٍ. برجاء شحن الرصيد.');
                 $ledger->post($seller->id, 'extra_ad_purchase', 'extra-ad-'.$purchase->id,
                     [['bucket' => 'operating', 'direction' => 'debit', 'amount' => (float) $total, 'reporting_category' => 'package', 'reference_code' => $purchase->admin_reference]],
-                    VendorExtraAdPurchase::class, $purchase->id, ['currency' => 'EGP', 'reference' => $purchase->admin_reference]);
+                    VendorExtraAdPurchase::class, $purchase->id, ['currency' => 'EGP', 'reference' => $purchase->admin_reference], $adminId);
                 $this->activate($purchase, $subscription, 'extra-ad-wallet-'.$purchase->id);
             }
             return $purchase->fresh();

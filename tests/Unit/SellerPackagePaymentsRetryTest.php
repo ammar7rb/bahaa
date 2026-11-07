@@ -49,4 +49,13 @@ Schema::create('seller_ledger_entries', function (Blueprint $table) {
   try {app(SellerPackagePurchaseService::class)->purchaseWithPaymentsBalance(Seller::findOrFail(1),$this->plan(),'no-payments-credit');$this->fail('Only payments credit can buy a package');}catch(\DomainException $e){$this->assertSame('seller_operating_balance_insufficient',$e->getMessage());}
   $this->assertSame(0,SellerPackageSubscription::count());$this->assertSame(500.0,$ledger->summary(1)['available']);$this->assertSame(500.0,$ledger->summary(1)['order_insurance_credit']);
  }
+ public function test_admin_assisted_wallet_purchase_records_actor_without_changing_self_service_path():void {
+  $ledger=app(SellerLedgerService::class);$ledger->post(1,'funding','admin-test-funding',[['bucket'=>'operating','direction'=>'credit','amount'=>500]]);
+  $result=app(SellerPackagePurchaseService::class)->purchaseWithPaymentsBalance(Seller::findOrFail(1),$this->plan(),'admin-purchase-key',250,9);
+  $this->assertSame(1,$result['status']);
+  $this->assertSame(9,(int)data_get($result['subscription']->metadata,'admin_assisted.admin_id'));
+  $this->assertSame('subscribe',data_get($result['subscription']->metadata,'payment.operation_type'));
+  $this->assertSame(9,(int)\App\Models\SellerPackageTransaction::where('transaction_type','package_purchase')->value('created_by_admin_id'));
+  $this->assertSame(250.0,$ledger->summary(1)['operating']);
+ }
 }

@@ -637,6 +637,14 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     Route::group(['prefix' => 'vendors', 'as' => 'vendors.', 'middleware' => ['module:people']], function () {
+        Route::prefix('accounts')->name('accounts.')->controller(\App\Http\Controllers\Admin\Vendor\VendorAccountsController::class)->group(function () {
+            Route::get('lookup', 'lookup')->name('lookup');
+            Route::get('{page?}', 'index')->whereIn('page', ['list', 'payments', 'debts', 'subscriptions'])->name('index');
+            Route::post('debt', 'debt')->name('debt');
+            Route::post('fund', 'fund')->name('fund');
+            Route::post('subscribe', 'subscribe')->name('subscribe');
+            Route::post('extra-ad', 'extraAd')->name('extra-ad');
+        });
         Route::controller(SellerBalanceFundingSettingsController::class)->prefix('balance-funding-settings')->name('balance-funding-settings.')->group(function () {
             Route::post('sales-transfer', 'updateSalesTransfer')->name('sales-transfer');
             Route::get('/', 'index')->name('index');

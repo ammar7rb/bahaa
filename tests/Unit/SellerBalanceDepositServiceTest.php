@@ -43,6 +43,45 @@ class SellerBalanceDepositServiceTest extends TestCase
         $service->reverse($deposit->fresh(), 7, 'Duplicate reversal');
     }
 
+    public function test_verified_admin_funding_is_once_only_and_rejects_reused_reference(): void
+    {
+        $seller = Seller::create(['email' => 'admin-fund@example.com']);
+        $service = app(SellerBalanceDepositService::class);
+        $first = $service->confirmAdministrativePayment($seller, '75.00', 'verified-transfer-1', 'request-1', 9, 'Verified bank receipt');
+        $again = $service->confirmAdministrativePayment($seller, '75.00', 'verified-transfer-1', 'request-1', 9, 'Verified bank receipt');
+        $this->assertSame($first->id, $again->id);
+        $this->assertSame(75.0, app(SellerLedgerService::class)->summary($seller->id)[SellerLedgerService::OPERATING]);
+        $this->assertSame(1, SellerLedgerEntry::where('seller_id', $seller->id)->where('event_type', 'operating_deposit')->count());
+        $this->expectException(\DomainException::class);
+        $service->confirmAdministrativePayment($seller, '75.00', 'verified-transfer-1', 'request-2', 9, 'Another receipt');
+    }
+
+    public function test_verified_funding_settles_oldest_administrative_debt_before_wallet_credit(): void
+    {
+        Schema::create('vendor_debt_charges', function (Blueprint $t) { $t->id(); $t->unsignedBigInteger('seller_id'); $t->string('kind'); $t->string('source_type'); $t->string('source_id'); $t->char('idempotency_key',64)->unique(); $t->char('fingerprint',64); $t->decimal('amount',24,8); $t->decimal('wallet_collected',24,8); $t->decimal('debt_assessed',24,8); $t->decimal('outstanding',24,8); $t->json('rule_snapshot'); $t->unsignedBigInteger('created_by')->nullable(); $t->timestamp('assessed_at'); $t->timestamps(); });
+        Schema::create('vendor_deposit_allocations', function (Blueprint $t) { $t->id(); $t->unsignedBigInteger('deposit_id')->unique(); $t->unsignedBigInteger('seller_id'); $t->decimal('gross_amount',24,8); $t->decimal('debt_recovered',24,8); $t->decimal('net_wallet_credit',24,8); $t->decimal('remaining_debt',24,8); $t->timestamp('confirmed_at'); $t->timestamp('reversed_at')->nullable(); $t->timestamps(); });
+        Schema::create('vendor_debt_repayments', function (Blueprint $t) { $t->id(); $t->unsignedBigInteger('seller_id'); $t->unsignedBigInteger('charge_id'); $t->unsignedBigInteger('deposit_id')->nullable(); $t->string('collection_type'); $t->decimal('amount',24,8); $t->char('event_key',64)->unique(); $t->timestamp('reversed_at')->nullable(); $t->timestamps(); });
+        Schema::create('vendor_debt_events', function (Blueprint $t) { $t->id(); $t->unsignedBigInteger('seller_id'); $t->unsignedBigInteger('charge_id')->nullable(); $t->unsignedBigInteger('deposit_id')->nullable(); $t->string('event_type'); $t->decimal('amount',24,8); $t->char('event_key',64)->unique(); $t->timestamp('created_at'); });
+        try {
+            $seller = Seller::create(['email' => 'debt-seller@example.com']);
+            $debt = app(\App\Services\VendorDebtService::class);
+            $old = $debt->createAdministrativeDebt($seller->id, '60', 'Old charge', 'debt-1', 9);
+            $new = $debt->createAdministrativeDebt($seller->id, '50', 'New charge', 'debt-2', 9);
+            $service = app(SellerBalanceDepositService::class);
+            $first = $service->confirmAdministrativePayment($seller, '80', 'bank-80', 'fund-1', 9, 'Verified');
+            $receipt = $debt->depositReceipt($first->id);
+            $this->assertSame(80.0, (float) $receipt['debt_recovered']);
+            $this->assertSame(0.0, app(SellerLedgerService::class)->summary($seller->id)[SellerLedgerService::OPERATING]);
+            $this->assertSame(0.0, (float) \Illuminate\Support\Facades\DB::table('vendor_debt_charges')->find($old->id)->outstanding);
+            $this->assertSame(30.0, (float) \Illuminate\Support\Facades\DB::table('vendor_debt_charges')->find($new->id)->outstanding);
+            $second = $service->confirmAdministrativePayment($seller, '50', 'bank-50', 'fund-2', 9, 'Verified');
+            $this->assertSame(30.0, (float) $debt->depositReceipt($second->id)['debt_recovered']);
+            $this->assertSame(20.0, app(SellerLedgerService::class)->summary($seller->id)[SellerLedgerService::OPERATING]);
+        } finally {
+            foreach (['vendor_debt_events','vendor_debt_repayments','vendor_deposit_allocations','vendor_debt_charges'] as $table) Schema::dropIfExists($table);
+        }
+    }
+
     public function test_insurance_deposit_credits_and_reverses_only_the_insurance_wallet(): void
     {
         $seller = Seller::create(['email' => 'insurance-seller@example.com']);

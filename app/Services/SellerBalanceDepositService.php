@@ -13,6 +13,38 @@ class SellerBalanceDepositService
     {
     }
 
+    /** A verified external receipt, not an unexplained balance adjustment. */
+    public function confirmAdministrativePayment(Seller $seller, string $amount, string $reference, string $requestKey, int $adminId, string $reason): SellerBalanceDeposit
+    {
+        $reference = trim($reference);
+        if ($reference === '' || trim($reason) === '' || !is_numeric($amount) || (float) $amount <= 0) {
+            throw new DomainException('مبلغ الشحن ومرجع التحويل والسبب مطلوبة.');
+        }
+        return DB::transaction(function () use ($seller, $amount, $reference, $requestKey, $adminId, $reason) {
+            $this->ledger->lockSellerFinancialState((int) $seller->id);
+            $key = 'admin-verified:'.hash('sha256', $seller->id.'|'.$requestKey);
+            if ($existing = SellerBalanceDeposit::where('idempotency_key', $key)->first()) {
+                if ($existing->transaction_reference !== $reference || (int) round($existing->amount * 100) !== (int) round((float) $amount * 100)) {
+                    throw new DomainException('مفتاح الطلب مستخدم لشحن مختلف.');
+                }
+                if ($existing->status !== SellerBalanceDeposit::STATUS_PAID) throw new DomainException('هذا الطلب ليس شحنًا مؤكدًا حاليًا؛ راجع سجل الإيداع قبل إعادة الإرسال.');
+                return $existing;
+            }
+            if (SellerBalanceDeposit::where('transaction_reference', $reference)->exists()) {
+                throw new DomainException('مرجع التحويل مستخدم من قبل.');
+            }
+            $deposit = SellerBalanceDeposit::create([
+                'seller_id' => $seller->id, 'amount' => $amount, 'currency_code' => 'EGP',
+                'source' => SellerBalanceDeposit::SOURCE_OFFLINE, 'status' => SellerBalanceDeposit::STATUS_PENDING,
+                'payment_method' => 'admin_verified_external', 'transaction_reference' => $reference,
+                'payment_note' => $reason, 'metadata' => ['wallet_target' => 'operating', 'admin_assisted' => true],
+                'idempotency_key' => $key,
+            ]);
+            return $this->markPaid($deposit, ['payment_method' => 'admin_verified_external',
+                'transaction_id' => $reference, 'payment_amount' => $amount, 'currency_code' => 'EGP'], $adminId, $reason);
+        }, 3);
+    }
+
     public function createOffline(Seller $seller, array $data): SellerBalanceDeposit
     {
         $amount = (float) ($data['amount'] ?? 0);
