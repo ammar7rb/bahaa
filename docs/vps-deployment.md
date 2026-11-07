@@ -1,6 +1,6 @@
 # نشر Sigma من المستودع
 
-مستودع الموقع المعتمد هو remote `vps`: `sigma-eg@187.77.66.167:/home/sigma-eg/git/sigma-site.git`، وفرع النشر `main`. رفع commit إلى هذا الفرع يشغّل `post-receive` وينشره تلقائيًا. هذه العملية لا تعني رفعًا إلى GitHub أو إلى مستودع آخر.
+مستودع الموقع المعتمد هو remote `vps`: `sigma-eg@187.77.66.167:/home/sigma-eg/git/sigma-site.git`، وفرع النشر `main`. رفع commit إلى هذا الفرع يشغّل `post-receive` وينشره تلقائيًا. استخدم `publish-vps.ps1` للإصدارات المعتادة؛ بعد نجاح النشر والتحقق من الموقع، يرفع **نفس commit** تلقائيًا إلى فرع `production` في GitHub `ammar7rb/bahaa` ويتحقق من SHA. يرفض السكربت الإصدار مسبقًا إذا لم يتطابق GitHub `production` مع VPS `main`، حتى لا تتراكم نسخ مختلفة.
 
 اعمل على أحدث نسخة من main في worktree منفصل. لا تنسخ ملفات محلية قديمة فوق أحدث ملفات الخادم. حدد ملفات التعديل فقط بعد اختبارها:
 
@@ -11,7 +11,9 @@ $base=git rev-parse FETCH_HEAD
 .\publish-vps.ps1 -ExpectedBase $base -Paths @('public/assets/back-end/js/customer-accounts.js') -Message 'Fix customer profile scrolling'
 ```
 
-السكربت ينشئ commit فوق أساس main باستخدام index منفصل دون ضم جميع تعديلات مساحة العمل أو تغيير index الحالي. يرفض تغير الأساس والملفات المحمية، ويفحص PHP والـdiff، ويرفع إلى المستودع. لا يعلن النجاح إلا بعد تطابق .deploy-current مع الـcommit ونجاح فحص API.
+السكربت ينشئ commit فوق أساس main باستخدام index منفصل دون ضم جميع تعديلات مساحة العمل أو تغيير index الحالي. يرفض تغير الأساس والملفات المحمية، ويفحص PHP والـdiff، ويرفع إلى المستودع. لا يعلن النجاح إلا بعد تطابق .deploy-current مع الـcommit ونجاح فحص API ووجود SHA نفسه في GitHub `production`.
+
+فرع GitHub `main` له تاريخ مستقل وقديم؛ لا يحدّثه هذا المسار ولا يستخدم force push. فرع `production` هو النسخة المطابقة للخادم للمراجعة والتتبع. الرفع المباشر إلى VPS خارج `publish-vps.ps1` ينشر على الموقع، لكنه لا يحدّث GitHub تلقائيًا؛ عندئذٍ يجب مصالحة الفرعين قبل الإصدار التالي.
 
 ## ما يجري تلقائيًا على الخادم
 

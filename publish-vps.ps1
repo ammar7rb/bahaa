@@ -7,6 +7,8 @@ $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $expectedRemote='sigma-eg@187.77.66.167:/home/sigma-eg/git/sigma-site.git'
 if ((& git remote get-url vps).Trim() -ne $expectedRemote) {throw 'Unexpected vps remote.'}
+$expectedGithub='https://github.com/ammar7rb/bahaa.git'
+if ((& git remote get-url github).Trim() -ne $expectedGithub) {throw 'Unexpected GitHub remote.'}
 $sshKey=Join-Path $env:USERPROFILE '.ssh/sigma_site_git_push'
 if (!(Test-Path -LiteralPath $sshKey)) {throw 'Deployment SSH key is missing.'}
 $env:GIT_SSH_COMMAND="ssh -i `"$sshKey`" -o IdentitiesOnly=yes -o BatchMode=yes"
@@ -14,6 +16,10 @@ $env:GIT_SSH_COMMAND="ssh -i `"$sshKey`" -o IdentitiesOnly=yes -o BatchMode=yes"
 if ($LASTEXITCODE -ne 0) {throw 'Could not fetch current repository main.'}
 $parent=(& git rev-parse FETCH_HEAD).Trim()
 if ($parent -ne $ExpectedBase) {throw 'Repository main changed; review the latest source before publishing.'}
+$githubLine=(& git ls-remote github refs/heads/production | Select-Object -First 1)
+if ($LASTEXITCODE -ne 0 -or !$githubLine) {throw 'GitHub production branch is unavailable.'}
+$githubBase=([string]$githubLine).Split("`t")[0]
+if ($githubBase -ne $parent) {throw 'GitHub production and VPS main differ; reconcile before publishing.'}
 $index=Join-Path ([IO.Path]::GetTempPath()) ('sigma-index-'+[guid]::NewGuid())
 $body=$index+'.txt';$previousIndex=$env:GIT_INDEX_FILE
 try {
@@ -50,7 +56,11 @@ try {
     if ($LASTEXITCODE -ne 0 -or $deployed -ne $revision) {throw 'Commit received but deployment is not confirmed; inspect the server deployment log.'}
     $status=& curl.exe --silent --show-error --output NUL --write-out '%{http_code}' https://sigma-eg.net/api/v1/config
     if ($LASTEXITCODE -ne 0 -or $status -ne '200') {throw 'Public API health check failed.'}
-    Write-Host "Repository main and production are synchronized at $revision; API HTTP 200."
+    & git push github "${revision}:refs/heads/production"
+    if ($LASTEXITCODE -ne 0) {throw "VPS is deployed at $revision but GitHub production push failed; publish this exact revision to GitHub before another release."}
+    $githubPublished=(& git ls-remote github refs/heads/production | Select-Object -First 1)
+    if ($LASTEXITCODE -ne 0 -or !([string]$githubPublished).StartsWith("$revision`t")) {throw "VPS is deployed at $revision but GitHub production verification failed."}
+    Write-Host "VPS main, installed source and GitHub production are synchronized at $revision; API HTTP 200."
 } finally {
     $env:GIT_INDEX_FILE=$previousIndex
     Remove-Item -LiteralPath $index,$body -Force -ErrorAction SilentlyContinue
