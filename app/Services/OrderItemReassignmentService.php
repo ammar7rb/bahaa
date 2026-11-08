@@ -246,7 +246,7 @@ class OrderItemReassignmentService
         $request = DB::table('vendor_fulfillment_requests')->where('id', $mapping->request_id)->lockForUpdate()->first();
         if (!$request || (int) $request->order_id !== (int) $order->id
             || (int) $request->seller_id !== (int) $order->seller_id
-            || !in_array($request->status, ['available', 'locked', 'pending_vendor', 'rejected', 'canceled'], true)) {
+            || !in_array($request->status, ['available', 'accepted', 'locked', 'pending_vendor', 'rejected', 'canceled'], true)) {
             throw new DomainException('بدأ قرار تنفيذ هذا الجزء؛ راجع حالة التاجر قبل النقل.');
         }
         if (in_array($request->status, ['rejected', 'canceled'], true)
