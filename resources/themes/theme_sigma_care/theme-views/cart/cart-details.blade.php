@@ -3,6 +3,7 @@
     $isProductNullStatus = 0;
 @endphp
 <div class="container care-basket">
+    @include('medical-devices.cart-reservations')
     <header class="care-basket-heading"><div><h1>سلة المشتريات</h1><p>راجع المنتجات والكميات قبل اختيار عنوان التوصيل.</p></div><a href="{{ route('home') }}">مواصلة التسوق @include('customer-subscription.icon',['name'=>'arrow'])</a></header>
     <ol class="care-checkout-steps" aria-label="خطوات الطلب"><li aria-current="step"><span>1</span> السلة</li><li><span>2</span> العنوان والشحن</li><li><span>3</span> الدفع</li></ol>
     <div class="row gy-4 care-basket-columns">

@@ -98,4 +98,18 @@ class SpecialOrderQueueController extends Controller
         $service->confirmPayment($purchase->id, (int) auth('admin')->id());
         return back()->with('success', 'تم تأكيد دفع رسوم الفحص.');
     }
+
+    public function removeInspectionCart(MedicalDeviceReportPurchase $purchase, \App\Services\MedicalDeviceReportService $service): RedirectResponse
+    {
+        abort_unless(\App\Utils\Helpers::module_permission_check('catalog') && \App\Utils\Helpers::module_permission_check('people'), 403);
+        $service->removeFromCustomerCart($purchase->id, (int) auth('admin')->id());
+        return back()->with('success', 'أُزيل الجهاز من سلة العميل مع حفظ سجل الفحص والدفع.');
+    }
+
+    public function hideInspectionReport(MedicalDeviceReportPurchase $purchase, \App\Services\MedicalDeviceReportService $service): RedirectResponse
+    {
+        abort_unless(\App\Utils\Helpers::module_permission_check('catalog') && \App\Utils\Helpers::module_permission_check('people'), 403);
+        $service->hideReportFromCustomer($purchase->id, (int) auth('admin')->id());
+        return back()->with('success', 'أُزيل التقرير من رسائل العميل مع حفظ السجل الإداري.');
+    }
 }

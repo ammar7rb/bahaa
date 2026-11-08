@@ -7,9 +7,18 @@
         <span>{{ $purchaseState['message'] }}</span>
         @include('customer-checkout.next-action')
         @if($purchaseState['can_cancel_for_package'] ?? false)
-            <form method="post" action="{{ route('customer.order.package-cancellation', $order->id) }}" onsubmit="return confirm('إرسال طلب الإلغاء ورد المبلغ إلى الإدارة للمراجعة؟ لن يُلغى الطلب قبل الموافقة.')">@csrf<button class="btn btn-outline-danger" type="submit">طلب إلغاء الطلب ورد المبلغ</button></form>
+            <form method="post" action="{{ route('customer.order.package-cancellation', $order->id) }}" onsubmit="return confirm('تأكيد إلغاء الطلب وطلب رد المبلغ؟')">@csrf<button class="btn btn-outline-danger" type="submit">إلغاء الطلب وطلب رد المبلغ</button></form>
         @endif
     </div>
+@endif
+@if($order->payment_status === 'paid' && in_array($order->order_status, ['pending','confirmed','processing'], true) && !$order->shipment_reference && !$order->third_party_delivery_tracking_id && $order->customer_cancel_request_status !== 'pending' && !($purchaseState['can_cancel_for_package'] ?? false))
+    <form method="post" action="{{ route('customer.order.paid-cancellation', $order->id) }}" class="card p-3 mb-3" dir="rtl" onsubmit="return confirm('تأكيد إلغاء الطلب المدفوع وإرساله لمراجعة الرصيد؟')">
+        @csrf
+        <label for="paid-cancel-reason-{{ $order->id }}">سبب إلغاء الطلب</label>
+        <textarea id="paid-cancel-reason-{{ $order->id }}" name="reason" class="form-control mb-2" required minlength="5" maxlength="2000">{{ old('reason') }}</textarea>
+        @error('reason')<div class="text-danger">{{ $message }}</div>@enderror
+        <button class="btn btn-outline-danger" type="submit">إلغاء الطلب وطلب مراجعة الرصيد</button>
+    </form>
 @endif
 
 @if($order->customer_checkout_operation_id && $order->payment_status !== 'paid' && $order->activation_status === 'offline_payment_rejected' && !in_array($order->order_status, ['canceled','failed','returned','delivered'], true))
@@ -35,9 +44,10 @@
 @endonce
 
 @if(session('customer_cancel_message'))<div class="alert alert-success" role="status">{{ session('customer_cancel_message') }}</div>@endif
+@if($order->order_status === 'canceled' && $order->customer_cancel_request_status === 'pending' && !$order->customer_checkout_operation_id)
+    <div class="alert alert-info" dir="rtl" role="status">أُلغِي الطلب، وتراجع الإدارة مبلغ الرد والرسوم قبل إضافته إلى رصيدك.</div>
+@endif
 @if($order->customer_checkout_operation_id && $order->order_status === 'canceled')
     @php($refundState = app(\App\Services\CustomerPurchaseEligibilityService::class)->orderPayload($order)['package_refund'] ?? null)
-    @if($refundState)<div class="alert alert-info">{{ $refundState['status'] === 'completed' ? 'تم تسجيل رد المبلغ.' : ($refundState['status'] === 'wallet_approved' ? 'تم اعتماد الرد إلى محفظة حسابك عند الموعد المحدد.' : 'طلب رد المبلغ قيد مراجعة الإدارة. تبدأ المهلة بعد الاعتماد.') }}</div>@endif
+    @if($refundState)<div class="alert alert-info">{{ $refundState['status'] === 'completed' ? 'تم تسجيل رد المبلغ.' : 'طلب رد المبلغ قيد مراجعة الإدارة؛ المدة من ١٥ إلى ٣٠ يومًا من تاريخ طلب الإلغاء.' }}</div>@endif
 @endif
-
-@include('customer-checkout.cancellation-request', ['state' => $purchaseState ?? []])

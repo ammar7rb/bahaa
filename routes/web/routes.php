@@ -250,6 +250,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
     Route::post('customer/orders/{id}/cancellation', [\App\Http\Controllers\Customer\OrderCancellationRequestController::class, 'store'])
         ->middleware(['customer', 'throttle:10,1'])->name('customer.order.cancellation');
     Route::post('customer/order/{order}/package-cancellation', [\App\Http\Controllers\Customer\PackageOrderCancellationController::class, 'request'])->middleware(['customer', 'throttle:10,1'])->name('customer.order.package-cancellation');
+    Route::post('customer/order/{order}/paid-cancellation', [\App\Http\Controllers\Customer\PaidOrderCancellationController::class, 'request'])->middleware(['customer', 'throttle:10,1'])->name('customer.order.paid-cancellation');
     Route::get('customer/communication', [\App\Http\Controllers\Customer\CommunicationController::class, 'index'])->middleware(['customer', 'throttle:60,1'])->name('customer.communication.index');
     Route::post('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'update'])->middleware(['customer','throttle:10,1'])->name('customer.contact-phones.update');
     Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['customer', 'throttle:10,1,customer-support-report:'])->name('customer.support.report');

@@ -25,7 +25,7 @@ class ChatAttachmentController extends Controller
         $ticket = SupportTicket::query()->visibleToSubject()->whereKey($id)
             ->where('customer_id', $customerId)->firstOrFail();
         $attachments = $message === 'initial' ? $ticket->attachment
-            : $ticket->conversations()->whereKey($message)->firstOrFail()->attachment;
+            : $ticket->conversations()->whereNull('customer_hidden_at')->whereKey($message)->firstOrFail()->attachment;
 
         $item = is_array($attachments) ? (array_values($attachments)[$index] ?? null) : null;
         if (is_array($item) && ($item['storage'] ?? null) === 'medical-report') {

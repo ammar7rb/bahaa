@@ -97,6 +97,8 @@ class CustomerMonthlySubscriptionService
             $this->validatePurchase($payment);
             if (!$customer->is_active) throw new DomainException('الحساب موقوف إداريًا. تواصل مع الدعم.');
             if (getWebConfig('wallet_status') != 1) throw new DomainException('المحفظة غير متاحة حاليًا.');
+            app(OrderCancellationSettlementService::class)->expireCustomerCredits($customerId);
+            $customer->refresh();
             $amount = (int) round((float) $payment->wallet_debit_amount * 1000);
             $balance = (int) round((float) $customer->wallet_balance * 1000);
             if ($balance < $amount) throw new DomainException('عذرًا، رصيد المحفظة لا يكفي. أودع فيها أو استخدم طريقة أخرى.');

@@ -277,7 +277,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     // Shared review queue; each request retains its original financial processor.
-    Route::get('guest-orders', [PaymentReviewController::class, 'guestOrders'])->middleware('module:orders')->name('guest-orders.index');
+    Route::get('guest-orders', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'guests'])->middleware('module:orders')->name('guest-orders.index');
     Route::controller(PaymentReviewController::class)->prefix('payment-reviews')->name('payment-reviews.')->group(function () {
         Route::post('customer-order/{id}/request-package', 'requestPackage')->name('request-package');
         Route::get('customer-order/{order}/retry-proof', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'proof'])->name('customer-order.retry-proof');
@@ -394,6 +394,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     Route::group(['prefix' => 'orders', 'as' => 'orders.', 'middleware' => ['module:orders']], function () {
         Route::get('center', [\App\Http\Controllers\Admin\Order\OrderCenterController::class, 'index'])->name('center');
         Route::get('cancellations', [\App\Http\Controllers\Admin\Order\OrderCancellationController::class, 'index'])->name('cancellations');
+        Route::get('cancellations/seller-debts', [\App\Http\Controllers\Admin\Order\OrderCancellationController::class, 'sellerDebts'])->name('cancellations.seller-debts');
         Route::post('cancellations/orders/{order}/refund', [\App\Http\Controllers\Admin\Order\OrderCancellationController::class, 'refundCustomer'])->whereNumber('order')->name('cancellations.refund');
         Route::post('cancellations/items/{item}/seller-fee', [\App\Http\Controllers\Admin\Order\OrderCancellationController::class, 'chargeSeller'])->whereNumber('item')->name('cancellations.seller-fee');
         Route::get('center/items/{item}/reassign', [\App\Http\Controllers\Admin\Order\OrderItemReassignmentController::class, 'show'])->whereNumber('item')->name('reassignment.show');
@@ -403,6 +404,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         Route::post('special/credit/{ticket}/decision', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'decideCredit'])->whereNumber('ticket')->name('special.credit-decision');
         Route::get('special/inspections', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'inspections'])->name('special.inspections');
         Route::post('special/inspections/{purchase}/confirm', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'confirmInspection'])->whereNumber('purchase')->name('special.confirm-inspection');
+        Route::post('special/inspections/{purchase}/remove-cart', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'removeInspectionCart'])->whereNumber('purchase')->name('special.remove-inspection-cart');
+        Route::post('special/inspections/{purchase}/hide-report', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'hideInspectionReport'])->whereNumber('purchase')->name('special.hide-inspection-report');
         Route::get('special/device-purchases', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'purchases'])->name('special.device-purchases');
         Route::get('package-refunds', [\App\Http\Controllers\Admin\Order\CustomerPackageRefundController::class, 'index'])->name('package-refunds.index');
         Route::post('package-refunds/settings', [\App\Http\Controllers\Admin\Order\CustomerPackageRefundController::class, 'settings'])->middleware('module:business_settings')->name('package-refunds.settings');

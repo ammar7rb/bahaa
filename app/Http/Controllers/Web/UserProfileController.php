@@ -652,6 +652,7 @@ class UserProfileController extends Controller
         }
 
         $ticket = SupportTicket::with(['conversations' => function ($query) {
+            $query->whereNull('customer_hidden_at');
             $query->when(theme_root_path() == 'default', function ($sub_query) {
                 $sub_query->orderBy('id', 'desc');
             });
@@ -705,7 +706,7 @@ class UserProfileController extends Controller
             abort(404);
         }
 
-        $ticket->load(['conversations' => fn ($query) => $query->orderBy('id')]);
+        $ticket->load(['conversations' => fn ($query) => $query->whereNull('customer_hidden_at')->orderBy('id')]);
 
         app(\App\Services\CustomerCommunicationService::class)->markSupportRepliesRead($ticket, (int) auth('customer')->id());
 
@@ -797,7 +798,12 @@ class UserProfileController extends Controller
     {
 
         if (auth('customer')->check()) {
-            $support = SupportTicket::find($request->id);
+            $support = SupportTicket::query()->where('customer_id', auth('customer')->id())->findOrFail($request->id);
+            if ($support->purpose === 'medical_device' || $support->type === 'medical_device'
+                || \App\Models\MedicalDeviceInquiry::query()->where('support_ticket_id', $support->id)
+                    ->whereHas('reportPurchase')->exists()) {
+                return redirect()->back()->withErrors(['ticket' => 'تقرير الفحص ومحادثته محفوظان في سجل الطلب ولا يمكن حذفهما من جهة العميل.']);
+            }
 
             if ($support->attachment && !is_array($support->attachment) && count(json_decode($support->attachment)) > 0) {
                 foreach (json_decode($support->attachment, true) as $image) {

@@ -38,6 +38,12 @@ class OrderItemReassignmentService
             $item = OrderWorkItem::query()->lockForUpdate()->findOrFail($workItemId);
             $sourceOrder = Order::query()->lockForUpdate()->findOrFail($item->order_id);
             $line = OrderDetail::query()->lockForUpdate()->findOrFail($item->order_detail_id);
+            $sellerCanceled = $item->status === 'canceled';
+            if ($sellerCanceled && (!Schema::hasTable('order_cancellation_settlements')
+                || !DB::table('order_cancellation_settlements')->where('operation_key', 'seller:'.$item->id)
+                    ->where('seller_id', $item->seller_id)->where('canceled_by', 'seller')->exists())) {
+                throw new DomainException('اعتمد سجل غرامة إلغاء التاجر قبل إعادة تعيين المنتج.');
+            }
             if ((int) $line->order_id !== (int) $sourceOrder->id
                 || (int) $line->seller_id !== (int) $item->seller_id
                 || (int) $line->product_id !== (int) $item->product_id
@@ -62,7 +68,9 @@ class OrderItemReassignmentService
             if (Schema::hasTable('order_admin_purchase_refunds') && DB::table('order_admin_purchase_refunds')->where('order_id', $sourceOrder->id)->exists()) {
                 throw new DomainException('بدأ استرداد مبلغ الطلب؛ لا يمكن تقسيمه أثناء الاسترداد.');
             }
-            if (Schema::hasTable('order_cancellation_settlements') && DB::table('order_cancellation_settlements')->where('order_id', $sourceOrder->id)->exists()) {
+            $otherCancellations = DB::table('order_cancellation_settlements')->where('order_id', $sourceOrder->id);
+            if ($sellerCanceled) $otherCancellations->where('operation_key', '<>', 'seller:'.$item->id);
+            if (Schema::hasTable('order_cancellation_settlements') && $otherCancellations->exists()) {
                 throw new DomainException('تمت معالجة إلغاء مالي لهذا الطلب؛ لا يمكن إعادة تعيين المنتج.');
             }
             if ($line->refundRequest()->exists()) {
@@ -90,7 +98,7 @@ class OrderItemReassignmentService
             $shippingShare = (float) $item->shipping_customer_cost;
             $fulfillmentTransfer = $this->prepareFulfillmentTransfer($sourceOrder, $line, $item);
             if (($line->delivery_status === 'canceled' || $item->status === 'canceled')
-                && ($fulfillmentTransfer['status_before'] ?? null) !== 'rejected') {
+                && !in_array($fulfillmentTransfer['status_before'] ?? null, ['rejected', 'canceled'], true)) {
                 throw new DomainException('المنتج الملغي يحتاج مراجعة مالية قبل إعادة التعيين.');
             }
             $vendorShippingShare = (float) ($fulfillmentTransfer['shipping'] ?? $item->shipping_vendor_cost);
@@ -238,10 +246,10 @@ class OrderItemReassignmentService
         $request = DB::table('vendor_fulfillment_requests')->where('id', $mapping->request_id)->lockForUpdate()->first();
         if (!$request || (int) $request->order_id !== (int) $order->id
             || (int) $request->seller_id !== (int) $order->seller_id
-            || !in_array($request->status, ['available', 'locked', 'pending_vendor', 'rejected'], true)) {
+            || !in_array($request->status, ['available', 'locked', 'pending_vendor', 'rejected', 'canceled'], true)) {
             throw new DomainException('بدأ قرار تنفيذ هذا الجزء؛ راجع حالة التاجر قبل النقل.');
         }
-        if ($request->status === 'rejected'
+        if (in_array($request->status, ['rejected', 'canceled'], true)
             && !DB::table('vendor_fulfillment_financial_reviews')->where('request_id', $request->id)
                 ->where('status', 'pending')->exists()) {
             throw new DomainException('مراجعة إلغاء هذا الجزء انتهت؛ لا يمكن إعادة تعيينه.');
@@ -280,7 +288,7 @@ class OrderItemReassignmentService
             'decision_reason' => $remaining ? null : $reason,
             'updated_at' => now(),
         ]);
-        if ($transfer['status_before'] === 'rejected') {
+        if (in_array($transfer['status_before'], ['rejected', 'canceled'], true)) {
             $review = DB::table('vendor_fulfillment_financial_reviews')->where('request_id', $transfer['request_id'])
                 ->lockForUpdate()->first();
             if ($review) {

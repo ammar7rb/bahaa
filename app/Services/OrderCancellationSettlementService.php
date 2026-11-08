@@ -15,6 +15,13 @@ use Illuminate\Validation\ValidationException;
 
 class OrderCancellationSettlementService
 {
+    public function expireCustomerCredits(int $customerId): void
+    {
+        while ($this->expireCredits(100, $customerId) === 100) {
+            // Process every expired grant before checking the spendable wallet balance.
+        }
+    }
+
     /** Expire only the unspent part of each cancellation credit. Refund credit is spent first. */
     public function expireCredits(int $limit = 100, ?int $customerId = null): int
     {
@@ -94,14 +101,16 @@ class OrderCancellationSettlementService
             }
             $cancellationEvent = OrderLogisticsEvent::query()->where('order_id', $orderId)
                 ->where('order_status', 'canceled')->latest('id')->first();
-            if ($cancellationEvent?->actor_type === 'seller') {
-                $this->deny('إلغاء التاجر ينتقل إلى إعادة تعيين المنتج؛ راجع رسومه بدل رد قيمة الطلب.');
+            if ($cancellationEvent?->actor_type !== 'customer'
+                || (int) $cancellationEvent->actor_id !== (int) $order->customer_id) {
+                $this->deny('يلزم وجود إلغاء موثق من العميل قبل رد الرصيد.');
             }
             foreach (['order_admin_purchase_refunds', 'order_refund_ledgers', 'refund_requests'] as $table) {
                 if (DB::table($table)->where('order_id', $orderId)->exists()) $this->deny('يوجد مسار استرداد آخر لهذا الطلب.');
             }
             User::query()->lockForUpdate()->findOrFail($order->customer_id);
             $gross = round((float) ($order->init_order_amount ?: $order->order_amount), 3);
+            if ((float) $order->paid_amount > 0) $gross = min($gross, round((float) $order->paid_amount, 3));
             if ($gross <= 0 || round($refund + $fee + $discount, 3) > $gross + 0.0001) {
                 $this->deny('مجموع الرد والرسوم والخصم يتجاوز قيمة الطلب المدفوعة.');
             }
@@ -116,12 +125,14 @@ class OrderCancellationSettlementService
             DB::table('order_cancellation_settlements')->insert([
                 'operation_key' => $key, 'order_id' => $orderId, 'customer_id' => $order->customer_id,
                 'canceled_by' => 'customer', 'actor_id' => $order->customer_id,
-                'reason' => trim($reason), 'canceled_at' => $order->updated_at ?? now(),
+                'reason' => trim($reason), 'canceled_at' => $cancellationEvent->created_at,
                 'gross_amount' => $gross, 'fee_amount' => $fee, 'discount_amount' => $discount,
                 'refund_amount' => $refund, 'financial_reference' => $reference,
                 'credit_expires_at' => $expiresAt, 'reviewed_by_admin_id' => $adminId,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
+            $order->forceFill(['customer_cancel_request_status' => 'approved',
+                'commerce_flow_status' => 'cancelled', 'commerce_flow_status_updated_at' => now()])->save();
             $this->eventForOrder($orderId, $adminId, 'customer_cancellation_refunded', [
                 'reason' => trim($reason), 'gross' => $gross, 'fees' => $fee,
                 'discounts' => $discount, 'refunded' => $refund,
@@ -140,6 +151,41 @@ class OrderCancellationSettlementService
             $prior = DB::table('order_cancellation_settlements')->where('operation_key', $key)->first();
             if ($prior) $this->deny('تمت معالجة رسوم إلغاء هذه الحصة من قبل.');
             if ($item->status !== 'canceled' || !$item->seller_id) $this->deny('اختر حصة ملغاة مرتبطة بتاجر.');
+            $mapping = Schema::hasTable('vendor_fulfillment_request_items')
+                ? DB::table('vendor_fulfillment_request_items')->where('order_detail_id', $item->order_detail_id)->first() : null;
+            if ($mapping) {
+                $request = DB::table('vendor_fulfillment_requests')->where('id', $mapping->request_id)->lockForUpdate()->first();
+                $event = DB::table('vendor_fulfillment_events')->where('request_id', $mapping->request_id)
+                    ->where('event_type', 'canceled')->orderByDesc('id')->first();
+                $eventData = $event ? json_decode((string) $event->metadata, true) : null;
+                if (!$request || $request->status !== 'canceled' || (int) $request->seller_id !== (int) $item->seller_id
+                    || ($eventData['actor'] ?? null) !== 'seller') $this->deny('لا يوجد إلغاء موثق من هذا التاجر لهذه الحصة.');
+                $charge = $request->penalty_charge_id
+                    ? DB::table('vendor_debt_charges')->where('id', $request->penalty_charge_id)->where('seller_id', $item->seller_id)->first() : null;
+                if ($request->penalty_charge_id && !$charge) $this->deny('سجل غرامة التاجر غير مكتمل.');
+                $assessed = $charge ? round((float) $charge->amount, 3) : 0.0;
+                if (abs($fee - $assessed) > 0.0001) $this->deny('رسوم الإلغاء محددة بالفعل بقاعدة الغرامة؛ راجع قيمتها المعروضة.');
+                $debited = $charge ? round((float) $charge->wallet_collected, 3) : 0.0;
+                $debt = $charge ? round((float) $charge->debt_assessed, 3) : 0.0;
+                DB::table('order_cancellation_settlements')->insert([
+                    'operation_key' => $key, 'order_id' => $item->order_id,
+                    'order_work_item_id' => $workItemId, 'seller_id' => $item->seller_id,
+                    'canceled_by' => 'seller', 'actor_id' => $item->seller_id,
+                    'reason' => trim($reason), 'canceled_at' => $request->canceled_at ?? $event->created_at,
+                    'fee_amount' => $assessed, 'seller_debited_amount' => $debited, 'seller_debt_amount' => $debt,
+                    'financial_reference' => 'fulfillment-cancellation-'.$request->id,
+                    'reviewed_by_admin_id' => $adminId, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+                OrderWorkItemEvent::query()->create([
+                    'work_item_id' => $item->id, 'order_id' => $item->order_id,
+                    'order_detail_id' => $item->order_detail_id, 'actor_id' => $adminId,
+                    'actor_type' => 'admin', 'event_key' => 'seller_cancellation_fee_reviewed',
+                    'status_before' => $item->status, 'status_after' => $item->status,
+                    'snapshot' => ['reason' => trim($reason), 'fee' => $assessed, 'debited' => $debited,
+                        'debt' => $debt, 'vendor_debt_charge_id' => $charge?->id], 'created_at' => now(),
+                ]);
+                return DB::table('order_cancellation_settlements')->where('operation_key', $key)->first();
+            }
             $sellerCancellation = OrderLogisticsEvent::query()->where('order_id', $item->order_id)
                 ->where('order_status', 'canceled')->where('actor_type', 'seller')
                 ->where('actor_id', $item->seller_id)->latest('id')->first();

@@ -34,6 +34,8 @@ class MedicalDeviceReportServiceTest extends TestCase
         });
         (require base_path('database/migrations/2026_10_25_000001_create_company_medical_devices.php'))->up();
         (require base_path('database/migrations/2026_11_04_120000_add_medical_device_reports.php'))->up();
+        (require base_path('database/migrations/2026_11_08_120000_add_medical_report_review.php'))->up();
+        (require base_path('database/migrations/2026_11_08_150000_add_medical_report_admin_removal.php'))->up();
         DB::table('users')->insert([['id'=>1,'wallet_balance'=>100], ['id'=>2,'wallet_balance'=>10]]);
         CompanyMedicalDevice::create(['id'=>1,'name'=>'جهاز','is_published'=>1,'report_price'=>35,'price'=>500,'device_condition'=>'new','origin_country'=>'EG']);
     }
@@ -47,9 +49,56 @@ class MedicalDeviceReportServiceTest extends TestCase
         $this->assertSame(1, DB::table('wallet_transactions')->count());
         $this->assertSame(1, DB::table('medical_device_inquiries')->count());
         $this->assertEquals(35, $first->amount);
+        $this->expectException(ValidationException::class);
+        $service->requestPurchase(1, 1);
+    }
+
+    public function test_purchase_requires_confirmed_payment_and_sent_report(): void
+    {
+        Storage::fake('local');
+        $service = app(MedicalDeviceReportService::class);
+        $purchase = $service->pay(1, 1, 35);
+        $service->confirmPayment($purchase->id, 7);
+        $inquiry = \App\Models\MedicalDeviceInquiry::findOrFail($purchase->inquiry_id);
+        $service->sendReport($inquiry, UploadedFile::fake()->createWithContent('report.pdf', '%PDF-1.4 test report'), 7);
         $this->assertNotNull($service->requestPurchase(1, 1)->purchase_requested_at);
         $service->requestPurchase(1, 1);
         $this->assertSame(1, SupportTicketConv::where('customer_message', 'like', '%شراء%')->count());
+    }
+
+    public function test_admin_confirmation_requires_matching_wallet_receipt(): void
+    {
+        $service = app(MedicalDeviceReportService::class);
+        $purchase = $service->pay(1, 1, 35);
+        DB::table('wallet_transactions')->where('id', $purchase->wallet_transaction_id)->update(['debit' => 10]);
+        try {
+            $service->confirmPayment($purchase->id, 7);
+            $this->fail('Invalid receipt was accepted');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('medical_report', $exception->errors());
+        }
+        $this->assertNull($purchase->fresh()->confirmed_at);
+    }
+
+    public function test_only_admin_can_remove_report_and_cart_reservation_without_deleting_payment(): void
+    {
+        Storage::fake('local');
+        $service = app(MedicalDeviceReportService::class);
+        $purchase = $service->pay(1, 1, 35);
+        $service->confirmPayment($purchase->id, 7);
+        $inquiry = \App\Models\MedicalDeviceInquiry::findOrFail($purchase->inquiry_id);
+        $service->sendReport($inquiry, UploadedFile::fake()->createWithContent('report.pdf', '%PDF-1.4 test report'), 7);
+        $reply = SupportTicketConv::where('support_ticket_id', $inquiry->support_ticket_id)
+            ->where('admin_message', 'تم إرسال التقرير الفني للجهاز.')->firstOrFail();
+        $service->removeFromCustomerCart($purchase->id, 7);
+        $service->hideReportFromCustomer($purchase->id, 7);
+        $this->assertNotNull($purchase->fresh()->cart_removed_at);
+        $this->assertNotNull($purchase->fresh()->report_hidden_at);
+        $this->assertNotNull($reply->fresh()->customer_hidden_at);
+        $this->assertSame(1, DB::table('wallet_transactions')->count());
+        $this->actingAs(User::findOrFail(1), 'customer');
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        app(\App\Http\Controllers\ChatAttachmentController::class)->customer($inquiry->support_ticket_id, (string) $reply->id, 0);
     }
 
     public function test_insufficient_balance_cannot_create_inquiry_or_purchase(): void
@@ -78,10 +127,11 @@ class MedicalDeviceReportServiceTest extends TestCase
         Storage::fake('local');
         $service = app(MedicalDeviceReportService::class);
         $purchase = $service->pay(1, 1, 35);
+        $service->confirmPayment($purchase->id, 7);
         $inquiry = \App\Models\MedicalDeviceInquiry::findOrFail($purchase->inquiry_id);
         $file = UploadedFile::fake()->createWithContent('report.pdf', '%PDF-1.4 test report');
         $service->sendReport($inquiry, $file, 7);
-        $reply = SupportTicketConv::where('support_ticket_id', $inquiry->support_ticket_id)->firstOrFail();
+        $reply = SupportTicketConv::where('support_ticket_id', $inquiry->support_ticket_id)->whereNotNull('attachment')->latest('id')->firstOrFail();
         $this->assertSame('medical-report', $reply->attachment[0]['storage']);
         $this->actingAs(User::findOrFail(1), 'customer');
         $response = app(\App\Http\Controllers\ChatAttachmentController::class)->customer($inquiry->support_ticket_id, (string) $reply->id, 0);

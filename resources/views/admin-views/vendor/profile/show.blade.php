@@ -15,6 +15,12 @@
             <a class="btn btn-outline-secondary" href="{{ route('admin.vendors.vendor-list') }}"><i class="fi fi-rr-arrow-small-left"></i> {{ translate('back') }}</a>
         </div>
         @include('admin-views.vendor.profile._detail-tabs', ['seller' => $seller])
+        @if($cancellationDebts->isNotEmpty())
+            <div class="card mb-4" dir="rtl"><div class="card-header"><h3 class="h5 mb-0">مديونيات إلغاء الطلبات · {{ $money($cancellationDebts->sum('seller_debt_amount')) }}</h3></div>
+                <div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>الطلب</th><th>الحصة</th><th>الرسوم</th><th>المخصوم من الرصيد</th><th>المديونية</th><th>السبب</th><th>التاريخ</th></tr></thead><tbody>
+                    @foreach($cancellationDebts as $debt)<tr><td><a href="{{ route('admin.orders.details', $debt->order_id) }}">#{{ $debt->order_id }}</a></td><td>#{{ $debt->order_work_item_id }}</td><td>{{ $money($debt->fee_amount) }}</td><td>{{ $money($debt->seller_debited_amount) }}</td><td>{{ $money($debt->seller_debt_amount) }}</td><td>{{ $debt->reason }}</td><td>{{ $debt->created_at }}</td></tr>@endforeach
+                </tbody></table></div></div>
+        @endif
 
         {{-- The former Shop Overview header, actions, rating animation and identity details live here now. --}}
         <div class="card card-top-bg-element mb-4">

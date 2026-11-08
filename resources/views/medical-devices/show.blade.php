@@ -15,7 +15,8 @@
 @if($reportPurchase)
     <p class="text-success">تم سداد ثمن التقرير الفني لهذا الجهاز.</p>
     @if($reportPurchase->purchase_requested_at)<p>تم استلام طلبكم وسيتم التواصل معكم في أقرب وقت.</p>
-    @else<form action="{{ route('medical-devices.purchase-request', $device) }}" method="post" class="mt-4">@csrf<button type="submit" class="btn btn-primary">طلب شراء الجهاز</button></form>@endif
+    @elseif($reportPurchase->report_sent_at && !$reportPurchase->report_hidden_at)<form action="{{ route('medical-devices.purchase-request', $device) }}" method="post" class="mt-4">@csrf<button type="submit" class="btn btn-primary">طلب شراء الجهاز</button></form>
+    @else<p>{{ $reportPurchase->confirmed_at ? 'جاري إعداد التقرير الفني.' : 'الإدارة تراجع الدفع.' }}</p>@endif
 @elseif($device->report_price > 0)
     <p>ثمن التقرير الفني: {{ webCurrencyConverter($device->report_price) }}، ويُدفع من محفظة الموقع. ثمن التقرير غير قابل للاسترجاع.</p>
     <form action="{{ route('medical-devices.inquire', $device) }}" method="post" class="mt-4" id="medical-device-inquiry">@csrf<input type="hidden" name="report_price" value="{{ $device->report_price }}"><button type="submit" class="btn btn-primary" onclick="return confirm('سيتم خصم ثمن التقرير من محفظتك. ثمن التقرير غير قابل للاسترجاع. هل تريد المتابعة؟')">طلب تقرير فني ودفع قيمته</button></form>

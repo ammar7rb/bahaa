@@ -17,7 +17,8 @@ class SupportConversationController extends Controller
         return $request->is('api/*') ? response()->json(['conversation' => $record], 201) : redirect()->route('support-ticket.index', $record->id);
     }
     public function show(Request $request, int $id) {
-        $conversation = SupportTicket::with('conversations')->visibleToSubject()->where('customer_id', auth('customer')->id())->findOrFail($id);
+        $conversation = SupportTicket::with(['conversations' => fn ($query) => $query->whereNull('customer_hidden_at')])
+            ->visibleToSubject()->where('customer_id', auth('customer')->id())->findOrFail($id);
         return view('customer-support.conversation', compact('conversation'));
     }
 }

@@ -15,6 +15,7 @@ use App\Services\SellerLedgerService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 class SellerAdminProfileController extends Controller
 {
@@ -73,11 +74,15 @@ class SellerAdminProfileController extends Controller
             ->with('product')->where('seller_id', $seller->id)->latest('decided_at')->limit(10)->get());
         $ledgerEntries = $this->recentRecords('seller_ledger_entries', fn () => SellerLedgerEntry::query()
             ->where('seller_id', $seller->id)->latest()->limit(12)->get());
+        $cancellationDebts = Schema::hasTable('order_cancellation_settlements')
+            ? DB::table('order_cancellation_settlements')->where('seller_id', $seller->id)
+                ->where('seller_debt_amount', '>', 0)->orderByDesc('id')->get()
+            : collect();
 
         return view('admin-views.vendor.profile.show', compact(
             'seller', 'grossSales', 'ledgerSummary', 'packages', 'insurances',
             'deposits', 'settlements', 'withdrawals', 'violations', 'ledgerEntries',
-            'ratingTotals', 'ratingCount', 'totalRating',
+            'ratingTotals', 'ratingCount', 'totalRating', 'cancellationDebts',
         ));
     }
 

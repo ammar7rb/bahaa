@@ -23,7 +23,7 @@
         <div><h1 class="page-header-title mb-1">مركز الطلبات</h1><p class="text-muted mb-0">تابع الطلبات على مستوى كل منتج وتاجر، مع بقاء رقم الطلب الأصلي جامعًا لكل أجزائه.</p></div>
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('admin.orders.admin-gate.index') }}" class="btn btn-primary">مراجعة الطلبات الجديدة</a>
-            <a href="{{ route('admin.guest-orders.index') }}" class="btn btn-outline-primary">مراجعة مدفوعات الزوار</a>
+            <a href="{{ route('admin.guest-orders.index') }}" class="btn btn-outline-primary">طلبات الزوار</a>
             <a href="{{ route('admin.orders.cancellations') }}" class="btn btn-outline-primary">معالجة الإلغاء والأرصدة</a>
             @if(\App\Utils\Helpers::module_permission_check('people'))
                 <a href="{{ route('admin.orders.special.credit') }}" class="btn btn-outline-primary">طلبات الائتمان</a>
@@ -84,7 +84,7 @@
                 <td>{{ $seller?->shop?->name ?? ('تاجر #'.($item->seller_id ?: '—')) }}</td>
                 <td><span class="badge bg-{{ in_array($displayStatus, ['accepted','completed'] , true) ? 'success' : (in_array($displayStatus, ['overdue','rejected','canceled'], true) ? 'danger' : ($displayStatus === 'awaiting_admin' ? 'primary' : 'warning')) }}">{{ $statusLabels[$displayStatus] ?? $displayStatus }}</span></td>
                 <td>@if($due) <span class="{{ $late ? 'text-danger fw-bold' : 'text-muted' }}">{{ $due->format('Y-m-d H:i') }}</span>@if($late)<div class="small text-danger">تجاوزت 24 ساعة</div>@endif @else — @endif</td>
-                <td><div class="d-flex flex-wrap gap-1"><a class="btn btn-sm {{ $isReview ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ $target }}">{{ $isReview ? 'مراجعة وإرسال' : 'فتح الطلب' }}</a>@if(in_array($displayStatus, ['sent_to_vendor','accepted','overdue','rejected','canceled'], true))<a class="btn btn-sm btn-outline-warning" href="{{ route('admin.orders.reassignment.show', $item->id) }}">تعيين لتاجر آخر</a>@endif</div></td>
+                <td><div class="d-flex flex-wrap gap-1"><a class="btn btn-sm {{ $isReview ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ $target }}">{{ $isReview ? 'مراجعة وإرسال' : 'فتح الطلب' }}</a>@if(in_array($displayStatus, ['sent_to_vendor','accepted','overdue','rejected'], true))<a class="btn btn-sm btn-outline-warning" href="{{ route('admin.orders.reassignment.show', $item->id) }}">تعيين لتاجر آخر</a>@endif</div></td>
             </tr>
         @empty
             <tr><td colspan="7" class="text-center p-5 text-muted">لا توجد طلبات في هذه القائمة.</td></tr>

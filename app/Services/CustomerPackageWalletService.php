@@ -27,6 +27,8 @@ class CustomerPackageWalletService
             if(!$customer->is_active||$customer->account_deleted_at)throw new DomainException('الحساب موقوف. تواصل مع الدعم.');
             app(CustomerPurchaseEligibilityService::class)->assertPackagePurchaseAvailable($customer);
             if(getWebConfig('wallet_status')!=1)throw new DomainException('محفظة المنصة غير متاحة حاليًا.');
+            app(OrderCancellationSettlementService::class)->expireCustomerCredits($customerId);
+            $customer->refresh();
             $active=app(CustomerMonthlyAllowanceService::class)->active($customerId);
             if($active)$active=CustomerMonthlySubscription::lockForUpdate()->findOrFail($active->id);
             if((int)($active?->id??0)!==(int)($input['expected_subscription_id']??0)||(int)($active?->limit_revision??0)!==(int)$input['expected_revision'])throw new DomainException('تغيرت حالة الباقة منذ عرضها. حدّث الصفحة قبل الدفع.');

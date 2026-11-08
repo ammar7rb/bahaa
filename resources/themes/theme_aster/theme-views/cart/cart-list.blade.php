@@ -4,6 +4,7 @@
 
 @section('content')
     <main class="main-content d-flex flex-column gap-3 py-3 mb-5" id="cart-summary">
+        @include('medical-devices.cart-reservations')
         @include(VIEW_FILE_NAMES['products_cart_details_partials'])
     </main>
 

@@ -47,6 +47,8 @@ class CustomerOrderWalletPaymentService
                     $this->deny($state['message']);
                 }
             }
+            app(OrderCancellationSettlementService::class)->expireCustomerCredits($customerId);
+            $customer->refresh();
             if (round((float) $customer->wallet_balance, 3) < $amount) $this->deny('رصيد المحفظة لا يكفي لدفع الطلب.');
             $balance = round((float) $customer->wallet_balance - $amount, 3);
             $customer->update(['wallet_balance' => $balance]);

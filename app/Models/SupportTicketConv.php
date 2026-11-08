@@ -48,6 +48,7 @@ class SupportTicketConv extends Model
         'position' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'customer_hidden_at' => 'datetime',
     ];
 
     public function adminInfo(): BelongsTo

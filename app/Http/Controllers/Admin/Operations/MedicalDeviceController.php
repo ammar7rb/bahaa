@@ -68,7 +68,7 @@ class MedicalDeviceController extends Controller
 
     public function sendReport(Request $request, MedicalDeviceInquiry $inquiry, \App\Services\MedicalDeviceReportService $service)
     {
-        $request->validate(['report' => 'required|file|mimes:pdf,doc,docx|max:20480']);
+        $request->validate(['report' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png,webp|max:20480']);
         $service->sendReport($inquiry, $request->file('report'), (int) auth('admin')->id());
         return back()->with('operations_success', 'تم إرسال التقرير في محادثة العميل.');
     }
