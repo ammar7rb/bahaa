@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\Order;
 use App\Services\OrderItemReassignmentService;
+use App\Services\SellerOrderVisibilityService;
 use App\Services\VendorProductWorkspaceService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -90,6 +91,8 @@ class OrderItemReassignmentFinancialTest extends TestCase
         $this->assertEquals(20, DB::table('order_details')->where('id', 1)->value('seller_id'));
         $this->assertEquals(10, DB::table('order_details')->where('id', 2)->value('seller_id'));
         $this->assertSame('awaiting_admin', DB::table('order_work_items')->where('id', 1)->value('status'));
+        $this->assertTrue(app(SellerOrderVisibilityService::class)->canSellerView($source));
+        $this->assertFalse(app(SellerOrderVisibilityService::class)->canSellerView($replacement));
         $receipt = DB::table('order_reassignment_transfers')->first();
         $this->assertEquals(80, $receipt->customer_amount_transferred);
         $this->assertEquals(60, data_get(json_decode($receipt->before_snapshot, true), 'pricing.procurement_amount'));
@@ -129,5 +132,20 @@ class OrderItemReassignmentFinancialTest extends TestCase
         $this->assertEquals(160, DB::table('orders')->where('id', 1)->value('order_amount'));
         $this->assertEquals(9, DB::table('products')->where('id', 3)->value('current_stock'));
         $this->assertSame(0, DB::table('order_reassignment_transfers')->count());
+    }
+
+    public function test_incomplete_historical_allocation_blocks_transfer_without_changing_any_values(): void
+    {
+        DB::table('order_work_items')->where('id', 1)->update(['vendor_net_amount'=>null]);
+        try {
+            app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor');
+            $this->fail('A missing approved allocation must block reassignment.');
+        } catch (\DomainException $e) {
+            $this->assertStringContainsString('راجع جميع حصص الطلب', $e->getMessage());
+        }
+        $this->assertSame(1, DB::table('orders')->count());
+        $this->assertEquals(160, DB::table('order_transactions')->sum('order_amount'));
+        $this->assertEquals(60, DB::table('order_vendor_pricings')->where('order_id', 1)->value('procurement_amount'));
+        $this->assertEquals(10, DB::table('order_details')->where('id', 1)->value('seller_id'));
     }
 }
