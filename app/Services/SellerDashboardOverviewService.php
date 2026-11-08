@@ -26,6 +26,7 @@ class SellerDashboardOverviewService
         $transactions = OrderTransaction::query()
             ->where('seller_is', 'seller')
             ->where('seller_id', $sellerId);
+        $this->excludeUnreleasedReassignments($transactions);
 
         $salesTotal = (float) (clone $transactions)->sum('seller_amount');
         $dueRows = $this->dueRows($sellerId, max(1, min($dueLimit, 20)));
@@ -164,6 +165,7 @@ class SellerDashboardOverviewService
     {
         $transactionQuery = OrderTransaction::query()
             ->with(Schema::hasTable('seller_order_insurances') ? 'order.sellerOrderInsurance' : 'order');
+        $this->excludeUnreleasedReassignments($transactionQuery);
 
         return $transactionQuery
             ->where('seller_is', 'seller')
@@ -193,6 +195,15 @@ class SellerDashboardOverviewService
                     'insurance_reuse_due_at' => $sellerInsurance?->reusable_at?->toISOString(),
                 ];
             })->all();
+    }
+
+    private function excludeUnreleasedReassignments($query): void
+    {
+        if (!Schema::hasTable('order_reassignment_transfers')) return;
+        $query->whereNotIn('order_id', \Illuminate\Support\Facades\DB::table('order_reassignment_transfers as transfer')
+            ->join('orders as target', 'target.id', '=', 'transfer.target_order_id')
+            ->where('target.admin_order_review_status', '<>', 'approved')
+            ->select('transfer.target_order_id'));
     }
 
     private function insuranceCreditBalance(int $sellerId): float

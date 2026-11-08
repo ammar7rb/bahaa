@@ -135,6 +135,10 @@
             <div class="v2-ctx-group">
                 <div class="v2-ctx-group-head"><span>{{ translate('sales') }}</span></div>
 
+                <a class="v2-nav-item {{ Request::is('admin/orders/center*') ? 'v2-is-active' : '' }}" data-item="orders-center" href="{{ route('admin.orders.center') }}">
+                    <span class="v2-nav-btn"><span class="v2-nav-label">مركز الطلبات</span></span>
+                </a>
+
                 <div class="v2-nav-item v2-has-children {{ Request::is('admin/orders/list*') ? 'v2-is-active' : '' }}" data-item="orders-all">
                     <a class="v2-nav-btn" href="{{ route('admin.orders.list', ['all']) }}">
                         <span class="v2-nav-label">{{ translate('orders') }}</span>

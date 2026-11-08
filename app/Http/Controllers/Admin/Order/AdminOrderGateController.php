@@ -67,7 +67,7 @@ class AdminOrderGateController extends Controller
         ])->findOrFail($id);
         $suggestion = $this->service->sellerInsuranceSuggestion($order);
         $shippingMethods = ShippingMethod::query()->where('creator_type', 'admin')->where('status', 1)->orderBy('title')->get();
-         $pricing = app(\App\Services\OrderVendorPricingService::class)->summary($order);
+         $pricing = app(\App\Services\OrderVendorPricingService::class)->summary($order, null, true);
         $approvedPricing = \App\Models\OrderVendorPricing::where('order_id', $id)->first();
         return view('admin-views.order.admin-gate.show', compact('order', 'suggestion', 'shippingMethods', 'pricing', 'approvedPricing'));
     }
@@ -84,6 +84,12 @@ class AdminOrderGateController extends Controller
             'shipping_settlement_due_at' => ['required', 'date'],
             'sales_settlement_due_at' => ['nullable', 'date'],
             'shipping_instructions' => ['nullable', 'string', 'max:5000'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.vendor_unit_price' => ['required', 'numeric', 'min:0', 'max:999999999999'],
+            'items.*.shipping_customer_cost' => ['required', 'numeric', 'min:0', 'max:999999999999'],
+            'items.*.shipping_vendor_cost' => ['required', 'numeric', 'min:0', 'max:999999999999'],
+            'items.*.expected_delivery_at' => ['required', 'date', 'after_or_equal:today'],
+            'items.*.vendor_payment_due_at' => ['required', 'date', 'after_or_equal:today'],
         ]);
         try {
             $this->service->approveAndRelease(Order::findOrFail($id), $data, (int) auth('admin')->id());

@@ -6,6 +6,7 @@ use App\Traits\StorageTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -119,6 +120,11 @@ class OrderDetail extends Model
         return $this->belongsTo(Order::class, 'order_id');
     }
 
+    public function workItem(): HasOne
+    {
+        return $this->hasOne(OrderWorkItem::class, 'order_detail_id');
+    }
+
     public function refundStatus(): BelongsTo
     {
         return $this->belongsTo(RefundStatus::class, 'refund_request');
@@ -175,10 +181,18 @@ class OrderDetail extends Model
     protected static function boot(): void
     {
         parent::boot();
+        static::created(function ($line) {
+            if (\Illuminate\Support\Facades\Schema::hasTable('order_work_items')) {
+                app(\App\Services\OrderWorkItemService::class)->ensureForLine($line);
+            }
+        });
         static::creating(function ($line) {
             $line->forceFill(app(\App\Services\VendorProductWorkspaceService::class)->snapshotOrderLine($line->getAttributes()));
         });
         static::saved(function ($model) {
+            if (\Illuminate\Support\Facades\Schema::hasTable('order_work_items')) {
+                app(\App\Services\OrderWorkItemService::class)->syncLineStatus($model);
+            }
             if ($model->isDirty('digital_file_after_sell')) {
                 $storage = config('filesystems.disks.default') ?? 'public';
                 DB::table('storages')->updateOrInsert([

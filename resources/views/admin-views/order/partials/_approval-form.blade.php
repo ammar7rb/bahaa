@@ -1,5 +1,5 @@
 @php
-    $pricing = app(\App\Services\OrderVendorPricingService::class)->summary($order);
+    $pricing = app(\App\Services\OrderVendorPricingService::class)->summary($order, null, true);
     $approvedPricing = \App\Models\OrderVendorPricing::where('order_id', $order->id)->first();
     $reviewReleased = $order->admin_order_review_status === 'approved';
 @endphp
@@ -26,6 +26,22 @@
             <div class="col-md-6"><label class="form-label" for="review-shipping-due">موعد استحقاق التاجر للمنتجات والشحن</label><input id="review-shipping-due" name="shipping_settlement_due_at" class="form-control" type="date" required value="{{ old('shipping_settlement_due_at', optional($order->sales_settlement_due_at ?: $order->shipping_settlement_due_at)->format('Y-m-d')) }}"></div>
             <div class="col-12"><label class="form-label" for="review-shipping-instructions">تعليمات التنفيذ للتاجر</label><textarea id="review-shipping-instructions" name="shipping_instructions" rows="2" maxlength="5000" class="form-control">{{ old('shipping_instructions', $order->shippingDecisions()->latest('id')->value('instructions')) }}</textarea></div>
         </div>
+        <h4 class="mt-4 mb-2">قرار مستقل لكل منتج</h4>
+        <p class="text-muted">وزّع شحن العميل ومستحق شحن التاجر على المنتجات. يجب أن يساوي مجموعهما المبلغين المدخلين أعلاه.</p>
+        @foreach($pricing['lines'] as $line)
+            @php($key = $line['line_id'])
+            <div class="border rounded p-3 mb-3">
+                <h5>{{ $line['name'] }} · كمية {{ $line['qty'] }} · حصة #{{ $key }}</h5>
+                <div class="row g-2">
+                    <div class="col-md-4"><label class="form-label">آخر سعر أصلي للتاجر للوحدة</label><input class="form-control" name="items[{{ $key }}][vendor_unit_price]" value="{{ $line['vendor_unit_price'] }}" readonly></div>
+                    <div class="col-md-4"><label class="form-label">شحن العميل لهذه الحصة</label><input class="form-control" type="number" step="0.01" min="0" name="items[{{ $key }}][shipping_customer_cost]" value="{{ old('items.'.$key.'.shipping_customer_cost', $loop->first ? $order->shipping_cost : 0) }}" required></div>
+                    <div class="col-md-4"><label class="form-label">شحن التاجر لهذه الحصة</label><input class="form-control" type="number" step="0.01" min="0" name="items[{{ $key }}][shipping_vendor_cost]" value="{{ old('items.'.$key.'.shipping_vendor_cost', $loop->first ? ($order->shipping_seller_entitlement ?? $order->seller_shipping_allocation ?? $order->shipping_seller_cost ?? 0) : 0) }}" required></div>
+                    <div class="col-md-6"><label class="form-label">تاريخ تسليم الحصة</label><input class="form-control" type="date" name="items[{{ $key }}][expected_delivery_at]" value="{{ old('items.'.$key.'.expected_delivery_at', ($order->expected_delivery_date ?: $order->shipping_eta_to) ? \Carbon\Carbon::parse($order->expected_delivery_date ?: $order->shipping_eta_to)->format('Y-m-d') : '') }}" required></div>
+                    <div class="col-md-6"><label class="form-label">تاريخ سداد هذه الحصة للتاجر</label><input class="form-control" type="date" name="items[{{ $key }}][vendor_payment_due_at]" value="{{ old('items.'.$key.'.vendor_payment_due_at', optional($order->sales_settlement_due_at ?: $order->shipping_settlement_due_at)->format('Y-m-d')) }}" required></div>
+                </div>
+                <small class="text-muted">مبلغ المنتج للعميل بعد الخصومات: {{ webCurrencyConverter($line['sale']) }}. تُحتسب حصة عمولة الشركة وصافي التاجر عند الاعتماد.</small>
+            </div>
+        @endforeach
     </div>
     <div class="card-footer d-flex flex-wrap align-items-center justify-content-between gap-3">
         <small class="text-muted">حفظ السعر والشحن والمواعيد وإرسال الطلب في خطوة واحدة.</small>

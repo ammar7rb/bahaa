@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 /** Immutable procurement approval; customer payment and order lines are never repriced. */
 class OrderVendorPricingService
 {
-    public function summary(Order $order, ?float $procurementOverride = null): array
+    public function summary(Order $order, ?float $procurementOverride = null, bool $adminPreview = false): array
     {
         $lines = [];
         $net = 0.0;
@@ -18,6 +18,10 @@ class OrderVendorPricingService
         $complete = true;
         foreach ($order->details as $line) {
             $original = $line->getRawOriginal('vendor_unit_price_snapshot');
+            if ($adminPreview && in_array($order->commerce_flow_status, ['pending_admin_review', 'admin_assignment_in_progress'], true)
+                && $order->admin_order_review_status !== 'approved') {
+                $original = $this->currentVendorPrice($line) ?? $original;
+            }
             $complete = $complete && $original !== null && is_numeric($original) && (float) $original >= 0;
             $qty = (int) $line->qty;
             // Existing order summary stores product discount as a line total.
@@ -48,6 +52,24 @@ class OrderVendorPricingService
             'procurement_amount' => round($procurement, 8), 'margin' => round($net - $discount - $procurement, 8),
             'previous_procurement_amount' => $changed ? $originalProcurement : null, 'action' => $changed ? 'admin_adjusted_vendor_amount' : 'use_vendor_price',
             'customer_order_amount' => (float) $order->order_amount, 'customer_shipping' => (float) $order->shipping_cost];
+    }
+
+    private function currentVendorPrice(\App\Models\OrderDetail $line): ?float
+    {
+        $product = \App\Models\Product::query()->whereKey($line->product_id)
+            ->where('user_id', $line->seller_id)->first();
+        if (!$product) return null;
+        $approved = app(VendorProductWorkspaceService::class)->approvedPrice($product);
+        $price = $approved['unit_price'] ?? $product->unit_price;
+        $variants = $product->variation;
+        if (is_string($variants)) $variants = json_decode($variants, true) ?: [];
+        foreach (is_array($variants) ? $variants : [] as $variant) {
+            if ($line->variant && ($variant['type'] ?? null) === $line->variant && isset($variant['price'])) {
+                $price = $variant['price'];
+                break;
+            }
+        }
+        return is_numeric($price) && (float) $price >= 0 ? (float) $price : null;
     }
 
     public function approve(Order $order, int $adminId, ?float $procurementOverride = null): OrderVendorPricing

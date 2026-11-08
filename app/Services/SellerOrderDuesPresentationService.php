@@ -9,7 +9,7 @@ class SellerOrderDuesPresentationService
 {
     public function page(int $sellerId, int $page = 1)
     {
-        $orders = Order::where('seller_id', $sellerId)->where('seller_is', 'seller')
+        $orders = Order::where('seller_id', $sellerId)->where('seller_is', 'seller')->sellerAccessible()
             ->with('sellerOrderInsurance')->latest('id')->paginate(20, ['*'], 'orders_page', max(1, $page));
         $ids = $orders->getCollection()->pluck('id');
         $settlements = SellerSettlement::where('seller_id', $sellerId)->whereIn('order_id', $ids)->get()->keyBy('order_id');

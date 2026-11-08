@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
 class SellerOrderVisibilityService
 {
     private const BLOCKED_REVIEW_STATUSES = [
-        'pending_admin_review', 'assignment_in_progress', 'waiting_customer_post_purchase_payment',
+        'pending_admin_review', 'assignment_in_progress', 'waiting_customer_post_purchase_payment', 'reassigned',
     ];
 
     private const ACCESSIBLE_FLOW_STATUSES = [
@@ -75,6 +75,16 @@ class SellerOrderVisibilityService
         if ($flow === PostPurchaseInvoiceService::CONTRACT_VERSION
             && data_get($order, 'post_purchase_status') !== PostPurchaseInvoiceService::ORDER_STATUS_RELEASED) {
             return false;
+        }
+
+        if ($flow === config('order_commerce.new_flow_version')
+            && \Illuminate\Support\Facades\Schema::hasTable('order_reassignment_transfers')
+            && \Illuminate\Support\Facades\DB::table('order_reassignment_transfers')
+                ->where('target_order_id', (int) data_get($order, 'id'))->exists()) {
+            return !\Illuminate\Support\Facades\Schema::hasTable('vendor_fulfillment_requests')
+                || !\Illuminate\Support\Facades\DB::table('vendor_fulfillment_requests')
+                ->where('order_id', (int) data_get($order, 'id'))
+                ->whereIn('status', ['locked', 'pending_vendor'])->exists();
         }
 
         $insurance = $existingInsurance;

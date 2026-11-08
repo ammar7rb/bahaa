@@ -449,6 +449,11 @@ class Order extends Model
         return $this->hasMany(OrderDetail::class, 'order_id');
     }
 
+    public function workItems(): HasMany
+    {
+        return $this->hasMany(OrderWorkItem::class, 'order_id');
+    }
+
     public function refundRequest(): HasOne
     {
         return $this->hasOne(RefundRequest::class, 'order_id');
@@ -518,5 +523,12 @@ class Order extends Model
     {
         parent::boot();
         //static::addGlobalScope(new RememberScope);
+        static::saved(function ($order): void {
+            if ($order->wasChanged(['order_status', 'commerce_flow_status', 'admin_order_review_status',
+                'seller_shipping_response_status'])
+                && \Illuminate\Support\Facades\Schema::hasTable('order_work_items')) {
+                app(\App\Services\OrderWorkItemService::class)->syncOrderStatus($order);
+            }
+        });
     }
 }

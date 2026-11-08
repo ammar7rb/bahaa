@@ -149,7 +149,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('post-purchase-invoices:expire')->everyFiveMinutes()->withoutOverlapping();
         $schedule->call(fn () => app(\App\Services\SellerShippingResponseService::class)->monitorOverdueResponses())
             ->name('seller-shipping-response-overdue-monitor')
-            ->everyFiveMinutes()->withoutOverlapping();
+            ->everyMinute()->withoutOverlapping();
+        $schedule->call(fn () => app(\App\Services\OrderWorkItemService::class)->markOverdue())
+            ->name('order-work-item-overdue-monitor')->everyMinute()->withoutOverlapping();
+        $schedule->command('orders:expire-cancellation-credits')->everyMinute()->withoutOverlapping();
         $schedule->call(function () {
             \App\Models\Notification::expiredWalletDeposit()->select('id')->chunkById(500, function ($notifications) {
                 $ids = $notifications->modelKeys();

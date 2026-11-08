@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\{DB, Schema};
 class VendorFulfillmentDecisionService
 {
     public const LABELS=['locked'=>'مقيد باختيار باقة','pending_vendor'=>'معلق من جهة التاجر','available'=>'متاح للمراجعة',
-        'accepted'=>'تم القبول','preparing'=>'قيد التجهيز','ready'=>'جاهز','shipping'=>'قيد الشحن','delivered'=>'تم التسليم','rejected'=>'مرفوض قبل القبول','canceled'=>'ملغى بعد القبول'];
+        'accepted'=>'تم القبول','preparing'=>'قيد التجهيز','ready'=>'جاهز','shipping'=>'قيد الشحن','delivered'=>'تم التسليم','rejected'=>'مرفوض قبل القبول','canceled'=>'ملغى بعد القبول','reassigned'=>'أعيد تعيين المنتج'];
 
     public function assertLegacyMutationAllowed(Order $order): void
     {
@@ -39,7 +39,7 @@ class VendorFulfillmentDecisionService
         $allowed=match($to){'processing'=>['accepted','preparing','ready','shipping','delivered'],
             'out_for_delivery'=>['shipping','delivered'],'delivered'=>['delivered'],default=>null};
         if($allowed===null)return;
-        $active=VendorFulfillmentRequest::where('order_id',$order->id)->where('seller_id',$order->seller_id)->whereNotIn('status',['rejected','canceled'])->get();
+        $active=VendorFulfillmentRequest::where('order_id',$order->id)->where('seller_id',$order->seller_id)->whereNotIn('status',['rejected','canceled','reassigned'])->get();
         if($active->isEmpty()||$active->contains(fn($row)=>!in_array($row->status,$allowed,true)))throw new DomainException('لا تتقدم حالة الطلب الكاملة قبل استيفاء قرارات وحالات جميع أجزاء التنفيذ.');
     }
 
@@ -130,6 +130,14 @@ class VendorFulfillmentDecisionService
             $lineIds=DB::table('vendor_fulfillment_request_items')->where('request_id',$id)->pluck('order_detail_id');
             if(in_array($target,['rejected','canceled'],true))$this->closePortion($order,$row,$lineIds->all(),$reason);
             else OrderDetail::where('order_id',$order->id)->whereIn('id',$lineIds)->update(['delivery_status'=>match($target){'accepted'=>'confirmed','preparing','ready'=>'processing','shipping'=>'out_for_delivery','delivered'=>'delivered',default=>'confirmed'}]);
+            if(Schema::hasTable('order_work_items')){
+                $workStatus=match($target){'accepted'=>'accepted','rejected'=>'rejected','canceled'=>'canceled','delivered'=>'completed',default=>null};
+                if($workStatus)foreach(\App\Models\OrderWorkItem::whereIn('order_detail_id',$lineIds)->get() as $workItem){
+                    if($workItem->status===$workStatus)continue;
+                    app(OrderWorkItemService::class)->transition($workItem,$workStatus,$actorId,$actor,
+                        'vendor_fulfillment_'.$event,['request_id'=>$row->id,'reason'=>$reason]);
+                }
+            }
             $this->record($order,$row,$event,$reason,$actor,$actorId);
             $this->aggregate($order);
             return $row->fresh();
@@ -177,7 +185,7 @@ class VendorFulfillmentDecisionService
     public function aggregate(Order $order): void
     {
         $rows=VendorFulfillmentRequest::where('order_id',$order->id)->where('seller_id',$order->seller_id)->get();
-        $active=$rows->whereNotIn('status',['rejected','canceled']);
+        $active=$rows->whereNotIn('status',['rejected','canceled','reassigned']);
         $next=$order->order_status;
         if($active->isEmpty())$next='canceled';
         elseif($active->every(fn($r)=>$r->status==='delivered'))$next='delivered';
@@ -216,7 +224,7 @@ class VendorFulfillmentDecisionService
         DB::transaction(function()use($order){
             Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
             app(SellerLedgerService::class)->lockSellerFinancialState((int)$order->seller_id);
-            foreach(VendorFulfillmentRequest::where('order_id',$order->id)->whereNotIn('status',['canceled','rejected','delivered'])->lockForUpdate()->get() as $row){
+            foreach(VendorFulfillmentRequest::where('order_id',$order->id)->whereNotIn('status',['canceled','rejected','delivered','reassigned'])->lockForUpdate()->get() as $row){
                 $row->update(['status'=>'canceled','canceled_at'=>now(),'decision_reason'=>'إلغاء الطلب بواسطة الإدارة أو العميل',
                     'penalty_rule_snapshot'=>['enabled'=>false,'assessed_amount'=>'0.00','trigger'=>'admin_or_customer_cancellation_excluded']]);
                 DB::table('vendor_fulfillment_events')->insertOrIgnore(['request_id'=>$row->id,'event_type'=>'canceled','metadata'=>json_encode(['actor'=>'admin_or_customer','penalty_excluded'=>true]),'created_at'=>now()]);

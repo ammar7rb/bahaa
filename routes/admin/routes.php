@@ -392,6 +392,18 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     Route::group(['prefix' => 'orders', 'as' => 'orders.', 'middleware' => ['module:orders']], function () {
+        Route::get('center', [\App\Http\Controllers\Admin\Order\OrderCenterController::class, 'index'])->name('center');
+        Route::get('cancellations', [\App\Http\Controllers\Admin\Order\OrderCancellationController::class, 'index'])->name('cancellations');
+        Route::post('cancellations/orders/{order}/refund', [\App\Http\Controllers\Admin\Order\OrderCancellationController::class, 'refundCustomer'])->whereNumber('order')->name('cancellations.refund');
+        Route::post('cancellations/items/{item}/seller-fee', [\App\Http\Controllers\Admin\Order\OrderCancellationController::class, 'chargeSeller'])->whereNumber('item')->name('cancellations.seller-fee');
+        Route::get('center/items/{item}/reassign', [\App\Http\Controllers\Admin\Order\OrderItemReassignmentController::class, 'show'])->whereNumber('item')->name('reassignment.show');
+        Route::post('center/items/{item}/reassign', [\App\Http\Controllers\Admin\Order\OrderItemReassignmentController::class, 'store'])->whereNumber('item')->name('reassignment.store');
+        Route::get('special/guests', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'guests'])->name('special.guests');
+        Route::get('special/credit', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'credit'])->name('special.credit');
+        Route::post('special/credit/{ticket}/decision', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'decideCredit'])->whereNumber('ticket')->name('special.credit-decision');
+        Route::get('special/inspections', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'inspections'])->name('special.inspections');
+        Route::post('special/inspections/{purchase}/confirm', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'confirmInspection'])->whereNumber('purchase')->name('special.confirm-inspection');
+        Route::get('special/device-purchases', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'purchases'])->name('special.device-purchases');
         Route::get('package-refunds', [\App\Http\Controllers\Admin\Order\CustomerPackageRefundController::class, 'index'])->name('package-refunds.index');
         Route::post('package-refunds/settings', [\App\Http\Controllers\Admin\Order\CustomerPackageRefundController::class, 'settings'])->middleware('module:business_settings')->name('package-refunds.settings');
         Route::post('package-refunds/{refund}/approve', [\App\Http\Controllers\Admin\Order\CustomerPackageRefundController::class, 'approve'])->name('package-refunds.approve');

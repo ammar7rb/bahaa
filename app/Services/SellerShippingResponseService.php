@@ -228,8 +228,7 @@ class SellerShippingResponseService
 
     private function dueDays(): int
     {
-        $value = BusinessSetting::query()->where('type', 'seller_shipping_response_due_days')->value('value');
-        return min(30, max(1, is_numeric($value) ? (int) $value : 3));
+        return 1;
     }
 
     private function openAdminTicket(Order $order, string $purpose, string $description): SupportTicket

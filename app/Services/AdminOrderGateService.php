@@ -54,6 +54,8 @@ class AdminOrderGateService
             if ($entitlement < 0 || $entitlement > (float) $locked->shipping_cost) {
                 throw new DomainException('راجع مبلغ الشحن المخصص للتاجر.');
             }
+            app(OrderWorkItemService::class)->recordAdminReview($locked, $data['items'], $entitlement,
+                (float) ($data['vendor_order_amount'] ?? app(OrderVendorPricingService::class)->summary($locked, null, true)['procurement_amount']), $adminId);
             // This review always assigns fulfillment to the vendor. The single entered
             // vendor shipping amount is also its cost in the existing accounting fields.
             $data['shipping_mode'] = 'seller_shipping';
@@ -62,6 +64,19 @@ class AdminOrderGateService
             $before = $locked->only(['seller_shipping_allocation', 'platform_shipping_margin', 'shipping_settlement_due_at', 'sales_settlement_due_at']);
             $assignment = $this->saveAssignment($locked, $data, $adminId);
             $pricing = app(OrderVendorPricingService::class)->approve($locked->fresh(), $adminId, isset($data['vendor_order_amount']) ? (float) $data['vendor_order_amount'] : null);
+            if (\Illuminate\Support\Facades\Schema::hasTable('order_reassignment_transfers')
+                && DB::table('order_reassignment_transfers')->where('target_order_id', $locked->id)->exists()) {
+                $transaction = \App\Models\OrderTransaction::query()->where('order_id', $locked->id)->lockForUpdate()->first();
+                if ($transaction) {
+                    $transaction->seller_amount = (float) $pricing->procurement_amount;
+                    $transaction->admin_commission = max(0, (float) $pricing->merchandise_sale - (float) $pricing->procurement_amount);
+                    $transaction->delivery_charge = $entitlement;
+                    $transaction->save();
+                    app(OrderFinancialAuditService::class)->record($locked->fresh(), 'reassigned_vendor_entitlement_approved',
+                        'order_transactions', $transaction->id, ['procurement_amount' => $pricing->procurement_amount,
+                            'shipping_entitlement' => $entitlement], $adminId);
+                }
+            }
             app(OrderFinancialAuditService::class)->record($locked->fresh(), 'shipping_assigned', 'order_shipping_decisions', $assignment->shipping_decision_id, [], $adminId);
             $locked->refresh()->forceFill([
                 'seller_shipping_allocation' => $entitlement,
@@ -90,7 +105,7 @@ class AdminOrderGateService
             $order->shipping_seller_cost, $order->shipping_seller_entitlement,
             $order->shipping_settlement_due_at, $order->expected_delivery_date,
             $order->only(['shipping_fulfillment_mode', 'shipping_method_id', 'delivery_service_name', 'third_party_delivery_tracking_id', 'seller_shipping_allocation', 'sales_settlement_due_at']),
-            app(OrderVendorPricingService::class)->summary($order),
+            app(OrderVendorPricingService::class)->summary($order, null, true),
         ], JSON_THROW_ON_ERROR));
     }
 

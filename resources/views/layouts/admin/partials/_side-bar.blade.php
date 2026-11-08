@@ -58,6 +58,7 @@
                     </a>
                     <ul class="aside-submenu navbar-nav">
                         <li class="nav-item px-3 py-2 fw-semibold text-dark bg-section2 aside-mini-show-element">{{ translate('orders') }}</li>
+                        <li class="nav-item"><a class="nav-link {{ Request::is('admin/orders/center*') ? 'active' : '' }}" href="{{ route('admin.orders.center') }}" title="مركز الطلبات">مركز الطلبات</a></li>
                         <li class="nav-item">
                             <a class="nav-link {{ Request::is('admin/orders/list/all') ? 'active' : '' }}"
                                href="{{ route('admin.orders.list', ['all']) }}" title="{{ translate('all') }}">

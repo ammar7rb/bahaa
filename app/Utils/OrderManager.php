@@ -1232,6 +1232,7 @@ class OrderManager
             ]);
             $orderDetails = app(\App\Services\VendorProductWorkspaceService::class)->snapshotOrderLine($orderDetails);
             $orderDetailsId = DB::table('order_details')->insertGetId($orderDetails);
+            app(\App\Services\OrderWorkItemService::class)->ensureForLine(\App\Models\OrderDetail::findOrFail($orderDetailsId));
 
             foreach ($vendorCart['applied_tax_cart_list'] as $cartItem) {
                 if ($cartItem['cart_id'] == $cartSingleItem['id']) {
