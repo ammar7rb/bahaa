@@ -31,12 +31,13 @@ class VendorFulfillmentController extends Controller
 
     public function decide(Request $request,int $id)
     {
-        $data=$request->validate(['action'=>'required|in:accept,reject,preparing,ready,shipping,cancel',
+        $data=$request->validate(['action'=>'required|in:accept,reject,preparing,ready,shipping,cancel,separate',
             'reason'=>'required_if:action,reject,cancel|nullable|string|max:1000',
-            'penalty_revision'=>'required_if:action,cancel|nullable|integer|min:0']);
+            'penalty_revision'=>'required_if:action,cancel|nullable|integer|min:0', 'line_id'=>'required_if:action,separate|nullable|integer|min:1']);
         try {
+            if ($data['action'] === 'separate') return $this->success($request, app(VendorFulfillmentDecisionService::class)->separate($this->seller($request), $id, (int) $data['line_id']));
             $row=app(VendorFulfillmentDecisionService::class)->decide($this->seller($request),$id,$data['action'],$data['reason']??null,
-                expectedPenaltyRevision:$data['penalty_revision']??null);
+                expectedPenaltyRevision:$data['penalty_revision']??null, lineId:isset($data['line_id']) ? (int) $data['line_id'] : null);
             return $this->success($request,$row);
         }catch(DomainException $e){return $this->failure($request,$e);}
     }

@@ -63,9 +63,68 @@ class VendorFulfillmentDecisionService
         return $dto;
     }
 
-    public function decide(Seller $seller,int $id,string $action,?string $reason=null,?int $proofId=null,?int $expectedPenaltyRevision=null): VendorFulfillmentRequest
+    public function decide(Seller $seller,int $id,string $action,?string $reason=null,?int $proofId=null,?int $expectedPenaltyRevision=null,?int $lineId=null): VendorFulfillmentRequest
     {
-        return $this->transition((int)$seller->id,$id,$action,$reason,'seller',(int)$seller->id,$proofId,$expectedPenaltyRevision);
+        return DB::transaction(function () use ($seller, $id, $action, $reason, $proofId, $expectedPenaltyRevision, $lineId) {
+            $requestId = $this->individualRequest($seller, $id, $lineId);
+            return $this->transition((int)$seller->id,$requestId,$action,$reason,'seller',(int)$seller->id,$proofId,$expectedPenaltyRevision);
+        }, 3);
+    }
+
+    public function separate(Seller $seller, int $id, int $lineId): VendorFulfillmentRequest
+    {
+        return DB::transaction(fn () => VendorFulfillmentRequest::findOrFail($this->individualRequest($seller, $id, $lineId)), 3);
+    }
+
+    private function individualRequest(Seller $seller, int $id, ?int $lineId): int
+    {
+        $initial = VendorFulfillmentRequest::where('seller_id', $seller->id)->findOrFail($id);
+        $order = Order::where('seller_id', $seller->id)->lockForUpdate()->findOrFail($initial->order_id);
+        app(SellerLedgerService::class)->lockSellerFinancialState((int) $seller->id);
+        $request = VendorFulfillmentRequest::where('seller_id', $seller->id)->lockForUpdate()->findOrFail($id);
+        if (!app(SellerOrderVisibilityService::class)->canSellerView($order)) abort(404);
+        $items = DB::table('vendor_fulfillment_request_items')->where('request_id', $id)->lockForUpdate()->get();
+        if ($items->count() === 1 && (!$lineId || (int) $items->first()->order_detail_id === $lineId)) return $id;
+        // Requests accepted before individual decisions existed continue through their recorded shared workflow.
+        if (!$lineId && $request->status !== 'available') return $id;
+        if (!$lineId) throw new DomainException('اختر المنتج الذي تريد اتخاذ القرار بشأنه.');
+        $selected = $items->first(fn ($item) => (int) $item->order_detail_id === $lineId);
+        if (!$selected) {
+            $existing = DB::table('vendor_fulfillment_request_items as item')
+                ->join('vendor_fulfillment_requests as request', 'request.id', '=', 'item.request_id')
+                ->where('item.order_detail_id', $lineId)->where('request.order_id', $order->id)
+                ->where('request.seller_id', $seller->id)->where('request.portion', $request->portion)->value('request.id');
+            if ($existing) return (int) $existing;
+            throw new DomainException('المنتج لا ينتمي إلى جزء التنفيذ.');
+        }
+        if (!in_array($request->status, ['available', 'accepted'], true)) throw new DomainException('لا يمكن فصل الجزء بعد بدء تجهيزه أو شحنه.');
+        if (Schema::hasIndex('vendor_fulfillment_requests', 'vendor_fulfillment_portion_unique')) {
+            throw new DomainException('يلزم تحديث قاعدة البيانات لتفعيل القرار المستقل.');
+        }
+        $lines = DB::table('order_details as line')->leftJoin('order_work_items as work', 'work.order_detail_id', '=', 'line.id')
+            ->whereIn('line.id', $items->pluck('order_detail_id'))->get(['line.id', 'line.qty', 'line.vendor_unit_price_snapshot',
+                'work.vendor_net_amount', 'work.shipping_vendor_cost']);
+        $weight = fn ($line) => max(0, $line->vendor_net_amount === null
+            ? (float) $line->vendor_unit_price_snapshot * (int) $line->qty
+            : (float) $line->vendor_net_amount - (float) $line->shipping_vendor_cost);
+        $chosen = $lines->firstWhere('id', $lineId);
+        if (!$chosen || $lines->count() !== $items->count()) throw new DomainException('بيانات منتجات الجزء غير مكتملة.');
+        $totalWeight = $lines->sum($weight);
+        $ratio = $totalWeight > 0 ? $weight($chosen) / $totalWeight : 1 / $lines->count();
+        $shippingWeight = $lines->sum(fn ($line) => max(0, (float) $line->shipping_vendor_cost));
+        $shippingRatio = $shippingWeight > 0 ? max(0, (float) $chosen->shipping_vendor_cost) / $shippingWeight : $ratio;
+        $goods = round((float) $request->vendor_amount * $ratio, 8);
+        $shipping = round((float) $request->shipping_amount * $shippingRatio, 8);
+        $new = $request->replicate();
+        $new->vendor_amount = $goods; $new->shipping_amount = $shipping; $new->save();
+        $request->vendor_amount = round((float) $request->vendor_amount - $goods, 8);
+        $request->shipping_amount = round((float) $request->shipping_amount - $shipping, 8); $request->save();
+        DB::table('vendor_fulfillment_request_items')->where('id', $selected->id)->update(['request_id' => $new->id]);
+        DB::table('vendor_fulfillment_events')->insert(['request_id' => $new->id, 'event_type' => 'individual_split',
+            'metadata' => json_encode(['source_request_id' => $request->id, 'order_detail_id' => $lineId,
+                'vendor_amount' => $goods, 'shipping_amount' => $shipping, 'actor' => 'seller', 'actor_id' => $seller->id], JSON_THROW_ON_ERROR),
+            'created_at' => now()]);
+        return (int) $new->id;
     }
 
     public function adminTransition(int $id,string $action,string $reason,int $adminId): VendorFulfillmentRequest
@@ -136,8 +195,6 @@ class VendorFulfillmentDecisionService
             $event=['accept'=>'accepted','reject'=>'rejected','cancel'=>'canceled'][$action]??$action;
             DB::table('vendor_fulfillment_events')->insert(['request_id'=>$id,'event_type'=>$event,'metadata'=>json_encode(['actor'=>$actor,'actor_id'=>$actorId,'reason'=>$reason,'penalty'=>$rule,'proof_id'=>$proofId],JSON_THROW_ON_ERROR),'created_at'=>now()]);
             $lineIds=DB::table('vendor_fulfillment_request_items')->where('request_id',$id)->pluck('order_detail_id');
-            if(in_array($target,['rejected','canceled'],true))$this->closePortion($order,$row,$lineIds->all(),$reason);
-            else OrderDetail::where('order_id',$order->id)->whereIn('id',$lineIds)->update(['delivery_status'=>match($target){'accepted'=>'confirmed','preparing','ready'=>'processing','shipping'=>'out_for_delivery','delivered'=>'delivered',default=>'confirmed'}]);
             if(Schema::hasTable('order_work_items')){
                 $workStatus=match($target){'accepted'=>'accepted','rejected'=>'rejected','canceled'=>'canceled','delivered'=>'completed',default=>null};
                 if($workStatus)foreach(\App\Models\OrderWorkItem::whereIn('order_detail_id',$lineIds)->get() as $workItem){
@@ -146,6 +203,8 @@ class VendorFulfillmentDecisionService
                         'vendor_fulfillment_'.$event,['request_id'=>$row->id,'reason'=>$reason]);
                 }
             }
+            if(in_array($target,['rejected','canceled'],true))$this->closePortion($order,$row,$lineIds->all(),$reason);
+            else OrderDetail::where('order_id',$order->id)->whereIn('id',$lineIds)->update(['delivery_status'=>match($target){'accepted'=>'confirmed','preparing','ready'=>'processing','shipping'=>'out_for_delivery','delivered'=>'delivered',default=>'confirmed'}]);
             $this->record($order,$row,$event,$reason,$actor,$actorId);
             $this->aggregate($order, $actor, $actorId);
             return $row->fresh();
