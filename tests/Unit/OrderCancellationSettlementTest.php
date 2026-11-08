@@ -53,6 +53,7 @@ class OrderCancellationSettlementTest extends TestCase
             $table->timestamps();
         });
         (require base_path('database/migrations/2026_08_08_000001_create_seller_ledger_entries_table.php'))->up();
+        (require dirname(__DIR__, 2).'/database/migrations/2026_11_06_000002_create_vendor_debt_ledger.php')->up();
         (require base_path('database/migrations/2026_11_08_130000_create_order_cancellation_settlements.php'))->up();
         DB::table('users')->insert(['id' => 1, 'wallet_balance' => 0]);
         DB::table('orders')->insert(['id' => 10, 'customer_id' => 1, 'is_guest' => 0, 'payment_status' => 'paid',
@@ -99,6 +100,7 @@ class OrderCancellationSettlementTest extends TestCase
         $row = $service->chargeSeller(4, 70, 'إلغاء التاجر بعد القبول', 9);
         $this->assertEquals(40, $row->seller_debited_amount);
         $this->assertEquals(30, $row->seller_debt_amount);
+        $this->assertEquals(30, DB::table('vendor_debt_charges')->value('outstanding'));
         $this->assertEquals(0, app(\App\Services\SellerLedgerService::class)->summary(7)[\App\Services\SellerLedgerService::AVAILABLE]);
         $this->assertSame(1, DB::table('order_work_item_events')->where('event_key', 'seller_cancellation_fee_assessed')->count());
         try { $service->chargeSeller(4, 70, 'إعادة', 9); $this->fail('Duplicate seller fee accepted'); }

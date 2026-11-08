@@ -85,8 +85,8 @@ class VendorFulfillmentDecisionService
         if (!app(SellerOrderVisibilityService::class)->canSellerView($order)) abort(404);
         $items = DB::table('vendor_fulfillment_request_items')->where('request_id', $id)->lockForUpdate()->get();
         if ($items->count() === 1 && (!$lineId || (int) $items->first()->order_detail_id === $lineId)) return $id;
-        // Requests accepted before individual decisions existed continue through their recorded shared workflow.
-        if (!$lineId && $request->status !== 'available') return $id;
+        // A shipment already in transit retains its recorded shared proof and tracking.
+        if (!$lineId && $request->status === 'shipping') return $id;
         if (!$lineId) throw new DomainException('اختر المنتج الذي تريد اتخاذ القرار بشأنه.');
         $selected = $items->first(fn ($item) => (int) $item->order_detail_id === $lineId);
         if (!$selected) {
@@ -97,7 +97,7 @@ class VendorFulfillmentDecisionService
             if ($existing) return (int) $existing;
             throw new DomainException('المنتج لا ينتمي إلى جزء التنفيذ.');
         }
-        if (!in_array($request->status, ['available', 'accepted'], true)) throw new DomainException('لا يمكن فصل الجزء بعد بدء تجهيزه أو شحنه.');
+        if (!in_array($request->status, ['available', 'accepted', 'preparing', 'ready'], true)) throw new DomainException('لا يمكن فصل الجزء بعد بدء شحنه.');
         if (Schema::hasIndex('vendor_fulfillment_requests', 'vendor_fulfillment_portion_unique')) {
             throw new DomainException('يلزم تحديث قاعدة البيانات لتفعيل القرار المستقل.');
         }

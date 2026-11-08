@@ -158,11 +158,23 @@ class OrderCancellationSettlementService
                 $event = DB::table('vendor_fulfillment_events')->where('request_id', $mapping->request_id)
                     ->where('event_type', 'canceled')->orderByDesc('id')->first();
                 $eventData = $event ? json_decode((string) $event->metadata, true) : null;
-                if (!$request || $request->status !== 'canceled' || (int) $request->seller_id !== (int) $item->seller_id
+                if (!$request || $request->status !== 'canceled' || (int) $request->order_id !== (int) $item->order_id || (int) $request->seller_id !== (int) $item->seller_id
                     || ($eventData['actor'] ?? null) !== 'seller') $this->deny('لا يوجد إلغاء موثق من هذا التاجر لهذه الحصة.');
                 $charge = $request->penalty_charge_id
                     ? DB::table('vendor_debt_charges')->where('id', $request->penalty_charge_id)->where('seller_id', $item->seller_id)->first() : null;
                 if ($request->penalty_charge_id && !$charge) $this->deny('سجل غرامة التاجر غير مكتمل.');
+                if ($fee > 0 && DB::table('vendor_fulfillment_request_items')->where('request_id', $request->id)->count() !== 1) {
+                    $this->deny('الغرامة تخص عدة منتجات؛ يلزم مراجعة توزيعها قبل تسجيل رسوم حصة واحدة.');
+                }
+                if ($fee > 0 && DB::table('order_cancellation_settlements')->where('financial_reference', 'fulfillment-cancellation-'.$request->id)->exists()) {
+                    $this->deny('تم تسجيل رسوم هذا الجزء سابقًا.');
+                }
+                if (!$charge && $fee > 0) {
+                    $charge = app(VendorDebtService::class)->assess((int) $item->seller_id, 'cancellation_penalty',
+                        'fulfillment_request', (string) $request->id, 'fulfillment-cancellation-'.$request->id, $fee,
+                        ['order_id'=>$item->order_id, 'work_item_id'=>$item->id, 'reason'=>trim($reason), 'source'=>'admin_review'], $adminId);
+                    DB::table('vendor_fulfillment_requests')->where('id', $request->id)->update(['penalty_charge_id'=>$charge->id, 'updated_at'=>now()]);
+                }
                 $assessed = $charge ? round((float) $charge->amount, 3) : 0.0;
                 if (abs($fee - $assessed) > 0.0001) $this->deny('رسوم الإلغاء محددة بالفعل بقاعدة الغرامة؛ راجع قيمتها المعروضة.');
                 $debited = $charge ? round((float) $charge->wallet_collected, 3) : 0.0;
@@ -199,13 +211,15 @@ class OrderCancellationSettlementService
                 [['bucket' => SellerLedgerService::AVAILABLE, 'direction' => 'debit', 'amount' => $debited]],
                 Order::class, (int) $item->order_id,
                 ['order_id' => $item->order_id, 'work_item_id' => $workItemId, 'reason' => trim($reason)], $adminId);
+            $charge = $debt > 0 ? app(VendorDebtService::class)->createAdministrativeDebt((int) $item->seller_id,
+                $debt, trim($reason), 'order-cancel-fee:'.$item->id, $adminId) : null;
             DB::table('order_cancellation_settlements')->insert([
                 'operation_key' => $key, 'order_id' => $item->order_id,
                 'order_work_item_id' => $workItemId, 'seller_id' => $item->seller_id,
                 'canceled_by' => 'seller', 'actor_id' => $item->seller_id,
                 'reason' => trim($reason), 'canceled_at' => $sellerCancellation->created_at ?? now(),
                 'fee_amount' => $fee, 'seller_debited_amount' => $debited, 'seller_debt_amount' => $debt,
-                'financial_reference' => 'order-cancel-fee:'.$workItemId,
+                'financial_reference' => $charge ? 'vendor-debt-charge:'.$charge->id : 'order-cancel-fee:'.$workItemId,
                 'reviewed_by_admin_id' => $adminId, 'created_at' => now(), 'updated_at' => now(),
             ]);
             OrderWorkItemEvent::query()->create([

@@ -5,7 +5,7 @@
 @if($portion['can_request_unlock'] ?? false)<a class="btn btn-primary" href="{{ route('vendor.fulfillment.quote',$portion['id']) }}">تخصيص المساحة وعرض التفاصيل</a> <a class="btn btn-outline-primary" href="{{ route('vendor.packages.index') }}">اختيار باقة</a>
 @else
 <div class="d-flex flex-wrap mb-3" style="gap:8px">@foreach(['available'=>'مراجعة','accepted'=>'قبول','preparing'=>'تجهيز','ready'=>'جاهز','shipping'=>'شحن','delivered'=>'تسليم'] as $step=>$stepLabel)<span class="badge {{ $portion['status']===$step?'bg-primary text-white':'bg-light text-dark' }}">{{ $stepLabel }}</span>@endforeach</div>
-@if($portion['status'] === 'accepted' && count($portion['line_ids'] ?? []) > 1)
+@if(in_array($portion['status'], ['accepted', 'preparing', 'ready'], true) && count($portion['line_ids'] ?? []) > 1)
 <form method="post" class="mb-2" action="{{ route('vendor.fulfillment.decide',$portion['id']) }}">@csrf<input type="hidden" name="action" value="separate"><label>اختر المنتج لفصله ومتابعة إجراءاته<select class="form-control my-2" name="line_id" required><option value="">اختر المنتج</option>@foreach($portion['line_ids'] as $lineId)@php($lineInfo = collect($row['order_details'] ?? [])->firstWhere('id', $lineId))<option value="{{ $lineId }}">{{ data_get($lineInfo, 'product_details.name', 'منتج الطلب') }} #{{ $lineId }}</option>@endforeach</select></label><button class="btn btn-outline-primary">فصل المنتج</button></form>
 @else
 @foreach(($portion['actions'] ?? []) as $action)
