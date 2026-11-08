@@ -75,6 +75,12 @@ class VendorFulfillmentDecisionService
         return $this->transition($sellerId,$id,$action,$reason,'admin',$adminId);
     }
 
+    public function customerCancel(int $id, string $reason, int $customerId): VendorFulfillmentRequest
+    {
+        $sellerId = (int) VendorFulfillmentRequest::findOrFail($id)->seller_id;
+        return $this->transition($sellerId, $id, 'cancel', $reason, 'customer', $customerId);
+    }
+
     private function transition(int $sellerId,int $id,string $action,?string $reason,string $actor,int $actorId,?int $proofId=null,?int $expectedPenaltyRevision=null): VendorFulfillmentRequest
     {
         if(!in_array($action,['accept','reject','preparing','ready','shipping','delivered','cancel'],true))throw new DomainException('إجراء التنفيذ غير صحيح.');
@@ -84,6 +90,7 @@ class VendorFulfillmentDecisionService
             if(DB::getDriverName()==='sqlite')app(SellerLedgerService::class)->lockSellerFinancialState($sellerId);
             $initial=VendorFulfillmentRequest::where('seller_id',$sellerId)->findOrFail($id);
             $order=Order::where('seller_id',$sellerId)->where('seller_is','seller')->lockForUpdate()->findOrFail($initial->order_id);
+            if($actor==='customer'&&((int)$order->customer_id!==$actorId||$order->is_guest))abort(404);
             app(SellerLedgerService::class)->lockSellerFinancialState($sellerId);
             $row=VendorFulfillmentRequest::where('seller_id',$sellerId)->lockForUpdate()->findOrFail($id);
             if($actor==='seller'&&!app(SellerOrderVisibilityService::class)->canSellerView($order))abort(404);
@@ -96,6 +103,7 @@ class VendorFulfillmentDecisionService
             if(in_array($row->status,['locked','pending_vendor'],true))throw new DomainException(VendorFulfillmentEligibilityService::MESSAGE);
             $allowed=$this->actions($row,$order);
             if($actor==='admin')$allowed=match($row->status){'ready'=>['shipping','cancel'],'shipping'=>['delivered','cancel'],'available'=>['cancel'],'accepted','preparing'=>['cancel'],default=>[]};
+            if($actor==='customer')$allowed=in_array($row->status,['available','accepted','preparing','ready'],true)?['cancel']:[];
             if($actor==='seller'&&$action==='delivered'&&$row->status==='shipping'&&$order->shipping_fulfillment_mode==='seller_shipping'&&$proofId
                 && \App\Models\OrderShippingProof::whereKey($proofId)->where('seller_id',$sellerId)->where('order_id',$order->id)->where('fulfillment_request_id',$id)->where('shipping_status','delivered')->exists())$allowed[]='delivered';
             if(!in_array($action,$allowed,true))throw new DomainException('راجع تفاصيل الجزء واقبله صراحة قبل تقدم التنفيذ؛ هذا الانتقال غير مسموح.');
@@ -139,7 +147,7 @@ class VendorFulfillmentDecisionService
                 }
             }
             $this->record($order,$row,$event,$reason,$actor,$actorId);
-            $this->aggregate($order);
+            $this->aggregate($order, $actor, $actorId);
             return $row->fresh();
         },3);
     }
@@ -182,7 +190,7 @@ class VendorFulfillmentDecisionService
         ]);
     }
 
-    public function aggregate(Order $order): void
+    public function aggregate(Order $order, string $actor = 'system', ?int $actorId = null): void
     {
         $rows=VendorFulfillmentRequest::where('order_id',$order->id)->where('seller_id',$order->seller_id)->get();
         $active=$rows->whereNotIn('status',['rejected','canceled','reassigned']);
@@ -201,7 +209,13 @@ class VendorFulfillmentDecisionService
                 'processing'=>'preparing','out_for_delivery'=>'shipping',default=>$next},
             'shipping_workflow_status'=>match($next){'processing'=>'seller_preparing','out_for_delivery'=>'shipped',default=>$next}];
         $order->forceFill(array_intersect_key($updates,array_flip(Schema::getColumnListing('orders'))))->save();
-        if(Schema::hasTable('order_logistics_events'))app(OrderLogisticsService::class)->recordOrderStatus($order->fresh(),$next,'seller',(int)$order->seller_id,$before);
+        if(Schema::hasTable('order_logistics_events')){
+            app(OrderLogisticsService::class)->recordOrderStatus($order->fresh(),$next,
+                $actor==='seller'&&$next==='canceled'?'system':$actor,$actorId,$before);
+            if($next==='canceled')app(OrderLogisticsService::class)->record($order->fresh(),'vendor_fulfillment_order_canceled',
+                $actor,$actorId,null,$order->shipping_responsible_party,
+                ['previous_order_status'=>$before,'order_status'=>$next]);
+        }
         if($next==='delivered'){
             // The approved vendor entitlement is separate from customer prices/margins.
             $amount=(float)$active->sum('vendor_amount')+(float)$active->sum('shipping_amount');
