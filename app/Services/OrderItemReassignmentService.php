@@ -53,7 +53,10 @@ class OrderItemReassignmentService
                 || app(OrderPaymentSummaryService::class)->forOrder($sourceOrder)['incomplete']
                 || $sourceOrder->commerce_flow_status === 'under_investigation'
                 || in_array($sourceOrder->order_status, ['out_for_delivery', 'delivered', 'returned'], true)
-                || $sourceOrder->shipment_reference || $sourceOrder->third_party_delivery_tracking_id
+                // The internal shipment reference is created at assignment,
+                // before any shipment exists. Actual tracking and progress
+                // remain separate guards below.
+                || $sourceOrder->third_party_delivery_tracking_id
                 || in_array($line->delivery_status, ['delivered', 'out_for_delivery', 'returned'], true)
                 || $line->refund_request || $line->refund_started_at
                 || SellerSettlement::query()->where('order_id', $sourceOrder->id)->exists()) {

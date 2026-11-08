@@ -6,6 +6,8 @@ use App\Models\Seller;
 use App\Services\SellerLedgerService;
 use App\Services\SellerOrderVisibilityService;
 use App\Services\VendorFulfillmentDecisionService;
+use App\Services\VendorFulfillmentEligibilityService;
+use App\Models\Order;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -35,7 +37,7 @@ class IndividualFulfillmentDecisionTest extends TestCase
         Schema::create('order_work_item_events', function (Blueprint $t) { $t->id(); $t->integer('work_item_id'); $t->integer('order_id'); $t->integer('order_detail_id'); $t->integer('actor_id')->nullable(); $t->string('actor_type'); $t->string('event_key'); $t->string('status_before')->nullable(); $t->string('status_after')->nullable(); $t->json('snapshot'); $t->timestamp('created_at'); });
         Schema::create('vendor_fulfillment_financial_reviews', function (Blueprint $t) { $t->id(); $t->integer('request_id')->unique(); $t->integer('order_id'); $t->string('status'); $t->json('line_ids'); $t->text('reason'); $t->timestamps(); });
         DB::table('orders')->insert(['id'=>1,'seller_id'=>2,'seller_is'=>'seller','order_status'=>'confirmed','commerce_flow_status'=>'released_to_seller']);
-        DB::table('vendor_fulfillment_requests')->insert(['id'=>1,'order_id'=>1,'seller_id'=>2,'portion'=>'advertising','status'=>'available','vendor_amount'=>40,'shipping_amount'=>10,'created_at'=>now(),'updated_at'=>now()]);
+        DB::table('vendor_fulfillment_requests')->insert(['id'=>1,'order_id'=>1,'seller_id'=>2,'portion'=>'advertising','status'=>'available','vendor_amount'=>40,'shipping_amount'=>10,'forwarded_at'=>now(),'created_at'=>now(),'updated_at'=>now()]);
         DB::table('order_details')->insert([['id'=>1,'order_id'=>1,'qty'=>3,'vendor_unit_price_snapshot'=>10,'is_stock_decreased'=>0,'delivery_status'=>'pending'],['id'=>2,'order_id'=>1,'qty'=>1,'vendor_unit_price_snapshot'=>10,'is_stock_decreased'=>0,'delivery_status'=>'pending']]);
         DB::table('order_work_items')->insert([['id'=>1,'order_id'=>1,'order_detail_id'=>1,'status'=>'sent_to_vendor','vendor_net_amount'=>36,'shipping_vendor_cost'=>6],['id'=>2,'order_id'=>1,'order_detail_id'=>2,'status'=>'sent_to_vendor','vendor_net_amount'=>14,'shipping_vendor_cost'=>4]]);
         DB::table('vendor_fulfillment_request_items')->insert([['request_id'=>1,'order_detail_id'=>1],['request_id'=>1,'order_detail_id'=>2]]);
@@ -49,5 +51,10 @@ class IndividualFulfillmentDecisionTest extends TestCase
         $this->assertEquals(30,$accepted->vendor_amount); $this->assertEquals(10,$rejected->vendor_amount);
         $this->assertSame(['accepted','rejected'],DB::table('order_work_items')->orderBy('id')->pluck('status')->all());
         $this->assertSame(1,DB::table('vendor_fulfillment_financial_reviews')->count());
+        $summary=app(VendorFulfillmentEligibilityService::class)->summary(Order::findOrFail(1));
+        $this->assertEquals(30,$summary['accessible_procurement_amount']);
+        $this->assertEquals(6,$summary['accessible_shipping_amount']);
+        $this->assertEquals(36,$summary['accessible_amount']);
+        $this->assertCount(2,$summary['portions']);
     }
 }

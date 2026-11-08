@@ -56,7 +56,8 @@ class OrderItemReassignmentFinancialTest extends TestCase
             'order_status'=>'confirmed','payment_status'=>'paid','order_amount'=>160,'init_order_amount'=>160,'paid_amount'=>160,
             'shipping_cost'=>20,'shipping_customer_cost'=>20,'shipping_seller_cost'=>10,'shipping_seller_entitlement'=>10,
             'seller_shipping_allocation'=>10,'platform_shipping_margin'=>10,'admin_commission'=>40,'discount_amount'=>0,
-            'refer_and_earn_discount'=>0,'extra_discount'=>0,'total_tax_amount'=>0,'commerce_flow_status'=>'released_to_seller']);
+            'refer_and_earn_discount'=>0,'extra_discount'=>0,'total_tax_amount'=>0,'commerce_flow_status'=>'released_to_seller',
+            'shipment_reference'=>'SHP-QA-ASSIGNED-NOT-SHIPPED']);
         DB::table('products')->insert([
             ['id'=>1,'user_id'=>10,'name'=>'Test product','added_by'=>'seller','product_type'=>'physical','category_id'=>1,'current_stock'=>9,'status'=>1,'unit_price'=>30],
             ['id'=>2,'user_id'=>10,'name'=>'Other product','added_by'=>'seller','product_type'=>'physical','category_id'=>1,'current_stock'=>9,'status'=>1,'unit_price'=>30],
@@ -147,5 +148,18 @@ class OrderItemReassignmentFinancialTest extends TestCase
         $this->assertEquals(160, DB::table('order_transactions')->sum('order_amount'));
         $this->assertEquals(60, DB::table('order_vendor_pricings')->where('order_id', 1)->value('procurement_amount'));
         $this->assertEquals(10, DB::table('order_details')->where('id', 1)->value('seller_id'));
+    }
+
+    public function test_actual_tracking_still_blocks_reassignment(): void
+    {
+        DB::table('orders')->where('id',1)->update(['third_party_delivery_tracking_id'=>'carrier-tracking']);
+        try {
+            app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor');
+            $this->fail('A tracked shipment must not be moved.');
+        } catch (\DomainException $e) {
+            $this->assertStringContainsString('بدأت تسويتها أو تسليمها', $e->getMessage());
+        }
+        $this->assertSame(1, DB::table('orders')->count());
+        $this->assertEquals(10, DB::table('order_details')->where('id',1)->value('seller_id'));
     }
 }

@@ -1,7 +1,7 @@
 @if($row['fulfillment_eligibility']['portion_actions_enabled'] ?? false)
 <section class="vf-section" dir="rtl"><h3>قرارات وأجزاء طلب التنفيذ</h3><p>راجع التفاصيل والمستحقات قبل القبول. الاشتراك وإتاحة التفاصيل لا يعدان قبولًا.</p>
 @foreach($row['fulfillment_eligibility']['portions'] as $portion)
-<section class="border rounded p-3 mb-3"><h4 class="h5">جزء التنفيذ #{{ $portion['id'] }} — {{ $portion['status_label'] ?? $portion['status'] }}</h4><p>مستحق هذا الجزء: {{ webCurrencyConverter($portion['amount']) }}</p>
+<section class="border rounded p-3 mb-3"><h4 class="h5">جزء التنفيذ #{{ $portion['id'] }} — {{ $portion['status_label'] ?? $portion['status'] }}</h4><p>{{ in_array($portion['status'], ['rejected', 'canceled', 'reassigned'], true) ? 'القيمة المسجلة للجزء (غير مستحقة)' : 'مستحق هذا الجزء' }}: {{ webCurrencyConverter($portion['amount']) }}</p>
 @if($portion['can_request_unlock'] ?? false)<a class="btn btn-primary" href="{{ route('vendor.fulfillment.quote',$portion['id']) }}">تخصيص المساحة وعرض التفاصيل</a> <a class="btn btn-outline-primary" href="{{ route('vendor.packages.index') }}">اختيار باقة</a>
 @else
 <div class="d-flex flex-wrap mb-3" style="gap:8px">@foreach(['available'=>'مراجعة','accepted'=>'قبول','preparing'=>'تجهيز','ready'=>'جاهز','shipping'=>'شحن','delivered'=>'تسليم'] as $step=>$stepLabel)<span class="badge {{ $portion['status']===$step?'bg-primary text-white':'bg-light text-dark' }}">{{ $stepLabel }}</span>@endforeach</div>

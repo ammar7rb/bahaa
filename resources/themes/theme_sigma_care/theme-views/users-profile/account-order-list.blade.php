@@ -36,7 +36,7 @@
                     @endforeach
                     @if($order->details->count() > 3)<p>و{{ $order->details->count() - 3 }} منتجات أخرى</p>@endif
                 </div>
-                <footer><div><small>إجمالي الطلب</small><strong>{{ webCurrencyConverter(amount:App\Utils\OrderManager::getOrderTotalPriceSummary(order:$order)['totalAmount']) }}</strong></div><span class="customer-order-payment">{{ $order->payment_status === 'paid' ? 'تم اعتماد الدفع' : 'جاري التحقق' }}</span><a class="customer-order-details" href="{{ route('account-order-details',['id'=>$order->id]) }}">تفاصيل الطلب ←</a></footer>
+                <footer><div><small>إجمالي الطلب</small><strong>{{ webCurrencyConverter(amount:App\Utils\OrderManager::getOrderTotalPriceSummary(order:$order)['totalAmount']) }}</strong></div><span class="customer-order-payment">{{ $order->customer_initial_payment_review_status === 'rejected' ? 'رُفض إثبات الدفع' : ($order->payment_status === 'paid' && in_array($order->customer_initial_payment_review_status, [null, 'approved'], true) ? 'تم اعتماد الدفع' : 'جاري التحقق') }}</span><a class="customer-order-details" href="{{ route('account-order-details',['id'=>$order->id]) }}">تفاصيل الطلب ←</a></footer>
                 @if($state && !$order->customer_eligible_at && !in_array($order->order_status,['canceled','failed','delivered','returned']))
                     <div class="customer-order-help"><span>{{ $state['message'] }}</span>
                         @include('customer-checkout.next-action', ['purchaseState' => $state, 'actionClass' => ''])

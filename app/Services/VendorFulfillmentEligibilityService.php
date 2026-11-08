@@ -135,6 +135,9 @@ class VendorFulfillmentEligibilityService
         if ($requests->isEmpty()) return null;
         $locked = $requests->filter(fn ($row) => $this->restricted($row));
         $accessible = $requests->diff($locked);
+        // Closed portions remain visible for their decision history, but no
+        // longer form part of the vendor's accessible fulfillment entitlement.
+        $payable = $accessible->reject(fn ($row) => in_array($row->status, ['rejected', 'canceled', 'reassigned'], true));
         $managed = Schema::hasColumn('vendor_fulfillment_requests', 'accepted_at');
         return [
             'details_locked' => $accessible->isEmpty(), 'partially_locked' => $locked->isNotEmpty() && $accessible->isNotEmpty(),
@@ -142,10 +145,10 @@ class VendorFulfillmentEligibilityService
             'forwarded_at' => $requests->first()->forwarded_at->toIso8601String(),
             'pending_on_vendor_side' => $locked->contains('status', 'pending_vendor'),
             'pending_label' => 'طلبات معلقة من جهة التاجر',
-            'accessible_amount' => round((float) $accessible->sum('vendor_amount') + (float) $accessible->sum('shipping_amount'), 8),
+            'accessible_amount' => round((float) $payable->sum('vendor_amount') + (float) $payable->sum('shipping_amount'), 8),
             'restricted_amount' => round((float) $locked->sum('vendor_amount') + (float) $locked->sum('shipping_amount'), 8),
-            'accessible_procurement_amount' => (float) $accessible->sum('vendor_amount'),
-            'accessible_shipping_amount' => (float) $accessible->sum('shipping_amount'),
+            'accessible_procurement_amount' => (float) $payable->sum('vendor_amount'),
+            'accessible_shipping_amount' => (float) $payable->sum('shipping_amount'),
             'amount_basis' => $accessible->isEmpty() ? 'vendor_total' : 'restricted_portion_separate',
             'portion_actions_enabled' => $managed,
             'portions' => $requests->map(fn ($row) => [
