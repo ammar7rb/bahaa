@@ -85,19 +85,15 @@ class SellerRestrictedOrdersPhaseFourTest extends TestCase
         $this->assertSame(OrderCommerceState::SELLER_INSURANCE_PENDING, $order->fresh()->commerce_flow_status);
     }
 
-    public function test_routes_and_application_have_a_dedicated_pending_insurance_inbox(): void
+    public function test_legacy_pending_insurance_routes_keep_restricted_response(): void
     {
         $apiRoutes = file_get_contents(base_path('routes/rest_api/v3/seller.php'));
         $vendorRoutes = file_get_contents(base_path('routes/vendor/routes.php'));
         $apiController = file_get_contents(app_path('Http/Controllers/RestAPI/v3/seller/OrderController.php'));
-        $appRoot = 'E:/project/vendor-app-main/lib';
 
         $this->assertStringContainsString("Route::get('insurance-pending', 'insurancePending')", $apiRoutes);
         $this->assertStringContainsString("Route::get('insurance-pending', [SellerOrderInsuranceWebController::class, 'pending'])->name('insurance-pending')", $vendorRoutes);
         $this->assertStringContainsString('never selects or serializes customer, address or product relations', $apiController);
-        $this->assertStringContainsString('insurancePendingOrdersUri', file_get_contents($appRoot . '/utill/app_constants.dart'));
-        $this->assertStringContainsString("_orderType = 'insurance_pending'", file_get_contents($appRoot . '/features/order/controllers/order_controller.dart'));
-        $this->assertStringContainsString('restrictedAccessToken', file_get_contents($appRoot . '/features/order/domain/models/order_model.dart'));
     }
 
     public function test_company_shipping_statuses_are_protected_in_web_api_and_application(): void

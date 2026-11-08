@@ -43,6 +43,12 @@ class AdminOrderGatePhaseThreeTest extends TestCase
             $t->decimal('shipping_customer_cost', 24, 3)->nullable(); $t->decimal('shipping_seller_cost', 24, 3)->nullable(); $t->decimal('shipping_seller_entitlement', 24, 3)->nullable();
             $t->timestamps();
         });
+        Schema::table('orders', function (Blueprint $t): void {
+            $t->string('seller_shipping_response_status')->nullable(); $t->timestamp('seller_shipping_response_due_at')->nullable();
+            $t->timestamp('seller_shipping_response_at')->nullable(); $t->text('seller_shipping_rejection_reason')->nullable();
+            $t->unsignedBigInteger('seller_shipping_support_ticket_id')->nullable(); $t->string('shipping_workflow_status')->nullable();
+            $t->timestamp('operational_status_updated_at')->nullable();
+        });
         Schema::create('order_insurances', function (Blueprint $t): void {
             $t->id(); $t->unsignedBigInteger('order_id')->unique(); $t->unsignedBigInteger('customer_id'); $t->decimal('amount',24,3); $t->decimal('order_amount',24,3); $t->string('payment_status');
             $t->string('status'); $t->decimal('confiscated_amount',24,3)->default(0); $t->string('purchase_refund_status')->default('not_applicable'); $t->timestamp('purchase_refund_due_at')->nullable(); $t->json('metadata')->nullable(); $t->timestamps();
@@ -78,13 +84,11 @@ class AdminOrderGatePhaseThreeTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_admin_assignment_saves_seller_insurance_shipping_and_audited_snapshot(): void
+    public function test_admin_assignment_saves_shipping_without_creating_a_vendor_deposit(): void
     {
         [$service, $sellerInsurance, $shipping] = $this->service();
         $order = $this->order();
-        $sellerInsurance->shouldReceive('createFromAdminDecision')->once()->andReturnUsing(function (Order $order): SellerOrderInsurance {
-            return SellerOrderInsurance::query()->create(['order_id'=>$order->id,'seller_id'=>$order->seller_id,'amount'=>125,'order_amount'=>2500,'percentage'=>5,'amount_source'=>'admin_override','calculation_type'=>'percentage','calculation_value'=>5,'status'=>'pending_payment','payment_status'=>'unpaid','admin_decision_reason'=>'Risk adjustment']);
-        });
+        $sellerInsurance->shouldNotReceive('createFromAdminDecision');
         $shipping->shouldReceive('assign')->once()->andReturnUsing(function (Order $order): OrderShippingDecision {
             $order->update(['shipping_assignment_status'=>'assigned','shipping_fulfillment_mode'=>'admin_shipping']);
             return OrderShippingDecision::query()->create(['order_id'=>$order->id,'mode'=>'admin_shipping','assignment_status'=>'assigned','customer_cost'=>50,'seller_cost'=>20,'tracking_number'=>'TRK-1']);
@@ -93,7 +97,9 @@ class AdminOrderGatePhaseThreeTest extends TestCase
         $decision = $service->saveAssignment($order, $this->assignment(), 7);
 
         $this->assertSame('assignment_saved', $decision->action);
-        $this->assertSame(125.0, $decision->seller_insurance_amount);
+        $this->assertNull($decision->seller_insurance_amount);
+        $this->assertDatabaseCount('seller_order_insurances', 0);
+        $this->assertFalse(data_get($decision->snapshot, 'vendor_deposit_required'));
         $this->assertSame(OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS, $order->fresh()->commerce_flow_status);
         $this->assertSame('TRK-1', data_get($decision->snapshot, 'shipping.tracking_number'));
     }
@@ -108,17 +114,36 @@ class AdminOrderGatePhaseThreeTest extends TestCase
         $service->releaseToSeller($order, 'Approve', 7);
     }
 
-    public function test_release_requires_both_decisions_and_then_sends_only_after_admin_audit(): void
+    public function test_seller_release_cannot_bypass_customer_onboarding_requirements(): void
     {
         [$service] = $this->service();
         $order = $this->order();
+        OrderShippingDecision::query()->create(['order_id'=>$order->id,'mode'=>'seller_shipping','assignment_status'=>'assigned']);
+        $order->update(['commerce_flow_status'=>OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS,'shipping_assignment_status'=>'assigned']);
+        $eligibility = $this->mock(\App\Services\CustomerPurchaseEligibilityService::class);
+        $eligibility->shouldReceive('assertCanFulfill')->once()->andThrow(\Illuminate\Validation\ValidationException::withMessages(['customer_eligibility'=>'الطلب معلّق لحين تفعيل الحساب.']));
+        try { $service->releaseToSeller($order, 'Approve', 7); $this->fail('Onboarding was bypassed.'); }
+        catch (\Illuminate\Validation\ValidationException $error) { $this->assertArrayHasKey('customer_eligibility', $error->errors()); }
+        $this->assertSame(OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS, $order->fresh()->commerce_flow_status);
+        $this->assertDatabaseCount('order_admin_gate_decisions', 0);
+        Event::assertNotDispatched(OrderStatusEvent::class);
+    }
+
+    public function test_release_preserves_unpaid_customer_and_vendor_legacy_deposits_after_shipping_audit(): void
+    {
+        [$service] = $this->service();
+        $order = $this->order();
+        $order->insurance->update(['payment_status'=>'unpaid']);
         SellerOrderInsurance::query()->create(['order_id'=>$order->id,'seller_id'=>$order->seller_id,'amount'=>100,'order_amount'=>2500,'status'=>'pending_payment','payment_status'=>'unpaid']);
         OrderShippingDecision::query()->create(['order_id'=>$order->id,'mode'=>'seller_shipping','assignment_status'=>'assigned']);
         $order->update(['commerce_flow_status'=>OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS,'shipping_assignment_status'=>'assigned','checked'=>1]);
 
         $decision = $service->releaseToSeller($order->fresh(), 'Verified and assigned', 9);
 
-        $this->assertSame(OrderCommerceState::SELLER_INSURANCE_PENDING, $order->fresh()->commerce_flow_status);
+        $this->assertSame(OrderCommerceState::RELEASED_TO_SELLER, $order->fresh()->commerce_flow_status);
+        $this->assertSame('unpaid', SellerOrderInsurance::first()->payment_status);
+        $this->assertSame('unpaid', $order->fresh()->insurance->payment_status);
+        $this->assertSame('pending', $order->fresh()->seller_shipping_response_status);
         $this->assertSame('approved', $order->fresh()->admin_order_review_status);
         $this->assertSame(0, (int) $order->fresh()->checked);
         $this->assertSame('released_to_seller', $decision->action);
@@ -176,8 +201,8 @@ class AdminOrderGatePhaseThreeTest extends TestCase
         $this->assertStringContainsString("order_admin_gate_decisions", $migration);
         $this->assertStringContainsString("order_risk_investigations", $migration);
         $this->assertStringContainsString("admin.orders.admin-gate.index", $shortcut);
-        $this->assertStringContainsString('restrictedSellerPayload', $sellerApi);
-        $this->assertStringContainsString('details_locked_until_seller_insurance_payment', $sellerList);
+        $this->assertStringContainsString('SellerOrderVisibilityService', $sellerApi);
+        $this->assertStringNotContainsString('details_locked_until_seller_insurance_payment', $sellerList);
         $this->assertTrue(config('order_commerce.features.admin_review_before_seller'));
     }
 
@@ -188,6 +213,45 @@ class AdminOrderGatePhaseThreeTest extends TestCase
 
         $this->assertStringNotContainsString('@', $footer);
         $this->assertStringContainsString(url('/'), $footer);
+    }
+
+    public function test_release_without_any_vendor_deposit_preserves_shipping_response_and_receipt_audit(): void
+    {
+        [$service] = $this->service();
+        $order = $this->order();
+        OrderShippingDecision::create(['order_id' => $order->id, 'mode' => 'seller_shipping', 'assignment_status' => 'assigned']);
+        $order->update(['commerce_flow_status' => OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS, 'shipping_assignment_status' => 'assigned']);
+        $decision = $service->releaseToSeller($order, 'إطلاق دون تأمين', 9);
+        $this->assertDatabaseCount('seller_order_insurances', 0);
+        $this->assertNull($decision->seller_order_insurance_id);
+        $this->assertNotNull(data_get($decision->snapshot, 'seller_received_at'));
+        $this->assertSame(OrderCommerceState::RELEASED_TO_SELLER, $order->fresh()->commerce_flow_status);
+        $this->assertSame('pending', $order->fresh()->seller_shipping_response_status);
+    }
+
+    public function test_release_cannot_bypass_shipping_or_an_open_investigation(): void
+    {
+        [$service] = $this->service();
+        $order = $this->order();
+        $order->update(['commerce_flow_status' => OrderCommerceState::ADMIN_ASSIGNMENT_IN_PROGRESS]);
+        try {
+            $service->releaseToSeller($order, 'No shipping', 9);
+            $this->fail('An unassigned shipping decision must block release.');
+        } catch (\DomainException $exception) {
+            $this->assertSame('shipping_decision_is_required_before_seller_release', $exception->getMessage());
+        }
+        OrderRiskInvestigation::create(['order_id' => $order->id, 'status' => 'open', 'risk_level' => 'high', 'reason' => 'Review', 'opened_at' => now()]);
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('order_is_frozen_for_admin_investigation');
+        $service->releaseToSeller($order, 'Under investigation', 9);
+    }
+
+    public function test_shipping_assignment_template_compiles_without_deposit_controls(): void
+    {
+        $source = file_get_contents(resource_path('views/admin-views/order/admin-gate/show.blade.php'));
+        $compiled = app('blade.compiler')->compileString($source);
+        $this->assertNotEmpty(token_get_all($compiled, TOKEN_PARSE));
+        $this->assertStringNotContainsString('name="seller_insurance_mode"', $source);
     }
 
     private function order(): Order
@@ -212,6 +276,6 @@ class AdminOrderGatePhaseThreeTest extends TestCase
         $governance = Mockery::mock(InsuranceBalanceGovernanceService::class);
         $customerFlow = Mockery::mock(CustomerPostPurchaseInsuranceService::class);
         $purchaseWallet = Mockery::mock(CustomerPurchaseWalletPolicyService::class);
-        return [new AdminOrderGateService($seller,$shipping,$governance,$customerFlow,$purchaseWallet),$seller,$shipping,$governance,$customerFlow,$purchaseWallet];
+        return [new AdminOrderGateService($shipping,$governance,$customerFlow,$purchaseWallet),$seller,$shipping,$governance,$customerFlow,$purchaseWallet];
     }
 }

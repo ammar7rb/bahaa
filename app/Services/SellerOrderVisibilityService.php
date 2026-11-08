@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Order;
-use App\Models\SellerOrderInsurance;
 use App\Support\Commerce\OrderCommerceState;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -12,7 +11,8 @@ use Illuminate\Support\Collection;
 class SellerOrderVisibilityService
 {
     private const BLOCKED_REVIEW_STATUSES = [
-        'pending_admin_review', 'assignment_in_progress', 'waiting_customer_post_purchase_payment', 'reassigned',
+        'pending', 'pending_admin_review', 'assignment_in_progress', 'waiting_customer_post_purchase_payment',
+        'under_investigation', 'rejected', 'reassigned',
     ];
 
     private const ACCESSIBLE_FLOW_STATUSES = [
@@ -30,6 +30,8 @@ class SellerOrderVisibilityService
         $restrictedVersions = [PostPurchaseInvoiceService::CONTRACT_VERSION, config('order_commerce.new_flow_version')];
 
         return $query
+            ->where(fn ($state) => $state->whereNull('commerce_flow_status')
+                ->orWhere('commerce_flow_status', '<>', OrderCommerceState::UNDER_INVESTIGATION))
             ->where(fn ($gate) => $gate->whereNull('admin_order_review_status')
                 ->orWhereNotIn('admin_order_review_status', self::BLOCKED_REVIEW_STATUSES))
             ->where(function ($flow) use ($restrictedVersions): void {
@@ -45,6 +47,7 @@ class SellerOrderVisibilityService
     /** Seller may see either the complete order or its restricted insurance gate. */
     public function canSellerAccess(Order|array $order): bool
     {
+        if (data_get($order, 'commerce_flow_status') === OrderCommerceState::UNDER_INVESTIGATION) return false;
         if (in_array(data_get($order, 'admin_order_review_status'), self::BLOCKED_REVIEW_STATUSES, true)) return false;
 
         $flow = data_get($order, 'commerce_flow_version');
@@ -59,10 +62,13 @@ class SellerOrderVisibilityService
     public function canSellerView(Order|array $order): bool
     {
         if (! $this->canSellerAccess($order)) return false;
-        $existingInsurance = $order instanceof Order
-            ? ($order->relationLoaded('sellerOrderInsurance') ? $order->sellerOrderInsurance : $order->sellerOrderInsurance()->first())
-            : SellerOrderInsurance::where('order_id', (int) data_get($order, 'id'))->where('seller_id', (int) data_get($order, 'seller_id'))->first();
-        if ($existingInsurance && !app(SellerOrderInsuranceService::class)->canViewDetails($existingInsurance)) return false;
+        // Historical insurance workflows can still be awaiting payment or review.
+        // They remain restricted without imposing a new insurance requirement on
+        // orders which the current admin gate has already released.
+        if (in_array(data_get($order, 'commerce_flow_status'), [
+            OrderCommerceState::SELLER_INSURANCE_PENDING,
+            OrderCommerceState::SELLER_INSURANCE_UNDER_REVIEW,
+        ], true)) return false;
         $flow = data_get($order, 'commerce_flow_version');
         $requiresRestrictedRelease = in_array($flow, [
             PostPurchaseInvoiceService::CONTRACT_VERSION,
@@ -77,20 +83,7 @@ class SellerOrderVisibilityService
             return false;
         }
 
-        if ($flow === config('order_commerce.new_flow_version')
-            && \Illuminate\Support\Facades\Schema::hasTable('order_reassignment_transfers')
-            && \Illuminate\Support\Facades\DB::table('order_reassignment_transfers')
-                ->where('target_order_id', (int) data_get($order, 'id'))->exists()) {
-            return !\Illuminate\Support\Facades\Schema::hasTable('vendor_fulfillment_requests')
-                || !\Illuminate\Support\Facades\DB::table('vendor_fulfillment_requests')
-                ->where('order_id', (int) data_get($order, 'id'))
-                ->whereIn('status', ['locked', 'pending_vendor'])->exists();
-        }
-
-        $insurance = $existingInsurance;
-
-        return $insurance !== null
-            && app(SellerOrderInsuranceService::class)->canViewDetails($insurance);
+        return true;
     }
 
     public function visible(Collection $orders): Collection

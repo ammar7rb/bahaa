@@ -89,6 +89,20 @@ class SellerOrderVisibilityConsistencyTest extends TestCase
         $this->assertFalse(app(SellerOrderVisibilityService::class)->canSellerView($order));
     }
 
+    public function test_admin_approved_order_is_visible_without_creating_a_vendor_deposit(): void
+    {
+        $order = $this->order(['commerce_flow_version'=>config('order_commerce.new_flow_version'),
+            'commerce_flow_status'=>'released_to_seller', 'admin_order_review_status'=>'approved']);
+        $this->assertTrue(app(SellerOrderVisibilityService::class)->canSellerView($order));
+    }
+
+    public function test_investigation_blocks_even_legacy_orders_in_sql_and_memory(): void
+    {
+        $order = $this->order(['commerce_flow_version'=>'legacy-v1', 'commerce_flow_status'=>'under_investigation']);
+        $this->assertFalse(app(SellerOrderVisibilityService::class)->canSellerView($order));
+        $this->assertFalse(Order::sellerAccessible()->whereKey($order->id)->exists());
+    }
+
     public function test_released_order_can_be_confirmed_while_insurance_gate_stays_restricted(): void
     {
         $order = $this->order([
@@ -98,6 +112,7 @@ class SellerOrderVisibilityConsistencyTest extends TestCase
         ]);
         app(OrderWorkflowService::class)->assertAdminOrderCanAdvance($order, 'confirmed');
         $this->assertTrue(app(SellerOrderVisibilityService::class)->canSellerAccess($order));
+        $this->assertFalse(app(SellerOrderVisibilityService::class)->canSellerView($order));
     }
 
     public function test_unreleased_order_can_still_be_cancelled_and_in_house_orders_are_unaffected(): void

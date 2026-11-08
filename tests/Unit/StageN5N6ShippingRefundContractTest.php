@@ -57,13 +57,14 @@ class StageN5N6ShippingRefundContractTest extends TestCase
             self::assertStringContainsString("data['{$field}']", $addressModel);
         }
         self::assertStringContainsString('shippingGovernorates', $addressScreen);
-        self::assertStringContainsString("latitude: '0'", $addressScreen);
-        self::assertStringContainsString("longitude: '0'", $addressScreen);
-        self::assertStringContainsString('insurance_notice_dismissed_', $dashboard);
-        self::assertStringContainsString('insuranceBalanceNotice', $dashboard);
-        self::assertStringContainsString('shippingQuoteForAddress', $shippingRepository);
+        self::assertStringContainsString('latitude: null', $addressScreen);
+        self::assertStringContainsString('longitude: null', $addressScreen);
+        self::assertStringNotContainsString('insuranceBalanceNotice', $dashboard);
+        self::assertStringContainsString('quoteShippingForAddress', $shippingRepository);
         self::assertStringContainsString('selectShippingQuoteForAddress', $shippingRepository);
-        self::assertStringContainsString('selectAddressQuote', $shippingDetails);
+        self::assertStringContainsString('quoteForAddress', $addressScreen);
+        self::assertStringContainsString('selectQuoteForAddress', $addressScreen);
+        self::assertStringContainsString('ShippingDetailsWidget', $shippingDetails);
         self::assertStringContainsString('name="building_number"', $defaultCheckout);
         self::assertStringContainsString('name="building_number"', $asterCheckout);
     }

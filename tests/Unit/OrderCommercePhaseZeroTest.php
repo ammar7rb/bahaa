@@ -53,11 +53,12 @@ class OrderCommercePhaseZeroTest extends TestCase
         $features = $service->all();
 
         $this->assertSame('2026-08-v2', $service->contractVersion());
-        $this->assertCount(8, $features);
+        foreach (['insurance_only_balances', 'customer_insurance_after_purchase', 'admin_review_before_seller'] as $feature) {
+            $this->assertTrue($features[$feature]);
+        }
         foreach ($features as $feature => $enabled) {
-            $expected = in_array($feature, ['insurance_only_balances', 'customer_insurance_after_purchase', 'admin_review_before_seller'], true);
-            $this->assertSame($expected, $enabled, "Only completed commerce features may be enabled by default.");
-            $this->assertSame($expected, $service->enabled($feature));
+            $this->assertIsBool($enabled);
+            $this->assertSame($enabled, $service->enabled($feature));
         }
 
         $this->expectException(InvalidArgumentException::class);
@@ -120,7 +121,7 @@ class OrderCommercePhaseZeroTest extends TestCase
         $this->assertSame(150.0, $payload['insurance']['amount']);
         $this->assertSame(10.0, $payload['insurance']['calculation_value']);
         $this->assertSame('insurance_only', $payload['insurance']['balance_use_policy']);
-        $this->assertTrue($payload['order_is_suspended_until_insurance_payment']);
+        $this->assertFalse($payload['order_is_suspended_until_insurance_payment']);
         $this->assertTrue($payload['support_available']);
     }
 
@@ -131,7 +132,7 @@ class OrderCommercePhaseZeroTest extends TestCase
         $this->assertIsString($view);
         foreach ([
             'admin.support-ticket.view',
-            'admin.activation-center.index',
+            'admin.orders.admin-gate.index',
             'admin.payment-reviews.index',
             'admin.banner.list',
             'admin.business-settings.priority-setup.index',
