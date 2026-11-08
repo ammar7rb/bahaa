@@ -17,9 +17,15 @@ class VendorSupportController extends Controller
     }
     public function store(Request $request)
     {
-        $data = $request->validate(['seller_id' => 'required|integer|exists:sellers,id', 'subject' => 'required|string|max:191', 'body' => 'required|string|max:10000']);
+        $data = $request->validate(['seller_id' => 'required|integer|exists:sellers,id', 'order_id'=>'nullable|integer|min:1', 'subject' => 'required|string|max:191', 'body' => 'required|string|max:10000']);
+        if (!empty($data['order_id']) && !\App\Models\Order::whereKey($data['order_id'])->where('seller_id', $data['seller_id'])->where('seller_is', 'seller')->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['order_id'=>'رقم الطلب لا يخص التاجر المحدد.']);
+        }
         $thread = DB::transaction(function () use ($data) {
-            $thread = VendorSupportThread::create(['seller_id' => $data['seller_id'], 'created_by_admin_id' => auth('admin')->id(), 'subject' => $data['subject']]);
+            $attributes = ['seller_id' => $data['seller_id'], 'created_by_admin_id' => auth('admin')->id(), 'subject' => $data['subject']];
+            if (\Illuminate\Support\Facades\Schema::hasColumn('vendor_support_threads', 'order_id')) $attributes['order_id'] = $data['order_id'] ?? null;
+            elseif (!empty($data['order_id'])) throw \Illuminate\Validation\ValidationException::withMessages(['order_id'=>'يلزم تحديث قاعدة البيانات لربط المحادثة بالطلب.']);
+            $thread = VendorSupportThread::create($attributes);
             $thread->messages()->create(['admin_id' => auth('admin')->id(), 'body' => $data['body']]);
             return $thread;
         });

@@ -10,6 +10,7 @@
         <form method="post" action="{{ route('admin.vendor-support.store') }}">@csrf
             <div class="row"><div class="col-md-6"><label for="support-seller">{{ translate('vendor') }}</label><select class="form-control" id="support-seller" name="seller_id" required><option value="">{{ translate('select') }}</option>@foreach($sellers as $seller)<option value="{{ $seller->id }}" @selected(old('seller_id') == $seller->id)>{{ $seller->administrative_reference }} — {{ $seller->shop?->name ?: $seller->f_name.' '.$seller->l_name }}</option>@endforeach</select></div>
             <div class="col-md-6"><label for="support-subject">{{ translate('subject') }}</label><input class="form-control" id="support-subject" name="subject" maxlength="191" value="{{ old('subject') }}" required></div></div>
+            <label class="mt-3" for="support-order">رقم الطلب المرتبط (اختياري)</label><input class="form-control" id="support-order" name="order_id" type="number" min="1" value="{{ old('order_id') }}">
             <label class="mt-3" for="support-body">{{ translate('message') }}</label><textarea class="form-control" id="support-body" name="body" maxlength="10000" rows="4" required>{{ old('body') }}</textarea><button class="btn btn-primary mt-3">{{ translate('vendor_open_conversation') }}</button>
         </form>
     </div></div>

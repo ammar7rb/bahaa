@@ -108,7 +108,8 @@ class OrderCancellationSettlementService
             foreach (['order_admin_purchase_refunds', 'order_refund_ledgers', 'refund_requests'] as $table) {
                 if (DB::table($table)->where('order_id', $orderId)->exists()) $this->deny('يوجد مسار استرداد آخر لهذا الطلب.');
             }
-            User::query()->lockForUpdate()->findOrFail($order->customer_id);
+            $customer = User::query()->lockForUpdate()->findOrFail($order->customer_id);
+            $walletBefore = (float) $customer->wallet_balance;
             $gross = round((float) ($order->init_order_amount ?: $order->order_amount), 3);
             if ((float) $order->paid_amount > 0) $gross = min($gross, round((float) $order->paid_amount, 3));
             if ($gross <= 0 || round($refund + $fee + $discount, 3) > $gross + 0.0001) {
@@ -137,6 +138,8 @@ class OrderCancellationSettlementService
                 'reason' => trim($reason), 'gross' => $gross, 'fees' => $fee,
                 'discounts' => $discount, 'refunded' => $refund,
                 'credit_expires_at' => $expiresAt->toIso8601String(), 'wallet_transaction_id' => $receipt->id,
+                'financial_before' => ['customer_wallet' => $walletBefore],
+                'financial_after' => ['customer_wallet' => (float) $customer->fresh()->wallet_balance],
             ]);
             return DB::table('order_cancellation_settlements')->where('operation_key', $key)->first();
         }, 3);
@@ -169,7 +172,12 @@ class OrderCancellationSettlementService
                 if ($fee > 0 && DB::table('order_cancellation_settlements')->where('financial_reference', 'fulfillment-cancellation-'.$request->id)->exists()) {
                     $this->deny('تم تسجيل رسوم هذا الجزء سابقًا.');
                 }
+                $financialBefore = null;
                 if (!$charge && $fee > 0) {
+                    $ledger = app(SellerLedgerService::class);
+                    $ledger->lockSellerFinancialState((int) $item->seller_id);
+                    $financialBefore = ['operating_balance'=>(float)($ledger->summary((int)$item->seller_id, initializeLegacy:false)[SellerLedgerService::OPERATING] ?? 0),
+                        'outstanding_debt'=>app(VendorDebtService::class)->outstanding((int)$item->seller_id)];
                     $charge = app(VendorDebtService::class)->assess((int) $item->seller_id, 'cancellation_penalty',
                         'fulfillment_request', (string) $request->id, 'fulfillment-cancellation-'.$request->id, $fee,
                         ['order_id'=>$item->order_id, 'work_item_id'=>$item->id, 'reason'=>trim($reason), 'source'=>'admin_review'], $adminId);
@@ -194,7 +202,11 @@ class OrderCancellationSettlementService
                     'actor_type' => 'admin', 'event_key' => 'seller_cancellation_fee_reviewed',
                     'status_before' => $item->status, 'status_after' => $item->status,
                     'snapshot' => ['reason' => trim($reason), 'fee' => $assessed, 'debited' => $debited,
-                        'debt' => $debt, 'vendor_debt_charge_id' => $charge?->id], 'created_at' => now(),
+                        'debt' => $debt, 'vendor_debt_charge_id' => $charge?->id,
+                        'financial_before'=>$financialBefore,
+                        'financial_after'=>$financialBefore === null ? ['recorded_charge'=>$assessed, 'collected'=>$debited, 'debt'=>$debt]
+                            : ['operating_balance'=>(float)($ledger->summary((int)$item->seller_id, initializeLegacy:false)[SellerLedgerService::OPERATING] ?? 0),
+                                'outstanding_debt'=>app(VendorDebtService::class)->outstanding((int)$item->seller_id)]], 'created_at' => now(),
                 ]);
                 return DB::table('order_cancellation_settlements')->where('operation_key', $key)->first();
             }
@@ -205,6 +217,7 @@ class OrderCancellationSettlementService
             $ledger = app(SellerLedgerService::class);
             $ledger->lockSellerFinancialState((int) $item->seller_id);
             $available = max(0, (float) ($ledger->summary((int) $item->seller_id)[SellerLedgerService::AVAILABLE] ?? 0));
+            $debtBefore = app(VendorDebtService::class)->outstanding((int) $item->seller_id);
             $debited = min(round($available, 3), $fee);
             $debt = round($fee - $debited, 3);
             if ($debited > 0) $ledger->post((int) $item->seller_id, 'order_cancellation_fee', 'order-cancel-fee:'.$workItemId,
@@ -227,7 +240,10 @@ class OrderCancellationSettlementService
                 'order_detail_id' => $item->order_detail_id, 'actor_id' => $adminId,
                 'actor_type' => 'admin', 'event_key' => 'seller_cancellation_fee_assessed',
                 'status_before' => $item->status, 'status_after' => $item->status,
-                'snapshot' => ['reason' => trim($reason), 'fee' => $fee, 'debited' => $debited, 'debt' => $debt],
+                'snapshot' => ['reason' => trim($reason), 'fee' => $fee, 'debited' => $debited, 'debt' => $debt,
+                    'financial_before' => ['available' => $available, 'outstanding_debt' => $debtBefore],
+                    'financial_after' => ['available' => (float) ($ledger->summary((int) $item->seller_id)[SellerLedgerService::AVAILABLE] ?? 0),
+                        'outstanding_debt' => app(VendorDebtService::class)->outstanding((int) $item->seller_id)]],
                 'created_at' => now(),
             ]);
             return DB::table('order_cancellation_settlements')->where('operation_key', $key)->first();

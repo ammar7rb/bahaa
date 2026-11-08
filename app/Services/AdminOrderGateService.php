@@ -68,16 +68,17 @@ class AdminOrderGateService
                 && DB::table('order_reassignment_transfers')->where('target_order_id', $locked->id)->exists()) {
                 $transaction = \App\Models\OrderTransaction::query()->where('order_id', $locked->id)->lockForUpdate()->first();
                 if ($transaction) {
+                    $transactionBefore = $transaction->only(['seller_amount', 'admin_commission', 'delivery_charge']);
                     $transaction->seller_amount = (float) $pricing->procurement_amount;
                     $transaction->admin_commission = max(0, (float) $pricing->merchandise_sale - (float) $pricing->procurement_amount);
                     $transaction->delivery_charge = $entitlement;
                     $transaction->save();
                     app(OrderFinancialAuditService::class)->record($locked->fresh(), 'reassigned_vendor_entitlement_approved',
                         'order_transactions', $transaction->id, ['procurement_amount' => $pricing->procurement_amount,
-                            'shipping_entitlement' => $entitlement], $adminId);
+                            'shipping_entitlement' => $entitlement, 'financial_before'=>$transactionBefore,
+                            'financial_after'=>$transaction->only(array_keys($transactionBefore))], $adminId);
                 }
             }
-            app(OrderFinancialAuditService::class)->record($locked->fresh(), 'shipping_assigned', 'order_shipping_decisions', $assignment->shipping_decision_id, [], $adminId);
             $locked->refresh()->forceFill([
                 'seller_shipping_allocation' => $entitlement,
                 'platform_shipping_margin' => max(0, (float) $locked->shipping_cost - $entitlement),
@@ -89,6 +90,8 @@ class AdminOrderGateService
                 $locked, \Carbon\Carbon::parse($data['shipping_settlement_due_at']),
                 'اعتماد بيانات المراجعة وإرسال الطلب إلى التاجر', $adminId
             );
+            app(OrderFinancialAuditService::class)->record($locked->fresh(), 'shipping_assigned', 'order_shipping_decisions', $assignment->shipping_decision_id,
+                ['financial_before'=>$before, 'financial_after'=>$locked->fresh()->only(array_keys($before))], $adminId);
             $assignment->update(['snapshot' => array_merge($assignment->snapshot ?? [], [
                 'unified_review' => ['before' => $before, 'after' => $locked->only(array_keys($before)),
                     'pricing_approval_id' => $pricing->id],
@@ -346,9 +349,16 @@ class AdminOrderGateService
                     $locked = OrderAdminPurchaseRefund::query()->lockForUpdate()->find($refund->id);
                     if (! $locked || $locked->status !== 'scheduled') return false;
                     $reference = 'admin-investigation-refund-order-'.$locked->order_id;
+                    $customer = \App\Models\User::query()->lockForUpdate()->findOrFail($locked->customer_id);
+                    $walletBefore = (float) $customer->wallet_balance;
                     $this->purchaseWallet->creditPurchaseRefund($locked->customer_id, $locked->amount, $reference);
                     $locked->update(['status' => 'completed', 'completed_at' => now(), 'reference' => $reference]);
                     Order::query()->whereKey($locked->order_id)->update(['commerce_flow_status' => OrderCommerceState::CANCELLED, 'commerce_flow_status_updated_at' => now(), 'operational_blocked_by' => null, 'operational_block_reason' => 'purchase_refund_completed']);
+                    if ($order = Order::find($locked->order_id)) app(OrderFinancialAuditService::class)->record($order,
+                        'investigation_refund_completed', 'order_admin_purchase_refunds', (int)$locked->id,
+                        ['financial_before'=>['refund_status'=>'scheduled','customer_wallet'=>$walletBefore],
+                            'financial_after'=>['refund_status'=>'completed','customer_wallet'=>(float)$customer->fresh()->wallet_balance],
+                            'amount'=>(float)$locked->amount,'reference'=>$reference]);
                     return true;
                 });
                 $count += $done ? 1 : 0;
@@ -379,10 +389,14 @@ class AdminOrderGateService
         }
         if ($order->order_status !== 'canceled') OrderManager::getStockUpdateOnOrderStatusChange($order, 'canceled');
         $days = max(0, min(365, (int) (\App\Models\BusinessSetting::query()->where('type', 'customer_purchase_refund_delay_days')->value('value') ?? config('order_commerce.customer_insurance.purchase_refund_delay_days', 7))));
-        OrderAdminPurchaseRefund::query()->firstOrCreate(['order_id' => $order->id], [
+        $refund = OrderAdminPurchaseRefund::query()->firstOrCreate(['order_id' => $order->id], [
             'customer_id' => $order->customer_id, 'amount' => $order->order_amount, 'status' => 'scheduled',
             'due_at' => now()->addDays($days), 'reason' => $reason, 'admin_id' => $adminId,
         ]);
+        if ($refund->wasRecentlyCreated) app(OrderFinancialAuditService::class)->record($order, 'investigation_refund_scheduled',
+            'order_admin_purchase_refunds', (int)$refund->id, ['financial_before'=>null,
+                'financial_after'=>['refund_status'=>'scheduled','amount'=>(float)$refund->amount,
+                    'due_at'=>$refund->due_at?->toIso8601String()]], $adminId);
         $order->forceFill(['order_status' => 'canceled', 'commerce_flow_status' => OrderCommerceState::PURCHASE_REFUND_PENDING, 'commerce_flow_status_updated_at' => now(), 'operational_blocked_by' => 'admin_investigation', 'operational_block_reason' => $reason])->save();
     }
 

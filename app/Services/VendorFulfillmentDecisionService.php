@@ -115,6 +115,7 @@ class VendorFulfillmentDecisionService
         $shippingRatio = $shippingWeight > 0 ? max(0, (float) $chosen->shipping_vendor_cost) / $shippingWeight : $ratio;
         $goods = round((float) $request->vendor_amount * $ratio, 8);
         $shipping = round((float) $request->shipping_amount * $shippingRatio, 8);
+        $financialBefore = ['vendor_amount'=>(float)$request->vendor_amount, 'shipping_amount'=>(float)$request->shipping_amount];
         $new = $request->replicate();
         $new->vendor_amount = $goods; $new->shipping_amount = $shipping; $new->save();
         $request->vendor_amount = round((float) $request->vendor_amount - $goods, 8);
@@ -122,7 +123,10 @@ class VendorFulfillmentDecisionService
         DB::table('vendor_fulfillment_request_items')->where('id', $selected->id)->update(['request_id' => $new->id]);
         DB::table('vendor_fulfillment_events')->insert(['request_id' => $new->id, 'event_type' => 'individual_split',
             'metadata' => json_encode(['source_request_id' => $request->id, 'order_detail_id' => $lineId,
-                'vendor_amount' => $goods, 'shipping_amount' => $shipping, 'actor' => 'seller', 'actor_id' => $seller->id], JSON_THROW_ON_ERROR),
+                'vendor_amount' => $goods, 'shipping_amount' => $shipping, 'actor' => 'seller', 'actor_id' => $seller->id,
+                'financial_before'=>$financialBefore, 'financial_after'=>[
+                    'remaining'=>['vendor_amount'=>(float)$request->vendor_amount, 'shipping_amount'=>(float)$request->shipping_amount],
+                    'selected'=>['vendor_amount'=>$goods, 'shipping_amount'=>$shipping]]], JSON_THROW_ON_ERROR),
             'created_at' => now()]);
         return (int) $new->id;
     }
@@ -184,8 +188,15 @@ class VendorFulfillmentDecisionService
                     :['enabled'=>false,'assessed_amount'=>'0.00','base_amount'=>$row->vendor_amount,'trigger'=>'admin_or_customer_cancellation_excluded'];
                 if($actor==='seller'&&$expectedPenaltyRevision!==null&&$expectedPenaltyRevision!==$rule['revision'])throw new DomainException('تغير إعداد الغرامة؛ راجع المبلغ قبل تأكيد الإلغاء.');
                 if((float)$rule['assessed_amount']>0){
+                    $financialBefore = ['operating_balance'=>(float)(app(SellerLedgerService::class)->summary($sellerId, initializeLegacy:false)[SellerLedgerService::OPERATING] ?? 0),
+                        'outstanding_debt'=>app(VendorDebtService::class)->outstanding($sellerId)];
                     $charge=app(VendorDebtService::class)->assess($sellerId,'cancellation_penalty','fulfillment_request',(string)$id,
                         'fulfillment-cancellation-'.$id,$rule['assessed_amount'],$rule+['reason_code'=>'vendor_canceled_after_acceptance','reason'=>$reason,'accepted_at'=>$row->accepted_at->toIso8601String()]);
+                    app(OrderFinancialAuditService::class)->record($order, 'vendor_cancellation_penalty', 'vendor_debt_charges', (int) $charge->id,
+                        ['financial_before'=>$financialBefore, 'financial_after'=>[
+                            'operating_balance'=>(float)(app(SellerLedgerService::class)->summary($sellerId, initializeLegacy:false)[SellerLedgerService::OPERATING] ?? 0),
+                            'outstanding_debt'=>app(VendorDebtService::class)->outstanding($sellerId)],
+                            'amount'=>(float)$charge->amount, 'reason'=>$reason, 'actor_type'=>'seller', 'actor_id'=>$sellerId]);
                     $updates['penalty_charge_id']=$charge->id;
                     $rule+=['charge_id'=>$charge->id,'wallet_collected'=>$charge->wallet_collected,'debt_assessed'=>$charge->debt_assessed];
                 }

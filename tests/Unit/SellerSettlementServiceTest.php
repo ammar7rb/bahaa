@@ -58,7 +58,7 @@ class SellerSettlementServiceTest extends TestCase
     protected function tearDown(): void
     {
         Cache::flush();
-        foreach (['notifications', 'business_settings', 'orders', 'seller_settlements', 'seller_ledger_entries', 'seller_wallets', 'sellers'] as $table) {
+        foreach (['order_financial_events', 'notifications', 'business_settings', 'orders', 'seller_settlements', 'seller_ledger_entries', 'seller_wallets', 'sellers'] as $table) {
             Schema::dropIfExists($table);
         }
         parent::tearDown();
@@ -66,6 +66,11 @@ class SellerSettlementServiceTest extends TestCase
 
     public function test_hold_uses_working_days_and_releases_pending_to_available_once(): void
     {
+        Schema::create('order_financial_events', function (Blueprint $t) {
+            $t->id(); $t->integer('order_id'); $t->integer('seller_id'); $t->string('event_key')->unique();
+            $t->string('event_type'); $t->string('source_type'); $t->integer('source_id'); $t->integer('admin_id')->nullable();
+            $t->json('snapshot'); $t->timestamp('created_at');
+        });
         $this->setting('seller_settlement_hold_days', '3');
         $this->setting('seller_settlement_working_days', json_encode([0, 1, 2, 3, 4]));
         $this->setting('seller_settlement_holidays', json_encode(['2026-08-10']));
@@ -85,6 +90,10 @@ class SellerSettlementServiceTest extends TestCase
         $this->assertSame(0.0, app(SellerLedgerService::class)->summary($seller->id)[SellerLedgerService::PENDING]);
         $this->assertSame(50.0, app(SellerLedgerService::class)->summary($seller->id)[SellerLedgerService::AVAILABLE]);
         $this->assertSame(0, $service->releaseDue());
+        $receipt = json_decode(\DB::table('order_financial_events')->where('event_type', 'settlement_released')->value('snapshot'), true);
+        $this->assertSame('held', $receipt['financial_before']['status']);
+        $this->assertSame('released', $receipt['financial_after']['status']);
+        $this->assertEquals(50, $receipt['ledger_movements'][1]['amount']);
         $this->assertSame(2, \App\Models\Notification::count());
     }
 

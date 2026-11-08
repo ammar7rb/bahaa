@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class VendorSupportThread extends Model
 {
-    protected $fillable = ['seller_id', 'created_by_admin_id', 'subject', 'status'];
+    protected $fillable = ['seller_id', 'order_id', 'created_by_admin_id', 'subject', 'status'];
     public function messages(): HasMany { return $this->hasMany(VendorSupportMessage::class)->orderBy('id'); }
     public function seller(): BelongsTo { return $this->belongsTo(Seller::class); }
 }

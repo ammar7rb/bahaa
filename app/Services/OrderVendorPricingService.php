@@ -94,7 +94,9 @@ class OrderVendorPricingService
             $receipt = OrderVendorPricing::create(['order_id' => $locked->id, 'seller_id' => $locked->seller_id,
                 'admin_id' => $adminId, 'procurement_amount' => $summary['procurement_amount'],
                 'merchandise_sale' => $summary['merchandise_sale'], 'snapshot' => $summary, 'approved_at' => now()]);
-            app(OrderFinancialAuditService::class)->record($locked, 'pricing_approved', 'order_vendor_pricings', $receipt->id, [], $adminId);
+            app(OrderFinancialAuditService::class)->record($locked, 'pricing_approved', 'order_vendor_pricings', $receipt->id,
+                ['financial_before'=>null, 'financial_after'=>['procurement_amount'=>$summary['procurement_amount'],
+                    'merchandise_sale'=>$summary['merchandise_sale'], 'margin'=>$summary['margin']]], $adminId);
             return $receipt;
         });
     }

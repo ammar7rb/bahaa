@@ -33,6 +33,7 @@
 
     <div class="row g-3">
         <div class="col-xl-8">
+            @include('admin-views.order.partials._timeline')
             @if(\Illuminate\Support\Facades\Schema::hasTable('order_work_items'))
             <div class="card mb-3"><div class="card-header"><h4 class="mb-0">حصص المنتجات وقرارات التجار</h4></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>المنتج</th><th>التاجر</th><th>الحالة</th><th>رد التاجر قبل</th><th>العميل / صافي التاجر</th></tr></thead><tbody>
                 @foreach($order->workItems()->with(['line','seller.shop'])->get() as $workItem)

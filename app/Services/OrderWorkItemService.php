@@ -174,11 +174,15 @@ class OrderWorkItemService
                 throw new DomainException('مهلة رد التاجر لم تنته بعد.');
             }
             $before = $locked->status;
+            $financialFields = ['vendor_unit_price', 'shipping_customer_cost', 'shipping_vendor_cost', 'customer_total', 'vendor_net_amount'];
+            $financialBefore = $locked->only($financialFields);
             $locked->forceFill(array_merge($attributes, ['status' => $next]))->save();
             OrderWorkItemEvent::query()->create([
                 'work_item_id' => $locked->id, 'order_id' => $locked->order_id, 'order_detail_id' => $locked->order_detail_id,
                 'actor_id' => $actorId, 'actor_type' => $actorType, 'event_key' => $eventKey,
-                'status_before' => $before, 'status_after' => $next, 'snapshot' => $snapshot, 'created_at' => now(),
+                'status_before' => $before, 'status_after' => $next,
+                'snapshot' => array_merge($snapshot, ['financial_before' => $financialBefore,
+                    'financial_after' => $locked->only($financialFields)]), 'created_at' => now(),
             ]);
             return $locked->fresh();
         });

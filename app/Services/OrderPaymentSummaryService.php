@@ -10,7 +10,8 @@ class OrderPaymentSummaryService
     {
         // Only the sales order is payable here. Legacy invoices and deposits
         // remain financial history and must never change its payment state.
-        $paid = $order->payment_status === 'paid';
+        $paid = $order->payment_status === 'paid'
+            && (!$order->customer_initial_payment_review_status || $order->customer_initial_payment_review_status === 'approved');
         $edit = $order->edited_status == 1 ? $order->latestEditHistory : null;
         $editUnpaid = $edit && $edit->order_due_payment_status === 'unpaid' && (float) $edit->order_due_amount > 0;
         $lines = [[

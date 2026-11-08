@@ -191,7 +191,7 @@ class SellerShippingResponseService
             }
 
             $before = (string) ($locked->commerce_flow_status ?? '');
-            $this->recordDecision($locked, 'seller_shipping_follow_up_sent', $before, $before, $message);
+            $this->recordDecision($locked, 'seller_shipping_follow_up_sent', $before, $before, $message, $adminId);
 
             return $locked->fresh();
         });
@@ -245,11 +245,11 @@ class SellerShippingResponseService
         ]);
     }
 
-    private function recordDecision(Order $order, string $action, string $before, string $after, ?string $note): void
+    private function recordDecision(Order $order, string $action, string $before, string $after, ?string $note, ?int $adminId = null): void
     {
         OrderAdminGateDecision::query()->create([
             'order_id' => $order->id,
-            'admin_id' => null,
+            'admin_id' => $adminId,
             'action' => $action,
             'status_before' => $before,
             'status_after' => $after,

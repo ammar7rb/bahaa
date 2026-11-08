@@ -57,6 +57,9 @@ class IndividualFulfillmentSplitTest extends TestCase
         $new = DB::table('vendor_fulfillment_requests')->where('id', $newId)->first();
         $this->assertEquals(10, $old->vendor_amount); $this->assertEquals(4, $old->shipping_amount);
         $this->assertEquals(30, $new->vendor_amount); $this->assertEquals(6, $new->shipping_amount);
+        $audit = json_decode(DB::table('vendor_fulfillment_events')->where('request_id', $newId)->value('metadata'), true);
+        $this->assertEquals(40, $audit['financial_before']['vendor_amount']);
+        $this->assertEquals(10, $audit['financial_after']['remaining']['vendor_amount']);
         $this->assertSame(1, DB::table('vendor_fulfillment_request_items')->where('request_id', 1)->count());
         $this->assertSame($newId, DB::transaction(fn () => $method->invoke(app(VendorFulfillmentDecisionService::class), $seller, 1, 1)));
         DB::table('order_details')->insert(['id'=>3,'qty'=>1,'vendor_unit_price_snapshot'=>10]);

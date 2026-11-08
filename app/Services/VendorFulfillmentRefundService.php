@@ -33,8 +33,12 @@ class VendorFulfillmentRefundService
             if($reserved+$amount>(float)$order->order_amount+0.00000001)throw new DomainException('إجمالي الردود يتجاوز مبلغ العميل المدفوع.');
             $refund=RefundRequest::create(['fulfillment_request_id'=>$requestId,'order_details_id'=>$lineId,'customer_id'=>$order->customer_id,
                 'order_id'=>$order->id,'product_id'=>$line->product_id,'amount'=>$amount,'status'=>'pending','refund_reason'=>$reason,'images'=>[],'change_by'=>'admin']);
+            $lineRefundBefore = $line->refund_request;
             $line->update(['refund_request'=>1]);
-            app(OrderFinancialAuditService::class)->record($order,'vendor_portion_refund_prepared','refund_requests',$refund->id,['request_id'=>$requestId,'customer_refund_amount'=>$amount],$adminId);
+            app(OrderFinancialAuditService::class)->record($order,'vendor_portion_refund_prepared','refund_requests',$refund->id,
+                ['request_id'=>$requestId,'customer_refund_amount'=>$amount,
+                    'financial_before'=>['reserved_refunds'=>$reserved,'line_refund_request'=>$lineRefundBefore],
+                    'financial_after'=>['reserved_refunds'=>$reserved+$amount,'line_refund_request'=>1]],$adminId);
             return $refund;
         },3);
     }
@@ -51,6 +55,7 @@ class VendorFulfillmentRefundService
             if($refund->status===$status)return $refund;
             if($refund->status==='refunded')throw new DomainException('تم رد هذا المبلغ بالفعل؛ لا يمكن تكراره أو تعديل تاريخه.');
             if(!in_array($status,['pending','approved','rejected','refunded'],true))throw new DomainException('حالة الاسترداد غير صحيحة.');
+            $beforeStatus = $refund->status;
             $update=['status'=>$status,'change_by'=>'admin'];
             if($status==='refunded'){
                 if($order->payment_status!=='paid')throw new DomainException('لم يؤكد دفع العميل.');
@@ -59,10 +64,13 @@ class VendorFulfillmentRefundService
                 if($paid+(float)$refund->amount>(float)$order->order_amount+0.00000001)throw new DomainException('إجمالي الاسترداد يتجاوز المبلغ المدفوع.');
                 $method=(string)($data['payment_method']??'');$reference=trim((string)($data['payment_info']??''));
                 if($method===''||$reference==='')throw new DomainException('حدد وسيلة رد العميل ومرجع تأكيدها.');
+                $walletBefore = null; $walletAfter = null;
                 if(in_array($method,['customer_wallet','purchase_wallet'],true)){
                     if((int)getWebConfig('wallet_status')!==1||(int)getWebConfig('wallet_add_refund')!==1)throw new DomainException('رد العميل إلى المحفظة غير مفعل في إعدادات الاسترداد الحالية.');
+                    $walletBefore = (float) DB::table('users')->where('id', $refund->customer_id)->lockForUpdate()->value('wallet_balance');
                     $transaction=app(CustomerPurchaseWalletPolicyService::class)->creditPurchaseRefundBaseCurrency((int)$refund->customer_id,(float)$refund->amount,'vendor-fulfillment-refund-'.$refund->id);
                     if(abs((float)$transaction->credit-(float)$refund->amount)>0.00000001||(int)$transaction->user_id!==(int)$refund->customer_id)throw new DomainException('مرجع المحفظة لا يطابق رد العميل.');
+                    $walletAfter = (float) DB::table('users')->where('id', $refund->customer_id)->value('wallet_balance');
                 }
                 RefundTransaction::create(['order_id'=>$order->id,'payment_for'=>'Refund Request','payer_id'=>$adminId,'payment_receiver_id'=>$refund->customer_id,
                     'paid_by'=>'admin','paid_to'=>'customer','payment_method'=>$method,'payment_status'=>'paid','amount'=>$refund->amount,
@@ -70,11 +78,16 @@ class VendorFulfillmentRefundService
                 $update['payment_info']=$reference;
                 app(CustomerPurchaseLimitService::class)->returnRefundedOrderDetailLimit($order,OrderDetail::findOrFail($refund->order_details_id),$refund->id);
                 app(OrderFinancialAuditService::class)->record($order,'vendor_portion_customer_refunded','refund_requests',$refund->id,
-                    ['request_id'=>$row->id,'customer_refund_amount'=>$refund->amount,'vendor_debit'=>0,'method'=>$method,'reference'=>$reference],$adminId);
+                    ['request_id'=>$row->id,'customer_refund_amount'=>$refund->amount,'vendor_debit'=>0,'method'=>$method,'reference'=>$reference,
+                        'financial_before'=>['refunded_total'=>$paid, 'customer_wallet'=>$walletBefore, 'refund_status'=>$beforeStatus],
+                        'financial_after'=>['refunded_total'=>$paid+(float)$refund->amount, 'customer_wallet'=>$walletAfter, 'refund_status'=>$status]],$adminId);
             }
             foreach(['approved_note','rejected_note'] as $field)if(isset($data[$field]))$update[$field]=$data[$field];
             $refund->update($update);OrderDetail::whereKey($refund->order_details_id)->update(['refund_request'=>['pending'=>1,'approved'=>2,'rejected'=>3,'refunded'=>4][$status]]);
-            RefundStatus::create(['refund_request_id'=>$id,'change_by'=>'admin','change_by_id'=>$adminId,'status'=>$status,'message'=>$data['approved_note']??$data['rejected_note']??$data['payment_info']??null]);
+            $statusReceipt = RefundStatus::create(['refund_request_id'=>$id,'change_by'=>'admin','change_by_id'=>$adminId,'status'=>$status,'message'=>$data['approved_note']??$data['rejected_note']??$data['payment_info']??null]);
+            app(OrderFinancialAuditService::class)->record($order,'vendor_portion_refund_status_changed','refund_statuses',$statusReceipt->id,
+                ['financial_before'=>['refund_status'=>$beforeStatus, 'refund_amount'=>(float)$refund->amount],
+                    'financial_after'=>['refund_status'=>$status, 'refund_amount'=>(float)$refund->amount]],$adminId);
             DB::afterCommit(fn()=>\App\Events\RefundEvent::dispatch($status,$order,$refund,OrderDetail::findOrFail($refund->order_details_id)));
             return $refund->fresh();
         },3);

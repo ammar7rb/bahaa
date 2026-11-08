@@ -31,7 +31,9 @@ class VendorFulfillmentController extends Controller
             \Illuminate\Support\Facades\DB::table('vendor_fulfillment_financial_reviews')->where('id',$review->id)->update([
                 'status'=>'reviewed','admin_note'=>$data['financial_reference'].' — '.$data['note'],'reviewed_by'=>auth('admin')->id(),'reviewed_at'=>now(),'updated_at'=>now()]);
             \App\Models\OrderOperationalAlert::where('idempotency_key','vendor-portion-review-'.$id)->update(['resolved_at'=>now()]);
-            app(\App\Services\OrderFinancialAuditService::class)->record($order,'vendor_portion_financial_review','fulfillment_request',$id,$data,(int)auth('admin')->id());
+            app(\App\Services\OrderFinancialAuditService::class)->record($order,'vendor_portion_financial_review','fulfillment_request',$id,
+                $data + ['financial_before'=>['review_status'=>$review->status],
+                    'financial_after'=>['review_status'=>'reviewed']],(int)auth('admin')->id());
         },3);
         return back()->with('success','سُجلت المراجعة ومرجعها. لا تنفذ هذه الخطوة استردادًا أو تسوية مالية أخرى.');
     }

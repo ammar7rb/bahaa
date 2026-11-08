@@ -76,6 +76,10 @@ class SellerSettlementService
                 metadata: ['order_id' => (int) $order->id],
             );
 
+            $this->audit($settlement, 'settlement_held', ['financial_before' => null,
+                'financial_after' => $this->settlementSnapshot($settlement),
+                'ledger_movements' => [['bucket' => 'pending', 'direction' => 'credit', 'amount' => $amount]]]);
+
             $this->notifySeller($settlement, 'settlement_held');
             return $settlement;
         });
@@ -186,6 +190,7 @@ class SellerSettlementService
             if (!$model->due_at || $model->due_at->gt($now)) {
                 return false;
             }
+            $financialBefore = $this->settlementSnapshot($model);
 
             if (Schema::hasTable('order_vendor_pricings') && \App\Models\OrderVendorPricing::where('order_id', $model->order_id)->exists()) {
                 $order = Order::findOrFail($model->order_id);
@@ -211,7 +216,10 @@ class SellerSettlementService
                 referenceId: (int) $model->id,
             );
             $model->update(['status' => SellerSettlement::STATUS_RELEASED, 'released_at' => $now]);
-            $this->audit($model, 'settlement_released');
+            $this->audit($model, 'settlement_released', ['financial_before' => $financialBefore,
+                'financial_after' => $this->settlementSnapshot($model), 'ledger_movements' => [
+                    ['bucket'=>'pending', 'direction'=>'debit', 'amount'=>(float) $model->amount],
+                    ['bucket'=>'available', 'direction'=>'credit', 'amount'=>(float) $model->amount]]]);
             $this->notifySeller($model, 'settlement_released');
             return true;
         });
@@ -230,6 +238,7 @@ class SellerSettlementService
             $bucket = $model->status === SellerSettlement::STATUS_RELEASED
                 ? SellerLedgerService::AVAILABLE
                 : SellerLedgerService::PENDING;
+            $financialBefore = $this->settlementSnapshot($model);
             $this->ledger->post(
                 sellerId: (int) $model->seller_id,
                 eventType: 'seller_order_settlement_reverse',
@@ -246,7 +255,9 @@ class SellerSettlementService
                 'reviewed_by_admin_id' => $adminId,
                 'review_note' => $reason,
             ]);
-            $this->audit($model, 'settlement_reversed', ['reason' => $reason], $adminId);
+            $this->audit($model, 'settlement_reversed', ['reason' => $reason, 'financial_before' => $financialBefore,
+                'financial_after' => $this->settlementSnapshot($model),
+                'ledger_movements' => [['bucket'=>$bucket, 'direction'=>'debit', 'amount'=>(float) $model->amount]]], $adminId);
             $this->notifySeller($model, 'settlement_reversed');
             return true;
         });
@@ -262,9 +273,11 @@ class SellerSettlementService
             if (! $model || $model->status !== SellerSettlement::STATUS_HELD) {
                 return false;
             }
+            $financialBefore = $this->settlementSnapshot($model);
             $model->update(['status' => SellerSettlement::STATUS_DISPUTED, 'review_note' => $reason,
                 'metadata' => array_merge($model->metadata ?? [], ['financial_revision' => (int)data_get($model->metadata, 'financial_revision', 0) + 1])]);
-            $this->audit($model, 'settlement_disputed', ['reason' => $reason]);
+            $this->audit($model, 'settlement_disputed', ['reason' => $reason, 'financial_before' => $financialBefore,
+                'financial_after' => $this->settlementSnapshot($model)]);
             return true;
         });
     }
@@ -300,6 +313,7 @@ class SellerSettlementService
                 return null;
             }
             $canHold = in_array($settlement->status, [SellerSettlement::STATUS_HELD, SellerSettlement::STATUS_DISPUTED], true);
+            $financialBefore = $this->settlementSnapshot($settlement);
             $dispute = SellerSettlementDispute::query()->create([
                 'seller_settlement_id' => $settlement->id,
                 'order_id' => $order->id,
@@ -328,6 +342,10 @@ class SellerSettlementService
                 ]);
             }
 
+            $this->audit($settlement, 'settlement_return_disputed', ['operation_key'=>(string)$dispute->id,
+                'reason'=>$reason, 'financial_before'=>$financialBefore,
+                'financial_after'=>$this->settlementSnapshot($settlement), 'disputed_amount'=>$amount]);
+
             return $dispute;
         });
     }
@@ -346,12 +364,18 @@ class SellerSettlementService
             if ($dueAt->lt($model->delivered_at)) {
                 throw new DomainException('seller_settlement_due_date_before_delivery');
             }
+            $financialBefore = $this->settlementSnapshot($model);
             $model->update([
                 'due_at' => $dueAt,
                 'dispute_until' => $dueAt,
                 'reviewed_by_admin_id' => $adminId,
                 'review_note' => $note,
             ]);
+            if ($financialBefore !== $this->settlementSnapshot($model)) {
+                $this->audit($model, 'settlement_due_date_changed', ['operation_key'=>(string)\Illuminate\Support\Str::uuid(),
+                    'reason'=>$note, 'financial_before'=>$financialBefore,
+                    'financial_after'=>$this->settlementSnapshot($model)], $adminId);
+            }
             return $model->fresh();
         });
     }
@@ -367,12 +391,14 @@ class SellerSettlementService
             if ($model->status !== SellerSettlement::STATUS_DISPUTED) return false;
             $order = Order::findOrFail($model->order_id);
             if ($order->order_status !== 'delivered') throw new DomainException('Only a delivered order can resume settlement after review.');
+            $financialBefore = $this->settlementSnapshot($model);
             $model->update(['status' => SellerSettlement::STATUS_HELD, 'reviewed_by_admin_id' => $adminId, 'review_note' => $reason,
                 'metadata' => array_merge($model->metadata ?? [], [
                     'financial_revision' => (int)data_get($model->metadata, 'financial_revision', 0) + 1,
                     'review_resolution' => ['fingerprint' => $this->reviewFingerprint($order), 'admin_id' => $adminId, 'reason' => $reason, 'at' => now()->toIso8601String()],
                 ])]);
-            $this->audit($model, 'settlement_review_resumed', ['reason' => $reason], $adminId);
+            $this->audit($model, 'settlement_review_resumed', ['reason' => $reason, 'financial_before' => $financialBefore,
+                'financial_after' => $this->settlementSnapshot($model)], $adminId);
             return true;
         });
     }
@@ -382,6 +408,12 @@ class SellerSettlementService
         $returns = Schema::hasTable('refund_requests') ? RefundRequest::where('order_id', $order->id)
             ->whereNotIn('status', ['rejected','denied'])->orderBy('id')->lockForUpdate()->get(['id','status','amount'])->toArray() : [];
         return hash('sha256', json_encode([$order->order_status, $returns], JSON_THROW_ON_ERROR));
+    }
+
+    private function settlementSnapshot(SellerSettlement $settlement): array
+    {
+        return ['amount'=>(float) $settlement->amount, 'status'=>$settlement->status,
+            'due_at'=>$settlement->due_at?->toIso8601String()];
     }
 
     private function audit(SellerSettlement $settlement, string $event, array $data = [], ?int $adminId = null): void

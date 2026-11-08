@@ -392,6 +392,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     Route::group(['prefix' => 'orders', 'as' => 'orders.', 'middleware' => ['module:orders']], function () {
+        Route::post('{order}/communication-links', [\App\Http\Controllers\Admin\Order\OrderCommunicationLinkController::class, 'store'])->whereNumber('order')->name('communication-links.store');
         Route::get('center', [\App\Http\Controllers\Admin\Order\OrderCenterController::class, 'index'])->name('center');
         Route::get('cancellations', [\App\Http\Controllers\Admin\Order\OrderCancellationController::class, 'index'])->name('cancellations');
         Route::get('cancellations/seller-debts', [\App\Http\Controllers\Admin\Order\OrderCancellationController::class, 'sellerDebts'])->name('cancellations.seller-debts');

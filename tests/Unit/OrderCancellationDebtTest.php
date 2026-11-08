@@ -30,6 +30,7 @@ class OrderCancellationDebtTest extends TestCase
     {
         $debt = Mockery::mock(VendorDebtService::class);
         $debt->shouldReceive('createAdministrativeDebt')->once()->andReturn((object) ['id'=>12]);
+        $debt->shouldReceive('outstanding')->twice()->andReturn('0', '30');
         $this->app->instance(VendorDebtService::class, $debt);
         $ledger = Mockery::mock(SellerLedgerService::class); $ledger->shouldReceive('lockSellerFinancialState')->andReturnNull();
         $ledger->shouldReceive('summary')->andReturn([SellerLedgerService::AVAILABLE=>40]);

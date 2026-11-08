@@ -64,11 +64,16 @@ class OrderCancellationSettlementTest extends TestCase
 
     public function test_refund_is_atomic_capped_and_idempotent(): void
     {
+        DB::table('order_work_items')->insert(['id'=>4, 'order_id'=>10, 'order_detail_id'=>3,
+            'seller_id'=>7, 'status'=>'canceled', 'created_at'=>now(), 'updated_at'=>now()]);
         $service = app(OrderCancellationSettlementService::class);
         $row = $service->refundCustomer(10, 80, 15, 5, now()->addMonth(), 'طلب العميل الإلغاء', 7);
         $this->assertEquals(80, $row->refund_amount);
         $this->assertEquals(80, DB::table('users')->where('id', 1)->value('wallet_balance'));
         $this->assertSame(1, DB::table('wallet_transactions')->count());
+        $snapshot = json_decode(DB::table('order_work_item_events')->where('event_key', 'customer_cancellation_refunded')->value('snapshot'), true);
+        $this->assertEquals(0, $snapshot['financial_before']['customer_wallet']);
+        $this->assertEquals(80, $snapshot['financial_after']['customer_wallet']);
         try { $service->refundCustomer(10, 80, 15, 5, now()->addMonth(), 'تكرار', 7); $this->fail('Duplicate refund accepted'); }
         catch (ValidationException $exception) { $this->assertArrayHasKey('cancellation', $exception->errors()); }
         $this->assertSame(1, DB::table('wallet_transactions')->count());
