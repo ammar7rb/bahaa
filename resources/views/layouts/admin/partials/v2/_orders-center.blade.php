@@ -14,9 +14,9 @@
     @endforeach
     <a class="v2-nav-child" href="{{ route('admin.guest-orders.index') }}"><i class="fi fi-rr-user-add" aria-hidden="true"></i><span class="v2-nav-child-label">متابعة الزوار والتواصل</span></a>
     <a class="v2-nav-child" href="{{ route('admin.orders.cancellations') }}"><i class="fi fi-rr-undo" aria-hidden="true"></i><span class="v2-nav-child-label">معالجة الإلغاء والأرصدة</span></a>
-    @if(Helpers::module_permission_check('people'))
+    @if(\App\Utils\Helpers::module_permission_check('people'))
     <a class="v2-nav-child" href="{{ route('admin.orders.special.credit') }}"><i class="fi fi-rr-credit-card" aria-hidden="true"></i><span class="v2-nav-child-label">طلبات الائتمان</span></a>
-    @if(Helpers::module_permission_check('catalog'))
+    @if(\App\Utils\Helpers::module_permission_check('catalog'))
     <a class="v2-nav-child" href="{{ route('admin.orders.special.inspections') }}"><i class="fi fi-rr-search" aria-hidden="true"></i><span class="v2-nav-child-label">فحص الأجهزة المتخصصة</span></a>
     <a class="v2-nav-child" href="{{ route('admin.orders.special.device-purchases') }}"><i class="fi fi-rr-shopping-bag" aria-hidden="true"></i><span class="v2-nav-child-label">شراء الأجهزة المتخصصة</span></a>
     @endif
