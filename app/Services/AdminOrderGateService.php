@@ -54,6 +54,10 @@ class AdminOrderGateService
             if ($entitlement < 0 || $entitlement > (float) $locked->shipping_cost) {
                 throw new DomainException('راجع مبلغ الشحن المخصص للتاجر.');
             }
+            if (array_key_exists('company_commission_percent', $data)) {
+                $pricingSummary = app(OrderVendorPricingService::class)->summary($locked, null, true);
+                $data['vendor_order_amount'] = $this->vendorAmountFromCommission((float) $pricingSummary['merchandise_sale'], (float) $data['company_commission_percent']);
+            }
             app(OrderWorkItemService::class)->recordAdminReview($locked, $data['items'], $entitlement,
                 (float) ($data['vendor_order_amount'] ?? app(OrderVendorPricingService::class)->summary($locked, null, true)['procurement_amount']), $adminId);
             // This review always assigns fulfillment to the vendor. The single entered
@@ -98,6 +102,14 @@ class AdminOrderGateService
             ])]);
             return $this->releaseToSeller($locked, 'اعتماد وإرسال إلى التاجر', $adminId, $data);
         });
+    }
+
+    public function vendorAmountFromCommission(float $sale, float $percent): float
+    {
+        if (!is_finite($sale) || $sale < 0 || !is_finite($percent) || $percent < 0 || $percent > 100) {
+            throw new DomainException('قيمة المنتجات أو نسبة الشركة غير صحيحة.');
+        }
+        return round($sale * (1 - $percent / 100), 8);
     }
 
     public function reviewVersion(Order $order): string

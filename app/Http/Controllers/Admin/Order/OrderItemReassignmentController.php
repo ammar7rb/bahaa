@@ -26,10 +26,11 @@ class OrderItemReassignmentController extends Controller
         $data = $request->validate([
             'target_product_id' => ['required','integer','exists:products,id'],
             'reason' => ['required','string','min:5','max:2000'],
+            'identity_confirmed' => ['accepted'],
         ]);
         try {
             $replacement = $service->transfer($item, (int) $data['target_product_id'],
-                (int) auth('admin')->id(), trim($data['reason']));
+                (int) auth('admin')->id(), trim($data['reason']), true);
             return redirect()->route('admin.orders.admin-gate.show', $replacement->id)
                 ->with('success', 'تم نقل المنتج إلى طلب التاجر البديل. راجع السعر والشحن ثم أرسله.');
         } catch (DomainException $exception) {

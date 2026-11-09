@@ -77,6 +77,44 @@ class VendorDebtService
         ]);
     }
 
+    /** Cancel unpaid debt first, then refund previously collected amounts with repayment-level receipts. */
+    public function reduceUnpaidCharge(int $sellerId, int $chargeId, mixed $value, int $adminId, string $reason): object
+    {
+        $amount = $this->amount($value);
+        if ($amount->isZero() || trim($reason) === '') throw new DomainException('مبلغ التخفيض وسببه مطلوبان.');
+        return DB::transaction(function () use ($sellerId, $chargeId, $amount, $adminId, $reason) {
+            $this->ledger->lockSellerFinancialState($sellerId);
+            $charge = DB::table('vendor_debt_charges')->where('id', $chargeId)->where('seller_id', $sellerId)->lockForUpdate()->first();
+            if (!$charge || $amount->isGreaterThan($this->amount($charge->amount))) throw new DomainException('مبلغ التخفيض غير صحيح.');
+            if (DB::table('vendor_debt_events')->where('event_key', hash('sha256', 'charge:'.$chargeId.':admin-fee-reduction'))->exists()) throw new DomainException('تم تسجيل تخفيض هذه الغرامة مسبقًا.');
+            $outstandingBefore = $this->amount($charge->outstanding);
+            $unpaid = $amount->isLessThan($outstandingBefore) ? $amount : $outstandingBefore;
+            $outstanding = $outstandingBefore->minus($unpaid);
+            $assessed = $this->amount($charge->debt_assessed)->minus($unpaid);
+            $refund = $amount->minus($unpaid);
+            $remaining = $refund;
+            if (!$refund->isZero() && !Schema::hasTable('vendor_penalty_refunds')) throw new DomainException('سجل رد الغرامة غير مهيأ.');
+            foreach (DB::table('vendor_debt_repayments')->where('charge_id', $chargeId)->whereNull('reversed_at')->orderByDesc('id')->lockForUpdate()->get() as $repayment) {
+                if ($remaining->isZero()) break;
+                $paid = $this->amount($repayment->amount);
+                $portion = $remaining->isLessThan($paid) ? $remaining : $paid;
+                if ($portion->isZero()) continue;
+                DB::table('vendor_penalty_refunds')->insert(['charge_id'=>$chargeId, 'repayment_id'=>$repayment->id,
+                    'seller_id'=>$sellerId, 'amount'=>(string)$portion, 'admin_id'=>$adminId, 'reason'=>trim($reason), 'created_at'=>now(), 'updated_at'=>now()]);
+                if ($repayment->deposit_id) $assessed = $assessed->minus($portion);
+                $remaining = $remaining->minus($portion);
+            }
+            if (!$remaining->isZero() || $assessed->isNegative()) throw new DomainException('سجل سداد الغرامة غير مكتمل؛ لم تنفذ التسوية.');
+            DB::table('vendor_debt_charges')->where('id', $chargeId)->update(['outstanding'=>(string)$outstanding,
+                'debt_assessed'=>(string)$assessed, 'updated_at'=>now()]);
+            if (!$refund->isZero()) $this->ledger->post($sellerId, 'penalty_refund', 'penalty-refund:'.$chargeId,
+                [['bucket'=>SellerLedgerService::OPERATING, 'direction'=>'credit', 'amount'=>(float)(string)$refund]],
+                'vendor_debt_charge', $chargeId, ['reason'=>trim($reason), 'reduction'=>(string)$amount], $adminId);
+            $this->event($sellerId, 'admin_fee_reduction', $amount, $chargeId, null, 'charge:'.$chargeId.':admin-fee-reduction');
+            return DB::table('vendor_debt_charges')->find($chargeId);
+        }, 3);
+    }
+
     public function assess(int $sellerId, string $kind, string $sourceType, string $sourceId, string $requestKey, mixed $value, array $rule, ?int $adminId = null): object
     {
         if (!$this->available()) throw new DomainException('دفتر ديون التاجر غير مهيأ.');
@@ -192,7 +230,14 @@ class VendorDebtService
         }
         foreach (DB::table('vendor_debt_repayments')->where('deposit_id', $deposit->id)->whereNull('reversed_at')->lockForUpdate()->get() as $repayment) {
             $charge = DB::table('vendor_debt_charges')->where('id', $repayment->charge_id)->lockForUpdate()->first();
-            $restored = $this->amount($charge->outstanding)->plus($repayment->amount);
+            $refunded = Schema::hasTable('vendor_penalty_refunds') ? $this->amount(DB::table('vendor_penalty_refunds')->where('repayment_id', $repayment->id)->sum('amount')) : $this->amount(0);
+            if (!$refunded->isZero()) {
+                $this->ledger->assertSufficient($deposit->seller_id, SellerLedgerService::OPERATING, (float)(string)$refunded);
+                $this->ledger->post($deposit->seller_id, 'penalty_refund_reversal', 'penalty-refund-reversal:'.$repayment->id,
+                    [['bucket'=>SellerLedgerService::OPERATING, 'direction'=>'debit', 'amount'=>(float)(string)$refunded]],
+                    'vendor_debt_repayment', $repayment->id, ['deposit_id'=>$deposit->id, 'reason'=>$reason], $adminId);
+            }
+            $restored = $this->amount($charge->outstanding)->plus($this->amount($repayment->amount)->minus($refunded));
             if ($restored->isGreaterThan($charge->debt_assessed)) throw new DomainException('عكس التوزيع يتطلب مراجعة مالية.');
             DB::table('vendor_debt_charges')->where('id', $charge->id)->update(['outstanding' => (string) $restored, 'updated_at' => now()]);
             DB::table('vendor_debt_repayments')->where('id', $repayment->id)->update(['reversed_at' => now(), 'updated_at' => now()]);

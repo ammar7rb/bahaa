@@ -15,76 +15,14 @@ use Illuminate\Validation\ValidationException;
 
 class OrderCancellationSettlementService
 {
+    /** A withdrawal date must not erase customer funds. */
     public function expireCustomerCredits(int $customerId): void
     {
-        while ($this->expireCredits(100, $customerId) === 100) {
-            // Process every expired grant before checking the spendable wallet balance.
-        }
     }
 
-    /** Expire only the unspent part of each cancellation credit. Refund credit is spent first. */
     public function expireCredits(int $limit = 100, ?int $customerId = null): int
     {
-        if (!Schema::hasTable('order_cancellation_settlements')) return 0;
-        $ids = DB::table('order_cancellation_settlements')->where('canceled_by', 'customer')
-            ->whereNull('credit_expired_at')->where('credit_expires_at', '<=', now())
-            ->when($customerId, fn ($query) => $query->where('customer_id', $customerId))
-            ->orderBy('id')->limit($limit)->pluck('id');
-        $processed = 0;
-        foreach ($ids as $id) {
-            DB::transaction(function () use ($id, &$processed): void {
-                $target = DB::table('order_cancellation_settlements')->where('id', $id)->first();
-                if (!$target || $target->credit_expired_at) return;
-                $user = User::query()->lockForUpdate()->findOrFail($target->customer_id);
-                $target = DB::table('order_cancellation_settlements')->where('id', $id)->lockForUpdate()->first();
-                if (!$target || $target->credit_expired_at) return;
-                $grants = DB::table('order_cancellation_settlements')->where('customer_id', $target->customer_id)
-                    ->where('canceled_by', 'customer')->where('created_at', '<=', $target->credit_expires_at)
-                    ->orderBy('created_at')->orderBy('id')->get();
-                $balances = $grants->mapWithKeys(fn ($grant) => [$grant->id => round((float) $grant->refund_amount, 3)])->all();
-                $receiptIds = $grants->mapWithKeys(function ($grant) use ($target) {
-                    $id = WalletTransaction::query()->where('user_id', $target->customer_id)
-                        ->where('reference', $grant->financial_reference)->value('id');
-                    if (!$id) throw new \RuntimeException('Cancellation credit wallet receipt is missing for settlement '.$grant->id);
-                    return [$grant->id => (int) $id];
-                })->all();
-                $debits = WalletTransaction::query()->where('user_id', $target->customer_id)
-                    ->where('debit', '>', 0)->where('transaction_type', '!=', 'cancellation_credit_expiry')
-                    ->where('id', '>', min($receiptIds))
-                    ->where('created_at', '<=', $target->credit_expires_at)
-                    ->orderBy('created_at')->orderBy('id')->get(['id', 'debit', 'created_at']);
-                foreach ($debits as $debit) {
-                    $remaining = round((float) $debit->debit, 3);
-                    foreach ($grants as $grant) {
-                        if ($remaining <= 0) break;
-                        if ($receiptIds[$grant->id] >= $debit->id || $grant->credit_expires_at <= $debit->created_at) continue;
-                        $used = min($remaining, $balances[$grant->id]);
-                        $balances[$grant->id] = round($balances[$grant->id] - $used, 3);
-                        $remaining = round($remaining - $used, 3);
-                    }
-                }
-                $expired = $balances[$target->id];
-                if ($expired > round((float) $user->wallet_balance, 3) + 0.0001) {
-                    throw new \RuntimeException('Cancellation credit expiry exceeds wallet balance for customer '.$user->id);
-                }
-                if ($expired > 0) {
-                    $user->wallet_balance = round((float) $user->wallet_balance - $expired, 3);
-                    $user->save();
-                    WalletTransaction::query()->create([
-                        'user_id' => $user->id, 'transaction_id' => 'cancel-credit-expiry-'.$id,
-                        'reference' => 'admin-cancel-order-'.$target->order_id,
-                        'transaction_type' => 'cancellation_credit_expiry', 'payment_method' => 'purchase_wallet',
-                        'credit' => 0, 'debit' => $expired, 'admin_bonus' => 0,
-                        'balance' => $user->wallet_balance,
-                    ]);
-                }
-                DB::table('order_cancellation_settlements')->where('id', $id)->update([
-                    'credit_expired_at' => now(), 'credit_expired_amount' => $expired, 'updated_at' => now(),
-                ]);
-                $processed++;
-            }, 3);
-        }
-        return $processed;
+        return 0;
     }
 
     public function refundCustomer(int $orderId, float $refund, float $fee, float $discount, CarbonInterface $expiresAt, string $reason, int $adminId): object
@@ -166,13 +104,20 @@ class OrderCancellationSettlementService
                 $charge = $request->penalty_charge_id
                     ? DB::table('vendor_debt_charges')->where('id', $request->penalty_charge_id)->where('seller_id', $item->seller_id)->first() : null;
                 if ($request->penalty_charge_id && !$charge) $this->deny('سجل غرامة التاجر غير مكتمل.');
-                if ($fee > 0 && DB::table('vendor_fulfillment_request_items')->where('request_id', $request->id)->count() !== 1) {
+                if (($fee > 0 || $charge) && DB::table('vendor_fulfillment_request_items')->where('request_id', $request->id)->count() !== 1) {
                     $this->deny('الغرامة تخص عدة منتجات؛ يلزم مراجعة توزيعها قبل تسجيل رسوم حصة واحدة.');
                 }
                 if ($fee > 0 && DB::table('order_cancellation_settlements')->where('financial_reference', 'fulfillment-cancellation-'.$request->id)->exists()) {
                     $this->deny('تم تسجيل رسوم هذا الجزء سابقًا.');
                 }
                 $financialBefore = null;
+                if ($charge && abs($fee - (float) $charge->amount) > 0.0001) {
+                    $ledger = app(SellerLedgerService::class);
+                    $ledger->lockSellerFinancialState((int) $item->seller_id);
+                    $financialBefore = ['operating_balance'=>(float)($ledger->summary((int)$item->seller_id, initializeLegacy:false)[SellerLedgerService::OPERATING] ?? 0),
+                        'outstanding_debt'=>app(VendorDebtService::class)->outstanding((int)$item->seller_id),
+                        'original_charge'=>(float)$charge->amount, 'charge_outstanding'=>(float)($charge->outstanding ?? 0)];
+                }
                 if (!$charge && $fee > 0) {
                     $ledger = app(SellerLedgerService::class);
                     $ledger->lockSellerFinancialState((int) $item->seller_id);
@@ -184,9 +129,28 @@ class OrderCancellationSettlementService
                     DB::table('vendor_fulfillment_requests')->where('id', $request->id)->update(['penalty_charge_id'=>$charge->id, 'updated_at'=>now()]);
                 }
                 $assessed = $charge ? round((float) $charge->amount, 3) : 0.0;
-                if (abs($fee - $assessed) > 0.0001) $this->deny('رسوم الإلغاء محددة بالفعل بقاعدة الغرامة؛ راجع قيمتها المعروضة.');
+                $adjustment = null;
+                if ($charge && $fee > $assessed + 0.0001) {
+                    $adjustment = app(VendorDebtService::class)->assess((int) $item->seller_id, 'cancellation_penalty',
+                        'order_fee_adjustment', (string) $item->id, 'order-fee-adjustment:'.$item->id, round($fee - $assessed, 3),
+                        ['order_id'=>$item->order_id, 'work_item_id'=>$item->id, 'reason'=>trim($reason), 'original_charge_id'=>$charge->id], $adminId);
+                } elseif ($charge && $fee < $assessed - 0.0001) {
+                    $charge = app(VendorDebtService::class)->reduceUnpaidCharge((int) $item->seller_id, (int) $charge->id,
+                        round($assessed - $fee, 3), $adminId, trim($reason));
+                    $assessed = $fee;
+                }
                 $debited = $charge ? round((float) $charge->wallet_collected, 3) : 0.0;
                 $debt = $charge ? round((float) $charge->debt_assessed, 3) : 0.0;
+                if ($charge && $fee < (float) $charge->amount && Schema::hasTable('vendor_penalty_refunds')) {
+                    $debited = round((float) DB::table('vendor_debt_repayments')->where('charge_id', $charge->id)->whereNull('reversed_at')->sum('amount')
+                        - (float) DB::table('vendor_penalty_refunds')->where('charge_id', $charge->id)->sum('amount'), 3);
+                    $debt = round((float) $charge->outstanding, 3);
+                }
+                if ($adjustment) {
+                    $debited += (float) $adjustment->wallet_collected;
+                    $debt += (float) $adjustment->debt_assessed;
+                    $assessed = $fee;
+                }
                 DB::table('order_cancellation_settlements')->insert([
                     'operation_key' => $key, 'order_id' => $item->order_id,
                     'order_work_item_id' => $workItemId, 'seller_id' => $item->seller_id,
@@ -202,7 +166,7 @@ class OrderCancellationSettlementService
                     'actor_type' => 'admin', 'event_key' => 'seller_cancellation_fee_reviewed',
                     'status_before' => $item->status, 'status_after' => $item->status,
                     'snapshot' => ['reason' => trim($reason), 'fee' => $assessed, 'debited' => $debited,
-                        'debt' => $debt, 'vendor_debt_charge_id' => $charge?->id,
+                        'debt' => $debt, 'vendor_debt_charge_id' => $charge?->id, 'adjustment_charge_id' => $adjustment?->id,
                         'financial_before'=>$financialBefore,
                         'financial_after'=>$financialBefore === null ? ['recorded_charge'=>$assessed, 'collected'=>$debited, 'debt'=>$debt]
                             : ['operating_balance'=>(float)($ledger->summary((int)$item->seller_id, initializeLegacy:false)[SellerLedgerService::OPERATING] ?? 0),
@@ -216,16 +180,13 @@ class OrderCancellationSettlementService
             if (!$sellerCancellation) $this->deny('لا يوجد إلغاء موثق من هذا التاجر لهذا الطلب.');
             $ledger = app(SellerLedgerService::class);
             $ledger->lockSellerFinancialState((int) $item->seller_id);
-            $available = max(0, (float) ($ledger->summary((int) $item->seller_id)[SellerLedgerService::AVAILABLE] ?? 0));
+            $available = max(0, (float) ($ledger->summary((int) $item->seller_id, initializeLegacy:false)[SellerLedgerService::OPERATING] ?? 0));
             $debtBefore = app(VendorDebtService::class)->outstanding((int) $item->seller_id);
-            $debited = min(round($available, 3), $fee);
-            $debt = round($fee - $debited, 3);
-            if ($debited > 0) $ledger->post((int) $item->seller_id, 'order_cancellation_fee', 'order-cancel-fee:'.$workItemId,
-                [['bucket' => SellerLedgerService::AVAILABLE, 'direction' => 'debit', 'amount' => $debited]],
-                Order::class, (int) $item->order_id,
-                ['order_id' => $item->order_id, 'work_item_id' => $workItemId, 'reason' => trim($reason)], $adminId);
-            $charge = $debt > 0 ? app(VendorDebtService::class)->createAdministrativeDebt((int) $item->seller_id,
-                $debt, trim($reason), 'order-cancel-fee:'.$item->id, $adminId) : null;
+            $charge = $fee > 0 ? app(VendorDebtService::class)->assess((int) $item->seller_id, 'cancellation_penalty',
+                'order_work_item', (string) $item->id, 'order-cancel-fee:'.$item->id, $fee,
+                ['order_id'=>$item->order_id, 'work_item_id'=>$item->id, 'reason'=>trim($reason), 'source'=>'admin_review'], $adminId) : null;
+            $debited = $charge ? (float) $charge->wallet_collected : 0.0;
+            $debt = $charge ? (float) $charge->debt_assessed : 0.0;
             DB::table('order_cancellation_settlements')->insert([
                 'operation_key' => $key, 'order_id' => $item->order_id,
                 'order_work_item_id' => $workItemId, 'seller_id' => $item->seller_id,
@@ -242,7 +203,7 @@ class OrderCancellationSettlementService
                 'status_before' => $item->status, 'status_after' => $item->status,
                 'snapshot' => ['reason' => trim($reason), 'fee' => $fee, 'debited' => $debited, 'debt' => $debt,
                     'financial_before' => ['available' => $available, 'outstanding_debt' => $debtBefore],
-                    'financial_after' => ['available' => (float) ($ledger->summary((int) $item->seller_id)[SellerLedgerService::AVAILABLE] ?? 0),
+                        'financial_after' => ['available' => (float) ($ledger->summary((int) $item->seller_id, initializeLegacy:false)[SellerLedgerService::OPERATING] ?? 0),
                         'outstanding_debt' => app(VendorDebtService::class)->outstanding((int) $item->seller_id)]],
                 'created_at' => now(),
             ]);

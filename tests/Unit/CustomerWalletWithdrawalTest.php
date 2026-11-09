@@ -29,7 +29,7 @@ class CustomerWalletWithdrawalTest extends TestCase
             foreach (['credit', 'debit', 'admin_bonus', 'balance'] as $field) $table->decimal($field, 24, 3);
             $table->timestamps();
         });
-        (require database_path('migrations/2026_11_04_160000_create_customer_wallet_withdrawals.php'))->up();
+        (require dirname(__DIR__, 2).'/database/migrations/2026_11_04_160000_create_customer_wallet_withdrawals.php')->up();
         DB::table('users')->insert(['id' => 1, 'wallet_balance' => 1000, 'is_active' => true]);
         $notification = Mockery::mock(CustomerPaymentNotificationService::class);
         $notification->shouldReceive('notify')->byDefault();
@@ -47,6 +47,25 @@ class CustomerWalletWithdrawalTest extends TestCase
         $this->assertEquals(90, $first->net_amount);
         $this->assertEquals(900, DB::table('users')->value('wallet_balance'));
         $this->assertSame(1, DB::table('wallet_transactions')->count());
+    }
+
+    public function test_refund_can_be_spent_but_not_withdrawn_until_its_unlock_date(): void
+    {
+        (require dirname(__DIR__, 2).'/database/migrations/2026_11_08_130000_create_order_cancellation_settlements.php')->up();
+        DB::table('users')->where('id', 1)->update(['wallet_balance'=>120]);
+        DB::table('wallet_transactions')->insert(['user_id'=>1,'transaction_id'=>'refund','reference'=>'refund-1',
+            'transaction_type'=>'order_refund','payment_method'=>'purchase_wallet','credit'=>100,'debit'=>0,'admin_bonus'=>0,'balance'=>120,'created_at'=>now(),'updated_at'=>now()]);
+        DB::table('order_cancellation_settlements')->insert(['operation_key'=>'customer:1','order_id'=>1,'customer_id'=>1,'canceled_by'=>'customer',
+            'reason'=>'cancel','canceled_at'=>now(),'refund_amount'=>100,'financial_reference'=>'refund-1','credit_expires_at'=>now()->addDays(2),
+            'reviewed_by_admin_id'=>7,'created_at'=>now(),'updated_at'=>now()]);
+        $service = app(CustomerWalletWithdrawalService::class);
+        try { $service->request(1, 21, 10, 'early'); $this->fail('Locked funds were withdrawable'); }
+        catch (ValidationException $e) { $this->assertArrayHasKey('withdrawal', $e->errors()); }
+        $this->assertEquals(120, DB::table('users')->value('wallet_balance'));
+        $service->request(1, 20, 10, 'unlocked');
+        $this->travel(3)->days();
+        $service->request(1, 100, 10, 'matured');
+        $this->assertEquals(0, DB::table('users')->value('wallet_balance'));
     }
 
     public function test_changed_fee_requires_new_consent_without_debiting(): void

@@ -78,6 +78,7 @@ class AdminOrderGateController extends Controller
             'review_version' => ['required', 'string', 'size:64'],
             'shipping_seller_entitlement' => ['required', 'numeric', 'min:0'],
             'vendor_order_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+            'company_commission_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'accessible_procurement_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
             'accessible_shipping_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
             'shipping_expected_delivery_date' => ['required', 'date'],

@@ -53,7 +53,7 @@ class OrderCenterController extends Controller
                 $total = $groupItems->count();
                 foreach ($groupItems->values() as $position => $groupItem) {
                     $references[$groupItem->id] = $total === 1 ? $groupId :
-                        $groupId.' · '.($total < 10 ? 'Mv'.$total.($position + 1) : 'Mv'.$total.'-'.($position + 1));
+                        ($total < 10 ? 'Mv'.$total.($position + 1) : 'Mv'.$total.'-'.($position + 1)).'-'.$groupId;
                 }
             }
         }
@@ -78,7 +78,7 @@ class OrderCenterController extends Controller
             'canceled' => $query->where('status', 'canceled'),
             'completed' => $query->where('status', 'completed'),
             'guests' => $query->whereHas('order', fn (Builder $order) => $order->where('is_guest', true)),
-            'history' => $query->where('order_work_items.created_at', '<', now()->subDays(90)),
+            'history' => $query->where('status', 'completed')->where('order_work_items.updated_at', '<', now()->subDays(90)),
             default => null,
         };
     }

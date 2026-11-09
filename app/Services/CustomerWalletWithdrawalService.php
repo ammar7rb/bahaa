@@ -6,6 +6,7 @@ use App\Models\BusinessSetting;
 use App\Models\User;
 use App\Models\WalletTransaction;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class CustomerWalletWithdrawalService
@@ -43,6 +44,9 @@ class CustomerWalletWithdrawalService
             if (!$customer->is_active || $customer->account_deleted_at || $amount > round((float) $customer->wallet_balance, 3)) {
                 $this->invalid('الحساب غير متاح للسحب أو الرصيد غير كافٍ.');
             }
+            if ($amount > round(max(0, (float) $customer->wallet_balance - $this->lockedCancellationCredit($customerId)), 3)) {
+                $this->invalid('جزء من الرصيد الناتج عن إلغاء الطلب غير متاح للسحب قبل تاريخه المحدد.');
+            }
             $fee = round($amount * $feePercent / 100, 3);
             $net = round($amount - $fee, 3);
             if ($net <= 0) {
@@ -58,6 +62,35 @@ class CustomerWalletWithdrawalService
             $this->ledger($customer, $id, $amount, false);
             return DB::table('customer_wallet_withdrawals')->find($id);
         }, 3);
+    }
+
+    /** Allocate purchase debits to refunds in receipt order, without treating withdrawal holds as purchases. */
+    public function lockedCancellationCredit(int $customerId): float
+    {
+        if (!Schema::hasTable('order_cancellation_settlements')) return 0.0;
+        $grants = DB::table('order_cancellation_settlements')->where('customer_id', $customerId)
+            ->where('canceled_by', 'customer')->orderBy('created_at')->orderBy('id')->get();
+        $balances = [];
+        foreach ($grants as $grant) {
+            $receipt = WalletTransaction::query()->where('user_id', $customerId)
+                ->where('reference', $grant->financial_reference)->where('credit', '>', 0)->orderBy('id')->value('id');
+            $balances[] = ['receipt' => $receipt, 'amount' => max(0, (float) $grant->refund_amount), 'unlock' => $grant->credit_expires_at];
+        }
+        if (!$balances) return 0.0;
+        $debits = WalletTransaction::query()->where('user_id', $customerId)->where('debit', '>', 0)
+            ->whereNotIn('transaction_type', ['withdrawal_hold', 'cancellation_credit_expiry'])->orderBy('id')->get(['id', 'debit']);
+        foreach ($debits as $debit) {
+            $remaining = (float) $debit->debit;
+            foreach ($balances as &$grant) {
+                if ($remaining <= 0) break;
+                if (!$grant['receipt'] || $grant['receipt'] >= $debit->id) continue;
+                $used = min($remaining, $grant['amount']);
+                $grant['amount'] -= $used;
+                $remaining -= $used;
+            }
+            unset($grant);
+        }
+        return round(array_sum(array_map(fn ($grant) => $grant['unlock'] && now()->lt(\Illuminate\Support\Carbon::parse($grant['unlock'])) ? $grant['amount'] : 0, $balances)), 3);
     }
 
     public function review(int $id, int $adminId, string $decision, ?string $note, ?string $reference): object

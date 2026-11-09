@@ -76,9 +76,31 @@ class OrderItemReassignmentFinancialTest extends TestCase
             'admin_commission'=>80,'delivery_charge'=>20,'tax'=>0,'status'=>'hold']);
     }
 
+    public function test_late_registered_line_keeps_original_response_deadline(): void
+    {
+        $sent = now()->subHours(30)->startOfSecond();
+        DB::table('orders')->where('id', 1)->update(['admin_order_reviewed_at' => $sent]);
+        DB::table('order_work_items')->where('id', 1)->delete();
+        $item = app(\App\Services\OrderWorkItemService::class)->ensureForLine(\App\Models\OrderDetail::findOrFail(1));
+        $this->assertSame($sent->format('Y-m-d H:i:s'), $item->sent_to_vendor_at->format('Y-m-d H:i:s'));
+        $this->assertSame($sent->copy()->addHours(24)->format('Y-m-d H:i:s'), $item->vendor_response_due_at->format('Y-m-d H:i:s'));
+        $this->assertTrue($item->vendor_response_due_at->isPast());
+    }
+
+    public function test_reassignment_requires_explicit_admin_identity_confirmation(): void
+    {
+        try {
+            app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor');
+            $this->fail('Identity confirmation was not required');
+        } catch (\DomainException $e) {
+            $this->assertStringContainsString('تأكيد الإدارة', $e->getMessage());
+        }
+        $this->assertSame(0, DB::table('order_reassignment_transfers')->count());
+    }
+
     public function test_full_transfer_preserves_customer_payment_and_moves_only_one_seller_entitlement(): void
     {
-        $replacement = app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor');
+        $replacement = app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor', true);
         $source = Order::findOrFail(1);
         $this->assertEquals(80, $source->order_amount);
         $this->assertEquals(80, $replacement->order_amount);
@@ -108,7 +130,7 @@ class OrderItemReassignmentFinancialTest extends TestCase
         DB::table('vendor_fulfillment_request_items')->insert([
             ['request_id'=>1,'order_detail_id'=>1], ['request_id'=>1,'order_detail_id'=>2],
         ]);
-        $replacement = app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor');
+        $replacement = app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor', true);
         $request = DB::table('vendor_fulfillment_requests')->where('id', 1)->first();
         $this->assertSame('accepted', $request->status);
         $this->assertEquals(30, $request->vendor_amount);
@@ -123,7 +145,7 @@ class OrderItemReassignmentFinancialTest extends TestCase
     {
         DB::table('order_transactions')->update(['status'=>'disburse']);
         try {
-            app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor');
+            app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor', true);
             $this->fail('A disbursed transaction must not be split.');
         } catch (\DomainException $e) {
             $this->assertStringContainsString('مرحلة الحجز', $e->getMessage());
@@ -139,7 +161,7 @@ class OrderItemReassignmentFinancialTest extends TestCase
     {
         DB::table('order_work_items')->where('id', 1)->update(['vendor_net_amount'=>null]);
         try {
-            app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor');
+            app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor', true);
             $this->fail('A missing approved allocation must block reassignment.');
         } catch (\DomainException $e) {
             $this->assertStringContainsString('راجع جميع حصص الطلب', $e->getMessage());
@@ -154,7 +176,7 @@ class OrderItemReassignmentFinancialTest extends TestCase
     {
         DB::table('orders')->where('id',1)->update(['third_party_delivery_tracking_id'=>'carrier-tracking']);
         try {
-            app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor');
+            app(OrderItemReassignmentService::class)->transfer(1, 3, 7, 'Alternative vendor', true);
             $this->fail('A tracked shipment must not be moved.');
         } catch (\DomainException $e) {
             $this->assertStringContainsString('بدأت تسويتها أو تسليمها', $e->getMessage());

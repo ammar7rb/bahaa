@@ -134,6 +134,7 @@ class MedicalDeviceReportService
             DB::transaction(function () use ($inquiry, $file, $adminId, $path) {
                 $purchase = MedicalDeviceReportPurchase::where('inquiry_id', $inquiry->id)->lockForUpdate()->firstOrFail();
                 if (!$purchase->confirmed_at) $this->deny('أكد مراجعة سداد رسوم الفحص قبل إرسال التقرير.');
+                if ($purchase->report_sent_at) $this->deny('تم إرسال التقرير لهذا الطلب مسبقًا.');
                 $ticket = $inquiry->conversation()->lockForUpdate()->firstOrFail();
                 if ((int) $ticket->customer_id !== (int) $purchase->customer_id) $this->deny('تعذر تحديد صاحب التقرير.');
                 $ticket->update(['status' => 'open', 'closed_at' => null, 'archived_at' => null, 'hidden_from_subject_at' => null]);

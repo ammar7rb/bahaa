@@ -27,6 +27,34 @@ class SellerBalanceDepositServiceTest extends TestCase
         Schema::dropIfExists('seller_balance_deposits'); Schema::dropIfExists('seller_ledger_entries'); Schema::dropIfExists('seller_wallets'); Schema::dropIfExists('sellers'); parent::tearDown();
     }
 
+    public function test_reduced_penalty_refund_is_reversed_without_double_credit(): void
+    {
+        (require dirname(__DIR__, 2).'/database/migrations/2026_11_06_000002_create_vendor_debt_ledger.php')->up();
+        (require dirname(__DIR__, 2).'/database/migrations/2026_11_09_120000_create_vendor_penalty_refunds.php')->up();
+        $seller = Seller::create(['email'=>'refund-test@example.test']);
+        $debt = app(\App\Services\VendorDebtService::class);
+        $charge = $debt->assess($seller->id, 'cancellation_penalty', 'test', '1', 'test-charge', 100, ['reason'=>'test'], 9);
+        $service = app(SellerBalanceDepositService::class);
+        $deposit = $service->confirmAdministrativePayment($seller, '70', 'qa-refund-bank', 'qa-refund', 9, 'Test');
+        $this->assertEquals(30, $debt->outstanding($seller->id));
+        $debt->reduceUnpaidCharge($seller->id, $charge->id, 50, 9, 'Admin review');
+        $this->assertEquals(0, $debt->outstanding($seller->id));
+        $this->assertEquals(20, app(SellerLedgerService::class)->summary($seller->id)[SellerLedgerService::OPERATING]);
+        $this->assertEquals(20, \Illuminate\Support\Facades\DB::table('vendor_penalty_refunds')->sum('amount'));
+        try { $debt->reduceUnpaidCharge($seller->id, $charge->id, 50, 9, 'Retry'); $this->fail('Repeated refund'); }
+        catch (\DomainException $e) { $this->assertStringContainsString('مسبقًا', $e->getMessage()); }
+        $ledger = app(SellerLedgerService::class);
+        $ledger->post($seller->id, 'qa_spend', 'qa-refund-spend', [['bucket'=>SellerLedgerService::OPERATING,'direction'=>'debit','amount'=>20]], 'qa', 1);
+        try { $service->reverse($deposit->fresh(), 9, 'Insufficient balance'); $this->fail('Reversal without funds accepted'); }
+        catch (\Throwable $e) { $this->assertNotSame('Reversal without funds accepted', $e->getMessage()); }
+        $this->assertEquals(0, $debt->outstanding($seller->id));
+        $this->assertNull(\Illuminate\Support\Facades\DB::table('vendor_deposit_allocations')->where('deposit_id', $deposit->id)->value('reversed_at'));
+        $ledger->post($seller->id, 'qa_credit', 'qa-refund-replenish', [['bucket'=>SellerLedgerService::OPERATING,'direction'=>'credit','amount'=>20]], 'qa', 1);
+        $service->reverse($deposit->fresh(), 9, 'Test reversal');
+        $this->assertEquals(50, $debt->outstanding($seller->id));
+        $this->assertEquals(0, app(SellerLedgerService::class)->summary($seller->id)[SellerLedgerService::OPERATING]);
+    }
+
     public function test_payment_callback_is_idempotent_and_reversal_is_a_separate_ledger_event(): void
     {
         $seller = Seller::create(['email' => 'seller@example.com']);

@@ -145,6 +145,26 @@ class MedicalDeviceReportServiceTest extends TestCase
         app(\App\Http\Controllers\ChatAttachmentController::class)->customerApi($api, $inquiry->support_ticket_id, (string) $reply->id, 0);
     }
 
+    public function test_report_cannot_be_sent_twice_or_unhidden_by_retry(): void
+    {
+        Storage::fake('local');
+        $service = app(MedicalDeviceReportService::class);
+        $purchase = $service->pay(1, 1, 35);
+        $service->confirmPayment($purchase->id, 7);
+        $inquiry = \App\Models\MedicalDeviceInquiry::findOrFail($purchase->inquiry_id);
+        $service->sendReport($inquiry, UploadedFile::fake()->createWithContent('report.pdf', '%PDF test'), 7);
+        $purchase->refresh()->update(['report_hidden_at' => now()]);
+        $count = SupportTicketConv::where('support_ticket_id', $inquiry->support_ticket_id)->count();
+        try {
+            $service->sendReport($inquiry, UploadedFile::fake()->createWithContent('report.pdf', '%PDF test'), 7);
+            $this->fail('Duplicate report was sent');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('medical_report', $e->errors());
+        }
+        $this->assertSame($count, SupportTicketConv::where('support_ticket_id', $inquiry->support_ticket_id)->count());
+        $this->assertNotNull($purchase->fresh()->report_hidden_at);
+    }
+
     public function test_mobile_report_download_requires_api_authentication(): void
     {
         $route = collect(app('router')->getRoutes()->getRoutes())->first(fn ($route) => str_contains($route->uri(), 'support-ticket/{id}/attachments/{message}/{index}/download') && str_starts_with($route->uri(), 'api/'));

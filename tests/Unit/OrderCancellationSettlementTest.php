@@ -93,10 +93,45 @@ class OrderCancellationSettlementTest extends TestCase
         app(OrderCancellationSettlementService::class)->refundCustomer(10, 80, 15, 5, now()->addMonth(), 'طلب العميل الإلغاء', 7);
     }
 
-    public function test_seller_fee_debits_available_balance_and_records_remainder_as_debt(): void
+    public function test_unpaid_penalty_reduction_preserves_wallet_and_is_not_repeated(): void
+    {
+        DB::table('sellers')->insert(['id' => 7]);
+        DB::table('seller_wallets')->insert(['seller_id' => 7, 'total_earning' => 0]);
+        $ledger = app(\App\Services\SellerLedgerService::class);
+        $ledger->post(7, 'qa_credit', 'qa-reduction-credit', [['bucket'=>\App\Services\SellerLedgerService::OPERATING, 'direction'=>'credit', 'amount'=>40]], 'qa', 1);
+        $service = app(\App\Services\VendorDebtService::class);
+        $charge = $service->assess(7, 'cancellation_penalty', 'test', '1', 'test-penalty', 70, ['reason'=>'test'], 9);
+        $service->reduceUnpaidCharge(7, $charge->id, 20, 9, 'admin review');
+        $this->assertEquals(10, $service->outstanding(7));
+        $this->assertEquals(0, $ledger->summary(7)[\App\Services\SellerLedgerService::OPERATING]);
+        try { $service->reduceUnpaidCharge(7, $charge->id, 20, 9, 'retry'); $this->fail('Repeated reduction accepted'); }
+        catch (\DomainException $e) { $this->assertStringContainsString('مسبقًا', $e->getMessage()); }
+        $this->assertEquals(10, $service->outstanding(7));
+    }
+
+    public function test_reduction_refunds_prior_wallet_collection_once(): void
+    {
+        (require dirname(__DIR__, 2).'/database/migrations/2026_11_09_120000_create_vendor_penalty_refunds.php')->up();
+        DB::table('sellers')->insert(['id'=>7]);
+        DB::table('seller_wallets')->insert(['seller_id'=>7,'total_earning'=>0]);
+        $ledger = app(\App\Services\SellerLedgerService::class);
+        $ledger->post(7, 'qa_credit', 'qa-wallet-refund', [['bucket'=>\App\Services\SellerLedgerService::OPERATING,'direction'=>'credit','amount'=>100]], 'qa', 1);
+        $debt = app(\App\Services\VendorDebtService::class);
+        $charge = $debt->assess(7, 'cancellation_penalty', 'test', '1', 'qa-wallet-charge', 100, ['reason'=>'test'], 9);
+        $debt->reduceUnpaidCharge(7, $charge->id, 30, 9, 'review');
+        $this->assertEquals(30, $ledger->summary(7)[\App\Services\SellerLedgerService::OPERATING]);
+        $this->assertEquals(30, DB::table('vendor_penalty_refunds')->sum('amount'));
+        try { $debt->reduceUnpaidCharge(7, $charge->id, 30, 9, 'retry'); $this->fail('Duplicate refund'); }
+        catch (\DomainException $e) { $this->assertStringContainsString('مسبقًا', $e->getMessage()); }
+        $this->assertEquals(30, $ledger->summary(7)[\App\Services\SellerLedgerService::OPERATING]);
+    }
+
+    public function test_seller_fee_debits_operating_balance_and_records_remainder_as_debt(): void
     {
         DB::table('sellers')->insert(['id' => 7]);
         DB::table('seller_wallets')->insert(['seller_id' => 7, 'total_earning' => 40]);
+        $ledger = app(\App\Services\SellerLedgerService::class);
+        $ledger->post(7, 'qa_credit', 'qa-operating-credit', [['bucket'=>\App\Services\SellerLedgerService::OPERATING, 'direction'=>'credit', 'amount'=>40]], 'qa', 1);
         DB::table('order_work_items')->insert(['id' => 4, 'order_id' => 10, 'order_detail_id' => 3,
             'seller_id' => 7, 'status' => 'canceled', 'created_at' => now(), 'updated_at' => now()]);
         DB::table('order_logistics_events')->insert(['order_id' => 10, 'order_status' => 'canceled',
@@ -106,7 +141,8 @@ class OrderCancellationSettlementTest extends TestCase
         $this->assertEquals(40, $row->seller_debited_amount);
         $this->assertEquals(30, $row->seller_debt_amount);
         $this->assertEquals(30, DB::table('vendor_debt_charges')->value('outstanding'));
-        $this->assertEquals(0, app(\App\Services\SellerLedgerService::class)->summary(7)[\App\Services\SellerLedgerService::AVAILABLE]);
+        $this->assertEquals(0, $ledger->summary(7)[\App\Services\SellerLedgerService::OPERATING]);
+        $this->assertEquals(40, $ledger->summary(7)[\App\Services\SellerLedgerService::AVAILABLE]);
         $this->assertSame(1, DB::table('order_work_item_events')->where('event_key', 'seller_cancellation_fee_assessed')->count());
         try { $service->chargeSeller(4, 70, 'إعادة', 9); $this->fail('Duplicate seller fee accepted'); }
         catch (ValidationException $exception) { $this->assertArrayHasKey('cancellation', $exception->errors()); }

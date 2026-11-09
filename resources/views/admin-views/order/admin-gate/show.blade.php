@@ -35,10 +35,19 @@
         <div class="col-xl-8">
             @include('admin-views.order.partials._timeline')
             @if(\Illuminate\Support\Facades\Schema::hasTable('order_work_items'))
-            <div class="card mb-3"><div class="card-header"><h4 class="mb-0">حصص المنتجات وقرارات التجار</h4></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>المنتج</th><th>التاجر</th><th>الحالة</th><th>رد التاجر قبل</th><th>العميل / صافي التاجر</th></tr></thead><tbody>
+            <div class="card mb-3"><div class="card-header"><h4 class="mb-0">حصص المنتجات وقرارات التجار</h4></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>المنتج</th><th>التاجر</th><th>الحالة</th><th>رد التاجر قبل</th><th>العميل / صافي التاجر</th><th>تفاصيل الاعتماد</th></tr></thead><tbody>
                 @foreach($order->workItems()->with(['line','seller.shop'])->get() as $workItem)
                 @php($workLine = $workItem->line)
-                <tr><td>{{ data_get(json_decode($workLine?->getRawOriginal('product_details') ?? '{}', true), 'name', 'منتج #'.$workItem->product_id) }}<div class="small text-muted">#{{ $workItem->order_detail_id }}</div></td><td>{{ $workItem->seller?->shop?->name ?? ('#'.$workItem->seller_id) }}</td><td>{{ ['awaiting_admin'=>'مراجعة الإدارة','sent_to_vendor'=>'مرسل','accepted'=>'مقبول','rejected'=>'مرفوض','overdue'=>'متأخر','canceled'=>'ملغي','completed'=>'مكتمل'][$workItem->status] ?? $workItem->status }}</td><td>{{ $workItem->vendor_response_due_at?->format('Y-m-d H:i') ?? '—' }}</td><td>{{ $workItem->customer_total === null ? '—' : webCurrencyConverter($workItem->customer_total) }} / {{ $workItem->vendor_net_amount === null ? '—' : webCurrencyConverter($workItem->vendor_net_amount) }}</td></tr>
+                <tr><td>{{ data_get(json_decode($workLine?->getRawOriginal('product_details') ?? '{}', true), 'name', 'منتج #'.$workItem->product_id) }}<div class="small text-muted">#{{ $workItem->order_detail_id }}</div></td><td>{{ $workItem->seller?->shop?->name ?? ('#'.$workItem->seller_id) }}</td><td>{{ ['awaiting_admin'=>'مراجعة الإدارة','sent_to_vendor'=>'مرسل','accepted'=>'مقبول','rejected'=>'مرفوض','overdue'=>'متأخر','canceled'=>'ملغي','completed'=>'مكتمل'][$workItem->status] ?? $workItem->status }}</td><td>{{ $workItem->vendor_response_due_at?->format('Y-m-d H:i') ?? '—' }}</td><td>{{ $workItem->customer_total === null ? '—' : webCurrencyConverter($workItem->customer_total) }} / {{ $workItem->vendor_net_amount === null ? '—' : webCurrencyConverter($workItem->vendor_net_amount) }}</td><td>
+                    <div>سعر التاجر الأصلي للوحدة: {{ $workItem->vendor_unit_price === null ? '—' : webCurrencyConverter($workItem->vendor_unit_price) }}</div>
+                    <div>شحن العميل: {{ $workItem->shipping_customer_cost === null ? '—' : webCurrencyConverter($workItem->shipping_customer_cost) }} · مستحق شحن التاجر: {{ $workItem->shipping_vendor_cost === null ? '—' : webCurrencyConverter($workItem->shipping_vendor_cost) }}</div>
+                    <div>التسليم: {{ $workItem->expected_delivery_at?->format('Y-m-d') ?? '—' }} · السداد: {{ $workItem->vendor_payment_due_at?->format('Y-m-d') ?? '—' }}</div>
+                    @if($workItem->customer_total !== null && $workItem->vendor_net_amount !== null)
+                    @php($sale = (float)$workItem->customer_total - (float)$workItem->shipping_customer_cost)
+                    @php($net = (float)$workItem->vendor_net_amount - (float)$workItem->shipping_vendor_cost)
+                    <div>فرق المنتجات للشركة: {{ webCurrencyConverter($sale - $net) }} · النسبة الفعلية: {{ $sale > 0 ? number_format(($sale - $net) * 100 / $sale, 2).'%' : '—' }}</div>
+                    @endif
+                </td></tr>
                 @endforeach
             </tbody></table></div></div>
             @endif
@@ -54,10 +63,10 @@
             @endif
             @include('admin-views.order.partials._approval-form')
             @if(\Illuminate\Support\Facades\Schema::hasTable('order_work_item_events'))
-            @php($lineEvents = \App\Models\OrderWorkItemEvent::query()->whereIn('work_item_id', $order->workItems()->pluck('id'))->orderByDesc('id')->limit(100)->get())
+            @php($lineEvents = \App\Models\OrderWorkItemEvent::query()->whereIn('work_item_id', $order->workItems()->pluck('id'))->orderByDesc('id')->get())
             <div class="card mb-3"><div class="card-header"><h4 class="mb-0">السجل الزمني لحصص الطلب</h4></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>التوقيت</th><th>المنتج</th><th>الحدث</th><th>من</th><th>إلى</th><th>المنفذ</th></tr></thead><tbody>
                 @forelse($lineEvents as $lineEvent)
-                <tr><td>{{ $lineEvent->created_at?->format('Y-m-d H:i') }}</td><td>#{{ $lineEvent->order_detail_id }}</td><td>{{ $lineEvent->event_key }}</td><td>{{ $lineEvent->status_before ?? '—' }}</td><td>{{ $lineEvent->status_after ?? '—' }}</td><td>{{ $lineEvent->actor_type }} {{ $lineEvent->actor_id ? '#'.$lineEvent->actor_id : '' }}</td></tr>
+                <tr><td>{{ $lineEvent->created_at?->format('Y-m-d H:i') }}</td><td>#{{ $lineEvent->order_detail_id }}</td><td>{{ $lineEvent->event_key }} @if($lineEvent->snapshot)<details><summary>التفاصيل المالية والبيانات المسجلة</summary><pre dir="auto" class="text-wrap">{{ json_encode($lineEvent->snapshot, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) }}</pre></details>@endif</td><td>{{ $lineEvent->status_before ?? '—' }}</td><td>{{ $lineEvent->status_after ?? '—' }}</td><td>{{ $lineEvent->actor_type }} {{ $lineEvent->actor_id ? '#'.$lineEvent->actor_id : '' }}</td></tr>
                 @empty<tr><td colspan="6" class="text-center">لا توجد حركات مسجلة.</td></tr>@endforelse
             </tbody></table></div></div>
             @endif

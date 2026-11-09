@@ -72,14 +72,15 @@ class OrderWorkItemService
             $line->loadMissing('order');
             $order = $line->order;
             $status = $this->statusForOrder($order);
+            $sentAt = $status === 'sent_to_vendor' ? ($order?->admin_order_reviewed_at ?? now()) : null;
             $item = OrderWorkItem::query()->firstOrCreate(['order_detail_id' => $line->id], [
                 'order_id' => $line->order_id,
                 'product_id' => $line->product_id,
                 'seller_id' => $line->seller_id ?: $order?->seller_id,
                 'status' => $status,
                 'vendor_unit_price' => $line->getRawOriginal('vendor_unit_price_snapshot'),
-                'sent_to_vendor_at' => $status === 'sent_to_vendor' ? ($order?->admin_order_reviewed_at ?? now()) : null,
-                'vendor_response_due_at' => $status === 'sent_to_vendor' ? now()->addHours(24) : null,
+                'sent_to_vendor_at' => $sentAt,
+                'vendor_response_due_at' => $sentAt ? \Illuminate\Support\Carbon::parse($sentAt)->copy()->addHours(24) : null,
             ]);
             if ($item->wasRecentlyCreated) {
                 OrderWorkItemEvent::query()->create([

@@ -23,7 +23,7 @@ class OrderCancellationCreditExpiryTest extends TestCase
         (require base_path('database/migrations/2026_11_08_130000_create_order_cancellation_settlements.php'))->up();
     }
 
-    public function test_only_unspent_cancellation_credit_expires_once(): void
+    public function test_credit_is_not_removed_after_date(): void
     {
         $start = now()->subDays(5);
         DB::table('users')->insert(['id' => 1, 'wallet_balance' => 120, 'created_at' => $start, 'updated_at' => $start]);
@@ -39,14 +39,14 @@ class OrderCancellationCreditExpiryTest extends TestCase
             'reviewed_by_admin_id' => 7, 'created_at' => $start, 'updated_at' => $start,
         ]);
         $service = app(OrderCancellationSettlementService::class);
-        $this->assertSame(1, $service->expireCredits());
-        $this->assertEquals(50, DB::table('users')->where('id', 1)->value('wallet_balance'));
-        $this->assertEquals(70, DB::table('order_cancellation_settlements')->value('credit_expired_amount'));
         $this->assertSame(0, $service->expireCredits());
-        $this->assertSame(1, DB::table('wallet_transactions')->where('transaction_type', 'cancellation_credit_expiry')->count());
+        $this->assertEquals(120, DB::table('users')->where('id', 1)->value('wallet_balance'));
+        $this->assertNull(DB::table('order_cancellation_settlements')->value('credit_expired_at'));
+        $this->assertSame(0, $service->expireCredits());
+        $this->assertSame(0, DB::table('wallet_transactions')->where('transaction_type', 'cancellation_credit_expiry')->count());
     }
 
-    public function test_spending_allocates_to_oldest_live_credit_before_newer_credit(): void
+    public function test_multiple_credits_are_not_removed_after_date(): void
     {
         $start = now()->subDays(6);
         DB::table('users')->insert(['id' => 1, 'wallet_balance' => 70]);
@@ -63,9 +63,9 @@ class OrderCancellationCreditExpiryTest extends TestCase
             'reviewed_by_admin_id'=>7,'created_at'=>$start->copy()->addDays($number - 1),
             'updated_at'=>$start->copy()->addDays($number - 1),
         ]);
-        $this->assertSame(1, app(OrderCancellationSettlementService::class)->expireCredits());
-        $this->assertEquals(20, DB::table('order_cancellation_settlements')->where('order_id', 1)->value('credit_expired_amount'));
-        $this->assertEquals(50, DB::table('users')->where('id', 1)->value('wallet_balance'));
+        $this->assertSame(0, app(OrderCancellationSettlementService::class)->expireCredits());
+        $this->assertNull(DB::table('order_cancellation_settlements')->where('order_id', 1)->value('credit_expired_at'));
+        $this->assertEquals(70, DB::table('users')->where('id', 1)->value('wallet_balance'));
         $this->assertNull(DB::table('order_cancellation_settlements')->where('order_id', 2)->value('credit_expired_at'));
     }
 }

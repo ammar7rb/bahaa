@@ -32,8 +32,9 @@ class OrderItemReassignmentService
             ->orderBy('user_id')->limit(50)->get();
     }
 
-    public function transfer(int $workItemId, int $targetProductId, int $adminId, string $reason): Order
+    public function transfer(int $workItemId, int $targetProductId, int $adminId, string $reason, bool $identityConfirmed = false): Order
     {
+        if (!$identityConfirmed) throw new DomainException('يجب تأكيد الإدارة أن المنتج المختار مطابق للمنتج الأصلي.');
         return DB::transaction(function () use ($workItemId, $targetProductId, $adminId, $reason): Order {
             $item = OrderWorkItem::query()->lockForUpdate()->findOrFail($workItemId);
             $sourceOrder = Order::query()->lockForUpdate()->findOrFail($item->order_id);
@@ -210,7 +211,7 @@ class OrderItemReassignmentService
                 'source_seller_id'=>$before['seller_id'], 'target_seller_id'=>$target->user_id,
                 'target_product_id'=>$target->id, 'admin_id'=>$adminId,
                 'customer_amount_transferred'=>$customerShare, 'shipping_amount_transferred'=>$shippingShare,
-                'before_snapshot'=>json_encode(['order'=>$before,'pricing'=>$oldPricingSnapshot,
+                'before_snapshot'=>json_encode(['identity_confirmed_by_admin' => $adminId, 'source_product_id' => $sourceProduct->id, 'target_product_id' => $target->id, 'order'=>$before,'pricing'=>$oldPricingSnapshot,
                     'transaction'=>$transactionSplit['before'] ?? null,
                     'fulfillment'=>$fulfillmentTransfer], JSON_THROW_ON_ERROR),
                 'after_snapshot'=>json_encode(['source_order'=>$sourceOrder->only(array_keys($before)),

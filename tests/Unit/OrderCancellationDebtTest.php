@@ -29,12 +29,12 @@ class OrderCancellationDebtTest extends TestCase
     public function test_fee_uses_debt_ledger_and_records_collected_and_outstanding_amounts(): void
     {
         $debt = Mockery::mock(VendorDebtService::class);
-        $debt->shouldReceive('createAdministrativeDebt')->once()->andReturn((object) ['id'=>12]);
+        $debt->shouldReceive('assess')->once()->andReturn((object) ['id'=>12, 'wallet_collected'=>40, 'debt_assessed'=>30]);
         $debt->shouldReceive('outstanding')->twice()->andReturn('0', '30');
         $this->app->instance(VendorDebtService::class, $debt);
         $ledger = Mockery::mock(SellerLedgerService::class); $ledger->shouldReceive('lockSellerFinancialState')->andReturnNull();
-        $ledger->shouldReceive('summary')->andReturn([SellerLedgerService::AVAILABLE=>40]);
-        $ledger->shouldReceive('post')->once()->andReturn(collect()); $this->app->instance(SellerLedgerService::class, $ledger);
+        $ledger->shouldReceive('summary')->andReturn([SellerLedgerService::OPERATING=>40]);
+        $this->app->instance(SellerLedgerService::class, $ledger);
         $receipt = app(OrderCancellationSettlementService::class)->chargeSeller(4, 70, 'إلغاء التاجر', 9);
         $this->assertEquals(40, $receipt->seller_debited_amount);
         $this->assertEquals(30, $receipt->seller_debt_amount);
@@ -70,13 +70,38 @@ class OrderCancellationDebtTest extends TestCase
         (require dirname(__DIR__, 2).'/database/migrations/2026_11_06_000002_create_vendor_debt_ledger.php')->up();
         $ledger = Mockery::mock(SellerLedgerService::class);
         $ledger->shouldReceive('lockSellerFinancialState')->andReturnNull();
-        $ledger->shouldReceive('summary')->andReturn([SellerLedgerService::AVAILABLE => 40]);
+        $ledger->shouldReceive('summary')->andReturn([SellerLedgerService::OPERATING => 40]);
         $ledger->shouldReceive('post')->once()->andReturn(collect());
         $this->app->instance(SellerLedgerService::class, $ledger);
         $this->app->forgetInstance(VendorDebtService::class);
         $receipt = app(OrderCancellationSettlementService::class)->chargeSeller(4, 70, 'إلغاء التاجر', 9);
         $this->assertEquals(30, DB::table('vendor_debt_charges')->value('outstanding'));
-        $this->assertSame(0, DB::table('vendor_debt_repayments')->count());
+        $this->assertSame(1, DB::table('vendor_debt_repayments')->count());
         $this->assertEquals(30, $receipt->seller_debt_amount);
+    }
+
+    public function test_higher_admin_fee_assesses_only_the_difference(): void
+    {
+        Schema::create('vendor_fulfillment_requests', function (Blueprint $t) { $t->id(); $t->integer('order_id'); $t->integer('seller_id'); $t->string('status'); $t->integer('penalty_charge_id')->nullable(); $t->timestamp('canceled_at')->nullable(); });
+        Schema::create('vendor_fulfillment_request_items', function (Blueprint $t) { $t->id(); $t->integer('request_id'); $t->integer('order_detail_id'); });
+        Schema::create('vendor_fulfillment_events', function (Blueprint $t) { $t->id(); $t->integer('request_id'); $t->string('event_type'); $t->json('metadata'); $t->timestamp('created_at'); });
+        Schema::create('vendor_debt_charges', function (Blueprint $t) { $t->id(); $t->integer('seller_id'); $t->decimal('amount'); $t->decimal('wallet_collected'); $t->decimal('debt_assessed'); });
+        DB::table('vendor_fulfillment_requests')->insert(['id'=>5,'order_id'=>10,'seller_id'=>7,'status'=>'canceled','penalty_charge_id'=>12]);
+        DB::table('vendor_fulfillment_request_items')->insert(['request_id'=>5,'order_detail_id'=>3]);
+        DB::table('vendor_fulfillment_events')->insert(['request_id'=>5,'event_type'=>'canceled','metadata'=>'{"actor":"seller"}','created_at'=>now()]);
+        DB::table('vendor_debt_charges')->insert(['id'=>12,'seller_id'=>7,'amount'=>70,'wallet_collected'=>40,'debt_assessed'=>30]);
+        $debt = Mockery::mock(VendorDebtService::class);
+        $debt->shouldReceive('assess')->once()->withArgs(fn ($seller, $kind, $source, $id, $key, $amount) => $amount == 20)
+            ->andReturn((object) ['id'=>13,'wallet_collected'=>5,'debt_assessed'=>15]);
+        $debt->shouldReceive('outstanding')->andReturn('30', '45');
+        $this->app->instance(VendorDebtService::class, $debt);
+        $ledger = Mockery::mock(SellerLedgerService::class);
+        $ledger->shouldReceive('lockSellerFinancialState')->andReturnNull();
+        $ledger->shouldReceive('summary')->andReturn([SellerLedgerService::OPERATING=>0]);
+        $this->app->instance(SellerLedgerService::class, $ledger);
+        $row = app(OrderCancellationSettlementService::class)->chargeSeller(4, 90, 'رسوم إضافية', 9);
+        $this->assertEquals(90, $row->fee_amount);
+        $this->assertEquals(45, $row->seller_debited_amount);
+        $this->assertEquals(45, $row->seller_debt_amount);
     }
 }
