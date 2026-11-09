@@ -109,6 +109,7 @@ class OrderWorkItemService
                 $actorId = $actorType === 'seller' ? (int) $order->seller_id : ($actorType === 'admin' ? $order->admin_order_reviewed_by : null);
                 $eventKey = ['accepted'=>'vendor_accepted', 'rejected'=>'vendor_rejected',
                     'sent_to_vendor'=>'admin_sent_line', 'overdue'=>'vendor_response_timeout'][$next] ?? 'order_status_synchronized';
+                $sentAt = $item->sent_to_vendor_at ?? $order->admin_order_reviewed_at ?? now();
                 $this->transition($item, $next, $actorId, $actorType, $eventKey, [
                     'order_status' => $order->order_status, 'commerce_flow_status' => $order->commerce_flow_status,
                     'seller_shipping_response_status' => $order->seller_shipping_response_status,
@@ -116,8 +117,8 @@ class OrderWorkItemService
                 ], [
                     'vendor_responded_at' => in_array($next, ['accepted', 'rejected'], true) ? ($order->seller_shipping_response_at ?? now()) : $item->vendor_responded_at,
                     'vendor_response' => in_array($next, ['accepted', 'rejected'], true) ? $next : $item->vendor_response,
-                    'sent_to_vendor_at' => $next === 'sent_to_vendor' ? ($order->admin_order_reviewed_at ?? now()) : $item->sent_to_vendor_at,
-                    'vendor_response_due_at' => $next === 'sent_to_vendor' ? now()->addHours(24) : $item->vendor_response_due_at,
+                    'sent_to_vendor_at' => $next === 'sent_to_vendor' ? $sentAt : $item->sent_to_vendor_at,
+                    'vendor_response_due_at' => $next === 'sent_to_vendor' ? \Illuminate\Support\Carbon::parse($sentAt)->copy()->addHours(24) : $item->vendor_response_due_at,
                 ]);
             });
     }

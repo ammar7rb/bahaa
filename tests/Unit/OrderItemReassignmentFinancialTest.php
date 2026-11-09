@@ -87,6 +87,33 @@ class OrderItemReassignmentFinancialTest extends TestCase
         $this->assertTrue($item->vendor_response_due_at->isPast());
     }
 
+    public function test_late_status_sync_does_not_restart_vendor_deadline(): void
+    {
+        $sent = now()->subHours(30)->startOfSecond();
+        DB::table('orders')->where('id', 1)->update(['admin_order_reviewed_at'=>$sent]);
+        DB::table('order_work_items')->where('id', 1)->update(['status'=>'awaiting_admin']);
+        $service = app(\App\Services\OrderWorkItemService::class);
+        $service->syncOrderStatus(Order::findOrFail(1));
+        $item = \App\Models\OrderWorkItem::findOrFail(1);
+        $this->assertSame($sent->copy()->addHours(24)->format('Y-m-d H:i:s'), $item->vendor_response_due_at->format('Y-m-d H:i:s'));
+        $this->assertSame($sent->format('Y-m-d H:i:s'), $item->sent_to_vendor_at->format('Y-m-d H:i:s'));
+        $service->syncOrderStatus(Order::findOrFail(1));
+        $this->assertSame(1, $service->markOverdue());
+        $this->assertSame('overdue', $item->fresh()->status);
+        $this->assertSame('sent_to_vendor', \App\Models\OrderWorkItem::findOrFail(2)->status);
+    }
+
+    public function test_sync_preserves_existing_line_send_time_over_later_order_review(): void
+    {
+        $sent = now()->subHours(30)->startOfSecond();
+        DB::table('orders')->where('id', 1)->update(['admin_order_reviewed_at'=>now()]);
+        DB::table('order_work_items')->where('id', 1)->update(['status'=>'awaiting_admin','sent_to_vendor_at'=>$sent]);
+        app(\App\Services\OrderWorkItemService::class)->syncOrderStatus(Order::findOrFail(1));
+        $item = \App\Models\OrderWorkItem::findOrFail(1);
+        $this->assertSame($sent->format('Y-m-d H:i:s'), $item->sent_to_vendor_at->format('Y-m-d H:i:s'));
+        $this->assertSame($sent->copy()->addHours(24)->format('Y-m-d H:i:s'), $item->vendor_response_due_at->format('Y-m-d H:i:s'));
+    }
+
     public function test_reassignment_requires_explicit_admin_identity_confirmation(): void
     {
         try {
