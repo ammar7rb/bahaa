@@ -10,7 +10,7 @@ use Illuminate\View\View;
 
 class OrderCenterController extends Controller
 {
-    private const QUEUES = ['all', 'awaiting_admin', 'sent_to_vendor', 'accepted', 'rejected', 'overdue', 'canceled', 'completed', 'guests', 'history'];
+    private const QUEUES = ['all', 'awaiting_admin', 'sent_to_vendor', 'accepted', 'processing', 'out_for_delivery', 'returned', 'failed', 'rejected', 'overdue', 'canceled', 'completed', 'guests', 'history'];
 
     public function index(Request $request): View
     {
@@ -70,6 +70,7 @@ class OrderCenterController extends Controller
     private function applyQueue(Builder $query, string $queue): void
     {
         match ($queue) {
+            'processing', 'out_for_delivery', 'returned', 'failed' => $query->whereHas('order', fn (Builder $order) => $order->where('order_status', $queue)),
             'awaiting_admin' => $query->where('status', 'awaiting_admin'),
             'sent_to_vendor' => $query->where('status', 'sent_to_vendor')->where(fn (Builder $q) => $q->whereNull('vendor_response_due_at')->orWhere('vendor_response_due_at', '>=', now())),
             'accepted' => $query->where('status', 'accepted'),

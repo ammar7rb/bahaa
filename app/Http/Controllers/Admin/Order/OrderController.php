@@ -127,6 +127,13 @@ class OrderController extends BaseController
      */
     public function index(Request|null $request, $type = 'all'): View|Collection|LengthAwarePaginator|null|callable|RedirectResponse|JsonResponse
     {
+        if ($request && !$request->ajax()) {
+            $filters = $request->only(['from', 'to']);
+            $filters['queue'] = ['pending'=>'awaiting_admin', 'confirmed'=>'sent_to_vendor', 'delivered'=>'completed', 'failed'=>'failed', 'processing'=>'processing', 'out_for_delivery'=>'out_for_delivery', 'returned'=>'returned', 'canceled'=>'canceled'][$type] ?? 'all';
+            if ($request->filled('searchValue')) $filters['q'] = $request->input('searchValue');
+            if (ctype_digit((string) $request->input('seller_id')) && (int)$request->input('seller_id') > 0) $filters['seller_id'] = $request->input('seller_id');
+            return redirect()->route('admin.orders.center', $filters);
+        }
         $status = $type;
         $searchValue = $request['searchValue'];
 
