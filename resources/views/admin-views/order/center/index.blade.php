@@ -7,18 +7,7 @@
 
 @section('content')
 @php
-    $queues = [
-        'all' => ['الكل', '🛒'],
-        'awaiting_admin' => ['لم تتم الموافقة', '◷'],
-        'sent_to_vendor' => ['مرسلة للتاجر', '➤'],
-        'accepted' => ['مقبولة', '✓'],
-        'rejected' => ['مرفوضة من التاجر', '×'],
-        'overdue' => ['معلقة / متأخرة', '⌛'],
-        'canceled' => ['ملغاة', '×'],
-        'completed' => ['مكتملة', '✓'],
-        'guests' => ['طلبات الزوار', '♙'],
-        'history' => ['سجل الطلبات الأقدم', '◴'],
-    ];
+    $queues = \App\Support\OrderCenterFilters::OPTIONS;
     $statusLabels = ['awaiting_admin'=>'لم تتم الموافقة', 'sent_to_vendor'=>'مرسلة للتاجر', 'accepted'=>'مقبولة', 'overdue'=>'معلقة / متأخرة', 'rejected'=>'مرفوضة', 'canceled'=>'ملغاة', 'completed'=>'مكتملة'];
 @endphp
 <div class="content container-fluid orders-workspace" dir="rtl">
@@ -27,7 +16,7 @@
     </div>
     <div class="card mb-3"><div class="card-body">
         <form method="get" class="row g-2 align-items-end">
-            <div class="col-12"><label class="form-label" for="orders-queue">نوع الطلبات</label><select id="orders-queue" name="queue" class="form-control">@foreach($queues as $key=>[$label])<option value="{{ $key }}" @selected($queue === $key)>{{ $label }} ({{ $counts[$key] ?? 0 }})</option>@endforeach @foreach(['processing'=>'قيد التجهيز','out_for_delivery'=>'خرج للتسليم','returned'=>'مرتجعة','failed'=>'فشل التسليم'] as $key=>$label)<option value="{{ $key }}" @selected($queue === $key)>{{ $label }} ({{ $counts[$key] ?? 0 }})</option>@endforeach</select></div>
+            <div class="col-12"><label class="form-label" for="orders-queue">نوع الطلبات</label><select id="orders-queue" name="queue" class="form-control">@foreach($queues as $key=>[$label])<option value="{{ $key }}" @selected($queue === $key)>{{ $label }} ({{ $counts[$key] ?? 0 }})</option>@endforeach</select></div>
             <div class="col-md-4"><label class="form-label">بحث</label><input name="q" value="{{ request('q') }}" class="form-control" placeholder="الطلب أو المنتج أو العميل أو التاجر"></div>
             <div class="col-md-2"><label class="form-label">رقم التاجر</label><input name="seller_id" value="{{ request('seller_id') }}" type="number" min="1" class="form-control"></div>
             <div class="col-md-2"><label class="form-label">من تاريخ</label><input name="from" value="{{ request('from') }}" type="date" class="form-control"></div>
@@ -67,5 +56,6 @@
         @endforelse
         </tbody>
     </table></div><div class="card-footer">{{ $items->links() }}</div></div>
+    @include('admin-views.order.partials._order-services')
 </div>
 @endsection

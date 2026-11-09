@@ -11,9 +11,23 @@
         </form>
     </details>
     @endif
-    <div class="table-responsive"><table class="table mb-0"><thead><tr><th>الوقت</th><th>المصدر والحدث</th><th>المنفذ</th><th>الحالة قبل / بعد</th><th>التفاصيل المسجلة</th></tr></thead><tbody>
+    <div class="card-body">
+        <p class="text-muted">{{ $timeline->count() }} حركة · الأحدث أولًا · افتح الحركة لعرض التفاصيل والقيم المسجلة.</p>
         @forelse($timeline as $entry)
-        <tr><td>{{ $entry['at'] }}</td><td>{{ $entry['source'] }}<div class="small text-muted">{{ $entry['type'] }}</div></td><td>{{ $entry['actor'] ?? '—' }} {{ $entry['actorId'] ? '#'.$entry['actorId'] : '' }}</td><td>{{ $entry['before'] ?? '—' }} / {{ $entry['after'] ?? '—' }}</td><td>{{ $entry['note'] ?? '' }} @if($entry['snapshot'])<details><summary>عرض البيانات المسجلة</summary><pre dir="auto" class="text-wrap">{{ json_encode($entry['snapshot'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) }}</pre></details>@endif</td></tr>
-        @empty<tr><td colspan="5" class="text-center">لا توجد حركات مسجلة.</td></tr>@endforelse
-    </tbody></table></div>
+        <details class="border rounded mb-2">
+            <summary class="p-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <span><strong>{{ $entry['source'] }}</strong><span class="small text-muted ms-2">{{ translate($entry['type'] ?? '') }}</span></span>
+                <time class="small text-muted" dir="ltr">{{ $entry['at'] }}</time>
+            </summary>
+            <div class="p-3 border-top">
+                <div class="d-flex flex-wrap gap-3 mb-2">
+                    <span>المنفذ: {{ ['admin'=>'الإدارة','seller'=>'التاجر','customer'=>'العميل','system'=>'النظام'][$entry['actor'] ?? 'system'] ?? $entry['actor'] }} {{ $entry['actorId'] ? '#'.$entry['actorId'] : '' }}</span>
+                    @if($entry['before'] || $entry['after'])<span>الحالة: <span class="badge bg-secondary">{{ translate($entry['before'] ?? '—') }}</span> ← <span class="badge bg-primary">{{ translate($entry['after'] ?? '—') }}</span></span>@endif
+                </div>
+                @if($entry['note'])<p class="mb-2 text-break">{{ $entry['note'] }}</p>@endif
+                @if($entry['snapshot'])<details><summary class="text-primary">البيانات والتغييرات المالية المحفوظة</summary><pre dir="auto" class="p-3 mt-2 border rounded text-wrap text-break small">{{ json_encode($entry['snapshot'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) }}</pre></details>@endif
+            </div>
+        </details>
+        @empty<p class="text-center text-muted py-3">لا توجد حركات مسجلة.</p>@endforelse
+    </div>
 </div>

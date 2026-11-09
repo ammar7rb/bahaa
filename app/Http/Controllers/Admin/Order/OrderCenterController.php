@@ -16,7 +16,7 @@ class OrderCenterController extends Controller
     {
         $request->validate(['q' => ['nullable','string','max:255'], 'seller_id' => ['nullable','integer','min:1'],
             'from' => ['nullable','date'], 'to' => ['nullable','date','after_or_equal:from']]);
-        $queue = in_array($request->query('queue'), self::QUEUES, true) ? $request->query('queue') : 'all';
+        $queue = \App\Support\OrderCenterFilters::normalize(is_string($request->query('queue')) ? $request->query('queue') : null);
         $query = OrderWorkItem::query()->with([
             'order.customer', 'order.seller.shop', 'line.seller.shop', 'line.productAllStatus',
         ])->whereHas('order')->whereHas('line');
@@ -58,7 +58,7 @@ class OrderCenterController extends Controller
             }
         }
         $counts = [];
-        foreach (self::QUEUES as $key) {
+        foreach (array_keys(\App\Support\OrderCenterFilters::OPTIONS) as $key) {
             $countQuery = OrderWorkItem::query()->whereHas('order')->whereHas('line');
             $this->applyQueue($countQuery, $key);
             $counts[$key] = $countQuery->count();
@@ -70,6 +70,9 @@ class OrderCenterController extends Controller
     private function applyQueue(Builder $query, string $queue): void
     {
         match ($queue) {
+            'waiting_vendor' => $query->whereIn('status', ['sent_to_vendor', 'overdue']),
+            'active' => $query->where('status', 'accepted')->whereHas('order', fn (Builder $order) => $order->whereNotIn('order_status', ['returned','failed','canceled','delivered'])),
+            'stopped' => $query->where(fn (Builder $q) => $q->whereIn('status', ['rejected','canceled'])->orWhereHas('order', fn (Builder $order) => $order->whereIn('order_status', ['returned','failed']))),
             'processing', 'out_for_delivery', 'returned', 'failed' => $query->whereHas('order', fn (Builder $order) => $order->where('order_status', $queue)),
             'awaiting_admin' => $query->where('status', 'awaiting_admin'),
             'sent_to_vendor' => $query->where('status', 'sent_to_vendor')->where(fn (Builder $q) => $q->whereNull('vendor_response_due_at')->orWhere('vendor_response_due_at', '>=', now())),

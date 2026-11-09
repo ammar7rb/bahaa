@@ -21,7 +21,9 @@
             @endif
             @php($saleAmount = (float) $pricing['merchandise_sale'])
             @php($initialNet = (float) ($approvedPricing?->procurement_amount ?? $pricing['procurement_amount']))
-            <div class="col-md-6"><label class="form-label" for="company-commission">نسبة الشركة من قيمة المنتجات للعميل (%)</label><input id="company-commission" name="company_commission_percent" class="form-control" type="number" min="0" max="100" step="any" required value="{{ old('company_commission_percent', $saleAmount > 0 ? max(0, min(100, round((1 - $initialNet / $saleAmount) * 100, 10))) : 0) }}" @readonly($approvedPricing !== null)><small class="text-muted">يحسب النظام مستحق المنتجات من قيمة العميل بعد خصم النسبة؛ يضاف مستحق الشحن بشكل مستقل.</small></div>
+            <div class="col-md-6"><label class="form-label" for="vendor-pricing-mode">طريقة تحديد مستحق التاجر</label><select id="vendor-pricing-mode" name="vendor_pricing_mode" class="form-control"><option value="amount" @selected(old('vendor_pricing_mode','amount') === 'amount')>مبلغ أحدده للتاجر</option><option value="percent" @selected(old('vendor_pricing_mode') === 'percent')>حساب المستحق من نسبة الشركة</option></select></div>
+            <div class="col-md-6"><label class="form-label" for="vendor-order-amount">مستحق التاجر للمنتجات (دون الشحن)</label><input id="vendor-order-amount" name="vendor_order_amount" class="form-control" type="number" min="0" max="999999999999" step="any" value="{{ old('vendor_order_amount', $initialNet) }}" @readonly($approvedPricing !== null)><small class="text-muted">هذا المبلغ هو الذي يعتمد للتاجر. يضاف إليه مستحق الشحن أدناه، دون تغيير مبلغ العميل.</small></div>
+            <div class="col-12"><details><summary>نسبة الشركة (عند اختيار الحساب بالنسبة)</summary><label class="form-label mt-2" for="company-commission">النسبة من قيمة المنتجات للعميل (%)</label><input id="company-commission" name="company_commission_percent" class="form-control" type="number" min="0" max="100" step="any" value="{{ old('company_commission_percent', $saleAmount > 0 ? max(0, min(100, round((1 - $initialNet / $saleAmount) * 100, 10))) : 0) }}" @readonly($approvedPricing !== null)></details></div>
             <div class="col-md-6"><label class="form-label">قيمة المنتجات للعميل</label><div class="form-control bg-section">{{ webCurrencyConverter($saleAmount) }}</div></div>
             <div class="col-md-6"><label class="form-label">شحن العميل المثبت عند الشراء</label><div class="form-control bg-section">{{ webCurrencyConverter($order->shipping_cost) }}</div></div>
             <div class="col-md-6"><label class="form-label" for="review-shipping-entitlement">مبلغ الشحن المخصص للتاجر</label><input id="review-shipping-entitlement" name="shipping_seller_entitlement" class="form-control" type="number" min="0" max="{{ $order->shipping_cost }}" step="0.01" required value="{{ old('shipping_seller_entitlement', $order->shipping_seller_entitlement ?? $order->seller_shipping_allocation ?? $order->shipping_seller_cost ?? 0) }}"></div>
@@ -30,6 +32,7 @@
             <div class="col-12"><label class="form-label" for="review-shipping-instructions">تعليمات التنفيذ للتاجر</label><textarea id="review-shipping-instructions" name="shipping_instructions" rows="2" maxlength="5000" class="form-control">{{ old('shipping_instructions', $order->shippingDecisions()->latest('id')->value('instructions')) }}</textarea></div>
         </div>
         <h4 class="mt-4 mb-2">قرار مستقل لكل منتج</h4>
+        <div class="alert alert-info">إجمالي مستحق التاجر للمنتجات والشحن: <strong><output data-vendor-total data-sale="{{ $saleAmount }}">{{ webCurrencyConverter($initialNet + (float)($order->shipping_seller_entitlement ?? 0)) }}</output></strong><span class="ms-2">جنيه — يحفظ مع الاعتماد ويظهر للتاجر.</span></div>
         <p class="text-muted">وزّع شحن العميل ومستحق شحن التاجر على المنتجات. يجب أن يساوي مجموعهما المبلغين المدخلين أعلاه.</p>
         @foreach($pricing['lines'] as $line)
             @php($key = $line['line_id'])
@@ -52,4 +55,8 @@
     </div>
 </form>
 @endif
+
+@push('script')
+<script src="{{ dynamicAsset(path: 'public/assets/back-end/js/admin/order-vendor-review.js') }}" defer></script>
+@endpush
 

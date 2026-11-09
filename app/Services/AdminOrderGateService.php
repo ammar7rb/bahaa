@@ -54,10 +54,8 @@ class AdminOrderGateService
             if ($entitlement < 0 || $entitlement > (float) $locked->shipping_cost) {
                 throw new DomainException('راجع مبلغ الشحن المخصص للتاجر.');
             }
-            if (array_key_exists('company_commission_percent', $data)) {
-                $pricingSummary = app(OrderVendorPricingService::class)->summary($locked, null, true);
-                $data['vendor_order_amount'] = $this->vendorAmountFromCommission((float) $pricingSummary['merchandise_sale'], (float) $data['company_commission_percent']);
-            }
+            $pricingSummary = app(OrderVendorPricingService::class)->summary($locked, null, true);
+            $data['vendor_order_amount'] = $this->vendorAmountForReview($data, (float)$pricingSummary['merchandise_sale'], (float)$pricingSummary['procurement_amount']);
             app(OrderWorkItemService::class)->recordAdminReview($locked, $data['items'], $entitlement,
                 (float) ($data['vendor_order_amount'] ?? app(OrderVendorPricingService::class)->summary($locked, null, true)['procurement_amount']), $adminId);
             // This review always assigns fulfillment to the vendor. The single entered
@@ -110,6 +108,18 @@ class AdminOrderGateService
             throw new DomainException('قيمة المنتجات أو نسبة الشركة غير صحيحة.');
         }
         return round($sale * (1 - $percent / 100), 8);
+    }
+
+    public function vendorAmountForReview(array $data, float $sale, float $original): float
+    {
+        $mode = $data['vendor_pricing_mode'] ?? (isset($data['company_commission_percent']) ? 'percent' : 'amount');
+        if ($mode === 'percent') {
+            if (!isset($data['company_commission_percent'])) throw new DomainException('حدد نسبة الشركة قبل الإرسال.');
+            return $this->vendorAmountFromCommission($sale, (float)$data['company_commission_percent']);
+        }
+        $value = $data['vendor_order_amount'] ?? (isset($data['vendor_pricing_mode']) ? null : $original);
+        if ($mode !== 'amount' || !is_numeric($value) || !is_finite((float)$value) || (float)$value < 0 || (float)$value > 999999999999) throw new DomainException('حدد مستحق منتجات التاجر قبل الإرسال.');
+        return round((float)$value, 8);
     }
 
     public function reviewVersion(Order $order): string

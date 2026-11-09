@@ -3,7 +3,7 @@
 @section('title', translate('order_Details'))
 
 @section('content')
-    @include('admin-views.order.partials._timeline')
+
     @if($order->customer_cancel_request_status === 'pending')
         <section class="alert alert-warning mx-3 my-3" aria-label="طلب إلغاء العميل">
             <p>العميل طلب إلغاء الطلب. للموافقة، استخدم إجراء إلغاء الطلب الموجود في الصفحة بعد مراجعة حالته.</p>
@@ -2238,6 +2238,7 @@
           data-order-id="{{ $order['id'] }}"></span>
     <span id="edit-order-product-modal-view"
           data-action="{{ route('admin.orders.edit-order-product-modal-view') }}"></span>
+    <div class="content container-fluid">@include('admin-views.order.partials._timeline')</div>
 @endsection
 
 @push('script')

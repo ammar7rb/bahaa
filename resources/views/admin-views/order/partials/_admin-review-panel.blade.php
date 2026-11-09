@@ -18,25 +18,7 @@
         </div>
         @if($order->seller_is === 'seller' && $order->seller)
             @if($order->payment_status !== 'paid')<div class="alert alert-warning">{{ translate('purchase_payment_must_be_paid_before_admin_review') }}</div>@endif
-            <form action="{{ route('admin.orders.admin-gate.assignment', $order->id) }}" method="post">
-                @csrf
-                <div class="row g-3">
-                    
-                    <div class="col-lg-12 review-decision-section">
-                        <h4>{{ translate('shipping_by_seller') }}</h4><input type="hidden" name="shipping_mode" value="seller_shipping">
-                        <p class="text-muted">{{ translate('seller_shipping_assignment_help') }}</p>
-                        <label>{{ translate('customer_shipping_cost') }}</label><div class="form-control bg-section mb-3">{{ webCurrencyConverter($order->shipping_cost) }}</div>
-                        <label>{{ translate('seller_shipping_cost') }}</label><input class="form-control mb-3" type="number" name="shipping_seller_cost" min="0" step="0.01" required value="{{ old('shipping_seller_cost',$order->shipping_seller_cost ?? 0) }}">
-                        <label>{{ translate('expected_delivery_date') }}</label><input class="form-control" type="date" name="shipping_expected_delivery_date" value="{{ optional($order->expected_delivery_date)->format('Y-m-d') }}">
-                    </div>
-                </div>
-                <div class="mt-3 text-end"><button class="btn btn-primary px-4" type="submit">{{ translate('save_assignment_decision') }}</button></div>
-            </form>
-            <form action="{{ route('admin.orders.admin-gate.release', $order->id) }}" method="post" class="border-top mt-4 pt-3">
-                @csrf
-                <button class="btn btn-primary" type="submit" @disabled($order->commerce_flow_status !== 'admin_assignment_in_progress' || $order->payment_status !== 'paid')>{{ translate('approve_and_send_to_seller') }}</button>
-                <a class="btn btn-link" href="{{ route('admin.orders.admin-gate.show', $order->id) }}">{{ translate('decision_history') }}</a>
-            </form>
+            @include('admin-views.order.partials._approval-form')
         @endif
     </div>
 </div>

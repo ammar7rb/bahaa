@@ -24,7 +24,7 @@ class OrderCenterNavigationTest extends TestCase
 
     public function test_changed_blade_views_compile(): void
     {
-        foreach (['admin-views.order.center.index', 'layouts.admin.partials.v2._orders-center', 'layouts.admin.partials.v2._side-bar'] as $view) {
+        foreach (['admin-views.order.center.index', 'layouts.admin.partials.v2._orders-center', 'layouts.admin.partials.v2._side-bar', 'admin-views.order.partials._order-services', 'admin-views.order.partials._timeline', 'admin-views.order.partials._approval-form', 'admin-views.order.admin-gate.show', 'admin-views.order.order-details'] as $view) {
             $compiled = app('blade.compiler')->compileString(file_get_contents(dirname(__DIR__, 2).'/resources/views/'.str_replace('.', '/', $view).'.blade.php'));
             $this->assertNotEmpty($compiled);
             $path = tempnam(sys_get_temp_dir(), 'orders-view-');

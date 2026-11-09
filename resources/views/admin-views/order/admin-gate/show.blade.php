@@ -33,7 +33,7 @@
 
     <div class="row g-3">
         <div class="col-xl-8">
-            @include('admin-views.order.partials._timeline')
+
             @if(\Illuminate\Support\Facades\Schema::hasTable('order_work_items'))
             <div class="card mb-3"><div class="card-header"><h4 class="mb-0">حصص المنتجات وقرارات التجار</h4></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>المنتج</th><th>التاجر</th><th>الحالة</th><th>رد التاجر قبل</th><th>العميل / صافي التاجر</th><th>تفاصيل الاعتماد</th></tr></thead><tbody>
                 @foreach($order->workItems()->with(['line','seller.shop'])->get() as $workItem)
@@ -62,16 +62,6 @@
             @endif
             @endif
             @include('admin-views.order.partials._approval-form')
-            @if(\Illuminate\Support\Facades\Schema::hasTable('order_work_item_events'))
-            @php($lineEvents = \App\Models\OrderWorkItemEvent::query()->whereIn('work_item_id', $order->workItems()->pluck('id'))->orderByDesc('id')->get())
-            <div class="card mb-3"><div class="card-header"><h4 class="mb-0">السجل الزمني لحصص الطلب</h4></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>التوقيت</th><th>المنتج</th><th>الحدث</th><th>من</th><th>إلى</th><th>المنفذ</th></tr></thead><tbody>
-                @forelse($lineEvents as $lineEvent)
-                <tr><td>{{ $lineEvent->created_at?->format('Y-m-d H:i') }}</td><td>#{{ $lineEvent->order_detail_id }}</td><td>{{ $lineEvent->event_key }} @if($lineEvent->snapshot)<details><summary>التفاصيل المالية والبيانات المسجلة</summary><pre dir="auto" class="text-wrap">{{ json_encode($lineEvent->snapshot, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) }}</pre></details>@endif</td><td>{{ $lineEvent->status_before ?? '—' }}</td><td>{{ $lineEvent->status_after ?? '—' }}</td><td>{{ $lineEvent->actor_type }} {{ $lineEvent->actor_id ? '#'.$lineEvent->actor_id : '' }}</td></tr>
-                @empty<tr><td colspan="6" class="text-center">لا توجد حركات مسجلة.</td></tr>@endforelse
-            </tbody></table></div></div>
-            @endif
-
-            <div class="card mb-3"><div class="card-header"><h4 class="mb-0">{{ translate('decision_history') }}</h4></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>{{ translate('date') }}</th><th>{{ translate('action') }}</th><th>{{ translate('admin') }}</th><th>{{ translate('status') }}</th><th>{{ translate('note') }}</th></tr></thead><tbody>@forelse($order->adminGateDecisions as $decision)<tr><td>{{ $decision->created_at->format('Y-m-d H:i') }}</td><td>{{ translate($decision->action) }}</td><td>{{ $decision->admin?->name??'—' }}</td><td>{{ translate($decision->status_after) }}</td><td>{{ $decision->note }}</td></tr>@empty<tr><td colspan="5" class="text-center">{{ translate('no_data_found') }}</td></tr>@endforelse</tbody></table></div></div>
         </div>
         <div class="col-xl-4">
 
@@ -95,4 +85,5 @@
         </div>
     </div>
 </div>
+    <div class="content container-fluid">@include('admin-views.order.partials._timeline')</div>
 @endsection
