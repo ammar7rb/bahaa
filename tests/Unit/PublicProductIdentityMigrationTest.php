@@ -16,6 +16,7 @@ class PublicProductIdentityMigrationTest extends TestCase
             $table->string('added_by');
             $table->unsignedBigInteger('user_id');
             $table->unsignedTinyInteger('request_status');
+            $table->unsignedTinyInteger('status')->default(1);
             $table->string('code');
             $table->string('slug');
             $table->decimal('unit_price', 20, 2);
@@ -31,12 +32,13 @@ class PublicProductIdentityMigrationTest extends TestCase
         }
 
         $migration = require base_path('database/migrations/2026_11_10_000001_add_public_product_identity.php');
+        DB::table('products')->insert(['added_by'=>'seller','user_id'=>3,'request_status'=>1,'status'=>0,'code'=>'HIDDEN','slug'=>'never-published','unit_price'=>60]);
         $migration->up();
 
         $rows = DB::table('products')->orderBy('id')->get();
-        $this->assertSame(['P1-1', 'P1-2', 'P2-1', 'A-1', null], $rows->pluck('public_code')->all());
-        $this->assertSame(['SKU-A', 'SKU-B', 'SKU-C', 'SKU-D', 'SKU-E'], $rows->pluck('code')->all());
-        $this->assertSame(['alpha', 'beta', 'gamma', 'delta', 'epsilon'], $rows->pluck('slug')->all());
+        $this->assertSame(['P1-1', 'P1-2', 'P2-1', 'A-1', null, null], $rows->pluck('public_code')->all());
+        $this->assertSame(['SKU-A', 'SKU-B', 'SKU-C', 'SKU-D', 'SKU-E', 'HIDDEN'], $rows->pluck('code')->all());
+        $this->assertSame(['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'never-published'], $rows->pluck('slug')->all());
 
         $migration->down();
         Schema::dropIfExists('products');

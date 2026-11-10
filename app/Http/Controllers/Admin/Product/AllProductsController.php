@@ -36,8 +36,24 @@ class AllProductsController extends Controller
     public function order(Request $request, HomepageSectionBuilderService $homepage): View
     {
         $sections = collect($homepage->productPlacementSections(theme_root_path()));
+        $sections = $sections->concat([
+            ['key'=>'listing:catalog','label'=>'قائمة المنتجات — الويب والتطبيق'],
+            ['key'=>'listing:search','label'=>'نتائج البحث — الويب والتطبيق'],
+        ])->concat(\App\Models\Category::withoutGlobalScopes()->orderBy('name')->get(['id','name'])->map(fn($category)=>[
+            'key'=>'category:'.$category->id,'label'=>'تصنيف: '.$category->name.' — الويب والتطبيق',
+        ]));
         $selected = $sections->firstWhere('key', $request->query('section')) ?? $sections->first();
-        $ids = $selected['product_ids'] ?? [];
+        $group = $selected ? $this->listingGroup($selected['key']) : null;
+        if ($group) {
+            $query = Product::withoutGlobalScopes()->where('request_status',1);
+            if (str_starts_with($group,'category:')) {
+                $id=(int)substr($group,9);
+                $query->where(fn($q)=>$q->where('category_id',$id)->orWhere('sub_category_id',$id)->orWhere('sub_sub_category_id',$id));
+            }
+            $ids=app(\App\Services\ProductDisplayOrderService::class)->query($query,app(\App\Services\ProductDisplayOrderService::class)->ids($group))->pluck('id')->all();
+        } else {
+            $ids = $selected ? $homepage->orderingProducts(theme_root_path(),$selected['key'])->pluck('id')->all() : [];
+        }
         $products = Product::query()->withoutGlobalScopes()->whereIn('id', $ids)->get()->keyBy('id');
 
         return view('admin-views.product.order', compact('sections', 'selected', 'ids', 'products'));
@@ -53,6 +69,17 @@ class AllProductsController extends Controller
         $ranked = collect($data['order'])->map(fn ($rank, $id) => ['id' => (int) $id, 'rank' => (int) $rank])
             ->sortBy([['rank', 'asc'], ['id', 'asc']])->pluck('id')->all();
 
+        if ($group=$this->listingGroup($data['section'])) {
+            $query=Product::withoutGlobalScopes()->whereIn('id',$ranked)->where('request_status',1);
+            if(str_starts_with($group,'category:')) {
+                $id=(int)substr($group,9);
+                $query->where(fn($q)=>$q->where('category_id',$id)->orWhere('sub_category_id',$id)->orWhere('sub_sub_category_id',$id));
+            }
+            abort_unless($query->count()===count($ranked),422);
+            app(\App\Services\ProductDisplayOrderService::class)->save($group,$ranked,(int)auth('admin')->id());
+            return back()->with('status','تم حفظ ترتيب المجموعة للويب والتطبيق.');
+        }
+
         try {
             $homepage->reorderSectionProducts(theme_root_path(), $data['section'], $ranked, (int) auth('admin')->id());
         } catch (DomainException $exception) {
@@ -60,6 +87,12 @@ class AllProductsController extends Controller
         }
 
         return back()->with('status', 'تم تحديث ترتيب المنتجات في القسم.');
+    }
+
+    private function listingGroup(string $key): ?string
+    {
+        if(in_array($key,['listing:catalog','listing:search'],true)) return substr($key,8);
+        return preg_match('/^category:[1-9][0-9]*$/D',$key) ? $key : null;
     }
 
     public function all(Request $request, HomepageSectionBuilderService $homepage): View
@@ -72,7 +105,7 @@ class AllProductsController extends Controller
 
         $products = Product::query()
             ->withoutGlobalScopes()
-            ->with(['seller.shop', 'category'])
+            ->with(['seller.shop', 'seller.activePackageSubscription', 'submissionWorkspace', 'originalSubmission', 'category'])
             ->whereIn('added_by', ['seller', 'admin'])
             ->when($filters['q'] ?? null, function ($query, $term) {
                 $query->where(function ($query) use ($term) {

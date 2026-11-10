@@ -1093,6 +1093,7 @@ class ProductManager
             if ($dataLimit != 'all') {
                 $currentPage = $offset ?? Paginator::resolveCurrentPage('page');
                 $totalSize = $query->count();
+                $query = app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request()));
                 $results = $query->forPage($currentPage, $dataLimit);
                 return new LengthAwarePaginator($results, $totalSize, $dataLimit, $currentPage, [
                     'path' => Paginator::resolveCurrentPath(),
@@ -1100,7 +1101,8 @@ class ProductManager
                 ]);
             }
 
-            return $query;
+            return $query instanceof \Illuminate\Support\Collection
+                ? app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request())) : $query;
         }
 
         $query = $query->where(['featured' => 1])->orderBy('id', 'desc');
@@ -1178,6 +1180,7 @@ class ProductManager
             if ($dataLimit != 'all') {
                 $currentPage = $offset ?? Paginator::resolveCurrentPage('page');
                 $totalSize = $query->count();
+                $query = app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request()));
                 $results = $query->forPage($currentPage, $dataLimit);
                 return new LengthAwarePaginator($results, $totalSize, $dataLimit, $currentPage, [
                     'path' => Paginator::resolveCurrentPath(),
@@ -1185,7 +1188,8 @@ class ProductManager
                 ]);
             }
 
-            return $query;
+            return $query instanceof \Illuminate\Support\Collection
+                ? app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request())) : $query;
         }
 
         $query = $query->orderBy('reviews_count', 'desc');
@@ -1244,6 +1248,7 @@ class ProductManager
             if ($dataLimit != 'all') {
                 $currentPage = $offset ?? Paginator::resolveCurrentPage('page');
                 $totalSize = $query->count();
+                $query = app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request()));
                 $results = $query->forPage($currentPage, $dataLimit);
                 return new LengthAwarePaginator(items: $results, total: $totalSize, perPage: $dataLimit, currentPage: $currentPage, options: [
                     'path' => Paginator::resolveCurrentPath(),
@@ -1251,7 +1256,8 @@ class ProductManager
                 ]);
             }
 
-            return $query;
+            return $query instanceof \Illuminate\Support\Collection
+                ? app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request())) : $query;
         }
 
         $query = $query->orderBy('order_details_count', 'desc');
@@ -1321,6 +1327,7 @@ class ProductManager
             if ($dataLimit != 'all') {
                 $currentPage = $offset ?? Paginator::resolveCurrentPage('page');
                 $totalSize = $query->count();
+                $query = app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request()));
                 $results = $query->forPage($currentPage, $dataLimit);
                 return new LengthAwarePaginator(items: $results, total: $totalSize, perPage: $dataLimit, currentPage: $currentPage, options: [
                     'path' => Paginator::resolveCurrentPath(),
@@ -1328,7 +1335,8 @@ class ProductManager
                 ]);
             }
 
-            return $query;
+            return $query instanceof \Illuminate\Support\Collection
+                ? app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request())) : $query;
         }
 
         $query = $query->orderBy('order_details_count', 'desc');
@@ -1402,6 +1410,7 @@ class ProductManager
             if ($dataLimit != 'all') {
                 $currentPage = $offset ?? Paginator::resolveCurrentPage('page');
                 $totalSize = $query->count();
+                $query = app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request()));
                 $results = $query->forPage($currentPage, $dataLimit);
                 return new LengthAwarePaginator(items: $results, total: $totalSize, perPage: $dataLimit, currentPage: $currentPage, options: [
                     'path' => Paginator::resolveCurrentPath(),
@@ -1409,7 +1418,8 @@ class ProductManager
                 ]);
             }
 
-            return $query;
+            return $query instanceof \Illuminate\Support\Collection
+                ? app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request())) : $query;
         }
 
         $query = $query->orderBy('order_details_count', 'desc');
@@ -1451,7 +1461,8 @@ class ProductManager
                     if (!$inHouseShopInTemporaryClose && $featureDealSortBy['temporary_close_sorting'] == 'hide') {
                         return $query->where(['added_by' => 'admin']);
                     } else {
-                        return $query;
+                        return $query instanceof \Illuminate\Support\Collection
+                ? app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request())) : $query;
                     }
                 });
             });
@@ -1499,6 +1510,7 @@ class ProductManager
             if ($dataLimit != 'all') {
                 $currentPage = $offset ?? Paginator::resolveCurrentPage('page');
                 $totalSize = $query->count();
+                $query = app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request()));
                 $results = $query->forPage($currentPage, $dataLimit);
                 return new LengthAwarePaginator($results, $totalSize, $dataLimit, $currentPage, [
                     'path' => Paginator::resolveCurrentPath(),
@@ -1519,7 +1531,8 @@ class ProductManager
                 }
             }
 
-            return $query;
+            return $query instanceof \Illuminate\Support\Collection
+                ? app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request())) : $query;
         }
 
         if ($dataLimit != 'all') {
@@ -1568,14 +1581,16 @@ class ProductManager
         if ($dataLimit != 'all') {
             $currentPage = $offset ?? Paginator::resolveCurrentPage('page');
             $totalSize = $query->count();
-            $results = $query->forPage($currentPage, $dataLimit);
+            $query = app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request()));
+                $results = $query->forPage($currentPage, $dataLimit);
             return new LengthAwarePaginator(items: $results, total: $totalSize, perPage: $dataLimit, currentPage: $currentPage, options: [
                 'path' => Paginator::resolveCurrentPath(),
                 'appends' => $appends,
             ]);
         }
 
-        return $query;
+        return $query instanceof \Illuminate\Support\Collection
+                ? app(\App\Services\ProductDisplayOrderService::class)->sort($query, app(\App\Services\ProductDisplayOrderService::class)->context(request())) : $query;
     }
 
     public static function prioritizeSearchPromotions($products, ?string $keyword = null)
@@ -2454,7 +2469,7 @@ class ProductManager
             $productListData = self::prioritizeSearchPromotions($productListData);
         }
 
-        return $productListData;
+        return app(\App\Services\ProductDisplayOrderService::class)->sort($productListData, app(\App\Services\ProductDisplayOrderService::class)->context($request));
     }
 
     public static function getAllProductsData($request, $productUserID = null, $productAddedBy = null): mixed

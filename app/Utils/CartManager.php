@@ -422,6 +422,7 @@ class CartManager
 
     public static function addToCartPhysicalProduct($request, $product, $shippingType, $sellerShippingList): array
     {
+        if ($product->is_credit_listing) return ['status'=>0,'message'=>'هذا المنتج متاح عبر طلب ائتمان فقط.'];
         $price = 0;
         $string = '';
         $variations = [];
@@ -643,6 +644,7 @@ class CartManager
 
     public static function addToCartDigitalProduct($request, $product, $shippingType, $sellerShippingList): array
     {
+        if ($product->is_credit_listing) return ['status'=>0,'message'=>'هذا المنتج متاح عبر طلب ائتمان فقط.'];
         if ($product['minimum_order_qty'] > $request['quantity']) {
             return ['status' => 0, 'message' => translate('Minimum_order_quantity').' '. $product['minimum_order_qty']];
         }
@@ -803,6 +805,9 @@ class CartManager
         }
 
         $product = Product::find($cart['product_id']);
+        if ($product?->is_credit_listing) {
+            return ['status'=>0,'qty'=>$cart->quantity,'message'=>'هذا المنتج متاح عبر طلب ائتمان فقط.'];
+        }
         $count = count(json_decode($product->variation));
         if ($count) {
             for ($i = 0; $i < $count; $i++) {

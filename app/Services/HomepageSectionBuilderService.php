@@ -313,13 +313,17 @@ class HomepageSectionBuilderService
             if (! $section) {
                 throw new DomainException('unknown_homepage_section');
             }
-            $current = array_map('intval', $section->product_ids ?? []);
+            $current = $section->source_mode === 'manual' ? array_map('intval', $section->product_ids ?? [])
+                : $this->orderingProducts($theme, $sectionKey)->pluck('id')->map(fn ($id) => (int)$id)->all();
             $orderedIds = array_map('intval', $orderedIds);
             if (count($orderedIds) !== count(array_unique($orderedIds))
                 || array_diff($current, $orderedIds) || array_diff($orderedIds, $current)) {
                 throw new DomainException('homepage_order_products_must_match_section');
             }
-            $section->product_ids = $orderedIds;
+            $settings = $section->settings ?? [];
+            $settings['product_order'] = $orderedIds;
+            $section->settings = $settings;
+            if ($section->source_mode === 'manual') $section->product_ids = $orderedIds;
             $section->save();
             $this->clearCaches($theme);
 
@@ -337,12 +341,17 @@ class HomepageSectionBuilderService
         $mode = $section['source_mode'];
         $editorial = (bool) data_get($section, 'settings.editorial') || str_starts_with($sectionKey, 'custom_');
         $manual = $mode === 'automatic' ? collect() : $this->manualProducts($section['product_ids'], $limit, $section['automatic_source'] === 'paid_ads', $section['automatic_source'] === 'active', $editorial);
-        $automatic = $mode === 'manual' ? collect() : $this->automaticProducts($section['automatic_source'], $fallback, $sectionKey, $limit, $editorial);
+        $orderedIds = data_get($section, 'settings.product_order', $section['product_ids'] ?? []);
+        $automatic = $mode === 'manual' ? collect() : $this->automaticProducts($section['automatic_source'], $fallback, $sectionKey, $limit, $editorial, $orderedIds);
         $products = match ($mode) {
             'manual' => $manual,
             'mixed' => $manual->concat($automatic)->unique('id')->values(),
             default => $automatic,
         };
+        if ($section['automatic_source'] !== 'paid_ads' && $orderedIds) {
+            $ranks = array_flip($orderedIds);
+            $products = $products->sortBy(fn($product) => $ranks[$product->id] ?? PHP_INT_MAX)->values();
+        }
 
         // Approval makes a product searchable. Homepage eligibility is a separate
         // editorial decision made by the administrator during product review.
@@ -476,10 +485,25 @@ class HomepageSectionBuilderService
         }
     }
 
-    private function automaticProducts(string $source, Collection $fallback, string $sectionKey, int $limit, bool $editorial = false): Collection
+    public function orderingProducts(string $theme, string $key): Collection
+    {
+        $section = data_get($this->layout($theme), 'sections.'.$key);
+        if (!$section || $section['automatic_source'] === 'paid_ads') return collect();
+        $ids = $section['product_ids'] ?? [];
+        $order = data_get($section, 'settings.product_order', $ids);
+        if ($section['source_mode'] === 'manual') {
+            return Product::withoutGlobalScopes()->whereIn('id',$ids)->get()->sortBy(fn ($p)=>array_search($p->id,$ids,true))->values();
+        }
+        $fallback = Product::active()->homepageVisible()->get();
+        return $this->automaticProducts($section['automatic_source'], $fallback, $key, PHP_INT_MAX,
+            (bool)data_get($section,'settings.editorial') || str_starts_with($key,'custom_'), $order);
+    }
+
+    private function automaticProducts(string $source, Collection $fallback, string $sectionKey, int $limit, bool $editorial = false, array $orderedIds = []): Collection
     {
         if ($source === 'existing') {
-            return $fallback;
+            $ranks = array_flip($orderedIds);
+            return $fallback->sortBy(fn ($p) => $ranks[$p->id] ?? PHP_INT_MAX)->values();
         }
         if ($source === 'paid_ads') {
             $scope = match ($sectionKey) {
@@ -503,6 +527,7 @@ class HomepageSectionBuilderService
             'popular' => $query->withCount('orderDetails')->orderByDesc('order_details_count'),
             default => null,
         };
+        if ($query) app(ProductDisplayOrderService::class)->query($query, $orderedIds);
         return $query ? $query->limit($limit)->get() : $fallback;
     }
 

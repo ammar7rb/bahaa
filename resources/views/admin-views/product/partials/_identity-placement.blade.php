@@ -1,7 +1,7 @@
 @php
  $sections = collect(app(\App\Services\HomepageSectionBuilderService::class)->productPlacementSections(theme_root_path()));
  $workspace = app(\App\Services\VendorProductWorkspaceService::class)->state($product);
- $original = $workspace?->approved_seller_content ?: $workspace?->seller_content;
+ $original = $product->originalSubmission?->seller_content ?: $workspace?->seller_content;
 @endphp
 <div class="card mb-3" dir="rtl"><div class="card-header"><h3 class="fs-16 mb-0"><i class="fi fi-rr-box-open" aria-hidden="true"></i> هوية المنتج وظهوره</h3></div><div class="card-body">
 @if(session('status'))<div class="alert alert-success" role="status">{{ session('status') }}</div>@endif

@@ -1866,6 +1866,11 @@ class OrderManager
         foreach ($orderProducts as $key => $orderProduct) {
             $productDetails = json_decode($orderProduct->product_details, true);
             $product = Product::active()->where(['id' => $orderProduct->product_id])->with(['digitalVariation'])->first();
+            if ($product?->is_credit_listing) {
+                $failedAddToCartCount++;
+                $errorMessages[] = ($product->name ?? '').' متاح عبر طلب ائتمان فقط.';
+                continue;
+            }
             if (!$product) {
                 $errorMessages[] = ($productDetails['name'] ?? '') . translate(' currently_not_available');
             }

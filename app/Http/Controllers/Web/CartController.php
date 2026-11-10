@@ -407,6 +407,9 @@ class CartController extends Controller
 
     function addToCartPhysicalProduct($request, $product)
     {
+        if ($product->is_credit_listing) {
+            return ['status' => 0, 'message' => 'هذا المنتج متاح عبر طلب ائتمان فقط.'];
+        }
         $user = Helpers::getCustomerInformation($request);
         $str = '';
         $variations = [];
@@ -499,6 +502,9 @@ class CartController extends Controller
 
     function addToCartDigitalProduct($request, $product): array
     {
+        if ($product->is_credit_listing) {
+            return ['status' => 0, 'message' => 'هذا المنتج متاح عبر طلب ائتمان فقط.'];
+        }
         $price = $product->unit_price;
         $digitalVariation = DigitalProductVariation::where(['product_id' => $product['id'], 'variant_key' => $request['variant_key']])->first();
         if ($request['variant_key'] && $digitalVariation) {

@@ -17,6 +17,10 @@ class PublicProductCodeService
                 return $locked->public_code;
             }
 
+            if ((int)$locked->request_status !== 1 || (int)$locked->status !== 1) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['publication'=>'يخصص كود المنتج عند الاعتماد والنشر الفعلي فقط.']);
+            }
+
             $scope = $locked->added_by === 'seller' ? 'seller:'.$locked->user_id : 'admin';
             DB::table('public_product_code_sequences')->insertOrIgnore(['scope' => $scope, 'next_sequence' => 1]);
             $counter = DB::table('public_product_code_sequences')->where('scope', $scope)->lockForUpdate()->first();

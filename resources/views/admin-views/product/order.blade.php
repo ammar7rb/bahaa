@@ -3,7 +3,7 @@
 @section('content')
 <div class="content container-fluid" dir="rtl">
     @include('admin-views.product.partials._management-nav')<div class="d-flex justify-content-between align-items-center mb-3"><h1 class="h2 mb-0"><i class="fi fi-rr-sort-amount-down me-2" aria-hidden="true"></i> ترتيب المنتجات</h1><a class="btn btn-outline-primary" href="{{ route('admin.products.all') }}">كل المنتجات</a></div>
-<p class="text-muted">يُطبق الترتيب على المنتجات المختارة يدويًا داخل القسم المحدد فقط. المنتجات التلقائية والإعلانات المدفوعة تتبع قواعدها الحالية.</p>
+<p class="text-muted">اختر مجموعة لترتيب منتجاتها: أقسام الرئيسية اليدوية والتلقائية، أو قائمة المنتجات، أو البحث، أو تصنيف محدد. ترتيب القوائم والتصنيفات مشترك بين الويب والتطبيق؛ تظل الإعلانات المدفوعة وقواعد التوفر واختيار العميل للترتيب بالسعر أو الاسم محفوظة.</p>
 @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
 <form method="get" class="mb-3"><label for="section" class="form-label">القسم</label><select id="section" name="section" class="form-control" onchange="this.form.submit()">@foreach($sections as $section)<option value="{{ $section['key'] }}" @selected(($selected['key'] ?? null) === $section['key'])>{{ $section['label'] }}</option>@endforeach</select></form>

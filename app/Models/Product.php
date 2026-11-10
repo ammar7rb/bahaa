@@ -414,6 +414,16 @@ class Product extends Model
         return $this->belongsTo(Seller::class, 'user_id');
     }
 
+    public function submissionWorkspace(): HasOne
+    {
+        return $this->hasOne(VendorProductWorkspace::class, 'product_id');
+    }
+
+    public function originalSubmission(): HasOne
+    {
+        return $this->hasOne(VendorProductSubmissionRevision::class, 'product_id')->oldestOfMany();
+    }
+
     public function sellerProductEntitlements(): HasMany
     {
         return $this->hasMany(SellerProductEntitlement::class);
@@ -644,6 +654,12 @@ class Product extends Model
     protected static function boot(): void
     {
         parent::boot();
+
+        static::addGlobalScope('display_group_order', function (Builder $query) {
+            $service = app(\App\Services\ProductDisplayOrderService::class);
+            $group = $service->context(request());
+            if ($group) $service->query($query, $service->ids($group));
+        });
 
         static::retrieved(function ($product) {
             app(\App\Services\VendorProductWorkspaceService::class)->projectForSeller($product);

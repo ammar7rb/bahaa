@@ -20,7 +20,7 @@ return new class extends Migration {
 
         // Existing links use the slug/database ID; this fills only the new
         // display identity and does not touch the editable SKU in `code`.
-        DB::table('products')->where('request_status', 1)->whereIn('added_by', ['seller', 'admin'])
+        DB::table('products')->where('request_status', 1)->where('status', 1)->whereIn('added_by', ['seller', 'admin'])
             ->orderBy('id')->select(['id', 'added_by', 'user_id', 'unit_price'])->chunk(500, function ($products) {
                 foreach ($products as $product) {
                     $scope = $product->added_by === 'seller' ? 'seller:'.$product->user_id : 'admin';

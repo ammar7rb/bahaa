@@ -57,6 +57,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->scoped(\App\Services\ProductDisplayOrderService::class);
         $loader = AliasLoader::getInstance();
         $loader->alias('Helper', \App\Utils\Helpers::class);
         $loader->alias('Madzipper', \Madnest\Madzipper\Madzipper::class);

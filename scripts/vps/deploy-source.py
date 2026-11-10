@@ -21,7 +21,7 @@ def verify(rev):
  if mismatches:raise RuntimeError('Source differs from deployed commit: '+', '.join(mismatches[:12]))
  return len(paths)
 def artisan(*args):return run('php8.3','artisan',*args)
-APPROVED_MIGRATIONS = ['database/migrations/2026_11_10_000001_add_public_product_identity.php', 'database/migrations/2026_11_10_000002_create_credit_requests.php']
+APPROVED_MIGRATIONS = ['database/migrations/2026_11_10_000001_add_public_product_identity.php', 'database/migrations/2026_11_10_000003_create_product_display_orders.php']
 def backup_database(backup):
  envfile=SITE/'.env';envcopy=backup/'environment-before';shutil.copy2(envfile,envcopy);os.chmod(envcopy,0o600)
  code='require "'+str(SITE/'vendor/autoload.php')+'"; $e=Dotenv\\Dotenv::parse(file_get_contents("'+str(envfile)+'")); echo json_encode(array_intersect_key($e,array_flip(["DB_HOST","DB_PORT","DB_DATABASE","DB_USERNAME","DB_PASSWORD"])));'
@@ -77,6 +77,9 @@ def deploy(target):
    status=run('curl','--max-time','30','-sS','-o','/dev/null','-w','%{http_code}',url).decode()
    if status!='200':raise RuntimeError('Health check failed: '+url+' HTTP '+status)
   marker=SITE/'.deploy-current.next';marker.write_text(target+'\n');os.replace(marker,SITE/'.deploy-current')
+  if migrations:
+   database_backup={'path':str(backup/'database-before.sql'),'bytes':(backup/'database-before.sql').stat().st_size,'sha256':hashlib.sha256((backup/'database-before.sql').read_bytes()).hexdigest()}
+   (release/'database-backup-verification.json').write_text(json.dumps(database_backup,indent=2))
   result={'commit':target,'previous':current,'verified_source_files':count,'changed_files':changes,'deployed_at_utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'health':'200','schema_changes':migrations};(release/'verification.json').write_text(json.dumps(result,indent=2));(REPO/'last-source-deploy.json').write_text(json.dumps(result,indent=2));return result
  except BaseException:
   if copied:

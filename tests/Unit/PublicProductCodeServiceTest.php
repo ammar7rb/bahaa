@@ -19,6 +19,8 @@ class PublicProductCodeServiceTest extends TestCase
             $table->string('added_by');
             $table->unsignedBigInteger('user_id');
             $table->string('public_code')->nullable()->unique();
+            $table->integer('status')->default(1);
+            $table->integer('request_status')->default(1);
             $table->string('name')->nullable();
             $table->decimal('unit_price', 20, 2)->nullable();
             $table->decimal('original_vendor_price', 20, 2)->nullable();
@@ -56,4 +58,19 @@ class PublicProductCodeServiceTest extends TestCase
         $this->assertCount(4, DB::table('products')->whereNotNull('public_code')->get());
     }
 
+    public function test_first_code_requires_publication_and_issued_codes_survive_hiding_or_owner_transfer(): void
+    {
+        $id=DB::table('products')->insertGetId(['added_by'=>'seller','user_id'=>1,'status'=>0,'request_status'=>1]);
+        $service=app(PublicProductCodeService::class);$product=Product::withoutGlobalScopes()->findOrFail($id);
+        try { $service->assign($product);$this->fail('Hidden first publication must not allocate a code.'); }
+        catch(\Illuminate\Validation\ValidationException $exception){ $this->assertNull(DB::table('products')->where('id',$id)->value('public_code')); }
+        $this->assertSame(0,DB::table('public_product_code_sequences')->count());
+        DB::table('products')->where('id',$id)->update(['status'=>1]);
+        $this->assertSame('P1-1',$service->assign($product));
+        DB::table('products')->where('id',$id)->update(['status'=>0,'user_id'=>2]);
+        $this->assertSame('P1-1',$service->assign($product));
+        DB::table('products')->where('id',$id)->delete();
+        $next=DB::table('products')->insertGetId(['added_by'=>'seller','user_id'=>1]);
+        $this->assertSame('P1-2',$service->assign(Product::withoutGlobalScopes()->findOrFail($next)));
+    }
 }

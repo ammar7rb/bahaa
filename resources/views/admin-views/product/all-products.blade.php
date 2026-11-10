@@ -21,24 +21,28 @@
 
     <div class="card"><div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead><tr><th>المنتج</th><th>الرمز</th><th>المالك</th><th>الحالة</th><th>مواضع محددة في الرئيسية</th><th class="text-end">الإجراءات</th></tr></thead>
+            <thead><tr><th>المنتج</th><th>الرمز</th><th>التاجر والباقة</th><th>سعر تقديم التاجر</th><th>سعر البيع</th><th>الحالة</th><th>مواضع محددة في الرئيسية</th><th class="text-end">الإجراءات</th></tr></thead>
             <tbody>
             @forelse($products as $product)
                 @php
                     $owner = $product->added_by === 'seller' ? 'vendor' : 'in-house';
                     $visible = (int) $product->request_status === 1 && (int) $product->status === 1;
                     $placed = $placements->filter(fn ($section) => in_array((int) $product->id, $section['product_ids'], true));
+                    $submission = $product->submissionWorkspace;
+                    $original = $product->originalSubmission?->seller_content ?: $submission?->seller_content;
                 @endphp
                 <tr>
                     <td><div class="d-flex align-items-center gap-2"><img src="{{ getStorageImages(path: $product->thumbnail_full_url, type: 'backend-product') }}" onerror="this.onerror=null;this.src='{{ dynamicAsset(path: 'public/assets/front-end/img/placeholder.png') }}'" alt="" width="48" height="48" class="rounded" style="object-fit:cover"><div><a class="fw-semibold" href="{{ route('admin.products.view', ['addedBy' => $owner, 'id' => $product->id]) }}">{{ $product->name }}</a><div class="text-muted small">{{ $product->category?->name }}</div></div></div></td>
                     <td><bdi dir="ltr">{{ $product->public_code ?: '—' }}</bdi></td>
-                    <td>{{ $product->added_by === 'seller' ? ($product->seller?->shop?->name ?: trim(($product->seller?->f_name ?? '').' '.($product->seller?->l_name ?? ''))) : 'الإدارة' }}</td>
+                    <td>@if($product->added_by === 'seller')<a href="{{ route('admin.vendors.view', $product->user_id) }}"><bdi dir="ltr">{{ \App\Services\AdministrativeReferenceService::format('seller', (int)$product->user_id) }}</bdi></a><div class="small">{{ $product->seller?->shop?->name ?: trim(($product->seller?->f_name ?? '').' '.($product->seller?->l_name ?? '')) }}</div><div class="small text-muted">{{ $product->seller?->activePackageSubscription?->package_name ?: 'لا توجد باقة نشطة' }}</div>@else الإدارة @endif</td>
+                    <td>@if($product->added_by === 'seller' && isset($original['unit_price'])){{ webCurrencyConverter($original['unit_price']) }}@if($submission->baseline_source === 'current_data_at_rollout')<small class="text-warning d-block">غير موثّق تاريخيًا</small>@endif @elseif($product->added_by === 'seller')<span class="text-muted">غير موثّق</span>@else — @endif</td>
+                    <td>{{ webCurrencyConverter($product->unit_price) }}</td>
                     <td><span class="badge {{ $visible ? 'bg-success' : ((int) $product->request_status === 1 ? 'bg-secondary' : 'bg-warning text-dark') }}">{{ $visible ? 'منشور' : ((int) $product->request_status === 1 ? 'مخفي' : 'غير منشور') }}</span></td>
                     <td>@forelse($placed as $section)<span class="badge bg-body-secondary text-dark me-1">{{ translate($section['label']) }}</span>@empty<span class="text-muted">—</span>@endforelse</td>
                     <td class="text-end"><div class="dropdown"><button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fi fi-rr-menu-dots-vertical" aria-hidden="true"></i> الإجراءات</button><div class="dropdown-menu dropdown-menu-end"><a class="dropdown-item" href="{{ route('admin.products.view', ['addedBy' => $owner, 'id' => $product->id]) }}"><i class="fi fi-rr-eye me-2" aria-hidden="true"></i> عرض التفاصيل</a><a class="dropdown-item" href="{{ route('admin.products.update', ['id' => $product->id]) }}"><i class="fi fi-rr-pencil me-2" aria-hidden="true"></i> تحرير المنتج</a></div></div></td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="text-center text-muted py-5">لا توجد منتجات مطابقة.</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-5">لا توجد منتجات مطابقة.</td></tr>
             @endforelse
             </tbody>
         </table>

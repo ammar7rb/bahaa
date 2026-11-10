@@ -96,7 +96,7 @@ class Cart extends Model
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class)->where('status', 1);
+        return $this->belongsTo(Product::class)->where('status', 1)->where('is_credit_listing', false);
     }
     public function seller(): BelongsTo
     {
@@ -109,7 +109,7 @@ class Cart extends Model
 
     public function allProducts(): BelongsTo
     {
-        return $this->belongsTo(Product::class, 'product_id');
+        return $this->belongsTo(Product::class, 'product_id')->where('is_credit_listing', false);
     }
 
     protected static function boot(): void
