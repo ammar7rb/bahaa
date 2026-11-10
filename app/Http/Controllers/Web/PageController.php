@@ -29,9 +29,6 @@ class PageController extends Controller
             return redirect()->route('buy-now-pay-later', [], 301);
         }
         $request->merge(['slug' => $request->route('slug')]);
-        if ($request['slug'] === 'privacy-policy') {
-            return redirect()->route('business-page.view', ['slug' => 'terms-and-conditions'], 301);
-        }
         $filter = ['slug' => $request['slug']];
         if (!($request->has('source') && $request->source == 'admin')) {
             $filter += ['status' => 1];

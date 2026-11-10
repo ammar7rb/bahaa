@@ -153,6 +153,10 @@ class ProductController extends Controller
                     ->orderByDesc('reviews_count');
             })
             ->orderBy('id', 'DESC')->get();
+        $viewCounts = app(\App\Services\ProductViewCountService::class)->totalsForProducts($products->pluck('id')->all());
+        $products->each(function ($product) use ($viewCounts) {
+            $this->attachViewCount($product, $viewCounts[$product->id]);
+        });
         return response()->json($products, 200);
     }
 
@@ -374,7 +378,13 @@ class ProductController extends Controller
             return $product;
         });
 
-        $productsFinal = Helpers::product_data_formatting($products->items(), true);
+        $productsFinal = Helpers::product_data_formatting($products->items(), true) ?? [];
+        $viewCounts = app(\App\Services\ProductViewCountService::class)->totalsForProducts($products->pluck('id')->all());
+        foreach ($productsFinal as &$item) {
+            $id = (int) ($item['id'] ?? 0);
+            if (isset($viewCounts[$id])) $this->attachViewCount($item, $viewCounts[$id]);
+        }
+        unset($item);
 
         return response()->json([
             'total_size' => $products->total(),
@@ -629,7 +639,13 @@ class ProductController extends Controller
             return $product;
         });
 
-        $productsFinal = Helpers::product_data_formatting($products->items(), true);
+        $productsFinal = Helpers::product_data_formatting($products->items(), true) ?? [];
+        $viewCounts = app(\App\Services\ProductViewCountService::class)->totalsForProducts($products->pluck('id')->all());
+        foreach ($productsFinal as &$item) {
+            $id = (int) ($item['id'] ?? 0);
+            if (isset($viewCounts[$id])) $this->attachViewCount($item, $viewCounts[$id]);
+        }
+        unset($item);
 
         return response()->json([
             'total_size' => $products->total(),
@@ -670,11 +686,20 @@ class ProductController extends Controller
         ->find($id);
 
         if (isset($product)) {
-            $viewCount = app(\App\Services\ProductViewCountService::class)->totals((int) $product->id)['total'];
+            $viewCount = app(\App\Services\ProductViewCountService::class)->totals((int) $product->id);
             $product = Helpers::product_data_formatting($product, false);
-            $product['product_view_count'] = $viewCount;
+            $this->attachViewCount($product, $viewCount);
         }
         return response()->json($product, 200);
+    }
+
+    private function attachViewCount(&$product, array $counts): void
+    {
+        $product['product_view_count_label'] = 'عدد المشاهدات';
+        $product['product_view_count'] = $counts['total'];
+        $product['recorded_product_visits'] = $counts['actual'];
+        $product['administrative_view_additions'] = $counts['added'];
+        $product['product_view_count_is_adjusted'] = $counts['added'] > 0;
     }
 
     public function getProductImages(Request $request, $id):JsonResponse

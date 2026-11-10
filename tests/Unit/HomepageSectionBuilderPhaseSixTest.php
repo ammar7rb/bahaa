@@ -130,7 +130,7 @@ class HomepageSectionBuilderPhaseSixTest extends TestCase
         $this->assertStringContainsString('data-homepage-section="main_banner"', $default);
         $this->assertStringContainsString('data-homepage-section="main_banner"', $aster);
         $this->assertStringContainsString("layout('default')", $controller);
-        $this->assertStringContainsString("layout('theme_aster')", $controller);
+        $this->assertStringContainsString('layout(theme_root_path())', $controller);
         $this->assertStringContainsString('$this->homepageBuilder->readiness', $themeService);
         $this->assertStringContainsString("prefix('homepage-builder')", $routes);
     }

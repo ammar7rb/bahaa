@@ -583,10 +583,17 @@ class VendorController extends BaseController
             return back();
         }
 
-        $this->vendorRepo->update(id: $id, data: [
-            'password' => Hash::make($request->input('password')),
-            'auth_token' => Str::random(80),
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($id, $request) {
+            $this->vendorRepo->update(id: $id, data: [
+                'password' => Hash::make($request->input('password')),
+                'auth_token' => Str::random(80),
+            ]);
+            \Illuminate\Support\Facades\DB::table('business_setting_audits')->insert([
+                'kind' => 'account_security', 'subject_type' => 'vendor_password_reset',
+                'subject_id' => $id, 'before' => null, 'after' => json_encode(['auth_token_rotated' => true]),
+                'admin_id' => auth('admin')->id(), 'created_at' => now(),
+            ]);
+        });
 
         ToastMagic::success(translate('password_reset_by_administrator'));
         return back();

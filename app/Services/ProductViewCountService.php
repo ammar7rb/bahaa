@@ -9,21 +9,32 @@ class ProductViewCountService
 {
     public function totals(int $productId): array
     {
-        $actual = Schema::hasTable('seller_package_product_metrics')
-            ? (int) DB::table('seller_package_product_metrics')->where('product_id', $productId)->sum('visits') : 0;
-        $added = Schema::hasTable('product_view_adjustments')
-            ? (int) DB::table('product_view_adjustments')->where('product_id', $productId)->sum('amount') : 0;
-        return ['actual' => $actual, 'added' => $added, 'total' => $actual + $added];
+        return $this->totalsForProducts([$productId])[$productId];
     }
 
-    public function add(int $productId, int $adminId, int $amount): void
+    public function totalsForProducts(array $productIds): array
     {
-        if ($amount < 1 || $amount > 1000000) {
-            throw new \InvalidArgumentException('Invalid view adjustment.');
+        $ids = array_values(array_unique(array_map('intval', $productIds)));
+        if ($ids === []) return [];
+        $metrics = []; $unpromoted = []; $adjustments = [];
+        $hasMetrics = Schema::hasTable('seller_package_product_metrics');
+        $hasUnpromoted = Schema::hasTable('vendor_product_unpromoted_visits');
+        $hasAdjustments = Schema::hasTable('product_view_adjustments');
+        foreach (array_chunk($ids, 500) as $chunk) {
+            if ($hasMetrics) $metrics += DB::table('seller_package_product_metrics')->whereIn('product_id', $chunk)
+                ->groupBy('product_id')->selectRaw('product_id, SUM(visits) as total')->pluck('total', 'product_id')->all();
+            if ($hasUnpromoted) $unpromoted += DB::table('vendor_product_unpromoted_visits')
+                ->whereIn('product_id', $chunk)->pluck('visits', 'product_id')->all();
+            if ($hasAdjustments) $adjustments += DB::table('product_view_adjustments')->whereIn('product_id', $chunk)
+                ->groupBy('product_id')->selectRaw('product_id, SUM(amount) as total')->pluck('total', 'product_id')->all();
         }
-        DB::table('product_view_adjustments')->insert([
-            'product_id' => $productId, 'admin_id' => $adminId, 'amount' => $amount,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
+        $totals = [];
+        foreach ($ids as $id) {
+            $actual = (int) ($metrics[$id] ?? 0) + (int) ($unpromoted[$id] ?? 0);
+            $added = (int) ($adjustments[$id] ?? 0);
+            $totals[$id] = ['actual' => $actual, 'added' => $added, 'total' => $actual + $added];
+        }
+        return $totals;
     }
+
 }

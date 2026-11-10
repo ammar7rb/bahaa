@@ -145,6 +145,26 @@ Route::group(['prefix' => 'login'], function () {
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', 'actch:admin_panel']], function () {
     Route::get('settings', [\App\Http\Controllers\Admin\Settings\BusinessSettingsHubController::class, 'index'])
         ->middleware('module:business_settings')->name('settings.index');
+    Route::get('settings/legal', [\App\Http\Controllers\Admin\Settings\LegalContentController::class, 'index'])
+        ->middleware('module:business_settings')->name('settings.legal');
+    Route::get('settings/audit', [\App\Http\Controllers\Admin\Settings\SettingsAuditController::class, 'index'])
+        ->middleware('module:business_settings')->name('settings.audit');
+    Route::get('settings/account-security', [\App\Http\Controllers\Admin\Settings\AccountSecurityController::class, 'index'])
+        ->middleware('module:business_settings')->name('settings.account-security');
+    Route::prefix('settings/product-views')->name('settings.product-views.')
+        ->middleware(['module:business_settings', 'module:product_view_adjust'])
+        ->controller(\App\Http\Controllers\Admin\Settings\ProductViewsController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('preview', 'preview')->name('preview');
+            Route::post('apply', 'apply')->name('apply');
+        });
+    Route::prefix('settings/notifications')->name('settings.notifications.')
+        ->middleware(['module:business_settings', 'module:notification_broadcast'])
+        ->controller(\App\Http\Controllers\Admin\Settings\AdminNotificationController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('preview', 'preview')->name('preview');
+            Route::post('send', 'send')->middleware('throttle:10,1')->name('send');
+        });
     Route::prefix('settings/rates')->name('settings.rates.')
         ->controller(\App\Http\Controllers\Admin\Settings\BusinessRatesController::class)
         ->middleware('module:business_settings')->group(function () {
@@ -606,7 +626,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         Route::controller(CustomerController::class)->group(function () {
             Route::get('list', 'index')->name('list');
             Route::get('view/{user_id}', 'getView')->name('view');
-            Route::post('reset-password/{user_id}', 'resetPassword')->name('reset-password');
+            Route::post('reset-password/{user_id}', 'resetPassword')->middleware(['module:customer_password_reset', 'throttle:10,1'])->name('reset-password');
             Route::post('purchase-limit-adjust/{user_id}', 'adjustPurchaseLimit')->name('purchase-limit-adjust');
             Route::get('order-list-export/{user_id}', 'exportOrderList')->name('order-list-export');
             Route::post('status-update', 'updateStatus')->name('status-update');
@@ -618,7 +638,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::get('customer-list-without-all-customer', 'getCustomerListWithoutAllCustomerName')->name('customer-list-without-all-customer');
             Route::post('add', 'add')->name('add');
             Route::post('profile-update', 'updateProfile')->name('profile-update');
-            Route::post('notify', 'notifySelected')->name('notify');
+            Route::post('notify', 'notifySelected')->middleware('module:notification_broadcast')->name('notify');
         });
 
         Route::controller(\App\Http\Controllers\Admin\Customer\PasswordRecoveryController::class)->prefix('password-recovery')->name('password-recovery.')->group(function(){
@@ -756,7 +776,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::post('sales-commission-update/{id}', 'updateSalesCommission')->name('sales-commission-update');
             Route::get('order-details/{order_id}/{vendor_id}', 'getOrderDetailsView')->name('order-details');
             Route::get('view/{id}/{tab?}', 'getView')->name('view');
-            Route::post('reset-password/{id}', 'resetPassword')->name('reset-password');
+            Route::post('reset-password/{id}', 'resetPassword')->middleware(['module:vendor_password_reset', 'throttle:10,1'])->name('reset-password');
             Route::post( 'update_setting/{id}', 'updateSetting')->name('update-setting');
 
             Route::get('withdraw-list', 'getWithdrawListView')->name('withdraw_list');
@@ -990,12 +1010,12 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     Route::group(['prefix' => 'notification', 'as' => 'notification.', 'middleware' => ['module:marketing']], function () {
         Route::controller(NotificationController::class)->group(function () {
             Route::get('index', 'index')->name('index');
-            Route::post('index', 'add');
+            Route::post('index', 'add')->middleware('module:notification_broadcast');
             Route::get('update/{id}', 'getUpdateView')->name('update');
             Route::post('update/{id}', 'update');
             Route::post('delete', 'delete')->name('delete');
             Route::post('update-status', 'updateStatus')->name('update-status');
-            Route::post('resend-notification', 'resendNotification')->name('resend-notification');
+            Route::post('resend-notification', 'resendNotification')->middleware('module:notification_broadcast')->name('resend-notification');
         });
     });
 

@@ -138,14 +138,15 @@ class DashboardController extends BaseController
             ->where('added_by', 'seller')->where('user_id', $vendorId)
             ->where(fn ($query) => $query->active());
         $activeProductIds = $activeProducts->pluck('id');
-        $activeVisits = \Illuminate\Support\Facades\Schema::hasTable('seller_package_product_metrics')
-            ? (int) \Illuminate\Support\Facades\DB::table('seller_package_product_metrics')
-                ->where('seller_id', $vendorId)->whereIn('product_id', $activeProductIds)->sum('visits')
-            : null;
+        $viewTotals = app(\App\Services\ProductViewCountService::class)
+            ->totalsForProducts($activeProductIds->all());
+        $activeVisits = array_sum(array_column($viewTotals, 'actual'));
+        $activeViewAdditions = array_sum(array_column($viewTotals, 'added'));
 
         return view('vendor-views.dashboard.index', [
             'activeAdvertisementCount' => $activeProductIds->count(),
             'activeProductVisits' => $activeVisits,
+            'activeProductViewAdditions' => $activeViewAdditions,
             'vendorWallet' => $vendorWallet,
             'withdrawRequests' => $withdrawRequests,
             'vendorWithdrawMethods' => $vendorWithdrawMethods,

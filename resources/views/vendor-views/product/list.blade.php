@@ -94,6 +94,7 @@
                                                 <div class="d-flex gap-1">
                                                     <span class="text-secondary">{{ translate('vendor_product_reference') }} {{ $product->administrative_reference }}</span>
                                                 </div>
+                                                <div class="small text-secondary">عدد المشاهدات: <strong>{{ $viewCounts[$product->id]['total'] ?? 0 }}</strong> @if(($viewCounts[$product->id]['added'] ?? 0) > 0)<span>(منها {{ $viewCounts[$product->id]['added'] }} إضافة إدارية؛ المسجلة {{ $viewCounts[$product->id]['actual'] }})</span>@else<span>(زيارات مسجلة)</span>@endif</div>
                                             </div>
                                         </a>
                                     </td>

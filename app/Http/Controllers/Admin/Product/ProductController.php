@@ -377,11 +377,7 @@ class ProductController extends BaseController
 
     public function addProductViews(Request $request, int $product): RedirectResponse
     {
-        $values = $request->validate(['amount' => ['required', 'integer', 'min:1', 'max:1000000']]);
-        $item = \App\Models\Product::withoutGlobalScopes()->where('added_by', 'seller')->findOrFail($product);
-        app(\App\Services\ProductViewCountService::class)->add((int) $item->id, (int) auth('admin')->id(), (int) $values['amount']);
-        ToastMagic::success('تمت إضافة المشاهدات.');
-        return back();
+        abort(410, 'استخدم معاينة وتأكيد المشاهدات من الإعدادات.');
     }
 
     public function updateProductImages(ProductEditImageRequest $request, ProductService $productService, int|string $id): RedirectResponse

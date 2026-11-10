@@ -12,7 +12,7 @@
             <div class="customer-profile-contact"><a @if($customer->phone) href="tel:{{ $customer->phone }}" @endif data-customer-live-phone><bdi>{{ $customer->phone ?: '—' }}</bdi></a><a @if($customer->email) href="mailto:{{ $customer->email }}" @endif data-customer-live-email><bdi>{{ $customer->email ?: '—' }}</bdi></a></div>
         </div>
         <div class="customer-profile-actions d-print-none">
-            <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#resetCustomerPasswordModal" aria-label="{{ translate('reset_password') }}" title="{{ translate('reset_password') }}"><i class="fi fi-rr-key" aria-hidden="true"></i></button>
+            @if(\App\Utils\Helpers::module_permission_check('customer_password_reset'))<button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#resetCustomerPasswordModal" aria-label="{{ translate('reset_password') }}" title="{{ translate('reset_password') }}"><i class="fi fi-rr-key" aria-hidden="true"></i></button>@endif
             <a class="btn btn-outline-primary btn-sm" href="#profileUpdateOffcanvas" data-bs-toggle="offcanvas" aria-label="{{ translate('edit') }}" title="{{ translate('edit') }}"><i class="fi fi-rr-pencil" aria-hidden="true"></i></a>
             <a class="btn btn-outline-primary btn-sm" href="#customerNotify" data-bs-toggle="collapse" aria-controls="customerNotify" aria-expanded="false" aria-label="{{ translate('Notify_Customer') }}" title="{{ translate('Notify_Customer') }}"><i class="fi fi-rr-bell" aria-hidden="true"></i></a>
         </div>

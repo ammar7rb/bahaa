@@ -16,12 +16,7 @@
             <div class="card mb-3"><div class="card-body">
                 <h3 class="fs-16">مشاهدات المنتج</h3>
                 <p>المسجلة: {{ $viewCounts['actual'] }} · المضافة: {{ $viewCounts['added'] }} · الظاهرة للتاجر: {{ $viewCounts['total'] }}</p>
-                <form method="post" action="{{ route('admin.products.view-adjustments', $product->id) }}" class="d-flex flex-wrap gap-2 align-items-end">
-                    @csrf
-                    <label>عدد المشاهدات للإضافة <input class="form-control" type="number" name="amount" min="1" max="1000000" required></label>
-                    <button type="submit" class="btn btn-primary">إضافة مشاهدات</button>
-                </form>
-                @error('amount') <div class="text-danger" role="alert">{{ $message }}</div> @enderror
+                @if(\App\Utils\Helpers::module_permission_check('product_view_adjust'))<a class="btn btn-outline-primary" href="{{ route('admin.settings.product-views.index', ['vendor_id' => $product->user_id, 'product_q' => $product->id]) }}">إدارة المشاهدات مع المعاينة والتأكيد</a>@endif
             </div></div>
         @endif
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">

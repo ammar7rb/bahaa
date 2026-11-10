@@ -11,6 +11,9 @@
     @php
         $titleValue = old("translations.$language.title", $savedTranslations[$language]['title'] ?? ($legacyLanguage === $language ? $legacyTitle : ''));
         $descriptionValue = old("translations.$language.description", $savedTranslations[$language]['description'] ?? ($legacyLanguage === $language ? $legacyDescription : ''));
+        if (in_array($page?->slug, ['terms-and-conditions', 'privacy-policy'], true)) {
+            $descriptionValue = app(\App\Services\LegalContentSanitizer::class)->clean((string) $descriptionValue);
+        }
     @endphp
     <section class="p-12 p-sm-20 bg-section rounded mb-3" lang="{{ $language }}" dir="{{ $direction }}" aria-labelledby="content-heading-{{ $language }}">
         <h3 id="content-heading-{{ $language }}" class="mb-2">{{ $language === 'ar' ? 'المحتوى العربي' : 'English content' }}</h3>

@@ -219,11 +219,18 @@ class CustomerController extends BaseController
             return back();
         }
 
-        $this->customerRepo->update(id: $id, data: [
-            'password' => Hash::make($request->input('password')),
-            'remember_token' => Str::random(60),
-        ]);
-        $this->customerRepo->deleteAuthAccessTokens(id: $id);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($id, $request) {
+            $this->customerRepo->update(id: $id, data: [
+                'password' => Hash::make($request->input('password')),
+                'remember_token' => Str::random(60),
+            ]);
+            $this->customerRepo->deleteAuthAccessTokens(id: $id);
+            \Illuminate\Support\Facades\DB::table('business_setting_audits')->insert([
+                'kind' => 'account_security', 'subject_type' => 'customer_password_reset',
+                'subject_id' => $id, 'before' => null, 'after' => json_encode(['tokens_revoked' => true]),
+                'admin_id' => auth('admin')->id(), 'created_at' => now(),
+            ]);
+        });
 
         ToastMagic::success(translate('password_reset_by_administrator'));
         return back();
@@ -677,50 +684,7 @@ class CustomerController extends BaseController
     /** Send a notification only to customers selected from the customer list. */
     public function notifySelected(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:120'],
-            'message' => ['required', 'string', 'max:1000'],
-            'customer_ids' => ['required', 'array', 'min:1', 'max:100'],
-            'customer_ids.*' => ['integer', 'distinct'],
-        ]);
-
-        $customers = User::query()
-            ->whereIn('id', $data['customer_ids'])
-            ->where(function ($query) {
-                $query->whereNull('email')->orWhere('email', '!=', 'walking@customer.com');
-            })
-            ->whereNotNull('cm_firebase_token')
-            ->where('cm_firebase_token', '!=', '')
-            ->get(['id', 'cm_firebase_token']);
-
-        if ($customers->isEmpty()) {
-            ToastMagic::error(translate('no_customer_device_available'));
-            return back();
-        }
-
-        $sentCount = 0;
-        foreach ($customers as $customer) {
-            try {
-                $this->sendPushNotificationToDevice($customer->cm_firebase_token, [
-                    'title' => $data['title'],
-                    'description' => $data['message'],
-                    'image' => '',
-                    'order_id' => '',
-                    'type' => 'admin_customer_notification',
-                    'notification_from' => 'admin',
-                ]);
-                $sentCount++;
-            } catch (\Throwable $exception) {
-                report($exception);
-            }
-        }
-
-        if ($sentCount === 0) {
-            ToastMagic::error(translate('no_customer_device_available'));
-            return back();
-        }
-
-        ToastMagic::success(translate('customer_notification_sent_successfully'));
-        return back();
+        return redirect()->route('admin.settings.notifications.index', ['audience' => 'customer'])
+            ->with('success', 'اختر الحسابات وعاين الجمهور والنص قبل إرسال الإشعار.');
     }
 }

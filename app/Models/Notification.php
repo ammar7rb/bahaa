@@ -27,6 +27,7 @@ class Notification extends Model
         'sent_by',
         'sent_to',
         'seller_id',
+        'customer_id',
         'title',
         'description',
         'notification_count',

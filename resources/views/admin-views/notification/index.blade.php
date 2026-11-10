@@ -18,6 +18,8 @@
             <div class="col-sm-12 col-lg-12 mb-3 mb-lg-2">
                 <div class="card">
                     <div class="card-body">
+                        <div class="alert alert-info mb-0">للإرسال إلى حساب واحد أو عدة حسابات أو الجميع، استخدم @if(\App\Utils\Helpers::module_permission_check('notification_broadcast'))<a href="{{ route('admin.settings.notifications.index') }}">الإشعارات الإدارية مع المعاينة والتأكيد</a>@else قسم الإشعارات الإدارية المخصص للمخولين @endif.</div>
+                        @if(false)
                         <form action="{{route('admin.notification.index')}}" method="post" class="text-start form-advance-validation form-advance-inputs-validation form-advance-file-validation non-ajax-form-validate" novalidate="novalidate"
                               enctype="multipart/form-data">
                             @csrf
@@ -86,6 +88,7 @@
                                         class="btn btn-primary {{env('APP_MODE')!='demo'?'':'call-demo-alert'}}">{{translate('send_Notification')}}  </button>
                             </div>
                         </form>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -172,10 +175,7 @@
                                                 </form>
                                             </td>
                                             <td>
-                                                <a href="javascript:" class="btn btn-outline-success icon-btn resend-notification"
-                                                data-id="{{ $notification->id }}">
-                                                    <i class="fi fi-rr-refresh"></i>
-                                                </a>
+                                                <span class="text-muted">—</span>
                                             </td>
                                             <td class="text-center">
                                                 <div class="d-flex justify-content-center gap-3">

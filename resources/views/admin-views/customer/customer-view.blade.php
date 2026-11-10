@@ -458,6 +458,7 @@
         </div>
     </div>
 
+    @if(\App\Utils\Helpers::module_permission_check('customer_password_reset'))
     <div class="modal fade" id="resetCustomerPasswordModal" tabindex="-1"
          aria-labelledby="resetCustomerPasswordModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -491,6 +492,7 @@
         </div>
     </div>
 
+    @endif
     @include("admin-views.customer.customer-update-partials")
     @include('admin-views.customer.partials.offcanvas._filter-offcanvas')
 @endsection

@@ -136,8 +136,11 @@ class ProductController extends BaseController
         $brands = $this->brandRepo->getListWhere(orderBy: ['id' => 'desc'], dataLimit: 'all');
         $categories = $this->categoryRepo->getListWhere(filters: ['position' => 0], relations: ['childes.childes'], dataLimit: 'all');
 
+        $viewCounts = app(\App\Services\ProductViewCountService::class)
+            ->totalsForProducts($products->pluck('id')->all());
+
         return view('vendor-views.product.list', compact('products', 'type', 'searchValue', 'brands',
-            'categories', 'filters', 'productWiseTax', 'sellerReviewStatus'));
+            'categories', 'filters', 'productWiseTax', 'sellerReviewStatus', 'viewCounts'));
     }
 
     public function getRequestRestockListView(Request $request): View|RedirectResponse

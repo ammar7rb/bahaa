@@ -76,7 +76,9 @@ class AppServiceProvider extends ServiceProvider
         foreach ([\App\Models\CustomerPurchasePackage::class, \App\Models\SellerPackage::class,
             \App\Models\EgyptShippingZoneRate::class, \App\Models\ShippingMethod::class,
             \App\Models\ShippingType::class, \App\Models\CategoryShippingCost::class,
-            \App\Models\OfflinePaymentMethod::class] as $model) {
+            \App\Models\OfflinePaymentMethod::class, \App\Models\BusinessPage::class,
+            \App\Models\Banner::class, \App\Models\Category::class,
+            \App\Models\Brand::class, \App\Models\CompanyMedicalDevice::class] as $model) {
             $model::observe(\App\Observers\BusinessSettingsAuditObserver::class);
         }
         if (!in_array(request()->ip(), ['127.0.0.1', '::1']) && env('FORCE_HTTPS')) {

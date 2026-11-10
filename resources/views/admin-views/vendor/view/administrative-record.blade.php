@@ -33,10 +33,10 @@
                 <a class="btn btn-outline-secondary btn-sm seller-admin-action" href="{{ route('admin.vendors.view', ['id' => $seller->id, 'tab' => 'order']) }}"><i class="fi fi-rr-shopping-cart"></i> {{ translate('order') }}</a>
                 <a class="btn btn-outline-secondary btn-sm seller-admin-action" href="{{ route('admin.vendors.view', ['id' => $seller->id, 'tab' => 'product']) }}"><i class="fi fi-rr-box"></i> {{ translate('product') }}</a>
                 <a class="btn btn-outline-secondary btn-sm seller-admin-action" href="{{ route('admin.vendors.view', ['id' => $seller->id, 'tab' => 'transaction']) }}"><i class="fi fi-rr-receipt"></i> {{ translate('transaction') }}</a>
-                <button type="button" class="btn btn-outline-primary btn-sm seller-admin-action"
+                @if(\App\Utils\Helpers::module_permission_check('vendor_password_reset'))<button type="button" class="btn btn-outline-primary btn-sm seller-admin-action"
                         data-bs-toggle="modal" data-bs-target="#resetVendorPasswordModal">
                     <i class="fi fi-rr-key"></i> {{ translate('reset_password') }}
-                </button>
+                </button>@endif
             </div>
         </div>
         <div class="seller-admin-identity p-3 mt-3">
@@ -83,6 +83,7 @@
     </div>
 </div>
 
+@if(\App\Utils\Helpers::module_permission_check('vendor_password_reset'))
 <div class="modal fade" id="resetVendorPasswordModal" tabindex="-1"
      aria-labelledby="resetVendorPasswordModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -114,3 +115,4 @@
         </form>
     </div>
 </div>
+@endif

@@ -25,6 +25,10 @@ class BusinessSettingsAuditObserver
         $kind = match (class_basename($model)) {
             'CustomerPurchasePackage', 'SellerPackage' => 'package',
             'OfflinePaymentMethod' => 'payment_destination',
+            'BusinessPage' => 'legal_content',
+            'Banner' => 'advertising_placement',
+            'Category', 'Brand' => 'catalog',
+            'CompanyMedicalDevice' => 'company_product',
             default => 'shipping',
         };
         DB::table('business_setting_audits')->insert(['kind' => $kind, 'subject_type' => class_basename($model).':'.$event,

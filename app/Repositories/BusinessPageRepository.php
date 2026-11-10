@@ -114,7 +114,7 @@ class BusinessPageRepository implements BusinessPageRepositoryInterface
     public function delete(array $params): bool
     {
         cacheRemoveByType(type: 'business_pages');
-        $this->businessPage->where($params)->delete();
+        $this->businessPage->where($params)->get()->each(fn (BusinessPage $page) => $page->delete());
         return true;
     }
 

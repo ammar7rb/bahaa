@@ -52,12 +52,11 @@ class SellerPackagePerformanceService
 
     public function recordVisit(Product $product): void
     {
-        if (! Schema::hasTable('seller_package_product_metrics')) {
-            return;
-        }
         if ($product->added_by !== 'seller') {
             return;
         }
+
+        if (!Schema::hasTable('seller_package_product_metrics')) return;
 
         $promotion = $product->activeSearchPromotion()->first();
         $subscription = $promotion?->subscription;
@@ -73,6 +72,12 @@ class SellerPackagePerformanceService
         }
         if ($subscription) {
             $this->increment((int) $product->user_id, (int) $subscription->id, (int) $product->id, 'visits');
+        } elseif (Schema::hasTable('vendor_product_unpromoted_visits')) {
+            DB::table('vendor_product_unpromoted_visits')->insertOrIgnore([
+                'product_id' => $product->id, 'seller_id' => $product->user_id,
+                'visits' => 0, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            DB::table('vendor_product_unpromoted_visits')->where('product_id', $product->id)->increment('visits');
         }
     }
 

@@ -22,16 +22,24 @@
             ['الشحن', 'fi fi-rr-truck-side', [
                 ['طرق الشحن وأسعار المناطق', 'admin.operations.shipping.index', 'shipping_pricing_manage'],
             ]],
-            ['المحتوى والكتالوج', 'fi fi-rr-document', [
-                ['الشروط والخصوصية', 'admin.pages-and-media.list', 'business_settings'],
+            ['المحتوى القانوني', 'fi fi-rr-document', [
+                ['الشروط والأحكام وسياسة الخصوصية', 'admin.settings.legal', 'business_settings'],
+            ]],
+            ['منتجات الشركة والكتالوج', 'fi fi-rr-shopping-bag', [
+                ['منتجات اشتر الآن وادفع لاحقًا · طلب ائتمان', 'admin.products.credit-listings', 'catalog'],
+                ['الأجهزة الطبية المتخصصة · طلب التفاصيل', 'admin.operations.medical-devices.index', 'catalog'],
                 ['الفئات', 'admin.category.view', 'catalog'],
                 ['العلامات التجارية للمنتجات', 'admin.brand.list', 'catalog'],
-                ['الأجهزة الطبية المتخصصة', 'admin.operations.medical-devices.index', 'catalog'],
             ]],
             ['التواصل والإعلانات', 'fi fi-rr-bell', [
-                ['الإشعارات', 'admin.notification.index', 'marketing'],
+                ['إرسال إشعارات إدارية', 'admin.settings.notifications.index', 'notification_broadcast'],
                 ['لافتات الموقع', 'admin.banner.list', 'marketing'],
                 ['مواضع الصفحة الرئيسية', 'admin.operations.homepage-sections.index', 'catalog'],
+            ]],
+            ['الأمان والتحليلات', 'fi fi-rr-shield-check', [
+                ['إعادة تعيين كلمات مرور الحسابات', 'admin.settings.account-security', 'business_settings'],
+                ['عدد مشاهدات منتجات التجار', 'admin.settings.product-views.index', 'product_view_adjust'],
+                ['سجل تغييرات الإعدادات', 'admin.settings.audit', 'business_settings'],
             ]],
         ];
     @endphp
@@ -42,7 +50,8 @@
                     <h2 class="h5 mb-3"><i class="{{ $icon }}" aria-hidden="true"></i> {{ $title }}</h2>
                     <div class="d-grid gap-2">
                         @foreach($entries as [$label, $routeName, $permission])
-                            @if(\App\Utils\Helpers::module_permission_check($permission) && \Illuminate\Support\Facades\Route::has($routeName))
+                            @if(\App\Utils\Helpers::module_permission_check($permission) && \Illuminate\Support\Facades\Route::has($routeName)
+                                && ($routeName !== 'admin.settings.account-security' || \App\Utils\Helpers::module_permission_check('customer_password_reset') || \App\Utils\Helpers::module_permission_check('vendor_password_reset')))
                                 <a class="btn btn-outline-primary text-start" href="{{ route($routeName) }}">{{ $label }}</a>
                             @endif
                         @endforeach

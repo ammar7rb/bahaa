@@ -56,23 +56,10 @@ class NotificationController extends BaseController
      * @param NotificationRequest $request
      * @return RedirectResponse
      */
-    public function add(NotificationRequest $request): RedirectResponse
+    public function add(Request $request): RedirectResponse
     {
-        if (env('APP_MODE') === 'demo') {
-            ToastMagic::info(translate('push_notification_is_disable_for_demo'));
-            return back();
-        }
-
-        $notification = $this->notificationRepo->add(data: $this->notificationService->getNotificationAddData(request: $request));
-        try {
-            $notification['type'] = 'notification';
-            $this->sendPushNotificationToTopic($notification);
-        } catch (\Exception $e) {
-            ToastMagic::warning(translate('push_notification_failed'));
-        }
-
-        ToastMagic::success(translate('notification_sent_successfully'));
-        return redirect()->back();
+        return redirect()->route('admin.settings.notifications.index')
+            ->with('success', 'استخدم معاينة الجمهور والنص ثم التأكيد للإرسال الإداري.');
     }
 
     /**
@@ -133,24 +120,6 @@ class NotificationController extends BaseController
      */
     public function resendNotification(Request $request): JsonResponse
     {
-        if (env('APP_MODE') === 'demo') {
-            $data['success'] = false;
-            $data['message'] = translate("push_notification_is_disabled_for_demo");
-            return response()->json($data);
-        }
-        $data = [];
-        try {
-            $notification = $this->notificationRepo->getFirstWhere(params: ['id' => $request['id']])->toArray();
-            $notification['type'] = 'notification';
-            $this->sendPushNotificationToTopic($notification);
-            $count = $notification['notification_count'] += 1;
-            $this->notificationRepo->update(id: $notification['id'], data: ['notification_count' => $count]);
-            $data['success'] = true;
-            $data['message'] = translate("push_notification_sent_successfully");
-        } catch (\Exception $e) {
-            $data['success'] = false;
-            $data['message'] = translate("push_notification_failed");
-        }
-        return response()->json($data);
+        return response()->json(['success' => false, 'message' => 'استخدم صفحة الإشعارات لإرسال دفعة جديدة بعد المعاينة.'], 410);
     }
 }

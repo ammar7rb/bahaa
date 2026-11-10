@@ -45,11 +45,18 @@ class BusinessPageService
         if (in_array($request['slug'], ['terms-and-conditions', 'about-us', 'privacy-policy'])) {
             $status = 1;
         }
+        $translations = $request['translations'];
+        if (in_array($slug, ['terms-and-conditions', 'privacy-policy'], true)) {
+            foreach (['ar', 'en'] as $language) {
+                $translations[$language]['description'] = app(LegalContentSanitizer::class)
+                    ->clean($translations[$language]['description']);
+            }
+        }
         return [
             'title' => $request['title'],
             'slug' => $slug,
-            'description' => $request['description'],
-            'translations' => $request['translations'],
+            'description' => $translations['en']['description'],
+            'translations' => $translations,
             'status' => $status,
         ];
     }

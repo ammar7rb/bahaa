@@ -165,6 +165,7 @@ class PagesController extends BaseController
 
     public function getDelete(Request $request): RedirectResponse
     {
+        abort_if(in_array($request['slug'], ['terms-and-conditions', 'privacy-policy'], true), 403);
         $this->businessPageRepo->delete(params: ['slug' => $request['slug']]);
         ToastMagic::success(translate('Delete_successfully'));
         return redirect()->route('admin.pages-and-media.list');

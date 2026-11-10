@@ -50,11 +50,27 @@ class BusinessPage extends Model
 
     protected $appends = ['banner_full_url'];
 
+    public function getTranslationsAttribute($value): array
+    {
+        $translations = is_array($value) ? $value : (json_decode((string) $value, true) ?: []);
+        if (in_array($this->attributes['slug'] ?? '', ['terms-and-conditions', 'privacy-policy'], true)) {
+            foreach (['ar', 'en'] as $language) {
+                if (isset($translations[$language]['description'])) {
+                    $translations[$language]['description'] = app(\App\Services\LegalContentSanitizer::class)
+                        ->clean((string) $translations[$language]['description']);
+                }
+            }
+        }
+        return $translations;
+    }
+
     public function translatedContent(string $field, ?string $locale = null): string
     {
         $locale = strtolower(str_replace('_', '-', $locale ?? app()->getLocale()));
         $language = in_array(explode('-', $locale)[0], ['ar', 'sa']) ? 'ar' : 'en';
-        return $this->translations[$language][$field] ?? $this->attributes[$field] ?? '';
+        $value = $this->translations[$language][$field] ?? $this->attributes[$field] ?? '';
+        return $field === 'description' && in_array($this->attributes['slug'] ?? '', ['terms-and-conditions', 'privacy-policy'], true)
+            ? app(\App\Services\LegalContentSanitizer::class)->clean((string) $value) : (string) $value;
     }
 
     public function getTitleAttribute($value): string

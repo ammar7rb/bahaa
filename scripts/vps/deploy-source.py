@@ -21,7 +21,7 @@ def verify(rev):
  if mismatches:raise RuntimeError('Source differs from deployed commit: '+', '.join(mismatches[:12]))
  return len(paths)
 def artisan(*args):return run('php8.3','artisan',*args)
-APPROVED_MIGRATIONS = ['database/migrations/2026_11_10_000001_add_public_product_identity.php', 'database/migrations/2026_11_10_000003_create_product_display_orders.php', 'database/migrations/2026_11_10_000001_create_business_rate_rules.php']
+APPROVED_MIGRATIONS = ['database/migrations/2026_11_10_000001_add_public_product_identity.php', 'database/migrations/2026_11_10_000003_create_product_display_orders.php', 'database/migrations/2026_11_10_000001_create_business_rate_rules.php', 'database/migrations/2026_11_11_000001_extend_product_view_adjustments.php', 'database/migrations/2026_11_11_000002_create_admin_notification_batches.php']
 def backup_database(backup):
  envfile=SITE/'.env';envcopy=backup/'environment-before';shutil.copy2(envfile,envcopy);os.chmod(envcopy,0o600)
  code='require "'+str(SITE/'vendor/autoload.php')+'"; $e=Dotenv\\Dotenv::parse(file_get_contents("'+str(envfile)+'")); echo json_encode(array_intersect_key($e,array_flip(["DB_HOST","DB_PORT","DB_DATABASE","DB_USERNAME","DB_PASSWORD"])));'
