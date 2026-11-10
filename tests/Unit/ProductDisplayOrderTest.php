@@ -64,4 +64,14 @@ class ProductDisplayOrderTest extends TestCase
         $this->assertEquals(20,$product->unit_price);
         $this->assertSame('M000015',\App\Services\AdministrativeReferenceService::format('seller',15));
     }
+    public function test_related_products_use_category_priority_before_taking_ten_and_fall_back_to_catalog(): void {
+        foreach(range(5,25) as $id) DB::table('products')->insert(['id'=>$id,'category_id'=>7,'unit_price'=>10]);
+        $service=app(ProductDisplayOrderService::class);$service->save('category:7',[25,14],9);
+        $query=Product::withoutGlobalScopes()->where('category_id',7)->where('id','!=',1);
+        $ids=$service->relatedQuery($query,7)->limit(10)->pluck('id')->all();
+        $this->assertCount(10,$ids);$this->assertSame([25,14],array_slice($ids,0,2));$this->assertNotContains(1,$ids);
+        $service->save('catalog',[24,23],9);
+        $query=Product::withoutGlobalScopes()->where('id','!=',1);
+        $this->assertSame([24,23],$service->relatedQuery($query,99)->limit(2)->pluck('id')->all());
+    }
 }

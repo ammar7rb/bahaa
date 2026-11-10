@@ -303,6 +303,11 @@ class CustomerThreeStepShippingService
                 ->get();
         }
 
+        // Credit/orphan rows have no purchasable allProducts relation. Remove
+        // them before quantity surcharges and rate checks, preserving the
+        // existing checked/fallback selection for ordinary products.
+        $cartItems = $cartItems->filter(fn ($item) => $item->allProducts !== null)->values();
+
         // Sigma is one customer-facing option, but its product rate follows the
         // delivery promise: same-day rate before the cutoff and next-day rate after it.
         $rateColumn = $this->getRateColumnForOption($optionKey);

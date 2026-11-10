@@ -43,6 +43,13 @@ class ProductDisplayOrderService
         return $request->filled('search') || $request->filled('name') || $request->is('*/search', 'searched-products') ? 'search' : 'catalog';
     }
 
+    /** Use the category preference for related products, falling back to the catalog. */
+    public function relatedQuery(Builder $query, ?int $categoryId): Builder
+    {
+        $ids = $categoryId ? $this->ids('category:'.$categoryId) : [];
+        return $this->query($query, $ids ?: $this->ids('catalog'))->orderBy('products.id');
+    }
+
     /** Prepend preference before pagination, retaining the existing sort as its tie-breaker. */
     public function query(Builder $query, array $ids): Builder
     {

@@ -453,6 +453,10 @@ class ProductRepository implements ProductRepositoryInterface
             });
         $filters += ['searchValue' => $searchValue];
 
+        if (isset($filters['display_order_category'])) {
+            app(\App\Services\ProductDisplayOrderService::class)->relatedQuery($query, (int)$filters['display_order_category']);
+        }
+
         if ($dataLimit == 'all') {
             return $query->get();
         }

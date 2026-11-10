@@ -389,8 +389,8 @@ class ProductManager
             }])
             ->where('category_ids', $product->category_ids)
             ->where('id', '!=', $product->id)
-            ->limit(10)
-            ->get();
+            ->tap(fn ($query) => app(\App\Services\ProductDisplayOrderService::class)->relatedQuery($query, $product->category_id))
+            ->limit(10)->get();
 
         $currentDate = date('Y-m-d H:i:s');
         $products?->map(function ($product) use ($currentDate) {

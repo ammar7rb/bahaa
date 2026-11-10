@@ -129,7 +129,7 @@ class ProductDetailsController extends Controller
             $countWishlist = $this->wishlistRepo->getListWhereCount(filters: ['product_id' => $product['id']]);
             $relatedProducts = $this->productRepo->getWebListWithScope(
                 scope: 'active',
-                filters: ['category_id' => $product['category_id']],
+                filters: ['category_id' => $product['category_id'], 'display_order_category' => $product['category_id']],
                 whereNotIn: ['id' => [$product['id']]],
                 relations: ['reviews' => 'reviews'],
                 dataLimit: 12,
@@ -170,7 +170,7 @@ class ProductDetailsController extends Controller
 
             $relatedProducts = $this->productRepo->getWebListWithScope(
                 scope: 'active',
-                filters: ['category_ids' => $product['category_ids'], 'customer_id' => Auth::guard('customer')->user()->id ?? 0],
+                filters: ['category_ids' => $product['category_ids'], 'display_order_category' => $product['category_id'], 'customer_id' => Auth::guard('customer')->user()->id ?? 0],
                 whereNotIn: ['id' => [$product['id']]],
                 relations: ['reviews' => 'reviews', 'flashDealProducts.flashDeal' => 'flashDealProducts.flashDeal', 'wishList' => 'wishList', 'compareList' => 'compareList'],
                 withCount: ['reviews' => 'reviews'],
@@ -285,7 +285,7 @@ class ProductDetailsController extends Controller
             $wishlistStatus = $this->wishlistRepo->getCount(params: ['product_id' => $product->id, 'customer_id' => auth('customer')->id()]);
             $relatedProducts = $this->productRepo->getWebListWithScope(
                 scope: 'active',
-                filters: ['category_id' => $product['category_id'], 'customer_id' => Auth::guard('customer')->user()->id ?? 0],
+                filters: ['category_id' => $product['category_id'], 'display_order_category' => $product['category_id'], 'customer_id' => Auth::guard('customer')->user()->id ?? 0],
                 whereNotIn: ['id' => [$product['id']]],
                 relations: ['reviews' => 'reviews', 'flashDealProducts.flashDeal' => 'flashDealProducts.flashDeal', 'wishList' => 'wishList', 'compareList' => 'compareList'],
                 dataLimit: 'all',
