@@ -86,7 +86,7 @@ class CartManager
                 }]);
             }])
             ->whereHas('product', function ($query) {
-                return $query->active();
+                return $query->active()->where('is_credit_listing', false);
             })
             ->when($groupId == null, function ($query) {
                 return $query->whereIn('cart_group_id', CartManager::get_cart_group_ids());
@@ -121,7 +121,7 @@ class CartManager
                 }]);
             }])
             ->whereHas('product', function ($query) {
-                return $query->active();
+                return $query->active()->where('is_credit_listing', false);
             })
             ->when($groupId == null, function ($query) use ($request) {
                 return $query->whereIn('cart_group_id', CartManager::get_cart_group_ids($request ?? request()->all()));
@@ -152,7 +152,7 @@ class CartManager
                 }]);
             }])
             ->whereHas('product', function ($query) {
-                return $query->active();
+                return $query->active()->where('is_credit_listing', false);
             })
             ->when($groupId == null, function ($query) {
                 return $query->whereIn('cart_group_id', CartManager::get_cart_group_ids());
@@ -215,7 +215,7 @@ class CartManager
         self::updateOrderSummaryShippingCost($groupId, $type);
         $cartShippingCost = Cart::where(['product_type' => 'physical'])
             ->whereHas('product', function ($query) {
-                return $query->active();
+                return $query->active()->where('is_credit_listing', false);
             })->when(($groupId == null && $type != 'checked'), function ($query) {
                 return $query->whereIn('cart_group_id', CartManager::get_cart_group_ids());
             })
@@ -263,7 +263,7 @@ class CartManager
         $cartItems = Cart::where(['product_type' => 'physical'])
             ->with(['product'])
             ->whereHas('product', function ($query) {
-                return $query->active();
+                return $query->active()->where('is_credit_listing', false);
             })->when(($groupId == null && $type != 'checked'), function ($query) {
                 return $query->whereIn('cart_group_id', CartManager::get_cart_group_ids());
             })
@@ -743,6 +743,8 @@ class CartManager
             return $query->active();
         }])->where(['id' => $request['id']])->first();
 
+        if ($product?->is_credit_listing) { return ['status' => 0, 'message' => 'هذا المنتج متاح عبر طلب ائتمان فقط.']; }
+
         if(!$product || $product['status'] == 0 || !app(\App\Services\VendorAdvertisingAccessService::class)->visible($product, true)){
             return ['status' => 0, 'message' => translate('Product_is_unavailable')];
         }
@@ -900,7 +902,7 @@ class CartManager
 
         $cartGroup = Cart::where(['product_type' => 'physical'])
             ->whereHas('product', function ($query) {
-                return $query->active();
+                return $query->active()->where('is_credit_listing', false);
             })->when($groupId != null, function ($query) use ($groupId) {
                 return $query->where('cart_group_id', $groupId);
             })

@@ -162,6 +162,9 @@
                             {{translate('you_cannot_add_product_to_cart_from_this_shop_for_now')}}
                         </div>
                     @else
+                        @if($productDetails->is_credit_listing)
+                            <button class="btn btn--primary" form="default-credit-request-form" type="submit">طلب ائتمان</button>
+                        @else
                         <div class="product-add-and-buy-section d-flex gap-2">
                             <button type="button" class="btn btn-secondary element-center btn-gap-right product-buy-now-button"
                                     data-form=".add-to-cart-sticky-form"
@@ -193,6 +196,7 @@
                                     {{ translate('Request_Restock')}}
                                 </button>
                             </div>
+                        @endif
                         @endif
                     @endif
                 </div>

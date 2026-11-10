@@ -48,6 +48,11 @@
                 <div class="v2-ctx-group-body"></div>
             </div>
 
+            <div class="v2-ctx-group"><div class="v2-ctx-group-head"><span>إدارة المنتجات</span></div>
+@foreach([['admin.products.all','box-open','كل المنتجات'],['admin.products.order','sort-amount-down','ترتيب الظهور'],['admin.products.credit-listings','credit-card','منتجات الائتمان'],['admin.products.credit-requests','comment-alt','طلبات الائتمان']] as [$route,$icon,$label])
+<a class="v2-nav-item {{ request()->routeIs($route) ? 'v2-is-active' : '' }}" data-item="{{ str_replace('.', '-', $route) }}" href="{{ route($route) }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-{{ $icon }}"></i></span><span class="v2-nav-label">{{ $label }}</span></span></a>
+@endforeach
+            </div>
             <div class="v2-ctx-group">
                 <div class="v2-ctx-group-head"><span>{{ translate('vendor_Products') }}</span></div>
                 <a class="v2-nav-item {{ str_contains(url()->current().'?request_status='.request()->get('request_status'),'admin/products/list/vendor?request_status=0') ? 'v2-is-active' : '' }}" data-item="vendor-new-products" href="{{ route('admin.products.review-queue') }}">

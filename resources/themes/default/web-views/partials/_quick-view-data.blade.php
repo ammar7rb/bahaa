@@ -347,6 +347,9 @@
 
                     <div
                         class="__btn-grp align-items-center product-add-and-buy-section" {!! $firstVariationQuantity <= 0 ? 'style="display: none;"' : '' !!}>
+                        @if($product->is_credit_listing)
+                            <a class="btn btn--primary" href="{{ route('product', $product->slug) }}">طلب ائتمان</a>
+                        @else
                         @if(($product->added_by == 'admin' && (checkVendorAbility(type: 'inhouse', status: 'temporary_close') || checkVendorAbility(type: 'inhouse', status: 'vacation_status'))) || ($product->added_by == 'seller' && (checkVendorAbility(type: 'vendor', status: 'temporary_close', vendor: $product->seller->shop) || checkVendorAbility(type: 'vendor', status: 'vacation_status', vendor: $product->seller->shop))))
                             <button class="btn btn-secondary" type="button" disabled>
                                 {{translate('buy_now')}}
@@ -374,6 +377,7 @@
                             </button>
                         @endif
 
+                        @endif
                         <button type="button" data-product-id="{{$product['id']}}"
                                 class="btn __text-18px border product-action-add-wishlist">
                             <i class="fa {{($wishlist_status == 1?'fa-heart':'fa-heart-o')}} wishlist_icon_{{$product['id']}} web-text-primary"

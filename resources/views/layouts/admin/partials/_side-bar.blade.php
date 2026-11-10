@@ -259,6 +259,8 @@
             <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.customer.password-recovery.*') ? 'active' : '' }}" href="{{ route('admin.customer.password-recovery.index') }}"><i class="fi fi-rr-key" aria-hidden="true"></i><span>استعادة كلمة مرور العملاء</span></a></li>
             @endif
             @if(Helpers::module_permission_check('catalog'))
+                <li><a class="nav-link" href="{{ route('admin.products.all') }}"><i class="fi fi-rr-box-open"></i><span class="aside-mini-hidden-element">المنتجات</span></a></li>
+
             @foreach(['medical-devices' => 'medical_devices', 'homepage-sections' => 'homepage_sections'] as $entry => $label)
             <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.operations.'.$entry.'.*') ? 'active' : '' }}" href="{{ route('admin.operations.'.$entry.'.index') }}"><i class="tio-apps" aria-hidden="true"></i><span>{{ __('operations.'.$label) }}</span></a></li>
             @endforeach

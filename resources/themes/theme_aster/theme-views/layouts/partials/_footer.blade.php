@@ -184,7 +184,7 @@
                                            href="{{ route('latest-products') }}">
                                             {{ translate('latest_products') }}
                                         </a>
-                                    </li>
+                                    </li><li class="widget-list-item"><a class="widget-list-link" href="{{ route('credit-products') }}">منتجات اشتر الآن وادفع لاحقًا</a></li>
                                     <li><a href="{{ route('helpTopic') }}">{{ translate('FAQ') }}</a></li>
 
                                     @if(Route::has('frontend.blog.index') && getWebConfig(name: 'blog_feature_active_status'))

@@ -155,6 +155,9 @@
                         {{ translate('you_cannot_add_product_to_cart_from_this_shop_for_now') }}
                     </div>
                 @else
+                    @if($productDetails->is_credit_listing)
+                        <button class="btn btn-primary" type="submit" form="credit-request-form">طلب ائتمان</button>
+                    @else
                     <div class="mx-w d-flex gap-3 width--24rem">
                         <div class="product-add-and-buy-section d--flex gap-2 gap-sm-3" {!! $firstVariationQuantity <= 0 ? 'style="display: none;"' : '' !!}>
                             @if(($productDetails->added_by == 'admin' && (checkVendorAbility(type: 'inhouse', status: 'temporary_close') || checkVendorAbility(type: 'inhouse', status: 'vacation_status'))) || ($productDetails->added_by == 'seller' && (checkVendorAbility(type: 'vendor', status: 'temporary_close', vendor: $productDetails->seller->shop) || checkVendorAbility(type: 'vendor', status: 'vacation_status', vendor: $productDetails->seller->shop))))
@@ -201,6 +204,7 @@
                             </div>
                         @endif
                     </div>
+                    @endif
                 @endif
 
             </div>

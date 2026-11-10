@@ -388,6 +388,9 @@
                                     </div>
                                 </div>
                                 <div class="d-flex gap-3">
+                                    @if($product->is_credit_listing)
+                                        <a class="btn btn-primary" href="{{ route('product', $product->slug) }}">طلب ائتمان</a>
+                                    @else
                                     <div class="product-add-and-buy-section d--flex flex-wrap gap-3" {!! $firstVariationQuantity <= 0 ? 'style="display: none;"' : '' !!}>
                                         @if(($product->added_by == 'admin' && (checkVendorAbility(type: 'inhouse', status: 'temporary_close') || checkVendorAbility(type: 'inhouse', status: 'vacation_status'))) || ($product->added_by == 'seller' && (checkVendorAbility(type: 'vendor', status: 'temporary_close', vendor: $product->seller->shop) || checkVendorAbility(type: 'vendor', status: 'vacation_status', vendor: $product->seller->shop))))
                                             <button type="button" class=" btn btn-secondary fs-16" data-bs-toggle="modal" data-bs-target="#buyNowModal" data-bs-dismiss="#quickViewModal"
@@ -428,6 +431,7 @@
                                                 {{ translate('Request_Restock')}}
                                             </button>
                                         </div>
+                                    @endif
                                     @endif
                                 </div>
 

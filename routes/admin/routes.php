@@ -343,6 +343,14 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     Route::group(['prefix' => 'products', 'as' => 'products.', 'middleware' => ['module:catalog']], function () {
+        Route::get('all', [\App\Http\Controllers\Admin\Product\AllProductsController::class, 'all'])->name('all');
+        Route::get('order', [\App\Http\Controllers\Admin\Product\AllProductsController::class, 'order'])->name('order');
+        Route::post('order', [\App\Http\Controllers\Admin\Product\AllProductsController::class, 'saveOrder'])->name('order.save');
+        Route::post('{product}/placements', [\App\Http\Controllers\Admin\Product\AllProductsController::class, 'place'])->name('placements.save');
+        Route::get('credit-listings', [\App\Http\Controllers\Admin\Product\CreditManagementController::class, 'listings'])->name('credit-listings');
+        Route::post('credit-listings/{product}', [\App\Http\Controllers\Admin\Product\CreditManagementController::class, 'toggleListing'])->name('credit-listings.toggle');
+        Route::get('credit-requests', [\App\Http\Controllers\Admin\Product\CreditManagementController::class, 'requests'])->name('credit-requests');
+        Route::post('credit-requests/{creditRequest}/respond', [\App\Http\Controllers\Admin\Product\CreditManagementController::class, 'respond'])->name('credit-requests.respond');
         Route::get('review-queue', [\App\Http\Controllers\Admin\Product\VendorProductReviewQueueController::class, 'index'])->name('review-queue');
         Route::controller(ProductController::class)->group(function () {
             Route::get('list/{type}', 'index')->name('list');

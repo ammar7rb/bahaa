@@ -220,6 +220,7 @@
 
                                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                                                     <h3 class="product_title">{{$product->name}}</h3>
+                                                    @if($product->public_code)<span class="text-muted small"><bdi dir="ltr">{{ $product->public_code }}</bdi></span>@endif
                                                 </div>
 
                                                 <div class="d-flex gap-2 gap-sm-3 align-items-start align-items-sm-center flex-column flex-sm-row mb-3">
@@ -405,6 +406,13 @@
                                                         </div>
                                                     </div>
 
+                                                    @if($product->is_credit_listing)
+                                                        <div class="mb-3"><label for="credit-message" class="form-label">رسالة إضافية (اختيارية)</label><textarea id="credit-message" name="message" form="credit-request-form" class="form-control" maxlength="189" rows="2"></textarea></div>
+                                                        <button type="submit" form="credit-request-form" class="btn btn-primary">طلب ائتمان</button>
+                                                        <p class="text-muted small mt-2">سنراجع طلبك ونتواصل معك. لا تعني هذه الخطوة الموافقة على التمويل.</p>
+                                                        @if(session('credit_request_notice'))<div class="alert alert-info">{{ session('credit_request_notice') }}</div>@endif
+                                                        @error('message')<div class="alert alert-danger">{{ $message }}</div>@enderror
+                                                    @else
                                                     <div class="mx-w d-flex flex-wrap gap-3 width--24rem product-add-and-buy-section-parent">
                                                         <div class="product-add-and-buy-section d--flex flex-wrap gap-3" {!! $firstVariationQuantity <= 0 ? 'style="display: none;"' : '' !!}>
                                                                 <?php
@@ -481,8 +489,12 @@
                                                             </div>
                                                         @endif
                                                     @endif
+                                                    @endif
                                                 </div>
                                             </form>
+                                            @if($product->is_credit_listing)
+                                                <form id="credit-request-form" method="post" action="{{ route('credit-requests.store', $product->id) }}">@csrf</form>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>

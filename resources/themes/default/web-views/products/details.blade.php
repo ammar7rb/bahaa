@@ -133,6 +133,7 @@
                                 <div class="col-lg-7 col-md-8 mt-md-0 mt-sm-3 web-direction">
                                     <div class="details __h-100 product-cart-option-container p-0">
                                         <h2 class="mb-4 __inline-24">{{ $product->name }}</h2>
+                                        @if($product->public_code)<p class="text-muted small"><bdi dir="ltr">{{ $product->public_code }}</bdi></p>@endif
                                         <div class="d-flex flex-wrap align-items-center gap-3 mb-4 pro">
                                             @if($overallRating[0] !=0)
                                             <div class="star-rating me-2">
@@ -386,6 +387,14 @@
                                                 }
                                                 ?>
 
+                                                @if($product->is_credit_listing)
+                                                    <label class="form-label" for="default-credit-message">رسالة إضافية (اختيارية)</label>
+                                                    <textarea id="default-credit-message" form="default-credit-request-form" name="message" class="form-control mb-2" maxlength="189" rows="2"></textarea>
+                                                    <button class="btn btn--primary" form="default-credit-request-form" type="submit">طلب ائتمان</button>
+                                                    <p class="small text-muted mt-2">سنراجع طلبك ونتواصل معك. لا تعني هذه الخطوة الموافقة على التمويل.</p>
+                                                    @if(session('credit_request_notice'))<div class="alert alert-info">{{ session('credit_request_notice') }}</div>@endif
+                                                    @error('message')<div class="alert alert-danger">{{ $message }}</div>@enderror
+                                                @else
                                                 <div
                                                     class="product-add-and-buy-section gap-2 {!! $firstVariationQuantity <= 0 ? '' : 'd-flex' !!}"
                                                     {!! $firstVariationQuantity <= 0 ? 'style="display: none;"' : '' !!}>
@@ -434,6 +443,7 @@
                                                         </button>
                                                     </div>
                                                 @endif
+                                                @endif
                                                 <button type="button" data-product-id="{{ $product['id'] }}"
                                                         class="btn __text-18px border product-action-add-wishlist">
                                                     <i class="fa {{($wishlistStatus == 1?'fa-heart':'fa-heart-o') }} wishlist_icon_{{ $product['id'] }} web-text-primary"
@@ -465,6 +475,7 @@
                                             </div>
 
                                         </form>
+                                        @if($product->is_credit_listing)<form id="default-credit-request-form" method="post" action="{{ route('credit-requests.store', $product->id) }}">@csrf</form>@endif
                                     </div>
                                 </div>
                             </div>

@@ -262,6 +262,7 @@ class HomepageSectionBuilderService
         $sectionKeys = array_values(array_unique(array_intersect($sectionKeys, $allowed)));
 
         return DB::transaction(function () use ($theme, $productId, $sectionKeys, $adminId, $allowed): HomepageLayoutVersion {
+            Product::withoutGlobalScopes()->whereKey($productId)->update(['is_homepage_visible' => count($sectionKeys) > 0]);
             $draft = $this->ensureDraft($theme, $adminId);
             $sections = $draft->sections->keyBy('section_key');
 
@@ -272,10 +273,14 @@ class HomepageSectionBuilderService
                     continue;
                 }
 
-                $ids = array_values(array_filter((array) $section->product_ids, fn ($id) => (int) $id !== $productId));
+                $ids = array_map('intval', (array) $section->product_ids);
                 if (in_array($key, $sectionKeys, true)) {
-                    $ids[] = $productId;
+                    if (! in_array($productId, $ids, true)) {
+                        $ids[] = $productId;
+                    }
                     $section->source_mode = $section->source_mode === 'automatic' ? 'mixed' : $section->source_mode;
+                } else {
+                    $ids = array_values(array_filter($ids, fn ($id) => $id !== $productId));
                 }
 
                 $section->product_ids = array_values(array_unique(array_map('intval', $ids)));
@@ -290,6 +295,34 @@ class HomepageSectionBuilderService
             }
 
             $this->clearCaches($theme);
+            return $this->publish($theme, $adminId);
+        });
+    }
+
+    /** Reorders explicit product IDs within one published homepage section. */
+    public function reorderSectionProducts(string $theme, string $sectionKey, array $orderedIds, int $adminId): HomepageLayoutVersion
+    {
+        $allowed = collect($this->productPlacementSections($theme))->pluck('key')->all();
+        if (! in_array($sectionKey, $allowed, true)) {
+            throw new DomainException('unknown_homepage_section');
+        }
+
+        return DB::transaction(function () use ($theme, $sectionKey, $orderedIds, $adminId): HomepageLayoutVersion {
+            $draft = $this->ensureDraft($theme, $adminId);
+            $section = $draft->sections->firstWhere('section_key', $sectionKey);
+            if (! $section) {
+                throw new DomainException('unknown_homepage_section');
+            }
+            $current = array_map('intval', $section->product_ids ?? []);
+            $orderedIds = array_map('intval', $orderedIds);
+            if (count($orderedIds) !== count(array_unique($orderedIds))
+                || array_diff($current, $orderedIds) || array_diff($orderedIds, $current)) {
+                throw new DomainException('homepage_order_products_must_match_section');
+            }
+            $section->product_ids = $orderedIds;
+            $section->save();
+            $this->clearCaches($theme);
+
             return $this->publish($theme, $adminId);
         });
     }

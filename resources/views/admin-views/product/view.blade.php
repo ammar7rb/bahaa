@@ -88,6 +88,7 @@
         </div>
         @if(session('editorial_confirmed'))<div class="alert alert-success" role="status">تم تأكيد التحرير. يمكنك الآن اعتماد ونشر المنتج.</div>@endif
         <?php $sigmaWorkspace = app(\App\Services\VendorProductWorkspaceService::class)->state($product); ?>
+        @include('admin-views.product.partials._identity-placement')
         @if($product['added_by'] === 'seller')
             <div class="card mb-4" id="seller-product-review">
                 <div class="card-header"><h3 class="mb-0"><i class="fi fi-rr-shield-check" aria-hidden="true"></i> بيانات التاجر ونشر المنتج</h3></div>

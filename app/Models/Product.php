@@ -191,6 +191,8 @@ class Product extends Model
         'added_by' => 'string',
         'name' => 'string',
         'code' => 'string',
+        'public_code' => 'string',
+        'is_credit_listing' => 'boolean',
         'slug' => 'string',
         'category_id' => 'integer',
         'sub_category_id' => 'integer',
@@ -683,6 +685,11 @@ class Product extends Model
         });
 
         static::saved(function ($model) {
+            if (!$model->public_code && (int) $model->status === 1 && (int) $model->request_status === 1
+                && !app(\App\Services\VendorProductWorkspaceService::class)->sellerId()
+                && \Illuminate\Support\Facades\Schema::hasTable('public_product_code_sequences')) {
+                app(\App\Services\PublicProductCodeService::class)->assign($model);
+            }
             cacheRemoveByType(type: 'products');
         });
 
