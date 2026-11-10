@@ -30,7 +30,7 @@ class PageController extends Controller
         }
         $request->merge(['slug' => $request->route('slug')]);
         $filter = ['slug' => $request['slug']];
-        if (!($request->has('source') && $request->source == 'admin')) {
+        if (!($request->input('source') === 'admin' && auth('admin')->check())) {
             $filter += ['status' => 1];
         }
         $businessPage = $this->businessPageRepo->getFirstWhere(params: $filter, relations: ['banner']);

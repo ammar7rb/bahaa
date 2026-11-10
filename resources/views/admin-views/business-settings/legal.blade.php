@@ -9,6 +9,7 @@
             <section class="col-12 col-md-6"><div class="card h-100"><div class="card-body">
                 <h2 class="h5">{{ $label }}</h2>
                 <p class="text-muted">{{ $page ? 'آخر حفظ: '.$page->updated_at?->format('Y/m/d H:i') : 'الصفحة غير منشأة بعد' }}</p>
+                @if($page)<p><span class="badge {{ $page->status ? 'bg-success' : 'bg-warning text-dark' }}">{{ $page->status ? 'منشورة' : 'غير منشورة' }}</span></p>@endif
                 <div class="d-flex flex-wrap gap-2">
                     @if($page)
                         <a class="btn btn-primary" href="{{ route('admin.pages-and-media.update', ['slug' => $slug]) }}">تحرير</a>
