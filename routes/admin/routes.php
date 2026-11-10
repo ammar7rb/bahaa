@@ -143,10 +143,22 @@ Route::group(['prefix' => 'login'], function () {
 });
 
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', 'actch:admin_panel']], function () {
+    Route::get('settings', [\App\Http\Controllers\Admin\Settings\BusinessSettingsHubController::class, 'index'])
+        ->middleware('module:business_settings')->name('settings.index');
+    Route::prefix('settings/rates')->name('settings.rates.')
+        ->controller(\App\Http\Controllers\Admin\Settings\BusinessRatesController::class)
+        ->middleware('module:business_settings')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('tax', 'globalTax')->name('tax');
+            Route::post('tax/customer', 'customerTax')->name('tax.customer');
+            Route::post('commission', 'globalCommission')->name('commission');
+            Route::post('commission/vendor', 'vendorCommission')->name('commission.vendor');
+            Route::post('groups', 'group')->name('groups');
+        });
     Route::prefix('operations/variable-rates')->name('operations.variable-rates.')->middleware('module:business_settings')->controller(\App\Http\Controllers\Admin\Operations\VariableRatesController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'update')->name('update');
-        Route::post('extra-slots', 'extraSlots')->name('extra-slots');
+        Route::post('extra-slots', 'extraSlots')->middleware('module:package_pricing_manage')->name('extra-slots');
     });
     Route::post('orders/fulfillment-requests/{id}/decision', [\App\Http\Controllers\Admin\Order\VendorFulfillmentController::class,'update'])
         ->whereNumber('id')->middleware('module:orders')->name('orders.fulfillment.update');
@@ -174,10 +186,10 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
     Route::prefix('operations/monthly-packages')->name('monthly-packages.')->middleware('module:people')->controller('\App\Http\Controllers\Admin\Customer\MonthlyPackageController')->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::post('packages/{package?}', 'save')->name('save');
-        Route::delete('packages/{package}', 'delete')->name('delete');
-        Route::post('offers/{offer?}', 'offer')->name('offer');
-        Route::delete('offers/{offer}', 'deleteOffer')->name('offer-delete');
+        Route::post('packages/{package?}', 'save')->middleware('module:package_pricing_manage')->name('save');
+        Route::delete('packages/{package}', 'delete')->middleware('module:package_pricing_manage')->name('delete');
+        Route::post('offers/{offer?}', 'offer')->middleware('module:package_pricing_manage')->name('offer');
+        Route::delete('offers/{offer}', 'deleteOffer')->middleware('module:package_pricing_manage')->name('offer-delete');
     });
     Route::prefix('operations/customer-withdrawals')->name('customer-withdrawals.')->middleware('module:people')
         ->controller(\App\Http\Controllers\Admin\Customer\WalletWithdrawalController::class)->group(function () {
@@ -645,11 +657,11 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
                 Route::get('offline-payment-reviews', 'offlinePaymentReviews')->name('offline-payment-reviews');
                 Route::post('offline-payment-reviews/{id}/approve', 'approveOfflinePayment')->name('offline-payment-reviews.approve');
                 Route::post('offline-payment-reviews/{id}/reject', 'rejectOfflinePayment')->name('offline-payment-reviews.reject');
-                Route::post('store', 'store')->name('store');
+                Route::post('store', 'store')->middleware('module:package_pricing_manage')->name('store');
                 Route::get('edit/{id}', 'edit')->name('edit');
-                Route::post('update/{id}', 'update')->name('update');
-                Route::post('status', 'updateStatus')->name('status');
-                Route::delete('delete/{id}', 'destroy')->name('delete');
+                Route::post('update/{id}', 'update')->middleware('module:package_pricing_manage')->name('update');
+                Route::post('status', 'updateStatus')->middleware('module:package_pricing_manage')->name('status');
+                Route::delete('delete/{id}', 'destroy')->middleware('module:package_pricing_manage')->name('delete');
             });
         });
     });
@@ -699,7 +711,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
 
         Route::prefix('extra-ads')->name('extra-ads.')->controller(\App\Http\Controllers\Admin\Vendor\VendorExtraAdController::class)->group(function () {
             Route::get('/', 'index')->name('index');
-            Route::post('settings', 'settings')->name('settings');
+            Route::post('settings', 'settings')->middleware('module:package_pricing_manage')->name('settings');
             Route::post('{id}/approve', 'approve')->name('approve');
             Route::post('{id}/reject-payment', 'reject')->name('reject');
         });
@@ -716,11 +728,11 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         Route::group(['prefix' => 'packages', 'as' => 'packages.'], function () {
             Route::controller(SellerPackageController::class)->group(function () {
                 Route::get('/', 'index')->name('index');
-                Route::post('store', 'store')->name('store');
+                Route::post('store', 'store')->middleware('module:package_pricing_manage')->name('store');
                 Route::get('{id}/edit', 'edit')->name('edit');
-                Route::post('{id}/update', 'update')->name('update');
-                Route::post('status', 'updateStatus')->name('status');
-                Route::delete('{id}', 'destroy')->name('delete');
+                Route::post('{id}/update', 'update')->middleware('module:package_pricing_manage')->name('update');
+                Route::post('status', 'updateStatus')->middleware('module:package_pricing_manage')->name('status');
+                Route::delete('{id}', 'destroy')->middleware('module:package_pricing_manage')->name('delete');
             });
         });
 
@@ -1085,9 +1097,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         });
     });
 
-    Route::group(['prefix' => 'system-setup', 'as' => 'system-setup.'], function () {
+    Route::group(['prefix' => 'system-setup', 'as' => 'system-setup.', 'middleware' => ['module:developer_configuration']], function () {
 
-        Route::group(['middleware' => ['module:themes_and_addons']], function () {
+        Route::group(['middleware' => ['module:themes_and_addons', 'module:developer_configuration']], function () {
             Route::group(['prefix' => 'theme', 'as' => 'theme.'], function () {
                 Route::controller(ThemeController::class)->group(function () {
                     Route::get('setup', 'index')->name('setup');
@@ -1217,24 +1229,23 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     Route::group(['prefix' => 'third-party', 'as' => 'third-party.'], function () {
-        Route::group(['middleware' => ['module:3rd_party_setup']], function () {
+        Route::group(['prefix' => 'offline-payment-method', 'as' => 'offline-payment-method.', 'middleware' => ['module:payment_destinations_manage']], function () {
+            Route::controller(OfflinePaymentMethodController::class)->group(function () {
+                Route::get('index', 'index')->name('index');
+                Route::get('add', 'getAddView')->name('add');
+                Route::post('add', 'add');
+                Route::get('update/{id}', 'getUpdateView')->name('update');
+                Route::post('update/{id}', 'update');
+                Route::post('delete', 'delete')->name('delete');
+                Route::post('update-status', 'updateStatus')->name('update-status');
+            });
+        });
+        Route::group(['middleware' => ['module:3rd_party_setup', 'module:developer_configuration']], function () {
             Route::group(['prefix' => 'payment-method', 'as' => 'payment-method.'], function () {
                 Route::controller(PaymentMethodController::class)->group(function () {
                     Route::get('/', 'index')->name('index');
                     Route::put('addon-payment-set', 'UpdatePaymentConfig')->name('addon-payment-set');
                     Route::post('payment-status', 'UpdateStatus')->name('payment-status');
-                });
-            });
-
-            Route::group(['prefix' => 'offline-payment-method', 'as' => 'offline-payment-method.'], function () {
-                Route::controller(OfflinePaymentMethodController::class)->group(function () {
-                    Route::get('index', 'index')->name('index');
-                    Route::get('add', 'getAddView')->name('add');
-                    Route::post('add', 'add');
-                    Route::get('update/{id}', 'getUpdateView')->name('update');
-                    Route::post('update/{id}', 'update');
-                    Route::post('delete', 'delete')->name('delete');
-                    Route::post('update-status', 'updateStatus')->name('update-status');
                 });
             });
 
@@ -1305,7 +1316,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     Route::group(['prefix' => 'business-settings', 'as' => 'business-settings.'], function () {
 
         Route::group(['middleware' => ['module:business_settings']], function () {
-            Route::group(['prefix' => 'web-config', 'as' => 'web-config.'], function () {
+            Route::group(['prefix' => 'web-config', 'as' => 'web-config.', 'middleware' => ['module:developer_configuration']], function () {
                 Route::controller(BusinessSettingsController::class)->group(function () {
                     Route::get('/', 'index')->name('index');
                     Route::post('/', 'updateSettings')->name('update');
@@ -1313,7 +1324,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             });
 
             Route::controller(BusinessSettingsController::class)->group(function () {
-                Route::post('maintenance-mode', 'updateSystemMode')->name('maintenance-mode');
+                Route::post('maintenance-mode', 'updateSystemMode')->middleware('module:developer_configuration')->name('maintenance-mode');
             });
 
 
@@ -1374,32 +1385,32 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             Route::group(['prefix' => 'shipping-method', 'as' => 'shipping-method.'], function () {
                  Route::controller(ShippingMethodController::class)->group(function () {
                     Route::get('index', 'workspaceRedirect')->name('index');
-                    Route::post('index', 'add');
+                    Route::post('index', 'add')->middleware('module:shipping_pricing_manage');
                     Route::get('update' . '/{id}', 'getUpdateView')->name('update');
-                    Route::post('update' . '/{id}', 'update');
-                    Route::post('update-status', 'updateStatus')->name('update-status');
-                    Route::post('delete', 'delete')->name('delete');
-                     Route::post('update-shipping-responsibility', 'updateShippingResponsibility')->name('update-shipping-responsibility');
+                    Route::post('update' . '/{id}', 'update')->middleware('module:shipping_pricing_manage');
+                    Route::post('update-status', 'updateStatus')->middleware('module:shipping_pricing_manage')->name('update-status');
+                    Route::post('delete', 'delete')->middleware('module:shipping_pricing_manage')->name('delete');
+                     Route::post('update-shipping-responsibility', 'updateShippingResponsibility')->middleware('module:shipping_pricing_manage')->name('update-shipping-responsibility');
                  });
 
                 Route::controller(EgyptShippingZoneRateController::class)
                     ->prefix('egypt-zone-rates')
                     ->as('egypt-zone-rates.')
                     ->group(function () {
-                        Route::post('delivery-promises', 'updateDeliveryPromises')->name('delivery-promises.update');
-                        Route::post('/', 'store')->name('store');
-                        Route::post('/{id}', 'update')->name('update');
-                        Route::delete('/{id}', 'destroy')->name('delete');
+                        Route::post('delivery-promises', 'updateDeliveryPromises')->middleware('module:shipping_pricing_manage')->name('delivery-promises.update');
+                        Route::post('/', 'store')->middleware('module:shipping_pricing_manage')->name('store');
+                        Route::post('/{id}', 'update')->middleware('module:shipping_pricing_manage')->name('update');
+                        Route::delete('/{id}', 'destroy')->middleware('module:shipping_pricing_manage')->name('delete');
                     });
             });
 
             Route::group(['prefix' => 'shipping-type', 'as' => 'shipping-type.'], function () {
-                Route::post('index', [ShippingTypeController::class, 'addOrUpdate'])->name('index');
+                Route::post('index', [ShippingTypeController::class, 'addOrUpdate'])->middleware('module:shipping_pricing_manage')->name('index');
             });
 
             Route::group(['prefix' => 'category-shipping-cost', 'as' => 'category-shipping-cost.'], function () {
                 Route::controller(CategoryShippingCostController::class)->group(function () {
-                    Route::post('store', 'add')->name('store');
+                    Route::post('store', 'add')->middleware('module:shipping_pricing_manage')->name('store');
                 });
             });
 

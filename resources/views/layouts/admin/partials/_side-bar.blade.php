@@ -818,7 +818,7 @@
             @if(Helpers::module_permission_check('business_settings'))
                 <li class="nav-item nav-item_title">
                     <small class="nav-subtitle" title="">
-                        {{ translate('Business_Settings') }}
+                        الإعدادات
                     </small>
                 </li>
 
@@ -834,11 +834,11 @@
                                 Request::is('admin/business-settings/order-settings/index') ||
                                 Request::is('admin/business-settings/invoice-settings') ||
                                 Request::is('admin/business-settings/delivery-zone')) ? 'active' : '' }}"
-                       href="{{ route('admin.business-settings.web-config.index') }}"
+                       href="{{ route('admin.settings.index') }}"
                        title="{{ translate('Business_Setup') }}">
                         <i class="fi fi-sr-settings"></i>
                         <span class="aside-mini-hidden-element text-truncate flex-grow-1">
-                            {{ translate('Business_Setup') }}
+                            الإعدادات
                         </span>
                     </a>
                 </li>
@@ -951,10 +951,10 @@
                 </li>
             @endif
 
-            @if(Helpers::module_permission_check('system_settings'))
+            @if(Helpers::module_permission_check('developer_configuration'))
                 <li class="nav-item nav-item_title">
                     <small class="nav-subtitle" title="">
-                        {{ translate('System_Settings') }}
+                        أساسيات الموقع — للمطورين فقط / Site Foundations — Developers Only
                     </small>
                 </li>
 
@@ -1018,7 +1018,7 @@
                 </li>
             @endif
 
-            @if(Helpers::module_permission_check('3rd_party_setup'))
+            @if(Helpers::module_permission_check('developer_configuration') && Helpers::module_permission_check('3rd_party_setup'))
                 <li class="nav-item nav-item_title">
                     <small class="nav-subtitle" title="">
                         {{ translate('3rd_Party_Setup') }}
@@ -1096,7 +1096,7 @@
                 </li>
             @endif
 
-            @if(Helpers::module_permission_check('themes_and_addons'))
+            @if(Helpers::module_permission_check('developer_configuration') && Helpers::module_permission_check('themes_and_addons'))
                 <li class="nav-item nav-item_title">
                     <small class="nav-subtitle" title="">
                         {{ translate('Themes_&_Addons') }}

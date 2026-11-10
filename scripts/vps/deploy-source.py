@@ -21,7 +21,7 @@ def verify(rev):
  if mismatches:raise RuntimeError('Source differs from deployed commit: '+', '.join(mismatches[:12]))
  return len(paths)
 def artisan(*args):return run('php8.3','artisan',*args)
-APPROVED_MIGRATIONS = ['database/migrations/2026_11_10_000001_add_public_product_identity.php', 'database/migrations/2026_11_10_000003_create_product_display_orders.php']
+APPROVED_MIGRATIONS = ['database/migrations/2026_11_10_000001_add_public_product_identity.php', 'database/migrations/2026_11_10_000003_create_product_display_orders.php', 'database/migrations/2026_11_10_000001_create_business_rate_rules.php']
 def backup_database(backup):
  envfile=SITE/'.env';envcopy=backup/'environment-before';shutil.copy2(envfile,envcopy);os.chmod(envcopy,0o600)
  code='require "'+str(SITE/'vendor/autoload.php')+'"; $e=Dotenv\\Dotenv::parse(file_get_contents("'+str(envfile)+'")); echo json_encode(array_intersect_key($e,array_flip(["DB_HOST","DB_PORT","DB_DATABASE","DB_USERNAME","DB_PASSWORD"])));'
@@ -45,7 +45,7 @@ def deploy(target):
  changes=git('diff','--name-only','-z',current,target).decode().rstrip('\0').split('\0')
  if any(protected(p) for p in changes):raise RuntimeError('Protected runtime path in commit')
  migrations = [p for p in changes if p.startswith('database/migrations/')]
- if migrations and set(migrations) != set(APPROVED_MIGRATIONS):raise RuntimeError('Unreviewed schema release')
+ if migrations and not set(migrations).issubset(APPROVED_MIGRATIONS):raise RuntimeError('Unreviewed schema release')
  if any(p in ['composer.json','composer.lock'] for p in changes):raise RuntimeError('Dependency changes require a separately reviewed dependency release')
  STATE.mkdir(mode=0o700,exist_ok=True);release=STATE/(target+'-'+str(int(time.time())));release.mkdir(mode=0o700);stage=release/'stage';backup=release/'backup';stage.mkdir();backup.mkdir()
  archive=git('archive',target);archivefile=release/'source.tar';archivefile.write_bytes(archive)

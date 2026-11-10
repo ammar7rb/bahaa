@@ -407,8 +407,9 @@ class PostPurchaseInvoiceService
 
     private function taxSnapshot(Order $order): array
     {
-        $enabled = $this->settingBool('customer_second_invoice_tax_enabled', false)
-            && $order->tax_type === 'customer_product_14';
+        // The order records the applicable rule at checkout. Later setting changes
+        // must not change a pending invoice or its historical tax instruction.
+        $enabled = $order->tax_type === 'customer_product_14';
         $rate = $enabled ? 14.0 : 0.0;
         $amount = $enabled ? max(0, round((float) $order->total_tax_amount, 4)) : 0.0;
         $taxableAmount = $rate > 0 ? round($amount * 100 / $rate, 4) : 0.0;

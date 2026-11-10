@@ -20,7 +20,7 @@ class MonthlyPackageController extends Controller
     public function save(Request $request, ?int $package = null)
     {
         abort_unless($package,422);
-        $data = $request->validate(['description' => 'nullable|string|max:2000',
+        $data = $request->validate(['name' => 'sometimes|required|string|min:2|max:150', 'description' => 'nullable|string|max:2000',
             'package_price' => 'required|numeric|gt:0|max:999999999|decimal:0,3',
             'renewal_price'=>'nullable|numeric|gt:0|max:999999999|decimal:0,3',
             'purchase_limit' => 'required|numeric|gt:0|max:999999999|decimal:0,3', 'status' => 'required|boolean', 'sort_order' => 'nullable|integer|min:0|max:99999']);
@@ -56,11 +56,17 @@ class MonthlyPackageController extends Controller
             'allowance' => 'required|numeric|gt:0|max:999999999|decimal:0,3', 'active' => 'required|boolean']);
         $data['updated_at'] = now();
         DB::transaction(function () use ($offer, $data) {
+            $old = $offer ? DB::table('customer_credit_offers')->where('id', $offer)->first() : null;
             if ($offer) {
                 abort_unless(DB::table('customer_credit_offers')->where('id', $offer)->lockForUpdate()->first(), 404);
                 DB::table('customer_credit_offers')->where('id', $offer)->update($data);
             } else {
                 DB::table('customer_credit_offers')->insert($data + ['created_at' => now()]);
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('business_setting_audits')) {
+                DB::table('business_setting_audits')->insert(['kind' => 'package', 'subject_type' => 'customer_credit_offer',
+                    'subject_id' => $offer, 'before' => $old ? json_encode($old, JSON_UNESCAPED_UNICODE) : null,
+                    'after' => json_encode($data, JSON_UNESCAPED_UNICODE), 'admin_id' => auth('admin')->id(), 'created_at' => now()]);
             }
         });
         return back()->with('subscription_message', 'تم حفظ عرض زيادة الحد. الزيادة ليست رصيد محفظة.');

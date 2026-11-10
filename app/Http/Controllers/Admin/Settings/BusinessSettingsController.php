@@ -153,7 +153,7 @@ class BusinessSettingsController extends BaseController
         $this->businessSettingRepo->updateOrInsert(type: 'decimal_point_settings', value: $request['decimal_point_settings'] ?? 0);
 
         $this->businessSettingRepo->updateOrInsert(type: 'business_mode', value: $request['business_mode']);
-        $this->businessSettingRepo->updateOrInsert(type: 'sales_commission', value: $request->get('sales_commission', 0));
+        // Commission is managed in the audited Business Rates workflow.
 
 
         $this->businessSettingRepo->updateOrInsert(type: 'company_copyright_text', value: $request['company_copyright_text']);

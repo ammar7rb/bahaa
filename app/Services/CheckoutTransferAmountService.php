@@ -21,8 +21,16 @@ class CheckoutTransferAmountService
     public function snapshot(array $information, float $orderTotal, float $shippingCost): array
     {
         if (!empty($information['method_id'])) {
-            $channel = \App\Models\OfflinePaymentMethod::find($information['method_id'])?->payment_channel;
+            $method = \App\Models\OfflinePaymentMethod::find($information['method_id']);
+            $channel = $method?->payment_channel;
             if (in_array($channel, ['wallet', 'instapay'], true)) $information['payment_channel'] = $channel;
+            if ($method) {
+                $information['recipient_method_snapshot'] = [
+                    'id' => $method->id, 'name' => $method->method_name,
+                    'channel' => $method->payment_channel, 'fields' => $method->method_fields,
+                    'instructions' => $method->method_informations,
+                ];
+            }
         }
         $information['transferred_amount'] = number_format($orderTotal, 3, '.', '');
         $information['order_total'] = number_format($orderTotal, 3, '.', '');

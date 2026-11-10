@@ -469,8 +469,8 @@
                                             </span>
                                         </label>
                                         @php($commission=getWebConfig('sales_commission'))
-                                        <input type="number" class="form-control" name="sales_commission" value="{{ $commission ?? 0 }}" min="0" max="100"
-                                            placeholder="{{ translate('ex: 2') }}" required="" step="any" data-required-msg="{{ translate('sales_commission_is_required') }}">
+                                        <input type="number" class="form-control" name="sales_commission" value="{{ $commission ?? 0 }}" min="0" max="100" readonly>
+                                        <a href="{{ route('admin.settings.rates.index') }}" class="small">إدارة نسبة الشركة واستثناءات التجار</a>
                                     </div>
                                 </div>
                             </div>

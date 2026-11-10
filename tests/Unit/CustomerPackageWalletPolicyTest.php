@@ -345,8 +345,8 @@ class CustomerPackageWalletPolicyTest extends TestCase
     {
         $admin=new \App\Models\Admin();$admin->id=9;auth('admin')->setUser($admin);
         $controller=app(\App\Http\Controllers\Admin\Customer\MonthlyPackageController::class);
-        $controller->save(\Illuminate\Http\Request::create('/','POST',['name'=>'Unauthorized rename','package_price'=>100,'purchase_limit'=>3000,'status'=>1,'renewal_price'=>'25.125']),1);
-        $this->assertSame('Silver',CustomerPurchasePackage::find(1)->name);$this->assertEquals(25.125,CustomerPurchasePackage::find(1)->renewal_price);
+        $controller->save(\Illuminate\Http\Request::create('/','POST',['name'=>'Renamed package','package_price'=>100,'purchase_limit'=>3000,'status'=>1,'renewal_price'=>'25.125']),1);
+        $this->assertSame('Renamed package',CustomerPurchasePackage::find(1)->name);$this->assertEquals(25.125,CustomerPurchasePackage::find(1)->renewal_price);
         $service=app(\App\Services\CustomerPackageWalletService::class);$service->transact(1,$this->purchase());$sub=CustomerMonthlySubscription::first();$sub->update(['committed_allowance'=>3000]);
         $old=$this->purchase(['operation'=>'renew_limit','expected_amount'=>'25.125','expected_subscription_id'=>$sub->id]);
         $controller->save(\Illuminate\Http\Request::create('/','POST',['package_price'=>100,'purchase_limit'=>3000,'status'=>1,'renewal_price'=>'30.125']),1);

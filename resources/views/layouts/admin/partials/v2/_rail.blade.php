@@ -7,9 +7,7 @@
     $v2HasPeople   = Helpers::module_permission_check('people');
     $v2HasReports  = Helpers::module_permission_check('reports');
     $v2HasSettings = Helpers::module_permission_check('business_settings')
-                     || Helpers::module_permission_check('system_settings')
-                     || Helpers::module_permission_check('3rd_party_setup')
-                     || Helpers::module_permission_check('themes_and_addons');
+                     || Helpers::module_permission_check('developer_configuration');
 @endphp
 
 <aside class="v2-rail">

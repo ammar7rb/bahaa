@@ -119,12 +119,26 @@ class OfflinePaymentMethodController extends BaseController
             ]);
         }
         $methodFields = $this->offlinePaymentMethodService->getMethodFieldsData(request: $request);
-        $this->offlinePaymentMethodRepo->update(id: $method['id'], data: $this->offlinePaymentMethodService->getOfflinePaymentMethodData(
+        $newValues = $this->offlinePaymentMethodService->getOfflinePaymentMethodData(
             methodName: $request['method_name'],
             paymentChannel: $request['payment_channel'],
             methodFields: $methodFields,
             methodInformation: $methodInformation, addOrUpdate: 'update'
-        ));
+        );
+        if (in_array($method['payment_channel'], ['wallet', 'instapay'], true)) {
+            // Keep the receiving details attached to historical transactions.
+            \Illuminate\Support\Facades\DB::transaction(function () use ($method, $newValues) {
+                $old = \App\Models\OfflinePaymentMethod::query()->lockForUpdate()->findOrFail($method['id']);
+                $wasActive = (bool) $old->status;
+                $old->update(['status' => 0]);
+                $next = $old->replicate();
+                $next->fill($newValues + ['status' => $wasActive]);
+                $next->status = $wasActive;
+                $next->save();
+            });
+        } else {
+            $this->offlinePaymentMethodRepo->update(id: $method['id'], data: $newValues);
+        }
 
         updateSetupGuideCacheKey(key: 'offline_payment_setup', panel: 'admin');
         return response()->json([
@@ -163,7 +177,12 @@ class OfflinePaymentMethodController extends BaseController
     public function delete(Request $request): RedirectResponse
     {
         $method = $this->offlinePaymentMethodRepo->getFirstWhere(params: ['id' => $request['id']]);
-        $this->offlinePaymentMethodRepo->delete(params: ['id' => $method['id']]);
+        abort_unless($method, 404);
+        if (in_array($method['payment_channel'], ['wallet', 'instapay'], true)) {
+            $this->offlinePaymentMethodRepo->update(id: $method['id'], data: ['status' => 0]);
+        } else {
+            $this->offlinePaymentMethodRepo->delete(params: ['id' => $method['id']]);
+        }
         ToastMagic::success(translate('offline_payment_method_delete_successfully'));
         return redirect()->route('admin.third-party.offline-payment-method.index');
     }

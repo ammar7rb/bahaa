@@ -416,7 +416,7 @@
     @endif
 
     {{-- ================= SETTINGS ================= --}}
-    @if (Helpers::module_permission_check('business_settings') || Helpers::module_permission_check('system_settings') || Helpers::module_permission_check('3rd_party_setup') || Helpers::module_permission_check('themes_and_addons'))
+    @if (Helpers::module_permission_check('business_settings') || Helpers::module_permission_check('developer_configuration'))
         <div class="v2-ctx-section" data-section="settings">
             <div class="v2-ctx-head"><div class="v2-ctx-title">{{ translate('settings') }}</div></div>
             <div class="v2-ctx-group v2-is-pinned" style="display:none;">
@@ -426,13 +426,10 @@
 
             @if (Helpers::module_permission_check('business_settings'))
                 <div class="v2-ctx-group">
-                    <div class="v2-ctx-group-head"><span>{{ translate('Business_Settings') }}</span></div>
-                    <a class="v2-nav-item {{ (Request::is('admin/business-settings/web-config') || Request::is('admin/business-settings/refund-setup') || Request::is('admin/business-settings/website-setup') || Request::is('admin/business-settings/product-settings') || Request::is('admin/business-settings/payment-method/payment-option') || Request::is('admin/business-settings/vendor-settings') || Request::is('admin/business-settings/customer-settings') || Request::is('admin/business-settings/order-settings/index') || Request::is('admin/business-settings/invoice-settings') || Request::is('admin/business-settings/delivery-zone')) ? 'v2-is-active' : '' }}" data-item="business-setup" href="{{ route('admin.business-settings.web-config.index') }}">
-                        <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('Business_Setup') }}</span></span>
-                        <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="business-setup" aria-label="Pin"></button></div>
+                    <div class="v2-ctx-group-head"><span>الإعدادات</span></div>
+                    <a class="v2-nav-item {{ Request::routeIs('admin.settings.*') ? 'v2-is-active' : '' }}" data-item="business-settings-hub" href="{{ route('admin.settings.index') }}">
+                        <span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-settings"></i></span><span class="v2-nav-label">الإعدادات</span></span>
                     </a>
-
-
                     @if ($v2Tax && count($v2TaxRoutes))
                         @php
                             $v2TaxActive = false;
@@ -481,9 +478,10 @@
                 </div>
             @endif
 
-            @if (Helpers::module_permission_check('system_settings'))
+            @if (Helpers::module_permission_check('developer_configuration'))
                 <div class="v2-ctx-group">
-                    <div class="v2-ctx-group-head"><span>{{ translate('System_Settings') }}</span></div>
+                    <div class="v2-ctx-group-head"><span>أساسيات الموقع — للمطورين فقط</span><small class="d-block" lang="en" dir="ltr">Site Foundations — Developers Only</small></div>
+                    <a class="v2-nav-item {{ Request::routeIs('admin.business-settings.web-config.*') ? 'v2-is-active' : '' }}" data-item="site-foundations" href="{{ route('admin.business-settings.web-config.index') }}"><span class="v2-nav-btn"><span class="v2-nav-label">أساسيات الموقع — للمطورين فقط</span></span></a>
                     <a class="v2-nav-item {{ (Request::is('admin/system-setup/environment-setup') || Request::is('admin/system-setup/app-settings') || Request::is('admin/system-setup/app-deep-link') || Request::is('admin/system-setup/sitemap') || Request::is('admin/system-setup/currency/view') || Request::is('admin/system-setup/web-config/db-index') || Request::is('admin/system-setup/language*') || Request::is('admin/system-setup/software-update') || Request::is('admin/system-setup/web-config/app-settings') || Request::is('admin/system-setup/invoice-settings/') || Request::is('admin/system-setup/db-index')) ? 'v2-is-active' : '' }}" data-item="system-setup" href="{{ route('admin.system-setup.environment-setup') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('System_Setup') }}</span></span>
                         <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="system-setup" aria-label="Pin"></button></div>
@@ -503,7 +501,7 @@
                 </div>
             @endif
 
-            @if (Helpers::module_permission_check('3rd_party_setup'))
+            @if (Helpers::module_permission_check('developer_configuration') && Helpers::module_permission_check('3rd_party_setup'))
                 <div class="v2-ctx-group">
                     <div class="v2-ctx-group-head"><span>{{ translate('3rd_Party_Setup') }}</span></div>
                     <a class="v2-nav-item {{ (Request::is('admin/third-party/payment-method') || Request::is('admin/third-party/offline-payment-method/index') || Request::is('admin/third-party/offline-payment-method*')) ? 'v2-is-active' : '' }}" data-item="payment-methods" href="{{ route('admin.third-party.payment-method.index') }}">

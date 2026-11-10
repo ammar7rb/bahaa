@@ -261,8 +261,12 @@ class InsuranceConfigurationController extends Controller
 
     public function updateMaster(Request $request): RedirectResponse
     {
+        if ($request->input('subject_type') === 'customer') {
+            abort_unless(\App\Utils\Helpers::module_permission_check('tax_manage'), 403);
+        }
         $subjectType = $request->validate(['subject_type' => ['required', Rule::in(['customer', 'seller'])]])['subject_type'];
         if ($subjectType === 'customer') {
+            $previousTax = getWebConfig(name: 'customer_second_invoice_tax_enabled') == 1;
             $data = $request->validate([
                 'customer_enabled' => 'nullable|in:1',
                 'customer_tax_enabled' => 'nullable|in:1',
@@ -298,8 +302,10 @@ class InsuranceConfigurationController extends Controller
         foreach ($settings as $type => $value) {
             BusinessSetting::query()->updateOrCreate(['type' => $type], ['value' => $value]);
         }
-        if ($subjectType === 'customer' && !$request->boolean('customer_tax_enabled')) {
-            app(\App\Services\PostPurchaseInvoiceService::class)->removeTaxFromPendingInvoices();
+        if ($subjectType === 'customer' && \Illuminate\Support\Facades\Schema::hasTable('business_setting_audits')) {
+            DB::table('business_setting_audits')->insert(['kind' => 'tax', 'before' => json_encode(['enabled' => $previousTax]),
+                'after' => json_encode(['enabled' => (bool) $request->boolean('customer_tax_enabled')]),
+                'admin_id' => auth('admin')->id(), 'created_at' => now()]);
         }
         return redirect()->route('admin.insurance-center.index', ['tab' => $subjectType === 'customer' ? 'customers' : 'sellers'])
             ->with('success', translate('Updated_successfully'));

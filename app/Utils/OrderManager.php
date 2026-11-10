@@ -959,7 +959,10 @@ class OrderManager
             }
 
             $secondStage = app(\App\Services\PostPurchaseInvoiceService::class)->isEnabled();
-            $taxForCustomer = $secondStage && getWebConfig(name: 'customer_second_invoice_tax_enabled') == 1;
+            $firstTaxCart = $vendorWiseCart['cart_list']->first();
+            $customerIdForTax = $firstTaxCart?->is_guest ? 0 : (int) ($firstTaxCart?->customer_id ?? 0);
+            $effectiveCustomerTax = app(\App\Services\CustomerTaxRuleService::class)->effective($customerIdForTax ?: null);
+            $taxForCustomer = $effectiveCustomerTax['enabled'];
             $vendorWiseCartAppliedTax = 0;
             $vendorWiseCart['applied_tax_cart_list'] = [];
             foreach ($vendorWiseCart['cart_list'] as $cartItem) {
@@ -986,7 +989,7 @@ class OrderManager
                         totalDiscountedPrice: $totalDiscountPrice,
                         applicableShippingAmount: $totalApplicableShippingAmount,
                     );
-                    if ($secondStage) {
+                    if ($secondStage || $taxForCustomer) {
                         $appliedTaxAmount = $taxForCustomer
                             ? self::customerProductTaxAmount(
                                 $totalDiscountPrice,
@@ -1022,6 +1025,7 @@ class OrderManager
             $vendorWiseCartAppliedTax = round($vendorWiseCartAppliedTax, 4);
             $vendorWiseCart['total_tax_amount'] = $vendorWiseCartAppliedTax;
             $vendorWiseCart['customer_tax_applied'] = $taxForCustomer;
+            $vendorWiseCart['customer_tax_rule_source'] = $effectiveCustomerTax['source'];
             $vendorWiseCart['order_amount_with_tax'] = $vendorWiseCart['order_amount'] + $vendorWiseCartAppliedTax;
             // Under the v3 contract, tax is deliberately not part of the
             // first checkout payment. It is snapshotted into the second
@@ -1065,7 +1069,14 @@ class OrderManager
         $taxConfig = self::getTaxSystemType();
         $postPurchaseInvoiceService = app(\App\Services\PostPurchaseInvoiceService::class);
         $usesPostPurchaseInvoice = $postPurchaseInvoiceService->isEnabled();
-        $adminCommission = (float)str_replace(",", "", Helpers::sales_commission_before_order($cartData['cart_group_id'], $cartData['coupon_discount']));
+        $commissionRule = $cartData['seller_is'] === 'seller'
+            ? app(\App\Services\SellerCommissionService::class)->getSummary(\App\Models\Seller::find((int) $cartData['seller_id']))
+            : ['effective_rate' => 0, 'source' => 'inhouse'];
+        $commissionBase = max(0, collect($cartData['cart_list'])->sum(fn ($item) =>
+            ((float) $item->price - (float) $item->discount) * (int) $item->quantity)
+            - (float) ($cartData['coupon_discount'] ?? 0)
+            - (float) ($cartData['refer_and_earn_discount'] ?? 0));
+        $adminCommission = round($commissionBase * (float) $commissionRule['effective_rate'] / 100, 2);
         $shippingPromise = app(\App\Services\ShippingPromiseService::class)
             ->orderDatabaseSnapshot($cartData['shipping_method_id'] ?? null);
 
@@ -1099,10 +1110,13 @@ class OrderManager
             'init_order_amount' => $cartData['first_payment_amount'] ?? ($cartData['order_amount_with_tax'] - $cartData['refer_and_earn_discount']),
             'total_tax_amount' => $cartData['total_tax_amount'],
             'tax_type' => ! empty($cartData['customer_tax_applied']) ? 'customer_product_14' : $taxConfig['SystemTaxVatType'],
+            'customer_tax_rule_source' => $cartData['customer_tax_rule_source'] ?? 'global',
             'tax_model' => ! empty($cartData['customer_tax_applied']) ? 'exclude' : ($taxConfig['is_included'] ? 'include' : 'exclude'),
             'bring_change_amount' => $orderData['payment_method'] == 'cash_on_delivery' ? $orderData['bring_change_amount'] ?? 0 : null,
             'bring_change_amount_currency' => $orderData['bring_change_amount_currency'] ?? null,
             'admin_commission' => $adminCommission,
+            'company_commission_rate_snapshot' => $commissionRule['effective_rate'],
+            'company_commission_rule_source' => $commissionRule['source'],
             'shipping_address' => $cartData['shipping_address_id'],
             'shipping_address_data' => ShippingAddress::find($cartData['shipping_address_id']),
             'billing_address' => getWebConfig('billing_input_by_customer') ? $cartData['billing_address_id'] : null,

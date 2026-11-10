@@ -10,7 +10,10 @@
     @if($errors->any())<div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>@endif
     @if(session('subscription_message'))<div class="alert alert-success" role="status">{{ session('subscription_message') }}</div>@endif
     @if($tab === 'vendors')
-        <p>إعداد باقات التجار متاح في التحديث القادم.</p>
+        <div class="row g-3">
+            <div class="col-md-6"><div class="card card-body h-100"><h2 class="h5">باقات التجار</h2><p>الأسماء والأسعار وحدود المنتجات ومزايا الإعلان. تظل شروط الاشتراكات الحالية محفوظة حتى التجديد.</p><a class="btn btn-outline-primary align-self-start" href="{{ route('admin.vendors.packages.index') }}">إدارة باقات التجار</a></div></div>
+            <div class="col-md-6"><div class="card card-body h-100"><h2 class="h5">الإعلانات الإضافية</h2><p>سعر المساحة الإضافية وعددها. هذا السعر منفصل عن تكلفة الباقة وعن إعلانات الموقع.</p><a class="btn btn-outline-primary align-self-start" href="{{ route('admin.vendors.extra-ads.index') }}">إدارة سعر الإعلان الإضافي</a></div></div>
+        </div>
     @else
         <p>كل باقة تمنح 30 يومًا. الحد الائتماني سماح بالشراء، وتُدفع الطلبات بالكامل بوسيلة دفع فعلية.</p>
         <a class="btn btn-outline-primary mb-4" href="{{ route('admin.customer.monthly-subscriptions.index') }}">سجل المدفوعات والمراجعة</a>
@@ -19,7 +22,7 @@
         <form id="package-{{ $package?->id ?? 'new' }}" method="post" action="{{ route('admin.monthly-packages.save', $package?->id) }}" class="card card-body mb-3" style="scroll-margin-top:100px">@csrf
             <h3 class="h5">{{ $package ? $package->name : 'إضافة باقة' }}</h3>
             <div class="row g-3">
-                <label class="col-md-3">الاسم<input class="form-control" readonly value="{{ $package->name }}"></label>
+                <label class="col-md-3">الاسم<input class="form-control" name="name" required maxlength="150" value="{{ $package->name }}"></label>
                 <label class="col-md-3">السعر (ج.م)<input class="form-control" type="number" min="0.001" step="0.001" name="package_price" required value="{{ $package?->package_price }}"></label>
                 <label class="col-md-3">الحد الائتماني (ج.م)<input class="form-control" type="number" min="0.001" step="0.001" name="purchase_limit" required value="{{ $package?->purchase_limit }}"></label>
                 <label class="col-md-3">رسوم تجديد الحد (ج.م)<input class="form-control" type="number" min="0.001" step="0.001" name="renewal_price" value="{{ $package->renewal_price }}"><small>يُجدد الحد فقط حتى تاريخ انتهاء الاشتراك الحالي. اتركه فارغًا لتعطيل التجديد.</small></label>

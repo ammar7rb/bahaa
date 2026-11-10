@@ -34,7 +34,7 @@ class UserWalletController extends Controller
             'subscription' => app(\App\Services\CustomerMonthlySubscriptionService::class)->status($customerId),
             'purchase_enabled' => getWebConfig('wallet_status') == 1,
             'insurance_enabled' => false,
-            'tax_enabled' => getWebConfig(name: 'customer_second_invoice_tax_enabled') == 1,
+            'tax_enabled' => app(\App\Services\CustomerTaxRuleService::class)->effective($customerId)['enabled'],
             'pending_invoices_count' => $pendingInvoicesCount,
             'pending_invoices' => $pendingInvoicesQuery->with('order:id,order_group_id,order_amount')
                 ->latest('id')->limit(5)->get()->map(fn (PostPurchaseInvoice $invoice) => [

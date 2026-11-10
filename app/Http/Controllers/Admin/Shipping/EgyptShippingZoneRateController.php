@@ -34,7 +34,7 @@ class EgyptShippingZoneRateController extends BaseController
     public function update(Request $request, int $id): RedirectResponse
     {
         $rate = EgyptShippingZoneRate::findOrFail($id);
-        $rate->update($this->validated($request));
+        $rate->update($this->validated($request, $rate));
         ToastMagic::success(translate('successfully_updated'));
         return back();
     }
@@ -71,7 +71,7 @@ class EgyptShippingZoneRateController extends BaseController
         return back();
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, ?EgyptShippingZoneRate $existing = null): array
     {
         $data = $request->validate([
             'governorate' => ['required', 'string', Rule::in(config('egypt.governorates', []))],
@@ -96,20 +96,30 @@ class EgyptShippingZoneRateController extends BaseController
         );
 
         $normalCost = currencyConverter(amount: $data['normal_cost']);
+        $street = $this->clean($data['street'] ?? null);
+        $duplicate = EgyptShippingZoneRate::query()->where('country_code', 'EG')
+            ->where('governorate', $governorate)->where('district', $district)
+            ->where('area', $area)->where('street', $street)
+            ->when($existing, fn ($query) => $query->where('id', '!=', $existing->id))->exists();
+        if ($duplicate) throw \Illuminate\Validation\ValidationException::withMessages([
+            'governorate' => 'توجد قاعدة شحن أخرى للموقع نفسه. عدّلها بدل إنشاء قاعدة متعارضة.',
+        ]);
 
         return [
             'country_code' => 'EG',
             'governorate' => $governorate,
             'district' => $district,
             'area' => $area,
-            'street' => $this->clean($data['street'] ?? null),
+            'street' => $street,
             ...$origin,
             'normal_cost' => $normalCost,
-            'sigma_cost' => round($normalCost * 3, 3),
-            'included_distance_km' => 0,
-            'price_per_km' => 0,
-            'peak_multiplier' => 1,
-            'sigma_surcharge' => 0,
+            'sigma_cost' => $existing && $existing->sigma_cost !== null
+                && abs((float) $existing->sigma_cost - (float) $existing->normal_cost * 3) > 0.001
+                ? $existing->sigma_cost : round($normalCost * 3, 3),
+            'included_distance_km' => $existing?->included_distance_km ?? 0,
+            'price_per_km' => $existing?->price_per_km ?? 0,
+            'peak_multiplier' => $existing?->peak_multiplier ?? 1,
+            'sigma_surcharge' => $existing?->sigma_surcharge ?? 0,
             'normal_available' => (bool) ($data['normal_available'] ?? false),
             'sigma_available' => (bool) ($data['sigma_available'] ?? false),
             'status' => (bool) ($data['status'] ?? false),
