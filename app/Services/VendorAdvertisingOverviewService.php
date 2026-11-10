@@ -25,7 +25,9 @@ class VendorAdvertisingOverviewService
         $states = config('vendor_product_workspace.enabled')
             ? \App\Models\VendorProductWorkspace::where('seller_id', $seller->id)->get()->keyBy('product_id') : collect();
         if (config('vendor_product_workspace.enabled')) $products = $products->filter(fn ($product) => $states->has($product->id));
-        $presentProduct = static function (Product $product) use ($states, $current, $slots): array {
+        $viewCounts = app(ProductViewCountService::class)->totalsForProducts($products->pluck('id')->all());
+        $presentProduct = static function (Product $product) use ($states, $current, $slots, $viewCounts): array {
+            $views = $viewCounts[$product->id];
             $remainingStock = (int) $product->current_stock;
             $state = $states->get($product->id);
             if ($state) {
@@ -39,6 +41,10 @@ class VendorAdvertisingOverviewService
                 'thumbnail_url' => $product->thumbnail ? getStorageImages(path: $product->thumbnail_full_url, type: 'backend-product') : null,
                 'unit_price' => (float) $product->unit_price, 'current_stock' => $remainingStock, 'request_status' => 1,
                 'status' => (int) $visible,
+                'product_view_count' => $views['total'],
+                'recorded_product_visits' => $views['actual'],
+                'administrative_view_additions' => $views['added'],
+                'product_view_count_is_adjusted' => $views['added'] > 0,
                 'vendor_workspace' => ['private_reference' => $state?->private_reference, 'legacy_exempt' => (bool) $state?->legacy_exempt,
                     'advertising_visible' => (bool) $visible],
             ];
