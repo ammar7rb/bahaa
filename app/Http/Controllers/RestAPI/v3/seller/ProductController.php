@@ -2135,9 +2135,29 @@ class ProductController extends Controller
 
     public function deleteImage(Request $request):JsonResponse
     {
-        $product = Product::withCount('reviews')->find($request['id']);
+        $request->validate([
+            'id' => 'required|integer|min:1',
+            'name' => 'required|string|max:255',
+            'color' => 'nullable|string|max:32',
+        ]);
+        $name = $request->input('name');
+        if (basename($name) !== $name || str_contains($name, '\\')) {
+            return response()->json(['message' => 'Invalid image name'], 422);
+        }
+        $seller = $request->seller;
+        $product = Product::where('added_by', 'seller')
+            ->where('user_id', $seller->id)
+            ->find($request->integer('id'));
+        if (! $product) {
+            return response()->json(['message' => 'Product not found'], 404);
+        }
+        $images = json_decode($product->images) ?: [];
+        $hasImage = collect($images)->contains(fn ($image) => ($image->image_name ?? $image) === $name);
+        if (! $hasImage) {
+            return response()->json(['message' => 'Image not found'], 404);
+        }
         $array = [];
-        if (count(json_decode($product['images'])) < 2) {
+        if (count($images) < 2) {
             return response()->json(['message' => translate('you_can_not_delete_all_images')], 403);
         }
         $colors = json_decode($product['colors']);
@@ -2163,7 +2183,7 @@ class ProductController extends Controller
             }
         }
 
-        foreach (json_decode($product['images']) as $image) {
+        foreach ($images as $image) {
             $imageName = $image->image_name ?? $image;
             if ($imageName != $request['name']) {
                 array_push($array, $image);
