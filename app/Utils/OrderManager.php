@@ -1073,7 +1073,7 @@ class OrderManager
             ? app(\App\Services\SellerCommissionService::class)->getSummary(\App\Models\Seller::find((int) $cartData['seller_id']))
             : ['effective_rate' => 0, 'source' => 'inhouse'];
         $commissionBase = max(0, collect($cartData['cart_list'])->sum(fn ($item) =>
-            ((float) $item->price - (float) $item->discount) * (int) $item->quantity)
+            ((float) data_get($item, 'price') - (float) data_get($item, 'discount')) * (int) data_get($item, 'quantity'))
             - (float) ($cartData['coupon_discount'] ?? 0)
             - (float) ($cartData['refer_and_earn_discount'] ?? 0));
         $adminCommission = round($commissionBase * (float) $commissionRule['effective_rate'] / 100, 2);
