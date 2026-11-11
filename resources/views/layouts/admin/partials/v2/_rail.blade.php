@@ -37,7 +37,7 @@
         @endif
 
         @if ($v2HasReports)
-            <a class="v2-rail-btn" href="{{ route('admin.report.financials.index') }}" data-section="reports" data-label="{{ __('financials.title') }}" aria-label="{{ __('financials.title') }}"><i class="fi fi-rr-chart-histogram" aria-hidden="true"></i></a>
+            <button class="v2-rail-btn" type="button" data-section="reports" data-label="{{ __('financials.title') }}" aria-label="{{ __('financials.title') }}"><i class="fi fi-rr-chart-histogram" aria-hidden="true"></i></button>
         @endif
 
         @if ($v2HasSettings)

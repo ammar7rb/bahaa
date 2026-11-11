@@ -75,7 +75,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
     });
 
     Route::group(['middleware' => ['seller_api_auth']], function () {
-        Route::prefix('fulfillment-requests')->controller(\App\Http\Controllers\Vendor\VendorFulfillmentController::class)->group(function () {
+        Route::prefix('fulfillment-requests')->controller('\\App\\Http\\Controllers\\Vendor\\VendorFulfillmentController')->group(function () {
             Route::get('{id}/unlock-quote','quote')->whereNumber('id')->middleware('throttle:30,1');
             Route::post('{id}/unlock','unlock')->whereNumber('id')->middleware('throttle:10,1');
             Route::post('{id}/decision','decide')->whereNumber('id')->middleware('throttle:20,1');
