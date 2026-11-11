@@ -1,0 +1,284 @@
+/* =====================================================================
+   SIGMA motion layer — presentation only.
+   Shared by the admin panel, the vendor panel and the storefront
+   (customer account + home). No layout, colour-token or logic changes:
+   every rule here is an entrance, a transition, a hover/press state or
+   a notification skin. Everything is switched off for
+   prefers-reduced-motion and for print.
+
+   Scopes
+     body.v2-active        admin + vendor shells
+     body.toolbar-enabled  storefront (Sigma Care / Aster layout)
+   ===================================================================== */
+
+:root {
+  --sm-ease: cubic-bezier(.22, .8, .24, 1);
+  --sm-ease-soft: cubic-bezier(.4, 0, .2, 1);
+  --sm-brand: #1a428a;
+  --sm-brand-2: #4f7fd6;
+  --sm-ink: #172942;
+  --sm-ok: #1f9d61;
+  --sm-bad: #d64545;
+  --sm-warn: #d98a0b;
+  --sm-info: #2f6fde;
+}
+
+/* ---------- Page-to-page crossfade (browsers with cross-document
+   view transitions; others get the JS progress bar + soft fade) ------- */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation-duration: .14s; animation-timing-function: var(--sm-ease-soft); }
+::view-transition-new(root) { animation-duration: .22s; animation-timing-function: var(--sm-ease-soft); }
+
+@keyframes sm-rise { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: none; } }
+@keyframes sm-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sm-pop { 0% { opacity: 0; transform: scale(.9); } 100% { opacity: 1; transform: none; } }
+@keyframes sm-zoom-settle { from { opacity: 0; transform: scale(1.035); } to { opacity: 1; transform: none; } }
+@keyframes sm-toast-in { from { opacity: 0; transform: translate3d(0, -14px, 0) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes sm-ring { 0% { box-shadow: 0 0 0 0 rgba(214, 69, 69, .45); } 100% { box-shadow: 0 0 0 9px rgba(214, 69, 69, 0); } }
+@keyframes sm-bar-run { 0% { transform: scaleX(0); } 55% { transform: scaleX(.72); } 100% { transform: scaleX(.92); } }
+@keyframes sm-scroll-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes sm-toast-life { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* ---------- Navigation progress bar (injected by sigma-motion.js) ---- */
+.sm-navbar {
+  position: fixed; inset-block-start: 0; inset-inline: 0; height: 3px; z-index: 2147483000;
+  pointer-events: none; opacity: 0; transition: opacity .25s ease;
+}
+.sm-navbar::before {
+  content: ""; position: absolute; inset: 0; transform: scaleX(0); transform-origin: left center;
+  background: linear-gradient(90deg, var(--sm-brand), var(--sm-brand-2));
+  box-shadow: 0 0 10px rgba(79, 127, 214, .55);
+}
+[dir="rtl"] .sm-navbar::before { transform-origin: right center; }
+.sm-navbar.sm-on { opacity: 1; }
+.sm-navbar.sm-on::before { animation: sm-bar-run 6s var(--sm-ease) forwards; }
+.sm-leaving .v2-main, .sm-leaving main.main-content { opacity: .55; transition: opacity .18s ease; }
+
+/* =====================================================================
+   ADMIN + VENDOR PANELS
+   ===================================================================== */
+
+/* Content arrives in a short, staggered rise. `backwards` leaves no
+   transform behind, so fixed/sticky children behave normally afterwards. */
+body.v2-active .v2-main > .content > *:not(.modal):not(.offcanvas):not(script):not(style),
+body.v2-active .v2-main > *:not(.content):not(.modal):not(.offcanvas):not(script):not(style) {
+  animation: sm-rise .42s var(--sm-ease) backwards;
+}
+body.v2-active .v2-main > .content > *:nth-child(2) { animation-delay: 50ms; }
+body.v2-active .v2-main > .content > *:nth-child(3) { animation-delay: 100ms; }
+body.v2-active .v2-main > .content > *:nth-child(4) { animation-delay: 150ms; }
+body.v2-active .v2-main > .content > *:nth-child(5) { animation-delay: 200ms; }
+body.v2-active .v2-main > .content > *:nth-child(n+6) { animation-delay: 240ms; }
+
+/* Dashboard tiles and shortcuts cascade inside their grids. */
+body.v2-active .admin-summary-grid > *,
+body.v2-active .sigma-shortcuts > *,
+body.v2-active .sigma-dashboard-main > * { animation: sm-rise .46s var(--sm-ease) backwards; }
+body.v2-active .admin-summary-grid > *:nth-child(2), body.v2-active .sigma-shortcuts > *:nth-child(2), body.v2-active .sigma-dashboard-main > *:nth-child(2) { animation-delay: 90ms; }
+body.v2-active .admin-summary-grid > *:nth-child(3), body.v2-active .sigma-shortcuts > *:nth-child(3), body.v2-active .sigma-dashboard-main > *:nth-child(3) { animation-delay: 140ms; }
+body.v2-active .admin-summary-grid > *:nth-child(4), body.v2-active .sigma-shortcuts > *:nth-child(4), body.v2-active .sigma-dashboard-main > *:nth-child(4) { animation-delay: 190ms; }
+body.v2-active .admin-summary-grid > *:nth-child(5), body.v2-active .sigma-shortcuts > *:nth-child(5) { animation-delay: 240ms; }
+body.v2-active .admin-summary-grid > *:nth-child(6) { animation-delay: 290ms; }
+body.v2-active .admin-summary-grid > *:nth-child(7) { animation-delay: 340ms; }
+body.v2-active .admin-summary-grid > *:nth-child(n+8) { animation-delay: 390ms; }
+
+/* Interactive tiles lift a little; plain cards only ease their shadow. */
+body.v2-active .admin-summary-card,
+body.v2-active .sigma-shortcut-link,
+body.v2-active a.card {
+  transition: transform .22s var(--sm-ease), box-shadow .22s ease, border-color .2s ease;
+}
+body.v2-active .admin-summary-card:hover,
+body.v2-active .sigma-shortcut-link:hover,
+body.v2-active a.card:hover {
+  transform: translate3d(0, -3px, 0);
+  box-shadow: 0 12px 28px -14px rgba(23, 41, 66, .38);
+}
+body.v2-active .admin-summary-card:hover .admin-summary-icon,
+body.v2-active .sigma-shortcut-link:hover .sigma-icon { transform: scale(1.08); }
+body.v2-active .admin-summary-icon, body.v2-active .sigma-icon { transition: transform .25s var(--sm-ease); }
+
+body.v2-active .btn { transition: transform .12s ease, box-shadow .2s ease, background-color .16s ease, border-color .16s ease, color .16s ease; }
+body.v2-active .btn:active:not(:disabled):not(.disabled) { transform: scale(.97); }
+body.v2-active .table tbody tr { transition: background-color .16s ease; }
+body.v2-active .form-control, body.v2-active .form-select { transition: border-color .16s ease, box-shadow .2s ease, background-color .16s ease; }
+body.v2-active .nav-link, body.v2-active .page-link, body.v2-active .badge { transition: background-color .16s ease, color .16s ease, border-color .16s ease; }
+
+/* Unread dots announce themselves three times, then rest. */
+body.v2-active .v2-badge-dot:not(.d-none) { animation: sm-ring 1.6s ease-out 3; }
+
+/* Section switch in the context panel (class set by sigma-motion.js). */
+body.v2-active .v2-ctx-section.sm-switch { animation: sm-rise .24s var(--sm-ease) backwards; }
+
+/* Toasts (ToastMagic): keep its colours, refine shape, depth and entry. */
+body.v2-active .toast-container .toast-item {
+  border-radius: 14px;
+  box-shadow: 0 18px 40px -18px rgba(23, 41, 66, .45), 0 2px 6px rgba(23, 41, 66, .08);
+  animation: sm-toast-in .38s var(--sm-ease) backwards;
+}
+body.v2-active .toast-container .toast-close-btn { transition: transform .18s ease, opacity .18s ease; }
+body.v2-active .toast-container .toast-close-btn:hover { transform: rotate(90deg); }
+
+/* =====================================================================
+   STOREFRONT: shared (customer account, checkout, home)
+   ===================================================================== */
+
+body.toolbar-enabled main.main-content > .container > *,
+body.toolbar-enabled main.main-content > section,
+body.toolbar-enabled main.main-content > .container > .row > [class*="col"] > * {
+  animation: sm-rise .46s var(--sm-ease) backwards;
+}
+body.toolbar-enabled main.main-content > .container > .row > [class*="col"] > *:nth-child(2) { animation-delay: 70ms; }
+body.toolbar-enabled main.main-content > .container > .row > [class*="col"] > *:nth-child(3) { animation-delay: 130ms; }
+body.toolbar-enabled main.main-content > .container > .row > [class*="col"] > *:nth-child(n+4) { animation-delay: 190ms; }
+/* The home page runs its own choreography below. */
+body.toolbar-enabled main.care-home > section,
+body.toolbar-enabled main.care-home > .container > * { animation: none; }
+
+body.toolbar-enabled .btn { transition: transform .12s ease, box-shadow .2s ease, background-color .16s ease, border-color .16s ease, color .16s ease; }
+body.toolbar-enabled .btn:active:not(:disabled):not(.disabled) { transform: scale(.97); }
+body.toolbar-enabled .form-control, body.toolbar-enabled .form-select { transition: border-color .16s ease, box-shadow .2s ease; }
+
+/* Customer account */
+body.toolbar-enabled .profile-menu a { transition: background-color .18s ease, color .18s ease; }
+body.toolbar-enabled .profile-subscription,
+body.toolbar-enabled .profile-account-metric { transition: transform .22s var(--sm-ease), box-shadow .22s ease; }
+body.toolbar-enabled .profile-subscription:hover,
+body.toolbar-enabled .profile-account-metric:hover { transform: translate3d(0, -2px, 0); box-shadow: 0 12px 26px -16px rgba(23, 41, 66, .4); }
+body.toolbar-enabled .profile-overview-icon { transition: transform .25s var(--sm-ease); }
+body.toolbar-enabled .profile-subscription:hover .profile-overview-icon { transform: scale(1.08); }
+body.toolbar-enabled .profile-sidebar-avatar { animation: sm-pop .5s var(--sm-ease) backwards; }
+
+/* Modals settle instead of dropping. */
+body.toolbar-enabled .modal.fade .modal-dialog,
+body.v2-active .modal.fade .modal-dialog {
+  transform: translate3d(0, 14px, 0) scale(.98);
+  transition: transform .26s var(--sm-ease);
+}
+body.toolbar-enabled .modal.show .modal-dialog,
+body.v2-active .modal.show .modal-dialog { transform: none; }
+
+/* Toasts (toastr): a calm white card with a status accent. */
+body.toolbar-enabled #toast-container > div {
+  width: min(360px, calc(100vw - 24px));
+  margin: 0 0 10px;
+  padding: 14px 16px;
+  padding-inline-start: 56px;
+  border-radius: 14px;
+  background-color: #fff;
+  background-image: none !important;
+  color: var(--sm-ink);
+  border: 1px solid #e1e8f2;
+  box-shadow: 0 18px 40px -18px rgba(23, 41, 66, .45), 0 2px 6px rgba(23, 41, 66, .08);
+  opacity: 1;
+  line-height: 1.6;
+  animation: sm-toast-in .38s var(--sm-ease) backwards;
+}
+body.toolbar-enabled #toast-container > div:hover { box-shadow: 0 22px 44px -18px rgba(23, 41, 66, .55), 0 2px 6px rgba(23, 41, 66, .1); opacity: 1; }
+body.toolbar-enabled #toast-container > div::before {
+  content: ""; position: absolute; inset-inline-start: 14px; inset-block-start: 50%;
+  width: 30px; height: 30px; margin-block-start: -15px; border-radius: 50%;
+  background: var(--sm-tone, var(--sm-info));
+  -webkit-mask: none; mask: none;
+}
+body.toolbar-enabled #toast-container > div::after {
+  content: ""; position: absolute; inset-inline-start: 14px; inset-block-start: 50%;
+  width: 30px; height: 30px; margin-block-start: -15px;
+  background: #fff;
+  -webkit-mask: var(--sm-glyph) center / 16px 16px no-repeat; mask: var(--sm-glyph) center / 16px 16px no-repeat;
+}
+body.toolbar-enabled #toast-container > .toast-success { --sm-tone: var(--sm-ok); --sm-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E"); }
+body.toolbar-enabled #toast-container > .toast-error { --sm-tone: var(--sm-bad); --sm-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4.5 4.5l7 7M11.5 4.5l-7 7'/%3E%3C/svg%3E"); }
+body.toolbar-enabled #toast-container > .toast-warning { --sm-tone: var(--sm-warn); --sm-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M8 3.5v5.5M8 12.2v.3'/%3E%3C/svg%3E"); }
+body.toolbar-enabled #toast-container > .toast-info { --sm-tone: var(--sm-info); --sm-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M8 7v5.5M8 3.8v.3'/%3E%3C/svg%3E"); }
+body.toolbar-enabled #toast-container .toast-title { color: var(--sm-ink); font-weight: 700; }
+body.toolbar-enabled #toast-container .toast-message,
+body.toolbar-enabled #toast-container .toast-message a,
+body.toolbar-enabled #toast-container .toast-message label { color: var(--sm-ink); }
+body.toolbar-enabled #toast-container .toast-close-button {
+  color: #52627a; text-shadow: none; opacity: .7; font-weight: 500;
+  float: inline-end; inset: auto; margin-inline-start: 8px; transition: transform .18s ease, opacity .18s ease;
+}
+body.toolbar-enabled #toast-container .toast-close-button:hover { color: var(--sm-ink); opacity: 1; transform: rotate(90deg); }
+body.toolbar-enabled #toast-container .toast-progress { background-color: var(--sm-tone, var(--sm-info)); opacity: .55; height: 3px; }
+body.toolbar-enabled[theme="dark"] #toast-container > div { background-color: #1b2536; border-color: #2c3a52; color: #e8eef8; }
+body.toolbar-enabled[theme="dark"] #toast-container .toast-title,
+body.toolbar-enabled[theme="dark"] #toast-container .toast-message,
+body.toolbar-enabled[theme="dark"] #toast-container .toast-message a { color: #e8eef8; }
+body.toolbar-enabled[theme="dark"] #toast-container .toast-close-button { color: #a9b6cb; }
+
+/* =====================================================================
+   STOREFRONT HOME: first paint + scroll choreography
+   ===================================================================== */
+
+/* First paint: the hero copy rises line by line, the photo settles. */
+body.toolbar-enabled .care-hero-copy > * { animation: sm-rise .6s var(--sm-ease) backwards; }
+body.toolbar-enabled .care-hero-copy > *:nth-child(2) { animation-delay: 90ms; }
+body.toolbar-enabled .care-hero-copy > *:nth-child(3) { animation-delay: 180ms; }
+body.toolbar-enabled .care-hero-copy > *:nth-child(n+4) { animation-delay: 260ms; }
+body.toolbar-enabled .care-hero-media { animation: sm-zoom-settle .9s var(--sm-ease) backwards; }
+body.toolbar-enabled .care-category-circle { animation: sm-pop .45s var(--sm-ease) backwards; animation-delay: calc(140ms + var(--sm-i, 0) * 38ms); }
+
+/* Scroll reveal. Hidden states exist only once sigma-motion.js has
+   marked a block (so content is never hidden without JavaScript). */
+body.toolbar-enabled .sm-sec:not(.sm-in) .care-row-heading,
+body.toolbar-enabled .sm-sec:not(.sm-in) .care-home-product,
+body.toolbar-enabled .sm-sec:not(.sm-in) .care-promo,
+body.toolbar-enabled .sm-sec:not(.sm-in) .care-contact-band,
+body.toolbar-enabled .sm-sec:not(.sm-in) .sm-item { opacity: 0; transform: translate3d(0, 22px, 0); }
+body.toolbar-enabled .sm-sec .care-row-heading,
+body.toolbar-enabled .sm-sec .care-home-product,
+body.toolbar-enabled .sm-sec .care-promo,
+body.toolbar-enabled .sm-sec .care-contact-band,
+body.toolbar-enabled .sm-sec .sm-item {
+  transition: opacity .55s ease, transform .7s var(--sm-ease);
+  transition-delay: calc(var(--sm-i, 0) * 55ms);
+  will-change: opacity, transform;
+}
+
+/* Product cards and category shortcuts respond to the pointer. */
+body.toolbar-enabled .care-home-product { transition: transform .26s var(--sm-ease), box-shadow .26s ease, background-color .2s ease; }
+body.toolbar-enabled .care-home-product:hover { transform: translate3d(0, -4px, 0); box-shadow: 0 16px 30px -18px rgba(23, 41, 66, .42); }
+body.toolbar-enabled .care-home-product img { transition: transform .5s var(--sm-ease); }
+body.toolbar-enabled .care-home-product:hover img { transform: scale(1.04); }
+body.toolbar-enabled .care-category-circle { transition: transform .24s var(--sm-ease), box-shadow .24s ease; }
+body.toolbar-enabled a:hover > .care-category-circle,
+body.toolbar-enabled .care-category-circle:hover { transform: translate3d(0, -3px, 0) scale(1.04); box-shadow: 0 12px 22px -14px rgba(26, 66, 138, .55); }
+body.toolbar-enabled .care-promo { transition: transform .3s var(--sm-ease), box-shadow .3s ease; }
+body.toolbar-enabled .care-promo:hover { transform: translate3d(0, -3px, 0); box-shadow: 0 18px 34px -20px rgba(23, 41, 66, .45); }
+body.toolbar-enabled .care-add-cart { transition: transform .16s ease, background-color .16s ease, color .16s ease, box-shadow .2s ease; }
+body.toolbar-enabled .care-add-cart:active { transform: scale(.94); }
+
+/* Header gains depth once the page moves. */
+body.toolbar-enabled .care-header { transition: box-shadow .3s ease; }
+body.toolbar-enabled .care-header.sm-scrolled { box-shadow: 0 10px 28px -18px rgba(23, 41, 66, .45); }
+
+/* Reading progress along the top edge (home only, injected by JS). */
+.sm-scrollbar {
+  position: fixed; inset-block-start: 0; inset-inline: 0; height: 3px; z-index: 2147482000; pointer-events: none;
+  background: linear-gradient(90deg, var(--sm-brand), var(--sm-brand-2));
+  transform: scaleX(var(--sm-scroll, 0)); transform-origin: left center;
+}
+[dir="rtl"] .sm-scrollbar { transform-origin: right center; }
+@supports (animation-timeline: scroll()) {
+  .sm-scrollbar { animation: sm-scroll-grow linear both; animation-timeline: scroll(root block); }
+}
+
+/* Back-to-top and support buttons ease in and out. */
+body.toolbar-enabled .care-floating-actions > * { transition: transform .22s var(--sm-ease), box-shadow .22s ease, opacity .22s ease; }
+body.toolbar-enabled .care-floating-actions > *:hover { transform: translate3d(0, -3px, 0); }
+
+/* ---------- Safety valves ---------- */
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  body.v2-active *, body.toolbar-enabled *, .sm-navbar, .sm-navbar::before, .sm-scrollbar {
+    animation: none !important; transition: none !important; scroll-behavior: auto !important;
+  }
+  .sm-sec:not(.sm-in) .care-row-heading, .sm-sec:not(.sm-in) .care-home-product, .sm-sec:not(.sm-in) .care-promo,
+  .sm-sec:not(.sm-in) .care-contact-band, .sm-sec:not(.sm-in) .sm-item { opacity: 1; transform: none; }
+}
+@media print {
+  .sm-navbar, .sm-scrollbar { display: none !important; }
+  body.v2-active *, body.toolbar-enabled * { animation: none !important; transition: none !important; }
+  .sm-sec .care-row-heading, .sm-sec .care-home-product, .sm-sec .care-promo, .sm-sec .care-contact-band, .sm-sec .sm-item { opacity: 1 !important; transform: none !important; }
+}

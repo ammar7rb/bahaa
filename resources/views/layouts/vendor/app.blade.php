@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-workspace.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-workspace.css')) }}">
     @include('layouts.partials._unified-print-styles')
 
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/sigma-motion/sigma-motion.css') }}?v={{ filemtime(public_path('assets/sigma-motion/sigma-motion.css')) }}">
     @stack('css_or_js')
 </head>
 
@@ -74,6 +75,7 @@
 
     @stack("script")
     @stack("script_2")
+    <script src="{{ dynamicAsset(path: 'public/assets/sigma-motion/sigma-motion.js') }}?v={{ filemtime(public_path('assets/sigma-motion/sigma-motion.js')) }}" defer></script>
 
     @if(env('APP_MODE')=='demo')
         <script src="{{ dynamicAsset(path: 'public/js/demo.js')}}"></script>

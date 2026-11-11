@@ -82,6 +82,7 @@
     {!! getSystemDynamicPartials(type: 'analytics_script') !!}
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-credit-indicator.css') }}?v=20261027.2">
 <link rel="stylesheet" href="{{ asset('assets/front-end/css/customer-profile-communication.css') }}?v=20261014">
+<link rel="stylesheet" href="{{ asset('assets/sigma-motion/sigma-motion.css') }}?v={{ filemtime(public_path('assets/sigma-motion/sigma-motion.css')) }}">
 </head>
 <body class="toolbar-enabled sigma-care" theme="light">
 @if(theme_root_path() !== (env('WEB_THEME') ?: 'default'))
@@ -291,6 +292,7 @@
 
 <script src="{{ asset('assets/front-end/js/egypt-phone-validation.js') }}?v=20261104.2" defer></script>
 <script src="{{ asset('assets/front-end/js/customer-transfer.js') }}?v=20261010.4" defer></script>
+<script src="{{ asset('assets/sigma-motion/sigma-motion.js') }}?v={{ filemtime(public_path('assets/sigma-motion/sigma-motion.js')) }}" defer></script>
 </body>
 </html>
 

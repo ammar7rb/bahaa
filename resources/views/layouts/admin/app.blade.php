@@ -76,6 +76,7 @@
         }
     </style>
 
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/sigma-motion/sigma-motion.css') }}?v={{ filemtime(public_path('assets/sigma-motion/sigma-motion.css')) }}">
     @stack('css_or_js')
 </head>
 
@@ -119,6 +120,7 @@
 <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/full-page-print.js') }}?v={{ filemtime(public_path('assets/back-end/js/full-page-print.js')) }}"></script>
 
 @stack('script')
+<script src="{{ dynamicAsset(path: 'public/assets/sigma-motion/sigma-motion.js') }}?v={{ filemtime(public_path('assets/sigma-motion/sigma-motion.js')) }}" defer></script>
 <script src="{{ dynamicAsset(path: 'public/assets/front-end/js/egypt-phone-validation.js') }}?v=20261104.2" defer></script>
 
 
