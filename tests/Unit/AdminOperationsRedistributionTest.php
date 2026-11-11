@@ -32,9 +32,9 @@ class AdminOperationsRedistributionTest extends TestCase
         $expected = [
             'orders' => ["admin.orders.logistics.index", "admin.payment-reviews.index"],
             'catalog' => ["admin.operations.medical-devices.index"],
-            'customers' => ["admin.customer-withdrawals.index", "admin.monthly-packages.index", "admin.customer.password-recovery.index", "guest_customers"],
+            'customers' => ["guest_customers"],
             'vendors' => ["seller-settlement-timing"],
-            'settings' => ["admin.operations.shipping.index", "admin.operations.homepage-sections.index"],
+            'settings' => ["admin.operations.shipping.index", "admin.operations.homepage-sections.index", "admin.customer-withdrawals.index", "admin.monthly-packages.index", "admin.customer.password-recovery.index"],
         ];
         $source = $this->sidebar();
         foreach ($expected as $section => $needles) {

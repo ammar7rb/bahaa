@@ -259,11 +259,6 @@
                 @endif
                 @endforeach
                 @if(Helpers::module_permission_check('people'))
-                <a class="v2-nav-item {{ request()->routeIs('admin.customer-withdrawals.*') ? 'v2-is-active' : '' }}" data-item="customer-withdrawal-rates" href="{{ route('admin.customer-withdrawals.index') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-hand-holding-usd"></i></span><span class="v2-nav-label">نسب ومدد صرف الأموال</span></span>
-                </a>
-                <a class="v2-nav-item {{ request()->routeIs('admin.monthly-packages.*') ? 'v2-is-active' : '' }}" data-item="monthly-packages" href="{{ route('admin.monthly-packages.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-calendar"></i></span><span class="v2-nav-label">الباقات الشهرية</span></span></a>
-                <a class="v2-nav-item {{ request()->routeIs('admin.customer.password-recovery.*') ? 'v2-is-active' : '' }}" data-item="customer-password-recovery" href="{{ route('admin.customer.password-recovery.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-key"></i></span><span class="v2-nav-label">استعادة كلمة مرور العملاء</span></span></a>
                 <a class="v2-nav-item {{ request()->boolean('guest_customers') ? 'v2-is-active' : '' }}" data-item="guest-customers" href="{{ route('admin.account-directory.index', ['guest_customers' => 1]) }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-user-add"></i></span><span class="v2-nav-label">عملاء زوار</span></span></a>
                 @endif
             </div>
@@ -409,6 +404,13 @@
                     </a>
                     @if (Helpers::module_permission_check('business_settings'))
                     <a class="v2-nav-item {{ request()->routeIs('admin.operations.shipping.*') ? 'v2-is-active' : '' }}" data-item="shipping-setup" href="{{ route('admin.operations.shipping.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v11H3zM14 10h4l3 4v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></span><span class="v2-nav-label">{{ __('shipping-governorates.setup') }}</span></span></a>
+                    @endif
+                    @if(Helpers::module_permission_check('people'))
+                    <a class="v2-nav-item {{ request()->routeIs('admin.customer-withdrawals.*') ? 'v2-is-active' : '' }}" data-item="customer-withdrawal-rates" href="{{ route('admin.customer-withdrawals.index') }}">
+                        <span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-hand-holding-usd"></i></span><span class="v2-nav-label">نسب ومدد صرف الأموال</span></span>
+                    </a>
+                    <a class="v2-nav-item {{ request()->routeIs('admin.monthly-packages.*') ? 'v2-is-active' : '' }}" data-item="monthly-packages" href="{{ route('admin.monthly-packages.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-calendar"></i></span><span class="v2-nav-label">الباقات الشهرية</span></span></a>
+                    <a class="v2-nav-item {{ request()->routeIs('admin.customer.password-recovery.*') ? 'v2-is-active' : '' }}" data-item="customer-password-recovery" href="{{ route('admin.customer.password-recovery.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-key"></i></span><span class="v2-nav-label">استعادة كلمة مرور العملاء</span></span></a>
                     @endif
                     @if(Helpers::module_permission_check('catalog'))
                     <a class="v2-nav-item {{ request()->routeIs('admin.operations.homepage-sections.*') ? 'v2-is-active' : '' }}" data-item="homepage-sections" href="{{ route('admin.operations.homepage-sections.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-apps"></i></span><span class="v2-nav-label">{{ __('operations.homepage_sections') }}</span></span></a>
