@@ -24,9 +24,10 @@ class OrderCenterFiltersTest extends TestCase
         }
     }
 
-    public function test_old_filters_resolve_to_the_six_visible_groups(): void
+    public function test_old_filters_resolve_to_the_seven_visible_groups(): void
     {
-        $this->assertCount(6, OrderCenterFilters::OPTIONS);
+        $this->assertCount(7, OrderCenterFilters::OPTIONS);
+        $this->assertSame('guests', OrderCenterFilters::normalize('guests'));
         foreach (['sent_to_vendor'=>'waiting_vendor','overdue'=>'waiting_vendor','accepted'=>'active','processing'=>'active','out_for_delivery'=>'active','canceled'=>'stopped','failed'=>'stopped','returned'=>'stopped','rejected'=>'stopped','history'=>'completed'] as $old=>$group) {
             $this->assertSame($group, OrderCenterFilters::normalize($old));
         }

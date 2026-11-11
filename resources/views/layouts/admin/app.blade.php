@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-v2.css') }}?v=20260910.7">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-dark-mode.css') }}?v=20260910.4">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-workspace.css') }}?v={{ substr(hash_file('sha256', public_path('assets/back-end/css/admin-workspace.css')), 0, 16) }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/admin-sigma-care.css') }}?v={{ substr(hash_file('sha256', public_path('assets/back-end/css/admin-sigma-care.css')), 0, 12) }}">
     <script>
         (function () {
             var storageKey = 'ba_admin_theme';
