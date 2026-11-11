@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Cache;
 if (!function_exists('getWebConfig')) {
     function getWebConfig($name): string|object|array|null
     {
+        // Sigma sells in Egyptian pounds only. Every price is stored and shown as typed, with no exchange-rate conversion.
+        if ($name === 'currency_model') {
+            return 'single_currency';
+        }
         $config = null;
         if (in_array($name, getWebConfigCacheKeys()) && Cache::has($name)) {
             $config = Cache::get($name);
@@ -80,6 +84,34 @@ if (!function_exists('clearWebConfigCacheKeys')) {
             $config = $data['value'];
         }
         return $config;
+    }
+}
+
+if (!function_exists('adminContentLanguages')) {
+    /** Language codes for admin forms. Never empty, so category and brand pages do not crash. */
+    function adminContentLanguages(): array
+    {
+        $raw = getWebConfig(name: 'pnc_language');
+        $codes = [];
+        if (is_array($raw)) {
+            foreach ($raw as $item) {
+                if (is_string($item) && $item !== '') {
+                    $codes[] = $item;
+                } elseif (is_array($item) && !empty($item['code']) && is_string($item['code'])) {
+                    $codes[] = $item['code'];
+                }
+            }
+        }
+
+        return $codes !== [] ? array_values(array_unique($codes)) : ['ar'];
+    }
+}
+
+if (!function_exists('catalogUnitPrice')) {
+    /** Product prices are the amount the merchant typed, not a USD amount to multiply by the exchange rate. */
+    function catalogUnitPrice(string|int|float|null $amount = 0): float
+    {
+        return round((float) $amount, 2);
     }
 }
 

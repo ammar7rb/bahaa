@@ -26,7 +26,7 @@ class CustomerBalanceDepositService
         if (!in_array($decision, ['approve', 'reject'], true) || $adminId <= 0) {
             throw new DomainException('invalid_deposit_decision');
         }
-        return DB::transaction(function () use ($deposit, $decision, $adminId, $note) {
+        $deposit = DB::transaction(function () use ($deposit, $decision, $adminId, $note) {
             // All account financial workflows lock the customer before their source record.
             User::query()->lockForUpdate()->findOrFail($deposit->customer_id);
             $deposit = CustomerBalanceDeposit::query()->lockForUpdate()->findOrFail($deposit->id);
@@ -69,5 +69,9 @@ class CustomerBalanceDepositService
             }
             return $deposit;
         });
+        if ($decision === 'approve' && $deposit->wallet_type === 'purchase') {
+            app(CustomerPackageAutoRenewalService::class)->renewIfDue((int) $deposit->customer_id);
+        }
+        return $deposit;
     }
 }

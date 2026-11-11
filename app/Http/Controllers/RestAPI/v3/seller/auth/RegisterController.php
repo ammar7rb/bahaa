@@ -55,11 +55,11 @@ class RegisterController extends Controller
         DB::beginTransaction();
         try {
             $seller = new Seller();
-            $fallbackName = trim((string) Str::before($request->email, '@')) ?: 'Sigma seller';
-            $seller->f_name = $request->f_name ?: $fallbackName;
+            $fallbackName = trim((string) $request->f_name) ?: 'تاجر';
+            $seller->f_name = $fallbackName;
             $seller->l_name = $request->l_name ?: '';
             $seller->phone = $request->phone;
-            $seller->email = $request->email;
+            $seller->email = $request->email ?: ($request->phone.'@vendor.local');
             if (Schema::hasColumn('sellers', 'image') && $request->hasFile('image')) {
                 $seller->image = ImageManager::upload('seller/', 'webp', $request->file('image'));
             }

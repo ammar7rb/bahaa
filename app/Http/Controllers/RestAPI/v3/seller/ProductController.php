@@ -2224,9 +2224,13 @@ class ProductController extends Controller
 
     public function deletePreviewFile(Request $request): JsonResponse
     {
-        $product = $this->productRepo->getFirstWhereWithoutGlobalScope(params: ['id' => $request['product_id']]);
+        $seller = $request->seller;
+        $product = Product::where('added_by', 'seller')->where('user_id', $seller->id)->find($request->integer('product_id'));
+        if (! $product) {
+            return response()->json(['message' => 'Product not found'], 404);
+        }
         $this->productService->deletePreviewFile(product: $product);
-        $this->productRepo->update(id: $request['product_id'], data: ['preview_file' => null]);
+        $this->productRepo->update(id: $product->id, data: ['preview_file' => null]);
         return response()->json([
             'status' => 1,
             'message' => translate('Preview_file_deleted')

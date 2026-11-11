@@ -18,7 +18,7 @@
     <div data-payment-panel="balance" hidden>
         <div class="vendor-payment-hero vendor-payment-hero-balance"><span class="vendor-payment-mark" aria-hidden="true">@include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'wallet'])</span><div><h3>الدفع من خلال المحفظة</h3><p>راجع المبلغ ثم أكّد الدفع. يتم تأكيد العملية تلقائيًا.</p></div></div>
         <dl class="vendor-payment-receipt"><div><dt>رصيد المدفوعات الحالي</dt><dd>{{ webCurrencyConverter(amount: $operatingBalance) }}</dd></div><div><dt>مبلغ الاشتراك</dt><dd>{{ webCurrencyConverter(amount: $package->package_price) }}</dd></div>@if($operatingBalance >= $package->package_price)<div class="vendor-payment-receipt-total"><dt>الرصيد بعد الدفع</dt><dd>{{ webCurrencyConverter(amount: $operatingBalance - $package->package_price) }}</dd></div>@endif</dl>
-        @if($operatingBalance < $package->package_price)<p role="status">رصيد المدفوعات غير كافٍ. اختر طريقة أخرى أو أضف رصيدًا إلى محفظة المدفوعات.</p>@endif
+        @if($operatingBalance < $package->package_price)<p role="status">رصيد المحفظة غير كافٍ. اختر طريقة أخرى أو أضف رصيدًا إلى المحفظة.</p>@endif
         <form method="post" action="{{ route('vendor.packages.pay') }}">@csrf<input type="hidden" name="request_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}"><input type="hidden" name="package_id" value="{{ $package->id }}"><input type="hidden" name="expected_package_price" value="{{ number_format($package->package_price, 2, '.', '') }}"><input type="hidden" name="payment_method" value="operating_balance"><button class="btn btn--primary w-100" @disabled($operatingBalance < $package->package_price || $summary['pending_review'])>ادفع الآن</button></form>
     </div>
     @foreach(['instapay','wallet'] as $channel)

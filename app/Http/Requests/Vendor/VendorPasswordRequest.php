@@ -26,7 +26,7 @@ class VendorPasswordRequest extends FormRequest
     public function rules():array
     {
         return [
-            'password' => 'required|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W)(?!.*\s).{8,}$/|same:confirm_password',
+            'password' => 'required|string|min:6|max:255|same:confirm_password',
             'confirm_password' => 'required',
         ];
     }
@@ -36,7 +36,7 @@ class VendorPasswordRequest extends FormRequest
             'password.required' => translate('The_password_field_is_required'),
             'confirm_password.required' => translate('The_confirm_password_field_is_required'),
             'password.same' => translate('The_password_and_confirm_password_must_be_match'),
-            'password.regex' => translate('The_password_must_be_at_least_8_characters_long_and_contain_at_least_one_uppercase_letter').','.translate('_one_lowercase_letter').','.translate('_one_digit_').','.translate('_one_special_character').','.translate('_and_no_spaces').'.',
+            'password.min' => 'كلمة المرور 6 أحرف على الأقل.',
         ];
     }
 }

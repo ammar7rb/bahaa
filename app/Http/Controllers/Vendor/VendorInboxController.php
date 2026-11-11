@@ -44,4 +44,17 @@ class VendorInboxController extends Controller
         return $request->is('api/*') ? response()->json($data)->header('Cache-Control', 'private, no-store')
             : response()->view('vendor-views.account.thread', compact('data'))->header('Cache-Control', 'private, no-store');
     }
+
+    public function reply(Request $request, int $thread, VendorInboxService $service)
+    {
+        $seller = $request->seller ?? auth('seller')->user();
+        abort_unless($seller, 401);
+        $data = $request->validate(['body' => 'required|string|max:10000']);
+        $threadData = $service->reply($seller, $thread, $data['body']);
+        if ($request->is('api/*') || $request->expectsJson()) {
+            return response()->json($threadData);
+        }
+
+        return redirect()->route('vendor.messages.thread', $thread);
+    }
 }

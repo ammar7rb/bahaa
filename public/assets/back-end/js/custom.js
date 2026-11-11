@@ -1505,6 +1505,15 @@ $(".password-check").on("keyup keypress change click", function () {
     let password = $(this).val();
     let passwordError = $(".password-error");
     let passwordErrorMessage = $("#password-error-message");
+    if ($(this).data("light-password")) {
+        // Vendor passwords only need 6 characters.
+        if (password.length < 6) {
+            passwordError.html("كلمة المرور 6 أحرف على الأقل.").removeClass("d-none");
+        } else {
+            passwordError.addClass("d-none").empty();
+        }
+        return;
+    }
     switch (true) {
         case password.length < 8:
             passwordError

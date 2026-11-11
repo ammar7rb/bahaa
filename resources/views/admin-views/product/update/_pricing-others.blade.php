@@ -71,7 +71,7 @@
                                 <input type="number" min="0" step="0.01"
                                        placeholder="{{ translate('unit_price') }}" name="unit_price" id="unit_price"
                                        data-required-msg="{{ translate('unit_price_is_required') }}"
-                                       value="{{ old('unit_price', usdToDefaultCurrency($product->unit_price)) }}" class="form-control" required>
+                                       value="{{ old('unit_price', catalogUnitPrice($product->unit_price)) }}" class="form-control" required>
                             </div>
                         </div>
                         <div class="col-md-6 col-lg-4" id="minimum_order_qty">

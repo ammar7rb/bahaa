@@ -17,12 +17,25 @@ class SellerRegistrationRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $email = strtolower(trim((string) $this->input('email')));
+        $this->merge([
+            'email' => $email !== '' ? $email : null,
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
+            'f_name' => trim((string) $this->input('f_name')),
+        ]);
+    }
+
     public function rules(): array
     {
         return [
-            'email' => 'required|email|unique:sellers,email',
+            'f_name' => 'nullable|string|max:100',
+            'email' => 'nullable|email|unique:sellers,email',
             'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueSellerPhone],
-            'password' => 'required|min:8',
+            'password' => 'required|string|min:6|max:255',
+            'shop_name' => 'nullable|string|max:255',
+            'shop_address' => 'nullable|string|max:1000',
             'policy_version_ids' => 'nullable|array',
             'policy_version_ids.*' => 'integer',
         ];
@@ -35,15 +48,8 @@ class SellerRegistrationRequest extends FormRequest
             'email.unique' => translate('This email is already registered.'),
             'phone.unique' => translate('This phone number is already registered.'),
             'phone.regex' => 'أدخل رقم موبايل مصري من 11 رقمًا يبدأ بـ 010 أو 011 أو 012 أو 015',
-            'password.min' => translate('Password must be at least 8 characters.'),
+            'password.min' => 'كلمة المرور 6 أحرف على الأقل.',
         ];
-    }
-
-    protected function prepareForValidation(): void
-    {
-        $this->merge([
-            'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
-        ]);
     }
 
     protected function failedValidation(Validator $validator)

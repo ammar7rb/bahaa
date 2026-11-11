@@ -152,11 +152,12 @@
 
 <div class="social-chat-icons">
     <div>
-        <a href="{{ auth('customer')->check() ? route('account-tickets') : route('customer.auth.login') }}"
+        <a href="{{ auth('customer')->check() ? route('account-tickets') : route('customer.auth.login') }}" style="position:relative;display:inline-block"
            title="{{ translate('contact_technical_support') }}"
            aria-label="{{ translate('contact_technical_support') }}">
             <img src="{{ dynamicAsset(path: 'public/assets/front-end/img/icons/technical-support.svg') }}"
                  width="35" class="chat-image-shadow" alt="{{ translate('contact_technical_support') }}">
+            @include('partials.customer-unread-badge')
         </a>
     </div>
 </div>

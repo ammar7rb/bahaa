@@ -147,9 +147,9 @@
                                 </label>
                                 <div class="input-group">
                                     <input type="password" class="js-toggle-password form-control password-check"
-                                        name="password" required id="user_password" minlength="8"
+                                        name="password" required id="user_password" minlength="6" data-light-password="1"
                                            data-required-msg="{{ translate('password_is_required') }}"
-                                        placeholder="{{ translate('password_minimum_8_characters') }}">
+                                        placeholder="كلمة المرور 6 أحرف على الأقل">
                                     <div id="changePassTarget" class="input-group-append changePassTarget">
                                         <a class="text-body-light" href="javascript:">
                                             <i id="changePassIcon" class="fi fi-sr-eye"></i>

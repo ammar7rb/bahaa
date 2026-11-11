@@ -14,14 +14,11 @@ $(document).ready(function () {
         } else if (localNumber.indexOf('20') === 0) {
             localNumber = localNumber.slice(2);
         }
-        if (localNumber.indexOf('0') === 0) {
-            if (localNumber.length !== 11) {
-                return '';
-            }
-            localNumber = localNumber.slice(1);
+        if (localNumber.indexOf('0') !== 0) {
+            localNumber = `0${localNumber}`;
         }
 
-        return /^1[0125]\d{8}$/.test(localNumber) ? `+20${localNumber}` : '';
+        return /^01[0125]\d{8}$/.test(localNumber) ? localNumber : '';
     }
 
     function syncEgyptianPhone() {

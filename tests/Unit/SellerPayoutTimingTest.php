@@ -102,6 +102,16 @@ class SellerPayoutTimingTest extends SellerWithdrawalReservationTest
         $this->assertSame(0.0, $balances['operating']);
     }
 
+    public function test_sales_payout_defaults_to_three_days_and_operating_refund_keeps_fifteen_to_thirty(): void
+    {
+        $this->enableTiming();
+        $service = app(SellerWithdrawalService::class);
+        $this->assertSame(3, $service->payoutDays('available'));
+        $this->assertSame(30, $service->payoutDays(SellerLedgerService::OPERATING));
+        DB::table('business_settings')->insert(['type' => 'seller_operating_refund_days', 'value' => '5']);
+        $this->assertSame(15, $service->payoutDays(SellerLedgerService::OPERATING));
+    }
+
     protected function tearDown(): void
     {
         Schema::dropIfExists('business_settings');

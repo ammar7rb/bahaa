@@ -28,7 +28,7 @@ class CustomerRegistrationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'f_name' => 'required|string|max:100',
+            'f_name' => 'nullable|string|max:100',
             'l_name' => 'nullable|string|max:100',
             'email' => 'nullable|email|max:255|unique:users',
             'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueCustomerPhone],
@@ -64,6 +64,7 @@ class CustomerRegistrationRequest extends FormRequest
     {
         $this->merge([
             'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
+            'f_name' => trim((string) $this->input('f_name')) !== '' ? trim((string) $this->input('f_name')) : 'عميل',
         ]);
     }
 

@@ -43,7 +43,7 @@ class VendorAddRequest extends FormRequest
                 maxSize: getFileUploadMaxSize(unit: 'kb'),
                 isDisallowed : true
             ),
-            'password' => 'required|min:8|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W)(?!.*\s).{8,}$/|same:confirm_password',
+            'password' => 'required|string|min:6|max:255|same:confirm_password',
             'shop_name' => 'required',
             'shop_address' => 'required',
             'logo' => getRulesStringForImageValidation(

@@ -69,8 +69,10 @@
                                 </div>
                             </div>
                             @if($ticket->status != 'close')
-                                <a href="{{route('support-ticket.close',[$ticket['id']])}}"
-                                   class="btn btn-outline-danger rounded">{{ translate('Close_this_ticket') }}</a>
+                                <form action="{{route('support-ticket.close',[$ticket['id']])}}" method="post">
+                                    @csrf
+                                    <button type="submit" class="btn btn-outline-danger rounded">{{ translate('Close_this_ticket') }}</button>
+                                </form>
                             @endif
                         </div>
                         <div class="messaging">

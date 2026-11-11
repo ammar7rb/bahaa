@@ -38,8 +38,10 @@
                                                                 class="fs-12 text-muted mb-1">{{ customer_info()['email'] }}</div>
                                                         </div>
                                                         @if($supportTicket->status != 'close')
-                                                            <a href="{{route('support-ticket.close',[$supportTicket['id']])}}"
-                                                               class="btn btn-outline-danger fw-semibold text-nowrap">{{ translate('close_ticket') }}</a>
+                                                            <form action="{{route('support-ticket.close',[$supportTicket['id']])}}" method="post">
+                                                                @csrf
+                                                                <button type="submit" class="btn btn-outline-danger fw-semibold text-nowrap">{{ translate('close_ticket') }}</button>
+                                                            </form>
                                                         @endif
                                                     </div>
 

@@ -10,17 +10,20 @@ if (!function_exists('loadCurrency')) {
     {
         $defaultCurrency = getWebConfig(name: 'system_default_currency');
         $currentCurrencyInfo = session('system_default_currency_info');
-        if (!session()->has('system_default_currency_info') || $defaultCurrency != $currentCurrencyInfo['id']) {
-            $id = getWebConfig(name: 'system_default_currency');
-            $currency = Currency::find($id);
+        $stale = !session()->has('system_default_currency_info')
+            || $defaultCurrency != ($currentCurrencyInfo['id'] ?? null)
+            || session('currency_code') !== ($currentCurrencyInfo['code'] ?? null)
+            || (float) session('currency_exchange_rate') !== 1.0;
+        if ($stale) {
+            $currency = Currency::find($defaultCurrency) ?: Currency::find(1);
             session()->put('system_default_currency_info', $currency);
             session()->put('currency_code', $currency->code);
             session()->put('currency_symbol', $currency->symbol);
-            session()->put('currency_exchange_rate', $currency->exchange_rate);
+            // One currency only: the rate is always 1, whatever the currencies table says.
+            session()->put('currency_exchange_rate', 1);
             session()->forget('usd');
             session()->forget('default');
-            $usd = exchangeRate(USD);
-            session()->put('usd', $usd);
+            session()->put('usd', 1);
         }
     }
 }
@@ -123,7 +126,7 @@ if (!function_exists('localToDefaultCurrency')) {
      */
     function localToDefaultCurrency(float|null $amount = 0, string $type = 'default'): float|int|string
     {
-        $value = is_null($amount) || $amount != 0 ? $amount / session('currency_exchange_rate') : 0;
+        $value = is_null($amount) || $amount != 0 ? (float) $amount : 0;
         if ($type == 'web') {
             return setCurrencySymbol(amount: $value, currencyCode: getCurrencyCode(type: 'web'), type: 'web');
         }
@@ -140,7 +143,7 @@ if (!function_exists('loyaltyPointToLocalCurrency')) {
     function loyaltyPointToLocalCurrency(float|null $amount = 0, string $type = 'default'): string
     {
         $loyaltyPointExchangeRate = getWebConfig(name: 'loyalty_point_exchange_rate');
-        $value = ((session('currency_exchange_rate') * 1) / $loyaltyPointExchangeRate) * $amount;
+        $value = (1 / max((float) $loyaltyPointExchangeRate, 0.000001)) * $amount;
         if ($type == 'web') {
             return setCurrencySymbol(amount: $value, currencyCode: session('currency_code'), type: 'web');
         }
@@ -185,14 +188,8 @@ if (!function_exists('usdToAnotherCurrencyConverter')) {
      */
     function usdToAnotherCurrencyConverter(string $currencyCode, string|int|float|null $amount = 0): float|string
     {
-        if ($currencyCode == 'USD') {
-            return $amount;
-        }
-        $usd = Currency::where(['code' => 'USD'])->first()->exchange_rate;
-        $myCurrency = Currency::where(['code' => $currencyCode])->first()->exchange_rate;
-        $rate = $myCurrency / $usd;
-        $decimalPointSettings = getWebConfig('decimal_point_settings') ?? 2;
-        return round($amount * $rate, $decimalPointSettings);
+        // No conversion: amounts are already in the single store currency.
+        return $amount;
     }
 }
 

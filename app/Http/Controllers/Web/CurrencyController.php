@@ -17,13 +17,9 @@ class CurrencyController extends Controller
 
     public function changeCurrency(Request $request): JsonResponse
     {
-        session()->put('currency_code', $request['currency_code']);
-        $currency = $this->currencyRepo->getFirstWhere(params: ['code' => $request['currency_code']]);
-        session()->put('currency_symbol', $currency['symbol']);
-        session()->put('currency_exchange_rate', $currency['exchange_rate']);
-        session()->forget('default');
-        session()->forget('usd');
-        $message = translate('currency_changed_to') . ' ' . $currency['name'];
+        // Egyptian pounds only: ignore any requested currency and keep the store currency.
+        loadCurrency();
+        $message = translate('currency_changed_to') . ' ' . (session('system_default_currency_info')['name'] ?? '');
         return response()->json(['message' => $message]);
     }
 }

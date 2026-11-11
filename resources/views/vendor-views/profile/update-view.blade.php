@@ -186,7 +186,7 @@
                                         <div class="">
                                             <div class="input-group input-group-merge">
                                                 <input type="password" class="js-toggle-password form-control password-check" id="newPassword"
-                                                       autocomplete="off" name="password" required minlength="8" placeholder="{{ translate('enter_new_password') }}"
+                                                       autocomplete="off" name="password" required minlength="6" data-light-password="1" placeholder="{{ translate('enter_new_password') }}"
                                                        data-hs-toggle-password-options='{
                                                          "target": "#changePassTarget",
                                                         "defaultClass": "tio-hidden-outlined",

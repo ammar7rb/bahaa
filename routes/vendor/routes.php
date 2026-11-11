@@ -93,6 +93,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             Route::get('account/document/{kind}', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'document'])->name('account.document');
             Route::get('messages', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index'])->name('messages');
             Route::get('messages/{thread}', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'thread'])->whereNumber('thread')->name('messages.thread');
+            Route::post('messages/{thread}/reply', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'reply'])->whereNumber('thread')->name('messages.reply');
             Route::get('notifications', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index'])->name('notifications');
             Route::post('inbox/read', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'read'])->name('inbox.read');
             Route::get('inbox/counts', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'counts'])->name('inbox.counts');
