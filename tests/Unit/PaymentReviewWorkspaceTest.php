@@ -305,13 +305,13 @@ class PaymentReviewWorkspaceTest extends TestCase
         $this->assertStringNotContainsString('balance-deposits',$people);
         $this->assertStringNotContainsString('balance-funding-settings',$people);
         $this->assertStringNotContainsString('customer.wallet.deposits',$people);
-        $this->assertStringContainsString('data-section="operations"',$source);
-        $operations=explode('data-section="operations"',$source,2)[1];
-        $operations=explode('data-section="auction"',$operations,2)[0];
-        // Other operation tools coexist here; the payment entry itself must appear once.
-        $this->assertSame(1,substr_count($operations,"route('admin.payment-reviews.index')"));
+        // قسم العمليات اتشال؛ مراجعة المدفوعات بقت جوه قسم الطلبات وبتظهر مرة واحدة.
+        $this->assertStringNotContainsString('data-section="operations"',$source);
+        $orders=explode('data-section="orders"',$source,2)[1];
+        $orders=explode('data-section="auction"',$orders,2)[0];
+        $this->assertSame(1,substr_count($orders,"route('admin.payment-reviews.index')"));
         $rail=file_get_contents(resource_path('views/layouts/admin/partials/v2/_rail.blade.php'));
-        $this->assertLessThan(strpos($rail,'data-section="operations"'),strpos($rail,'data-section="orders"'));
+        $this->assertStringNotContainsString('data-section="operations"',$rail);
         foreach (['layouts/admin/partials/v2/_side-bar','layouts/admin/partials/v2/_rail','layouts/admin/partials/_side-bar','admin-views/payment-reviews/index','admin-views/payment-reviews/_detail','admin-views/payment-reviews/_funding-settings','admin-views/payment-reviews/_table-row'] as $view) {
             $compiled=Blade::compileString(file_get_contents(resource_path('views/'.$view.'.blade.php')));
             $this->assertNotEmpty(token_get_all($compiled,TOKEN_PARSE));

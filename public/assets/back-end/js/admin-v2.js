@@ -207,10 +207,13 @@
   }
 
   function pickActiveSectionFromURL() {
-    if (location.pathname.startsWith('/admin/customer/') && $root('.v2-ctx-section[data-section="customers"]')) return 'customers';
-    if (location.pathname.startsWith('/admin/orders/logistics') && $root('[data-item="order-tracking"]')) return 'operations';
-    if (/^\/admin\/operations\/(medical-devices|homepage-sections)(\/|$)/.test(location.pathname)) return 'operations';
-    if (location.pathname === '/admin/operations/shipping' && $root('[data-item="shipping-setup"]')) return 'operations';
+    const path = location.pathname;
+    if ((path.startsWith('/admin/customer/password-recovery') || /^\/admin\/operations\/(customer-withdrawals|monthly-packages)(\/|$)/.test(path)) && $root('.v2-ctx-section[data-section="settings"]')) return 'settings';
+    if (path.startsWith('/admin/customer/') && $root('.v2-ctx-section[data-section="customers"]')) return 'customers';
+    if (path.startsWith('/admin/orders/logistics') || path.startsWith('/admin/guest-orders') || path.startsWith('/admin/payment-reviews')) return $root('.v2-ctx-section[data-section="orders"]') ? 'orders' : null;
+    if (/^\/admin\/operations\/medical-devices(\/|$)/.test(path)) return $root('.v2-ctx-section[data-section="catalog"]') ? 'catalog' : null;
+    if (/^\/admin\/operations\/(homepage-sections|shipping)(\/|$)/.test(path)) return $root('.v2-ctx-section[data-section="settings"]') ? 'settings' : null;
+    if (path.startsWith('/admin/account-directory') && /[?&]guest_customers=/.test(location.search)) return $root('.v2-ctx-section[data-section="customers"]') ? 'customers' : null;
     const url = window.location.pathname;
     let best = null;
     $$root('.v2-ctx-section').forEach(sec => {

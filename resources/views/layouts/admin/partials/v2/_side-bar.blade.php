@@ -52,6 +52,9 @@
 @foreach([['admin.products.all','box-open','كل المنتجات'],['admin.products.order','sort-amount-down','ترتيب الظهور'],['admin.products.credit-listings','credit-card','منتجات الائتمان'],['admin.products.credit-requests','comment-alt','طلبات الائتمان']] as [$route,$icon,$label])
 <a class="v2-nav-item {{ request()->routeIs($route) ? 'v2-is-active' : '' }}" data-item="{{ str_replace('.', '-', $route) }}" href="{{ route($route) }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-{{ $icon }}"></i></span><span class="v2-nav-label">{{ $label }}</span></span></a>
 @endforeach
+@if(Helpers::module_permission_check('catalog'))
+<a class="v2-nav-item {{ request()->routeIs('admin.operations.medical-devices.*') ? 'v2-is-active' : '' }}" data-item="medical-devices" href="{{ route('admin.operations.medical-devices.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-heart-rate"></i></span><span class="v2-nav-label">{{ __('operations.medical_devices') }}</span></span></a>
+@endif
             </div>
             <div class="v2-ctx-group">
                 <div class="v2-ctx-group-head"><span>{{ translate('vendor_Products') }}</span></div>
@@ -142,6 +145,13 @@
 
                 @include('layouts.admin.partials.v2._orders-center')
 
+                @if (Helpers::module_permission_check('orders'))
+                <a class="v2-nav-item {{ request()->routeIs('admin.orders.logistics.*') ? 'v2-is-active' : '' }}" data-item="order-tracking" href="{{ route('admin.orders.logistics.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-route"></i></span><span class="v2-nav-label">تتبع الطلبات</span></span></a>
+                @endif
+                @if (Helpers::module_permission_check('people') || Helpers::module_permission_check('orders'))
+                <a class="v2-nav-item {{ request()->routeIs('admin.payment-reviews.*') || request()->is('admin/workspace/reviews/payments') || request()->routeIs('admin.vendors.balance-funding-settings.*') ? 'v2-is-active' : '' }}" data-item="payment-reviews" href="{{ route('admin.payment-reviews.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-credit-card"></i></span><span class="v2-nav-label">{{ __('payments.title') }}</span></span><span class="v2-nav-right"><span data-v2-tag="primary" data-nav-workspace-count="payments" class="{{ empty($sidebarWorkspaceCategories['payments']['count']) ? 'd-none' : '' }}">{{ ($sidebarWorkspaceCategories['payments']['count'] ?? 0) > 99 ? '99+' : ($sidebarWorkspaceCategories['payments']['count'] ?? 0) }}</span></span></a>
+                @endif
+
                 <div class="v2-nav-item v2-has-children {{ Request::is('admin/refund-section/refund/*') ? 'v2-is-active' : '' }}" data-item="refunds">
                     <a class="v2-nav-btn" href="{{ route('admin.refund-section.refund.list', ['pending']) }}">
                         <span class="v2-nav-label">{{ translate('refund_Requests') }}</span>
@@ -185,49 +195,6 @@
                 </div>
             </div>
         </div>
-    @endif
-
-    @if (Helpers::module_permission_check('catalog') || Helpers::module_permission_check('people') || Helpers::module_permission_check('orders') || Helpers::module_permission_check('business_settings'))
-    <div class="v2-ctx-section" data-section="operations">
-        <div class="v2-ctx-head"><div class="v2-ctx-title">{{ __('payments.operations') }}</div></div>
-        <div class="v2-ctx-group v2-is-pinned" style="display:none;"><div class="v2-ctx-group-head"><span>{{ translate('pinned') }}</span></div><div class="v2-ctx-group-body"></div></div>
-        <div class="v2-ctx-group">
-            @if(Helpers::module_permission_check('business_settings'))
-                <a class="v2-nav-item" data-item="seller-settlement-timing" href="{{ route('admin.business-settings.vendor-settings.index') }}#seller-settlement-hold-days">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">مدد تسوية مستحقات التجار</span></span>
-                </a>
-            @endif
-            @if(Helpers::module_permission_check('people'))
-                <a class="v2-nav-item" data-item="customer-withdrawal-rates" href="{{ route('admin.customer-withdrawals.index') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">نسب ومدد صرف الأموال</span></span>
-                </a>
-            @endif
-            @if (Helpers::module_permission_check('people'))
-                <a class="v2-nav-item {{ request()->routeIs('admin.monthly-packages.*') ? 'v2-is-active' : '' }}" data-item="monthly-packages" href="{{ route('admin.monthly-packages.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-calendar"></i></span><span class="v2-nav-label">الباقات الشهرية</span></span></a>
-                <a class="v2-nav-item {{ request()->routeIs('admin.customer.password-recovery.*') ? 'v2-is-active' : '' }}" data-item="customer-password-recovery" href="{{ route('admin.customer.password-recovery.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-key"></i></span><span class="v2-nav-label">استعادة كلمة مرور العملاء</span></span></a>
-            @endif
-            @if(Helpers::module_permission_check('catalog'))
-            @foreach(['medical-devices' => ['medical_devices', 'fi-rr-heart-rate'], 'homepage-sections' => ['homepage_sections', 'fi-rr-apps']] as $entry => [$label, $icon])
-            <a class="v2-nav-item {{ request()->routeIs('admin.operations.'.$entry.'.*') ? 'v2-is-active' : '' }}" data-item="{{ $entry }}" href="{{ route('admin.operations.'.$entry.'.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi {{ $icon }}"></i></span><span class="v2-nav-label">{{ __('operations.'.$label) }}</span></span></a>
-            @endforeach
-            @endif
-            @if (Helpers::module_permission_check('orders'))
-            <a class="v2-nav-item {{ request()->routeIs('admin.orders.logistics.*') ? 'v2-is-active' : '' }}" data-item="order-tracking" href="{{ route('admin.orders.logistics.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-route"></i></span><span class="v2-nav-label">تتبع الطلبات</span></span></a>
-            @endif
-
-            @if (Helpers::module_permission_check('people') || Helpers::module_permission_check('orders'))
-            <a class="v2-nav-item {{ request()->routeIs('admin.payment-reviews.*') || request()->is('admin/workspace/reviews/payments') || request()->routeIs('admin.vendors.balance-funding-settings.*') ? 'v2-is-active' : '' }}" data-item="payment-reviews" href="{{ route('admin.payment-reviews.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-credit-card"></i></span><span class="v2-nav-label">{{ __('payments.title') }}</span></span><span class="v2-nav-right"><span data-v2-tag="primary" data-nav-workspace-count="payments" class="{{ empty($sidebarWorkspaceCategories['payments']['count']) ? 'd-none' : '' }}">{{ ($sidebarWorkspaceCategories['payments']['count'] ?? 0) > 99 ? '99+' : ($sidebarWorkspaceCategories['payments']['count'] ?? 0) }}</span></span></a>
-            @if(\App\Utils\Helpers::module_permission_check('orders'))
-                <a class="v2-nav-item {{ request()->routeIs('admin.guest-orders.*') ? 'v2-is-active' : '' }}" data-item="guest-orders" href="{{ route('admin.guest-orders.index') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">طلبات زوار</span></span>
-                </a>
-            @endif
-            @endif
-            @if (Helpers::module_permission_check('business_settings'))
-            <a class="v2-nav-item {{ request()->routeIs('admin.operations.shipping.*') ? 'v2-is-active' : '' }}" data-item="shipping-setup" href="{{ route('admin.operations.shipping.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v11H3zM14 10h4l3 4v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></span><span class="v2-nav-label">{{ __('shipping-governorates.setup') }}</span></span></a>
-            @endif
-        </div>
-    </div>
     @endif
 
     {{-- ================= AUCTION ================= --}}
@@ -291,6 +258,9 @@
                 <a class="v2-nav-item {{ request()->is('admin/customer/accounts/'.$customerPage) ? 'v2-is-active' : '' }}" data-item="customer-accounts-{{ $customerPage }}" href="{{ route('admin.customer.accounts.index',array_filter(['page'=>$customerPage,'customer_id'=>request()->is('admin/customer/accounts*')?request('customer_id'):(request()->is('admin/customer/view/*')?request()->route('user_id'):null)])) }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-{{ $customerNav[1] }}"></i></span><span class="v2-nav-label">{{ $customerNav[0] }}</span></span></a>
                 @endif
                 @endforeach
+                @if(Helpers::module_permission_check('people'))
+                <a class="v2-nav-item {{ request()->boolean('guest_customers') ? 'v2-is-active' : '' }}" data-item="guest-customers" href="{{ route('admin.account-directory.index', ['guest_customers' => 1]) }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-user-add"></i></span><span class="v2-nav-label">عملاء زوار</span></span></a>
+                @endif
             </div>
         </div>
     @endif
@@ -303,6 +273,11 @@
                 <a class="v2-nav-item {{ request()->is('admin/vendors/accounts/'.$vendorPage) ? 'v2-is-active' : '' }}" data-item="vendor-accounts-{{ $vendorPage }}" href="{{ route('admin.vendors.accounts.index',array_filter(['page'=>$vendorPage,'seller_id'=>request()->is('admin/vendors/accounts*')?request('seller_id'):null])) }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-{{ $vendorNav[1] }}"></i></span><span class="v2-nav-label">{{ $vendorNav[0] }}</span></span></a>
                 @endif
                 @endforeach
+                @if(Helpers::module_permission_check('business_settings'))
+                <a class="v2-nav-item" data-item="seller-settlement-timing" href="{{ route('admin.business-settings.vendor-settings.index') }}#seller-settlement-hold-days">
+                    <span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-calendar-clock"></i></span><span class="v2-nav-label">مدد تسوية مستحقات التجار</span></span>
+                </a>
+                @endif
             </div>
         </div>
     @endif
@@ -312,9 +287,6 @@
             <div class="v2-ctx-group">
                 <a class="v2-nav-item {{ request()->routeIs('admin.account-directory.*') ? 'v2-is-active' : '' }}" data-item="all-accounts" href="{{ route('admin.account-directory.index') }}">
                     <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('all_customer_vendor_accounts') }}</span></span>
-                </a>
-                <a class="v2-nav-item {{ request()->boolean('guest_customers') ? 'v2-is-active' : '' }}" data-item="guest-customers" href="{{ route('admin.account-directory.index', ['guest_customers' => 1]) }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">عملاء زوار</span></span>
                 </a>
             </div>
             <div class="v2-ctx-group v2-is-pinned" style="display:none;">
@@ -430,6 +402,19 @@
                     <a class="v2-nav-item {{ Request::routeIs('admin.settings.*') ? 'v2-is-active' : '' }}" data-item="business-settings-hub" href="{{ route('admin.settings.index') }}">
                         <span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-settings"></i></span><span class="v2-nav-label">الإعدادات</span></span>
                     </a>
+                    @if (Helpers::module_permission_check('business_settings'))
+                    <a class="v2-nav-item {{ request()->routeIs('admin.operations.shipping.*') ? 'v2-is-active' : '' }}" data-item="shipping-setup" href="{{ route('admin.operations.shipping.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v11H3zM14 10h4l3 4v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></span><span class="v2-nav-label">{{ __('shipping-governorates.setup') }}</span></span></a>
+                    @endif
+                    @if(Helpers::module_permission_check('people'))
+                    <a class="v2-nav-item {{ request()->routeIs('admin.customer-withdrawals.*') ? 'v2-is-active' : '' }}" data-item="customer-withdrawal-rates" href="{{ route('admin.customer-withdrawals.index') }}">
+                        <span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-hand-holding-usd"></i></span><span class="v2-nav-label">نسب ومدد صرف الأموال</span></span>
+                    </a>
+                    <a class="v2-nav-item {{ request()->routeIs('admin.monthly-packages.*') ? 'v2-is-active' : '' }}" data-item="monthly-packages" href="{{ route('admin.monthly-packages.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-calendar"></i></span><span class="v2-nav-label">الباقات الشهرية</span></span></a>
+                    <a class="v2-nav-item {{ request()->routeIs('admin.customer.password-recovery.*') ? 'v2-is-active' : '' }}" data-item="customer-password-recovery" href="{{ route('admin.customer.password-recovery.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-key"></i></span><span class="v2-nav-label">استعادة كلمة مرور العملاء</span></span></a>
+                    @endif
+                    @if(Helpers::module_permission_check('catalog'))
+                    <a class="v2-nav-item {{ request()->routeIs('admin.operations.homepage-sections.*') ? 'v2-is-active' : '' }}" data-item="homepage-sections" href="{{ route('admin.operations.homepage-sections.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-apps"></i></span><span class="v2-nav-label">{{ __('operations.homepage_sections') }}</span></span></a>
+                    @endif
                     @if ($v2Tax && count($v2TaxRoutes))
                         @php
                             $v2TaxActive = false;
