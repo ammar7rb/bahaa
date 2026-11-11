@@ -56,6 +56,12 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
         Route::post('change','change')->middleware(['auth:api','throttle:5,1,customer-recovery-change:']);
     });
     Route::get('customer/communication', [\App\Http\Controllers\Customer\CommunicationController::class, 'index'])->middleware(['auth:api', 'throttle:60,1']);
+    Route::get('medical-devices', [\App\Http\Controllers\RestAPI\v1\MedicalDeviceApiController::class, 'index']);
+    Route::get('medical-devices/{device}', [\App\Http\Controllers\RestAPI\v1\MedicalDeviceApiController::class, 'show'])->whereNumber('device');
+    Route::post('medical-devices/{device}/report-payment', [\App\Http\Controllers\RestAPI\v1\MedicalDeviceApiController::class, 'payReport'])->whereNumber('device')->middleware(['auth:api', 'throttle:10,1']);
+    Route::post('medical-devices/{device}/purchase-request', [\App\Http\Controllers\RestAPI\v1\MedicalDeviceApiController::class, 'purchase'])->whereNumber('device')->middleware(['auth:api', 'throttle:10,1']);
+    Route::get('credit-products', [\App\Http\Controllers\RestAPI\v1\CreditProductApiController::class, 'index']);
+    Route::post('credit-products/{product}/request', [\App\Http\Controllers\RestAPI\v1\CreditProductApiController::class, 'store'])->whereNumber('product')->middleware(['auth:api', 'throttle:10,1']);
     Route::get('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'index'])->middleware('auth:api');
     Route::put('customer/contact-phones', [\App\Http\Controllers\Customer\ContactPhoneController::class, 'update'])->middleware(['auth:api','throttle:10,1']);
     Route::post('customer/support/reports', [\App\Http\Controllers\Customer\SupportConversationController::class, 'report'])->middleware(['auth:api', 'throttle:10,1,customer-support-report:']);
@@ -343,6 +349,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
                 Route::get('get', 'get_support_tickets');
                 Route::get('conv/{ticket_id}', 'get_support_ticket_conv');
                 Route::post('reply/{ticket_id}', 'reply_support_ticket');
+                Route::match(['get', 'post'], 'close/{id}', 'support_ticket_close');
+                Route::match(['get', 'post'], 'close-ticket/{id}', 'support_ticket_close');
                 Route::get('activation/status', 'activationStatus');
             });
         });

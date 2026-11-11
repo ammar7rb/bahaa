@@ -88,7 +88,7 @@ class SubCategoryController extends BaseController
             filters: ['position' => 0],
             dataLimit: $request['categories'] ? 1000 : 5);
 
-        $languages = getWebConfig(name: 'pnc_language') ?? null;
+        $languages = adminContentLanguages();
         $defaultLanguage = $languages[0];
 
         return view('admin-views.category.sub-category-view', [

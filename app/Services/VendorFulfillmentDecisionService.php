@@ -51,7 +51,7 @@ class VendorFulfillmentDecisionService
             'accepted_at'=>$row->accepted_at?->toIso8601String(),'rejected_at'=>$row->rejected_at?->toIso8601String(),
             'canceled_at'=>$row->canceled_at?->toIso8601String(),'unlocked_at'=>$row->unlocked_at?->toIso8601String(),
             'delivered_at'=>$row->delivered_at?->toIso8601String(),'decision_reason'=>$row->decision_reason,
-            'actions'=>$this->actions($row,$order),'delivery_proof_required'=>$row->status==='shipping'&&$order->shipping_fulfillment_mode==='seller_shipping',
+            'actions'=>$this->actions($row,$order),'delivery_proof_required'=>false,
             'can_request_unlock'=>$locked&&!in_array($order->order_status,['canceled','returned','failed','delivered'],true),'acceptance_required'=>true];
         if(!$locked){
             $dto['line_ids']=DB::table('vendor_fulfillment_request_items')->where('request_id',$row->id)->pluck('order_detail_id')->all();

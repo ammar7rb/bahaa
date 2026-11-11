@@ -25,8 +25,11 @@ class VendorAddRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'email' => strtolower(trim((string) $this->input('email'))),
+            'email' => ($email = strtolower(trim((string) $this->input('email')))) !== '' ? $email : null,
             'phone' => app(EgyptPhoneService::class)->normalizeLocal($this->input('phone')),
+            'f_name' => trim((string) $this->input('f_name')) !== '' ? trim((string) $this->input('f_name')) : 'تاجر',
+            'shop_name' => trim((string) $this->input('shop_name')) !== '' ? trim((string) $this->input('shop_name')) : null,
+            'shop_address' => trim((string) $this->input('shop_address')),
         ]);
     }
 
@@ -38,14 +41,14 @@ class VendorAddRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'f_name' => 'required|string|max:100',
+            'f_name' => 'nullable|string|max:100',
             'l_name' => 'nullable|string|max:100',
             'phone' => ['required', 'string', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueSellerPhone],
-            'email' => 'required|email|max:255|unique:sellers',
+            'email' => 'nullable|email|max:255|unique:sellers',
             'image' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
-            'password' => 'required|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?!.*\s).{8,}$/|same:confirm_password',
-            'shop_name' => 'required|string|max:255',
-            'shop_address' => 'required|string|max:1000',
+            'password' => 'required|string|min:6|max:255|same:confirm_password',
+            'shop_name' => 'nullable|string|max:255',
+            'shop_address' => 'nullable|string|max:1000',
             'logo' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
             'banner' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',
             'bottom_banner' => 'nullable|mimes:jpg,jpeg,png,webp,gif,bmp,tif,tiff',

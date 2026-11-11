@@ -5,7 +5,7 @@
     <div class="vendor-page-intro"><h1>{{ translate('vendor_subscriptions') }}</h1><a class="btn btn-outline-primary" href="{{ route('vendor.balance.payments') }}">رصيد المدفوعات: {{ webCurrencyConverter(amount: $operatingBalance) }}</a></div>
     @if($errors->any())<div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>@endif
     @if($summary['active_subscription'])
-        <section class="card card-body mb-4"><h2>{{ $summary['active_subscription']->package_name }}</h2><p>الإعلانات المتبقية: {{ max(0, $slots->count() - (int) $summary['active_subscription']->used_product_limit) }} • الإضافات: {{ max(0, $slots->count() - (int) $summary['active_subscription']->product_limit) }} • موعد انتهاء الاشتراك {{ $summary['active_subscription']->expires_at?->format('Y-m-d H:i') }}</p></section>
+        <section class="card card-body mb-4"><h2>{{ $summary['active_subscription']->package_name }}</h2><p>موعد انتهاء الاشتراك {{ $summary['active_subscription']->expires_at?->format('Y-m-d H:i') }}</p></section>
     @endif
     @if($summary['active_subscription'] && $autoRenewalAvailable && !($autoRenewal->enabled ?? false))
         @php($renewalPlan = $packages->firstWhere('id', $summary['active_subscription']->seller_package_id))
@@ -23,7 +23,7 @@
         <p class="alert alert-info">التجديد التلقائي مفعل. لإلغائه تواصل مع الإدارة.</p>
     @endif
     @foreach($summary['scheduled_subscriptions'] as $scheduled)
-        <div class="alert alert-info">الدورة القادمة مدفوعة: {{ $scheduled->package_name }} — تبدأ {{ $scheduled->starts_at?->format('Y-m-d H:i') }}. تظل شروط الدورة الحالية كما هي حتى انتهائها.</div>
+        <div class="alert alert-info">{{ $scheduled->package_name }} — موعد انتهاء الاشتراك {{ $scheduled->expires_at?->format('Y-m-d H:i') ?? $scheduled->starts_at?->format('Y-m-d H:i') }}</div>
     @endforeach
     @if($summary['pending_subscription'])<div class="vendor-inline-note">{{ $summary['pending_subscription']->package_name }} — المعاملة قيد المراجعة.</div>@endif
     @include('vendor-views.package.partials.package-catalogue')

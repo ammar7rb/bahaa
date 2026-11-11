@@ -8,7 +8,7 @@
     <fieldset class="mt-3" data-purchase-package hidden disabled>
         <label for="funding-plan-{{ $method->id }}" class="form-label">الباقة والسعر المثبت</label>
         <select id="funding-plan-{{ $method->id }}" name="package_id" class="form-control" data-funding-package required>
-            @foreach($fundingChoices['packages'] ?? [] as $choice)<option value="{{ $choice['id'] }}" data-price="{{ $choice['package_price'] }}">{{ $choice['name'] }} — {{ $choice['product_limit'] }} مساحة — {{ $choice['package_price'] }} EGP</option>@endforeach
+            @foreach($fundingChoices['packages'] ?? [] as $choice)<option value="{{ $choice['id'] }}" data-price="{{ $choice['package_price'] }}">{{ $choice['name'] }} — {{ $choice['product_limit'] }} إعلانات — {{ $choice['package_price'] }} EGP</option>@endforeach
         </select>
         <input type="hidden" name="expected_purchase_amount" data-purchase-amount>
         <p>يحفظ الطلب السعر والشروط الآن. عند اعتماد الشحن يُنفذ الشراء من operating. التجديد يبدأ بعد الدورات المدفوعة الحالية.</p>
@@ -17,7 +17,7 @@
         <input type="hidden" name="subscription_id" value="{{ $fundingChoices['subscription']['id'] ?? '' }}">
         <input type="hidden" name="expected_unit_price" value="{{ $fundingChoices['extra_settings']['unit_price'] ?? '' }}">
         <label class="form-label">عدد المساحات الإضافية<input type="number" class="form-control" name="quantity" value="1" min="1" max="{{ $fundingChoices['extra_settings']['max_slots'] ?? 100 }}"></label>
-        <p>سعر المساحة {{ $fundingChoices['extra_settings']['unit_price'] ?? '—' }} EGP، وتنتهي مع الاشتراك. إذا انتهى قبل اعتماد التحويل يبقى المال معلقًا لتسوية يدوية دون رصيد أو مساحات.</p>
+        <p>سعر الإعلان {{ $fundingChoices['extra_settings']['unit_price'] ?? '—' }} EGP، وينتهي مع الاشتراك. إذا انتهى قبل اعتماد التحويل يبقى المال معلقًا لتسوية يدوية دون رصيد أو إعلانات.</p>
     </fieldset>
     <p class="mt-2">الزيادة تبقى في رصيد المدفوعات. إذا لم يكفِ الرصيد، يظل الشراء معلقًا حتى تضغط إعادة المحاولة بعد استكماله. الشحن لا يفوض تجديدًا دوريًا.</p>
 </div>

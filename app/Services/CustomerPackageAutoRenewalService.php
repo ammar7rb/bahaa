@@ -28,6 +28,11 @@ class CustomerPackageAutoRenewalService
             });
     }
 
+    public function renewIfDue(int $id): void
+    {
+        $this->renew($id);
+    }
+
     private function renew(int $id): void
     {
         DB::transaction(function () use ($id) {

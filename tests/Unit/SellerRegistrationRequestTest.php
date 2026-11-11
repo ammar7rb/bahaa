@@ -28,12 +28,11 @@ class SellerRegistrationRequestTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_first_registration_stage_requires_only_email_phone_and_password(): void
+    public function test_registration_accepts_phone_and_a_six_character_password_without_email(): void
     {
         $validator = Validator::make([
-            'email' => 'seller@example.com',
-            'phone' => '+201000000000',
-            'password' => 'secure-password',
+            'phone' => '01000000000',
+            'password' => 'secret',
         ], (new SellerRegistrationRequest())->rules());
 
         $this->assertTrue($validator->passes());
@@ -43,7 +42,7 @@ class SellerRegistrationRequestTest extends TestCase
     {
         $validator = Validator::make([
             'email' => 'seller@example.com',
-            'phone' => '+201000000000',
+            'phone' => '01000000000',
         ], (new SellerRegistrationRequest())->rules());
 
         $this->assertTrue($validator->fails());
@@ -54,7 +53,7 @@ class SellerRegistrationRequestTest extends TestCase
     {
         $validator = Validator::make([
             'email' => 'seller@example.com',
-            'phone' => '+8801012345678',
+            'phone' => '01312345678',
             'password' => 'secure-password',
         ], (new SellerRegistrationRequest())->rules());
 

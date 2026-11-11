@@ -77,7 +77,7 @@ class CategoryController extends BaseController
             dataLimit: getWebConfig(name: 'pagination_limit')
         );
 
-        $languages = getWebConfig(name: 'pnc_language') ?? null;
+        $languages = adminContentLanguages();
         $defaultLanguage = $languages[0];
         return view('admin-views.category.view', [
             'categories' => $categories,
@@ -93,7 +93,7 @@ class CategoryController extends BaseController
     public function getUpdateView(Request $request): View|RedirectResponse
     {
         $category = $this->categoryRepo->getFirstWhere(params: ['id' => $request['id']], relations: ['translations']);
-        $languages = getWebConfig(name: 'pnc_language') ?? null;
+        $languages = adminContentLanguages();
         $defaultLanguage = $languages[0];
         return view('admin-views.category.category-edit', [
             'category' => $category,

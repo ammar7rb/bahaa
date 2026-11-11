@@ -48,7 +48,7 @@ class BrandController extends BaseController
             relations: ['storage','seo'],
             dataLimit: getWebConfig(name: 'pagination_limit')
         );
-        $language = getWebConfig(name: 'pnc_language') ?? [];
+        $language = adminContentLanguages();
         $defaultLanguage = $language[0];
         return view('admin-views.brand.list', compact('brands', 'language', 'defaultLanguage'));
     }
@@ -56,7 +56,7 @@ class BrandController extends BaseController
 
     public function getAddView(): View
     {
-        $language = getWebConfig(name: 'pnc_language') ?? null;
+        $language = adminContentLanguages();
         $defaultLanguage = $language[0];
         return view('admin-views.brand.add-new', compact('language', 'defaultLanguage'));
     }
@@ -64,7 +64,7 @@ class BrandController extends BaseController
     public function getUpdateView(string|int $id): View|RedirectResponse
     {
         $brand = $this->brandRepo->getFirstWhere(params: ['id' => $id], relations: ['translations', 'storage', 'seo']);
-        $language = getWebConfig(name: 'pnc_language') ?? null;
+        $language = adminContentLanguages();
         $defaultLanguage = $language[0];
         return view('admin-views.brand.edit', compact('brand', 'language', 'defaultLanguage'));
     }

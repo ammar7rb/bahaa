@@ -8,7 +8,15 @@
     <div class="card"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>الطلب</th><th>الاسم والهاتف</th><th>المنتجات</th><th>الدفع</th><th>التاريخ</th><th>الإجراء</th></tr></thead><tbody>
     @forelse($orders as $order)
         @php($address = is_array($order->shipping_address_data) ? $order->shipping_address_data : (json_decode((string) $order->getRawOriginal('shipping_address_data'), true) ?: []))
-        <tr><td>#{{ $order->id }}</td><td>{{ $address['contact_person_name'] ?? '—' }}<div class="small" dir="ltr">{{ $address['phone'] ?? '—' }}</div></td><td>{{ $order->details->count() }}</td><td>{{ $order->payment_status }}</td><td>{{ $order->created_at?->format('Y-m-d H:i') }}</td><td><a class="btn btn-outline-primary btn-sm" href="{{ route('admin.orders.details', $order->id) }}">فتح الطلب</a></td></tr>
+        <tr><td>#{{ $order->id }}</td><td>{{ $address['contact_person_name'] ?? '—' }}<div class="small" dir="ltr">{{ $address['phone'] ?? '—' }}</div></td><td>{{ $order->details->count() }}</td><td>{{ $order->payment_status }}</td><td>{{ $order->created_at?->format('Y-m-d H:i') }}</td><td>
+            <a class="btn btn-outline-primary btn-sm" href="{{ route('admin.orders.details', $order->id) }}">فتح الطلب</a>
+            <form class="d-flex gap-1 mt-2" method="post" action="{{ route('admin.guest-orders.convert') }}">
+                @csrf
+                <input type="hidden" name="order_id" value="{{ $order->id }}">
+                <input class="form-control form-control-sm" name="account" placeholder="C000123" maxlength="32" required>
+                <button class="btn btn-sm btn-primary" type="submit">تحويل لعميل</button>
+            </form>
+        </td></tr>
     @empty<tr><td colspan="6" class="text-center p-5">لا توجد طلبات زوار.</td></tr>@endforelse
     </tbody></table></div><div class="card-footer">{{ $orders->links() }}</div></div>
 </div>

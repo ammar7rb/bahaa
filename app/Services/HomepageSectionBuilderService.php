@@ -343,6 +343,14 @@ class HomepageSectionBuilderService
         $manual = $mode === 'automatic' ? collect() : $this->manualProducts($section['product_ids'], $limit, $section['automatic_source'] === 'paid_ads', $section['automatic_source'] === 'active', $editorial);
         $orderedIds = data_get($section, 'settings.product_order', $section['product_ids'] ?? []);
         $automatic = $mode === 'manual' ? collect() : $this->automaticProducts($section['automatic_source'], $fallback, $sectionKey, $limit, $editorial, $orderedIds);
+        $placedElsewhere = collect(data_get($layout, 'sections', []))
+            ->reject(fn ($other, $key) => $key === $sectionKey || empty($other['is_visible']))
+            ->flatMap(fn ($other) => array_map('intval', (array) ($other['product_ids'] ?? [])))
+            ->unique()
+            ->all();
+        if ($placedElsewhere !== []) {
+            $automatic = $automatic->reject(fn ($product) => in_array((int) $product->id, $placedElsewhere, true))->values();
+        }
         $products = match ($mode) {
             'manual' => $manual,
             'mixed' => $manual->concat($automatic)->unique('id')->values(),

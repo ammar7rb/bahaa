@@ -3,7 +3,7 @@
 /* Reviewed Arabic wording for the merchant surface. Keep this separate from
  * the shared catalogue so each dark-mode phase can own its language review. */
 return [
-    'vendor_subscription_required_to_publish' => 'مبروك حسابك الجديد ابدا بتحقيق ارباحك مع 3 اعلانات مجانيه',
+    'vendor_subscription_required_to_publish' => 'مبروك حسابك الجديد ابدأ أول 3 إعلانات مجانا !!! وخلينا نساعدك في تحقيق أعلى عائد مبيعات',
     'vendor_subscribe_now' => 'اشترك الآن',
     'vendor_inventory_changed_refresh_review' => 'تغير المخزون أثناء المراجعة؛ حدّث الصفحة وراجع الكميات قبل الاعتماد.',
     'private_vendor_product_copy_notice' => 'هذه بياناتك الخاصة. تُراجع الإدارة تعديلاتك قبل تحديث الإعلان المعروض للعملاء.',

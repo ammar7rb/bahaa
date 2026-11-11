@@ -104,7 +104,7 @@ class VendorInboxService
         })->values()->all();
         $general = collect($general)->sortByDesc('created_at')->values()->all();
         return ['subscription' => ['publishing_requires_subscription' => app(VendorAdvertisingAccessService::class)->requiresSubscription((int) $seller->id)], 'counts' => [
-            'orders' => $orders->filter(fn ($o) => app(VendorFulfillmentEligibilityService::class)->hasRestrictions($o) || $o->order_status === 'pending' || in_array($o->commerce_flow_status, ['seller_insurance_pending', 'seller_insurance_under_review'], true))->count(),
+            'orders' => $orders->count(),
             'notifications' => collect($general)->where('unread', true)->count(),
             'messages' => collect($messages)->where('unread', true)->count(),
         ], 'notifications' => $general, 'messages' => $messages, 'threads' => $threads];
@@ -139,7 +139,24 @@ class VendorInboxService
         $reads = DB::table('vendor_inbox_reads')->where('seller_id', $seller->id)->where('kind', 'support_message')->pluck('record_id')->all();
         return ['id' => $thread->id, 'subject' => $thread->subject, 'status' => $thread->status,
             'messages' => $thread->messages->map(fn ($m) => ['kind' => 'message', 'id' => $m->id,
+                'author' => (int) ($m->sender_seller_id ?? 0) > 0 ? 'seller' : 'admin',
                 'body' => $m->body, 'created_at' => $m->created_at?->toIso8601String(),
                 'unread' => !in_array($m->id, $reads, true)])->all()];
+    }
+
+    public function reply(Seller $seller, int $id, string $body): array
+    {
+        return DB::transaction(function () use ($seller, $id, $body) {
+            $thread = VendorSupportThread::where('seller_id', $seller->id)->lockForUpdate()->findOrFail($id);
+            abort_unless($thread->status === 'open', 422);
+            $thread->messages()->create([
+                'admin_id' => 0,
+                'sender_seller_id' => $seller->id,
+                'body' => $body,
+            ]);
+            $thread->touch();
+
+            return $this->thread($seller, $id);
+        });
     }
 }
