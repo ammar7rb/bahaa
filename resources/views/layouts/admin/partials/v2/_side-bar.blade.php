@@ -29,12 +29,6 @@
                 <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('dashboard') }}</span></span>
                 <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="dashboard" aria-label="Pin"></button></div>
             </a>
-            @if (Helpers::module_permission_check('pos'))
-                <a class="v2-nav-item {{ Request::is('admin/pos*') ? 'v2-is-active' : '' }}" data-item="pos" href="{{ route('admin.pos.index') }}">
-                    <span class="v2-nav-btn"><span class="v2-nav-label">{{ translate('POS') }}</span></span>
-                    <div class="v2-nav-right"><button class="v2-pin-btn" type="button" data-pin="pos" aria-label="Pin"></button></div>
-                </a>
-            @endif
 
         </div>
     </div>

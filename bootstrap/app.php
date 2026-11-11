@@ -55,6 +55,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EndDeletedCustomerSession::class,
             \App\Http\Middleware\RequireCustomerPasswordChange::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \App\Http\Middleware\BlockRetiredPointOfSale::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\Localization::class,
@@ -63,6 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->group('api', [
             'throttle:3000,1,api-global:',
+            \App\Http\Middleware\BlockRetiredPointOfSale::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\RequireCustomerPasswordChange::class,
             \App\Http\Middleware\RecordPrivacySafePlatformMetric::class,
@@ -142,7 +144,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // You can customize exception handling here if needed
+        $exceptions->render(new \App\Exceptions\ExpiredSessionResponder());
     })
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('vendors:classify-pending-requests')->everyMinute()->withoutOverlapping();

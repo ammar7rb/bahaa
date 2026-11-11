@@ -209,6 +209,13 @@ class PaymentReviewController extends Controller
     {
         $this->authorizeType($type === 'vendor_extra_ad' ? 'vendor_package' : $type);
         $request->validate(['file'=>'nullable|integer|min:0|max:20']);
+        if ($type === 'customer_balance_deposit') {
+            // Customer wallet deposit receipts are stored encrypted on the private disk.
+            $deposit = \App\Models\CustomerBalanceDeposit::findOrFail($id);
+            abort_unless(is_string($deposit->payment_proof) && $deposit->payment_proof !== ''
+                && \Illuminate\Support\Facades\Storage::disk('local')->exists($deposit->payment_proof), 404);
+            return app(\App\Services\CustomerBalanceDepositService::class)->receiptResponse($deposit);
+        }
         [$information, $directory] = match ($type) {
             'vendor_balance_deposit' => [SellerBalanceDeposit::findOrFail($id)->payment_proof, 'seller-balance/payment-proof'],
             'vendor_package' => [data_get(SellerPackageSubscription::findOrFail($id)->metadata, 'offline_payment'), 'seller-package/payment-proof'],
