@@ -26,6 +26,18 @@ class SpecialOrderQueueController extends Controller
         return view('admin-views.order.center.guests', compact('orders'));
     }
 
+    public function convertGuest(Request $request, \App\Services\GuestOrderConversionService $service): RedirectResponse
+    {
+        abort_unless(\App\Utils\Helpers::module_permission_check('orders'), 403);
+        $data = $request->validate([
+            'order_id' => 'required|integer|min:1',
+            'account' => 'required|string|max:32',
+        ]);
+        $order = $service->convert((int) $data['order_id'], $data['account']);
+
+        return back()->with('status', 'تم نقل الطلب #'.$order->id.' إلى حساب العميل.');
+    }
+
     public function credit(Request $request): View
     {
         abort_unless(\App\Utils\Helpers::module_permission_check('people'), 403);

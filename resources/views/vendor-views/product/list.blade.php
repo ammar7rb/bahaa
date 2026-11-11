@@ -1,6 +1,6 @@
 @extends('layouts.vendor.app')
 
-@section('title', $type == 'new-request' ? translate('active') . ' ' . translate('products') : translate($type == 'approved' ? 'Approved_Products' : 'products'))
+@section('title', $type == 'new-request' ? 'منتجات قيد المراجعة' : translate($type == 'approved' ? 'Approved_Products' : 'products'))
 
 @section('content')
     <div class="content container-fluid vendor-products">
@@ -8,7 +8,7 @@
         <div class="vendor-products-heading">
             <h2 class="h1 mb-0 text-capitalize d-flex gap-2 align-items-center">
                 @include('layouts.vendor.partials.v2._workspace-icon',['icon'=>'products'])
-                {{ $type == 'new-request' ? translate('active') . ' ' . translate('products') : translate($type=='approved'?'approved_products':'products') }}
+                {{ $type == 'new-request' ? 'منتجات قيد المراجعة' : translate($type=='approved'?'approved_products':'products') }}
                 <span class="badge badge-soft-dark radius-50 fz-14 ml-1">
                     {{ $products->total() }}
                 </span>
@@ -85,6 +85,11 @@
                                                     <div class="media-body title-color mb-1 hover-c1" data-toggle="tooltip" title="{{ $product['name'] }}">
                                                         {{ $product['name'] }}
                                                     </div>
+                                                    @if((int) $product->request_status !== 1)
+                                                        <span class="badge bg-warning text-dark">قيد المراجعة</span>
+                                                    @elseif((int) $product->status !== 1)
+                                                        <span class="badge bg-secondary">مخفي</span>
+                                                    @endif
                                                     @if($product?->clearanceSale)
                                                         <span class="text-secondary-base fs-12" data-placement="right" data-toggle="tooltip" title="{{ translate('Clearance_Sale') }}">
                                                             <i class="fi fi-sr-bahai"></i>
@@ -100,7 +105,7 @@
                                     </td>
 
                                     <td class="text-center">
-                                        {{setCurrencySymbol(amount: usdToDefaultCurrency(amount: $product['unit_price']), currencyCode: getCurrencyCode()) }}
+                                        {{setCurrencySymbol(amount: catalogUnitPrice($product['unit_price']), currencyCode: getCurrencyCode()) }}
                                     </td>
                                     <td>
                                         <div class="d-flex justify-content-center mx-auto w-80px gap-3 align-items-center lh-1">

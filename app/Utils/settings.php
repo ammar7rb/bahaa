@@ -83,6 +83,34 @@ if (!function_exists('clearWebConfigCacheKeys')) {
     }
 }
 
+if (!function_exists('adminContentLanguages')) {
+    /** Language codes for admin forms. Never empty, so category and brand pages do not crash. */
+    function adminContentLanguages(): array
+    {
+        $raw = getWebConfig(name: 'pnc_language');
+        $codes = [];
+        if (is_array($raw)) {
+            foreach ($raw as $item) {
+                if (is_string($item) && $item !== '') {
+                    $codes[] = $item;
+                } elseif (is_array($item) && !empty($item['code']) && is_string($item['code'])) {
+                    $codes[] = $item['code'];
+                }
+            }
+        }
+
+        return $codes !== [] ? array_values(array_unique($codes)) : ['ar'];
+    }
+}
+
+if (!function_exists('catalogUnitPrice')) {
+    /** Product prices are the amount the merchant typed, not a USD amount to multiply by the exchange rate. */
+    function catalogUnitPrice(string|int|float|null $amount = 0): float
+    {
+        return round((float) $amount, 2);
+    }
+}
+
 if (!function_exists('getWebConfigCacheKeys')) {
     function getWebConfigCacheKeys(): string|object|array|null
     {

@@ -310,6 +310,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
 
     // Shared review queue; each request retains its original financial processor.
     Route::get('guest-orders', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'guests'])->middleware('module:orders')->name('guest-orders.index');
+    Route::post('guest-orders/convert', [\App\Http\Controllers\Admin\Order\SpecialOrderQueueController::class, 'convertGuest'])->middleware('module:orders')->name('guest-orders.convert');
     Route::controller(PaymentReviewController::class)->prefix('payment-reviews')->name('payment-reviews.')->group(function () {
         Route::post('customer-order/{id}/request-package', 'requestPackage')->name('request-package');
         Route::get('customer-order/{order}/retry-proof', [\App\Http\Controllers\Customer\OrderPaymentRetryController::class, 'proof'])->name('customer-order.retry-proof');

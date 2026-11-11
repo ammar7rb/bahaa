@@ -1,8 +1,8 @@
 <section class="card card-body mt-4" aria-labelledby="extra-ads-title">
     <h2 id="extra-ads-title">مساحات إضافية للدورة الحالية</h2>
-    <p>تزيد عدد المنتجات المتاحة دون تغيير باقتك. السعر ثابت ونهائي لكل مساحة، حتى لو تبقى وقت قصير. تنتهي الإضافات مع الاشتراك ولا تتجدد تلقائيًا. لا تشمل موضعًا مميزًا مضمونًا في الرئيسية أو البحث.</p>
+    <p>تزيد عدد الإعلانات المتاحة دون تغيير باقتك. السعر ثابت ونهائي لكل إعلان، حتى لو تبقى وقت قصير. تنتهي الإضافات مع الاشتراك ولا تتجدد تلقائيًا. لا تشمل موضعًا مميزًا مضمونًا في الرئيسية أو البحث.</p>
     @if($extraSettings['enabled'] && (float) ($extraSettings['unit_price'] ?? 0) > 0 && $summary['active_subscription'])
-        <p><strong>{{ webCurrencyConverter(amount: $extraSettings['unit_price']) }} للمساحة</strong> • الحد {{ $extraSettings['max_slots'] }} إضافة للدورة • تنتهي {{ $summary['active_subscription']->expires_at?->format('Y-m-d H:i') }}</p>
+        <p><strong>{{ webCurrencyConverter(amount: $extraSettings['unit_price']) }} للإعلان</strong> • الحد {{ $extraSettings['max_slots'] }} إضافة للدورة • تنتهي {{ $summary['active_subscription']->expires_at?->format('Y-m-d H:i') }}</p>
         <form method="post" data-extra-ad-purchase data-unit-price="{{ $extraSettings['unit_price'] }}" action="{{ route('vendor.packages.extra-ads.store') }}" class="row align-items-end g-3">
             @csrf
             <input type="hidden" name="request_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}">

@@ -70,18 +70,23 @@ class Brand extends Model
     public function getNameAttribute($name): string|null
     {
         $segment = request()->segment(1);
-        if ($segment === 'api') {
-            return $this->translations[0]->value ?? $name;
-        }
         if (in_array($segment, ['admin', 'vendor', 'seller'], true)) {
             return $name;
         }
-        return $this->translations[0]->value ?? $name;
+        return $this->translatedValue() ?? $name;
     }
 
     public function getDefaultNameAttribute(): string|null
     {
-        return $this->translations[0]->value ?? $this->name;
+        return $this->translatedValue() ?? $this->name;
+    }
+
+    private function translatedValue(): ?string
+    {
+        $translation = $this->translations->get(0);
+        $value = $translation?->value;
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     public function storage(): MorphMany

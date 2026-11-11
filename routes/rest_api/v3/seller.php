@@ -88,6 +88,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
         Route::get('account/document/{kind}', [\App\Http\Controllers\Vendor\VendorAccountController::class, 'document']);
         Route::get('inbox', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'index']);
         Route::get('inbox/threads/{thread}', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'thread'])->whereNumber('thread');
+        Route::post('inbox/threads/{thread}/reply', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'reply'])->whereNumber('thread');
         Route::post('inbox/read', [\App\Http\Controllers\Vendor\VendorInboxController::class, 'read']);
         Route::controller('\\App\\Http\\Controllers\\Vendor\\VendorFinanceWorkspaceController')->group(function () {
             Route::get('invoices', 'invoices');
@@ -199,8 +200,8 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
                 Route::get('barcode/generate', 'barcode_generate');
                 Route::get('top-selling-product', 'top_selling_products');
                 Route::get('most-popular-product', 'most_popular_products');
-                Route::get('delete-image', 'deleteImage');
-                Route::get('delete-images', 'deleteImage');
+                Route::match(['get', 'post'], 'delete-image', 'deleteImage');
+                Route::match(['get', 'post'], 'delete-images', 'deleteImage');
                 Route::get('get-product-images/{id}', 'getProductImages');
                 Route::get('stock-limit-status', 'getStockLimitStatus');
                 Route::get('delete-preview-file', 'deletePreviewFile');

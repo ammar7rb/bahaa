@@ -117,7 +117,7 @@ class CustomerController extends Controller
         $request->validate([
             'message' => ['nullable', 'string', 'max:5000', 'required_without:image'],
             'image' => ['nullable', 'array', 'max:10'],
-            'image.*' => ['required', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:6000'],
+            'image.*' => ['required', 'file', 'mimes:jpeg,png,jpg,gif,webp,pdf,doc,docx', 'max:6000'],
         ]);
         if (trim((string) $request->input('message')) === '' && !$request->hasFile('image')) {
             return response()->json(['message' => translate('type_something')], 422);
@@ -130,7 +130,13 @@ class CustomerController extends Controller
         $images = [];
         if ($request->file('image')) {
             foreach ($request->image as $key => $value) {
-                $image_name = $this->upload('support-ticket/', 'webp', $value);
+                $extension = strtolower($value->getClientOriginalExtension());
+                if (in_array($extension, ['pdf', 'doc', 'docx'], true)) {
+                    $image_name = \Illuminate\Support\Str::uuid()->toString().'.'.$extension;
+                    $value->storeAs('support-ticket', $image_name, 'public');
+                } else {
+                    $image_name = $this->upload('support-ticket/', 'webp', $value);
+                }
                 $images[] = [
                     'file_name' => $image_name,
                     'storage' => getWebConfig(name: 'storage_connection_type') ?? 'public',

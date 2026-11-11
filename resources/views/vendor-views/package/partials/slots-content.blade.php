@@ -12,8 +12,8 @@
         @php($product = $slot['product'])
         @php($state = $slot['capacity_status'])
         <article class="vendor-slot-card" aria-labelledby="slot-title-{{ $slot['id'] }}">
-            <div class="vendor-slot-card-heading"><h2 id="slot-title-{{ $slot['id'] }}">المساحة {{ $slot['position'] }}</h2><span class="vendor-slot-state vendor-slot-{{ $state }}">{{ ['available'=>'متاحة','occupied'=>'نشط','reserved'=>'إضافة غير مكتملة','expired'=>'منتهية'][$state] }}</span></div>
-            <p>{{ $slot['extra_ad_purchase_id'] ?? null ? 'مساحة إضافية' : 'ضمن الباقة' }} · حتى {{ \Carbon\Carbon::parse($slot['expires_at'])->timezone(config('app.timezone'))->format('Y/m/d H:i') }}</p>
+            <div class="vendor-slot-card-heading"><h2 id="slot-title-{{ $slot['id'] }}">الإعلان {{ $slot['position'] }}</h2><span class="vendor-slot-state vendor-slot-{{ $state }}">{{ ['available'=>'متاحة','occupied'=>'نشط','reserved'=>'إضافة غير مكتملة','expired'=>'منتهية'][$state] }}</span></div>
+            <p>{{ $slot['extra_ad_purchase_id'] ?? null ? 'إعلان إضافي' : 'ضمن الباقة' }} · حتى {{ \Carbon\Carbon::parse($slot['expires_at'])->timezone(config('app.timezone'))->format('Y/m/d H:i') }}</p>
             @if($product)
                 <div class="vendor-slot-product-image">@if($product['thumbnail_url'] ?? null)<img class="vendor-ad-image {{ $state === 'expired' ? 'vendor-ad-inactive-image' : '' }}" src="{{ $product['thumbnail_url'] }}" alt="{{ $product['name'] }}" loading="lazy">@else<i class="tio-image" aria-hidden="true"></i>@endif</div>
                 <h3>{{ $product['name'] }}</h3>
@@ -42,12 +42,12 @@
                         </form>
                     </details>
                     @endif
-                    @if($product)<form method="post" action="{{ route('vendor.packages.slots.update', $slot['id']) }}" class="mt-3">@csrf<input type="hidden" name="slot_revision" value="{{ $slot['assignment_revision'] ?? 0 }}"><input type="hidden" name="product_id" value=""><p class="small">الإزالة توقف الإعلان وتحتفظ بالمنتج وبياناته.</p><button class="btn btn-outline-danger w-100"><i class="tio-delete" aria-hidden="true"></i> حذف من المساحة</button></form>@endif
+                    @if($product)<form method="post" action="{{ route('vendor.packages.slots.update', $slot['id']) }}" class="mt-3">@csrf<input type="hidden" name="slot_revision" value="{{ $slot['assignment_revision'] ?? 0 }}"><input type="hidden" name="product_id" value=""><p class="small">الإزالة توقف الإعلان وتحتفظ بالمنتج وبياناته.</p><button class="btn btn-outline-danger w-100"><i class="tio-delete" aria-hidden="true"></i> حذف من الإعلان</button></form>@endif
                 @endif
             @endif
         </article>
     @endforeach
-        <article class="vendor-slot-card vendor-slot-buy"><h2>مساحة إضافية</h2><p>تنتهي مع الاشتراك الحالي ولا تتجدد تلقائيًا.</p>@if($extraSettings['enabled'] && $extraSettings['unit_price'] > 0 && $summary['active_subscription'])<strong>{{ webCurrencyConverter(amount: $extraSettings['unit_price']) }} للمساحة</strong>@if(config('vendor_advertising.extra_publish_enabled') && config('vendor_product_workspace.enabled'))<a class="btn btn--primary mt-3" href="{{ route('vendor.products.add', ['extra_ad' => 1]) }}">إضافة إعلان</a>@else<a class="btn btn--primary mt-3" href="#extra-ad-purchase">شراء الآن</a>@endif @else<p>الشراء غير متاح حتى تفعيل الإضافات وتحديد سعرها ووجود اشتراك سارٍ.</p>@endif</article>
+        <article class="vendor-slot-card vendor-slot-buy"><h2>إعلان إضافي</h2><p>تنتهي مع الاشتراك الحالي ولا تتجدد تلقائيًا.</p>@if($extraSettings['enabled'] && $extraSettings['unit_price'] > 0 && $summary['active_subscription'])<strong>{{ webCurrencyConverter(amount: $extraSettings['unit_price']) }} للإعلان</strong>@if(config('vendor_advertising.extra_publish_enabled') && config('vendor_product_workspace.enabled'))<a class="btn btn--primary mt-3" href="{{ route('vendor.products.add', ['extra_ad' => 1]) }}">إضافة إعلان</a>@else<a class="btn btn--primary mt-3" href="#extra-ad-purchase">شراء الآن</a>@endif @else<p>الشراء غير متاح حتى تفعيل الإضافات وتحديد سعرها ووجود اشتراك سارٍ.</p>@endif</article>
     </div>
     @include('vendor-views.product.partials.saved-advertisements')
     <div id="extra-ad-purchase">@include('vendor-views.package.partials.extra-ads')</div>
