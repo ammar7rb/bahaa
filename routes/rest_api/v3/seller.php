@@ -200,6 +200,7 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
                 Route::get('top-selling-product', 'top_selling_products');
                 Route::get('most-popular-product', 'most_popular_products');
                 Route::get('delete-image', 'deleteImage');
+                Route::get('delete-images', 'deleteImage');
                 Route::get('get-product-images/{id}', 'getProductImages');
                 Route::get('stock-limit-status', 'getStockLimitStatus');
                 Route::get('delete-preview-file', 'deletePreviewFile');
