@@ -33,8 +33,7 @@ class AdminOperationsRedistributionTest extends TestCase
             'orders' => ["admin.orders.logistics.index", "admin.payment-reviews.index"],
             'catalog' => ["admin.operations.medical-devices.index"],
             'customers' => ["guest_customers"],
-            'vendors' => ["seller-settlement-timing"],
-            'settings' => ["admin.operations.shipping.index", "admin.operations.homepage-sections.index", "admin.customer-withdrawals.index", "admin.monthly-packages.index", "admin.customer.password-recovery.index"],
+            'vendors' => ["seller-settlement-timing"]
         ];
         $source = $this->sidebar();
         foreach ($expected as $section => $needles) {
@@ -52,10 +51,15 @@ class AdminOperationsRedistributionTest extends TestCase
         $this->assertSame('guests', \App\Support\OrderCenterFilters::normalize('guests'));
     }
 
-    public function test_settings_hub_no_longer_repeats_sidebar_destinations(): void
+    public function test_settings_items_live_inside_the_settings_page_not_as_separate_sidebar_entries(): void
     {
         $hub = file_get_contents(dirname(__DIR__, 2).'/resources/views/admin-views/business-settings/hub.blade.php');
-        foreach (['admin.operations.shipping.index', 'admin.operations.homepage-sections.index', 'admin.operations.medical-devices.index', 'admin.monthly-packages.index', 'admin.category.view', 'admin.brand.list'] as $route) {
+        $source = $this->sidebar();
+        foreach (['admin.operations.shipping.index', 'admin.operations.homepage-sections.index', 'admin.customer-withdrawals.index', 'admin.monthly-packages.index', 'admin.customer.password-recovery.index'] as $route) {
+            $this->assertStringContainsString("'".$route."'", $hub, "$route should be a card in the settings page");
+            $this->assertStringNotContainsString("route('".$route."')", $source, "$route must not be a separate sidebar entry");
+        }
+        foreach (['admin.operations.medical-devices.index', 'admin.category.view', 'admin.brand.list'] as $route) {
             $this->assertStringNotContainsString("'".$route."'", $hub);
         }
     }

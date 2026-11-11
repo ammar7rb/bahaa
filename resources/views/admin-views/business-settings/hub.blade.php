@@ -6,9 +6,19 @@
 <main class="content container-fluid sigma-settings-hub" dir="rtl">
     <div class="page-header mb-4"><h1 class="page-header-title">الإعدادات</h1><p class="text-muted mb-0">إعدادات العمل وروابط أدوات الإدارة ذات الصلة</p></div>
     @php
-        // الشحن، مواضع الصفحة الرئيسية، الباقات الشهرية للعملاء، الأجهزة الطبية، الفئات والعلامات التجارية
-        // لها أماكنها في القوائم الجانبية (الإعدادات / العملاء / المنتجات) فلا تتكرر هنا.
+        // الأجهزة الطبية والفئات والعلامات التجارية لها أماكنها في قائمة المنتجات فلا تتكرر هنا.
         $groups = [
+            ['الشحن والتوصيل', 'fi fi-rr-truck-side', 'info', [
+                ['إعداد الشحن', 'fi-rr-truck-side', 'admin.operations.shipping.index', 'business_settings'],
+            ]],
+            ['العملاء والمدفوعات', 'fi fi-rr-users', 'success', [
+                ['نسب ومدد صرف الأموال', 'fi-rr-hand-holding-usd', 'admin.customer-withdrawals.index', 'people'],
+                ['الباقات الشهرية', 'fi-rr-box', 'admin.monthly-packages.index', 'people'],
+                ['استعادة كلمة مرور العملاء', 'fi-rr-key', 'admin.customer.password-recovery.index', 'people'],
+            ]],
+            ['الصفحة الرئيسية', 'fi fi-rr-home', 'warning', [
+                ['أقسام الصفحة الرئيسية', 'fi-rr-apps', 'admin.operations.homepage-sections.index', 'catalog'],
+            ]],
             ['الدفع والضريبة', 'fi fi-rr-credit-card', 'primary', [
                 ['جهات استلام المحفظة وInstaPay', 'fi-rr-wallet', 'admin.third-party.offline-payment-method.index', 'payment_destinations_manage'],
                 ['ضريبة العملاء والاستثناءات', 'fi-rr-receipt', 'admin.settings.rates.index', 'tax_manage'],
