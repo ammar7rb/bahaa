@@ -699,11 +699,18 @@
                                     @if (isset($item) && $key != 'method_id')
                                         <div class="d-flex gap-3 align-items-center overflow-wrap-anywhere">
                                             <span class="w-120 flex-shrink-0 text-capitalize text-capitalize">
-                                                {{ translate($key) }}
+                                                {{ function_exists('translatePaymentText') ? translatePaymentText($key) : translate($key) }}
                                             </span>
                                             <span>:</span>
-                                        @php($displayPaymentItem = is_array($item) || is_object($item) ? json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : $item)
-                                        <span class="fw-semibold">{{ $displayPaymentItem ?? 'N/a' }}</span>
+                                        @php($proofItem = is_string($item) && str_starts_with(trim($item), '{') ? (json_decode($item, true) ?: $item) : (is_object($item) ? (array) $item : $item))
+                                        @if (is_array($proofItem) && !empty($proofItem['image_name']))
+                                            @php($proofIndex = $key === 'payment_screenshot' && !empty($order->offlinePayments->payment_info['payment_proof']) ? 1 : 0)
+                                            <a class="fw-semibold" target="_blank" rel="noopener"
+                                               href="{{ route('admin.payment-reviews.proof', ['customer_order', $order->id, 'file' => $proofIndex]) }}">{{ translate('view') }}</a>
+                                        @else
+                                            @php($displayPaymentItem = is_array($proofItem) ? formatOrderPaymentInfoValue($proofItem) : $proofItem)
+                                            <span class="fw-semibold">{{ $displayPaymentItem ?? 'N/a' }}</span>
+                                        @endif
                                         </div>
                                     @endif
                                 @endforeach

@@ -74,13 +74,13 @@
         @endif
 
         @if ($v2HasReports)
-            <a class="v2-rail-btn" href="{{ route('admin.report.financials.index') }}" data-section="reports" data-label="{{ __('financials.title') }}" aria-label="{{ __('financials.title') }}">
+            <button class="v2-rail-btn" type="button" data-section="reports" data-label="{{ __('financials.title') }}" aria-label="{{ __('financials.title') }}">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M5 20V11M11 20V5M17 20v-6"/>
                     <path d="M3 20h18"/>
                 </svg>
-            </a>
+            </button>
         @endif
 
         @if ($v2HasSettings)
