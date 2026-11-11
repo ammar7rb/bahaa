@@ -16,7 +16,7 @@
             <label for="seller-operating-days">مدة استرداد رصيد تشغيل التاجر من اعتماد الإدارة</label>
             <input class="form-control mb-3" id="seller-operating-days" name="seller_operating_days" type="number" min="15" max="30" value="{{ $sellerOperatingDays }}" required>
             <label for="seller-sales-days">مدة صرف حصيلة مبيعات التاجر من اعتماد طلب السحب</label>
-            <input class="form-control mb-3" id="seller-sales-days" name="seller_sales_days" type="number" min="15" max="30" value="{{ $sellerSalesDays }}" required>
+            <input class="form-control mb-3" id="seller-sales-days" name="seller_sales_days" type="number" min="1" max="30" value="{{ $sellerSalesDays }}" required>
             <p>تُحفظ النسبة مع كل طلب جديد، والمدة عند الاعتماد.</p>
             <button class="btn btn-primary" type="submit">حفظ النسب والمدة</button>
         </form>

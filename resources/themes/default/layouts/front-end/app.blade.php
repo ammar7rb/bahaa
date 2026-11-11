@@ -262,11 +262,12 @@
 <div class="floating-btn-grp">
     <div class="__floating-btn">
         <div class="wa-widget-send-button bg-primary d-flex align-items-center justify-content-center">
-            <a href="{{ auth('customer')->check() ? route('account-tickets') : route('customer.auth.login') }}"
+            <a href="{{ auth('customer')->check() ? route('account-tickets') : route('customer.auth.login') }}" style="position:relative;display:inline-block"
                title="{{ translate('contact_technical_support') }}"
                aria-label="{{ translate('contact_technical_support') }}">
                 <img src="{{ dynamicAsset(path: 'public/assets/front-end/img/icons/technical-support.svg') }}"
                      class="wa-messenger-svg-whatsapp wh-svg-icon" alt="{{ translate('contact_technical_support') }}">
+                @include('partials.customer-unread-badge')
             </a>
         </div>
     </div>

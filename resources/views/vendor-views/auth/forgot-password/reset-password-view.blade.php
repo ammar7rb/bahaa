@@ -89,9 +89,9 @@
                                 </label>
 
                                 <div class="input-group input-group-merge">
-                                    <input type="password" class="js-toggle-password form-control password-check"
+                                    <input type="password" class="js-toggle-password form-control password-check" data-light-password="1" minlength="6"
                                            name="password" required id="user_password"
-                                           placeholder="{{ translate('password_minimum_8_characters') }}"
+                                           placeholder="كلمة المرور 6 أحرف على الأقل"
                                            data-hs-toggle-password-options='{
                                                      "target": "#changePassTarget",
                                                     "defaultClass": "tio-hidden-outlined",

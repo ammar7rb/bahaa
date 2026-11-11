@@ -574,7 +574,7 @@ class VendorController extends BaseController
     public function resetPassword(Request $request, int $id): RedirectResponse
     {
         $request->validate([
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:6', 'max:255', 'confirmed'],
         ]);
 
         $vendor = $this->vendorRepo->getFirstWhere(params: ['id' => $id]);

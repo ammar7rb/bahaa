@@ -51,9 +51,13 @@ class CustomerAPIAuthController extends Controller
 
     public function register(Request $request): JsonResponse
     {
-        $request->merge(['phone' => app(EgyptPhoneService::class)->normalizeLocal($request->input('phone'))]);
+        $request->merge([
+            'phone' => app(EgyptPhoneService::class)->normalizeLocal($request->input('phone')),
+            // The first name is optional; customers are known by their account number.
+            'f_name' => trim((string) $request->input('f_name')) !== '' ? trim((string) $request->input('f_name')) : 'عميل',
+        ]);
         $validator = Validator::make($request->all(), [
-            'f_name' => 'required|string|max:100',
+            'f_name' => 'nullable|string|max:100',
             'l_name' => 'nullable|string|max:100',
             'email' => 'nullable|email|max:255|unique:users',
             'phone' => ['required', 'regex:/^01[0125][0-9]{8}$/', new \App\Rules\UniqueCustomerPhone],

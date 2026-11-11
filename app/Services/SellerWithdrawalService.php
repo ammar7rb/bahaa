@@ -40,8 +40,11 @@ class SellerWithdrawalService
 
     public function payoutDays(string $source): int
     {
-        $key = $source === SellerLedgerService::OPERATING ? 'seller_operating_refund_days' : 'seller_sales_withdrawal_days';
-        return max(15, min(30, (int) (\App\Models\BusinessSetting::where('type', $key)->value('value') ?? 30)));
+        if ($source === SellerLedgerService::OPERATING) {
+            return max(15, min(30, (int) (\App\Models\BusinessSetting::where('type', 'seller_operating_refund_days')->value('value') ?? 30)));
+        }
+        // Sales payouts reach the vendor within 3 days unless administration sets another period (1 to 30).
+        return max(1, min(30, (int) (\App\Models\BusinessSetting::where('type', 'seller_sales_withdrawal_days')->value('value') ?? 3)));
     }
 
     public function submit(int $sellerId, int $methodId, float $amount, ?string $requestKey = null): WithdrawRequest

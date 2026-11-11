@@ -26,7 +26,7 @@ class WalletWithdrawalController extends Controller
             'fee_percent' => 'required|numeric|between:0,100|decimal:0,2',
             'days' => 'required|integer|between:15,30',
             'seller_operating_days' => 'sometimes|required|integer|between:15,30',
-            'seller_sales_days' => 'sometimes|required|integer|between:15,30',
+            'seller_sales_days' => 'sometimes|required|integer|between:1,30',
         ]);
         DB::transaction(function () use ($data) {
             \App\Models\BusinessSetting::updateOrCreate(['type' => 'customer_withdrawal_fee_percent'], ['value' => (string) $data['fee_percent']]);
