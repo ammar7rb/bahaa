@@ -52,8 +52,11 @@
                                 </div>
                             </div>
                             @if($ticket->status != 'close')
-                                <a href="{{route('support-ticket.close',[$ticket['id']])}}" class="btn btn-sm fs-14 font-semibold text-capitalize btn-outline-danger d-none d-sm-inline-block">{{ translate('close_this_ticket') }}</a>
-                                <a href="{{route('support-ticket.close',[$ticket['id']])}}" class="btn btn-outline-danger btn-sm d-sm-none">{{ translate('close') }}</a>
+                                <form action="{{route('support-ticket.close',[$ticket['id']])}}" method="post" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm fs-14 font-semibold text-capitalize btn-outline-danger d-none d-sm-inline-block">{{ translate('close_this_ticket') }}</button>
+                                    <button type="submit" class="btn btn-outline-danger btn-sm d-sm-none">{{ translate('close') }}</button>
+                                </form>
                             @endif
                         </div>
                     </div>

@@ -197,6 +197,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
             Route::get('{id}/messages', 'ticketMessages')->name('messages');
             Route::get('{id}/attachments/{message}/{index}/download', [\App\Http\Controllers\ChatAttachmentController::class, 'customer'])->whereNumber('index')->name('attachments.download');
             Route::post('{id}', 'comment_submit')->name('comment');
+            Route::post('{id}/close', 'support_ticket_close')->whereNumber('id')->middleware('throttle:20,1')->name('close');
         });
     });
 

@@ -349,8 +349,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api_lang']], function () {
                 Route::get('get', 'get_support_tickets');
                 Route::get('conv/{ticket_id}', 'get_support_ticket_conv');
                 Route::post('reply/{ticket_id}', 'reply_support_ticket');
-                Route::match(['get', 'post'], 'close/{id}', 'support_ticket_close');
-                Route::match(['get', 'post'], 'close-ticket/{id}', 'support_ticket_close');
+                Route::post('close/{id}', 'support_ticket_close')->whereNumber('id');
+                Route::post('close-ticket/{id}', 'support_ticket_close')->whereNumber('id');
                 Route::get('activation/status', 'activationStatus');
             });
         });

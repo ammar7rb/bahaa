@@ -315,21 +315,7 @@ class Helpers
         }
         $default = getWebConfig(name: 'system_default_currency');
         $current = \session('system_default_currency_info');
-        if (session()->has('system_default_currency_info') == false || $default != $current['id']) {
-            $id = getWebConfig(name: 'system_default_currency');
-            $currency = Currency::find($id);
-            if (!$currency) {
-                $currency = Currency::find(1);
-            }
-            session()->put('system_default_currency_info', $currency);
-            session()->put('currency_code', $currency->code);
-            session()->put('currency_symbol', $currency->symbol);
-            session()->put('currency_exchange_rate', $currency->exchange_rate);
-            session()->forget('usd');
-            session()->forget('default');
-            $usd = exchangeRate(USD);
-            session()->put('usd', $usd);
-        }
+        loadCurrency();
     }
 
     public static function language_load()

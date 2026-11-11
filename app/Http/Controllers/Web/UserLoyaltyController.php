@@ -138,7 +138,7 @@ class UserLoyaltyController extends Controller
     public function getLoyaltyCurrencyAmount(Request $request): JsonResponse
     {
         $loyaltyPointExchangeRate = getWebConfig(name: 'loyalty_point_exchange_rate');
-        $value = ((session('currency_exchange_rate') * 1) / $loyaltyPointExchangeRate) * $request['amount'];
+        $value = (1 / max((float) $loyaltyPointExchangeRate, 0.000001)) * $request['amount'];
         $amount = setCurrencySymbol(amount: $value, currencyCode: session('currency_code'), type: 'web');
         return response()->json($amount);
     }

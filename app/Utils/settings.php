@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Cache;
 if (!function_exists('getWebConfig')) {
     function getWebConfig($name): string|object|array|null
     {
+        // Sigma sells in Egyptian pounds only. Every price is stored and shown as typed, with no exchange-rate conversion.
+        if ($name === 'currency_model') {
+            return 'single_currency';
+        }
         $config = null;
         if (in_array($name, getWebConfigCacheKeys()) && Cache::has($name)) {
             $config = Cache::get($name);
