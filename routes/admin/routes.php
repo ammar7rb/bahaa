@@ -136,6 +136,14 @@ Route::controller(FirebaseController::class)->group(function () {
 
 Route::redirect('admin', 'login/admin');
 Route::redirect('admin/dashbooard', 'admin/dashboard');
+// Commonly typed sign-in addresses used to end on a 404 / 405 page.
+Route::redirect('admin/login', '/login/admin');
+Route::redirect('admin/auth/login', '/login/admin');
+Route::get('login', fn () => redirect('/customer/auth/login'));
+Route::redirect('vendor', '/vendor/dashboard');
+Route::redirect('vendor/login', '/vendor/auth/login');
+Route::redirect('seller/auth/login', '/vendor/auth/login');
+Route::redirect('login/vendor', '/vendor/auth/login');
 
 Route::group(['prefix' => 'login'], function () {
     Route::get('{loginUrl}', [LoginController::class, 'index']);

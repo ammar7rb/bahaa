@@ -27,6 +27,11 @@
                             @if($review['type'] === 'customer_subscription')
                                 <a href="{{ isset($customer)?route('admin.customer.accounts.index',['page'=>'subscriptions','customer_id'=>$customer->id,'tab'=>'subscriptions']):route('admin.customer.monthly-subscriptions.index', ['status'=>$review['status'] === 'pending' ? 'pending_review' : $review['status']]) }}">عرض الحساب والاشتراك وإثبات الدفع</a>
                             @endif
+                            @if($review['type'] === 'customer_balance_deposit')
+                                <div class="fs-12 mb-1">إثبات الدفع:
+                                    <a href="{{ route('admin.payment-reviews.proof', ['customer_balance_deposit', $review['id']]) }}" target="_blank" rel="noopener" class="js-proof-link fw-semibold">عرض الإيصال</a>
+                                </div>
+                            @endif
                             @if (!empty($review['offline']) && is_array($review['offline']))
                                 <strong>{{ translatePaymentText($review['offline']['method_name'] ?? translate('offline_payment')) }}</strong>
                                 @if($review['type'] === 'customer_order' && !empty($review['offline']['private_retry_proof']))
@@ -61,7 +66,7 @@
                             @endif
                             @if ($review['status'] === 'pending' && empty($review['read_only']))
                                 <div class="d-flex gap-1">
-                                    <form method="post" action="{{ route('admin.payment-reviews.approve', [$review['type'], $review['id']]) }}">@csrf<button class="btn btn-sm btn-outline-success">{{ translate('approve') }}</button></form>
+                                    <form method="post" action="{{ route('admin.payment-reviews.approve', [$review['type'], $review['id']]) }}" class="js-confirm-review" data-confirm="{{ 'اعتماد دفعة '.trim(($review['actor']?->f_name ?? '').' '.($review['actor']?->l_name ?? '')).' بمبلغ '.(in_array($review['type'], ['customer_subscription','customer_legacy_receipt'], true) ? number_format($review['amount'],2).' '.$review['currency'] : setCurrencySymbol(amount: usdToDefaultCurrency(amount: $review['amount']))).'؟ تأكد أنك راجعت الإيصال والتحويل وصل فعلًا.' }}">@csrf<button class="btn btn-sm btn-outline-success">{{ translate('approve') }}</button></form>
                                     <form method="post" action="{{ route('admin.payment-reviews.reject', [$review['type'], $review['id']]) }}">@csrf<input class="form-control form-control-sm mb-1" name="review_note" required placeholder="{{ translate('rejection_reason') }}"><button class="btn btn-sm btn-outline-danger">{{ translate('reject') }}</button></form>
                                 </div>
                             @elseif (!($review['customer_state']['can_request_package'] ?? false))
@@ -75,3 +80,25 @@
             </tbody></table></div>
             <div class="d-flex justify-content-end mt-3">{{ $reviews->links() }}</div>
         </div></div>
+
+@once
+@push('script')
+<script>
+    (function () {
+        document.addEventListener('submit', function (event) {
+            var form = event.target.closest('form.js-confirm-review');
+            if (!form || form.dataset.confirmed === '1') return;
+            event.preventDefault();
+            var proceed = function () { form.dataset.confirmed = '1'; form.querySelector('button').disabled = true; form.submit(); };
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                window.Swal.fire({ title: 'تأكيد الاعتماد', text: form.dataset.confirm, icon: 'question', showCancelButton: true,
+                    confirmButtonText: 'اعتماد', cancelButtonText: 'رجوع', reverseButtons: true })
+                    .then(function (r) { if (r.isConfirmed || r.value) proceed(); });
+            } else if (window.confirm(form.dataset.confirm)) {
+                proceed();
+            }
+        }, true);
+    })();
+</script>
+@endpush
+@endonce
