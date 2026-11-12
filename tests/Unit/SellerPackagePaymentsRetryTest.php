@@ -58,4 +58,25 @@ Schema::create('seller_ledger_entries', function (Blueprint $table) {
   $this->assertSame(9,(int)\App\Models\SellerPackageTransaction::where('transaction_type','package_purchase')->value('created_by_admin_id'));
   $this->assertSame(250.0,$ledger->summary(1)['operating']);
  }
+
+ public function test_outstanding_debt_does_not_block_package_purchase_when_operating_balance_covers_it(): void
+ {
+  foreach ([
+   'vendor_debt_charges' => function ($t) { $t->id(); $t->unsignedBigInteger('seller_id'); $t->string('kind'); $t->string('source_type'); $t->string('source_id'); $t->char('idempotency_key',64)->unique(); $t->char('fingerprint',64); $t->decimal('amount',24,8); $t->decimal('wallet_collected',24,8); $t->decimal('debt_assessed',24,8); $t->decimal('outstanding',24,8); $t->json('rule_snapshot'); $t->unsignedBigInteger('created_by')->nullable(); $t->timestamp('assessed_at'); $t->timestamps(); },
+   'vendor_deposit_allocations' => function ($t) { $t->id(); $t->unsignedBigInteger('deposit_id')->unique(); $t->unsignedBigInteger('seller_id'); $t->decimal('gross_amount',24,8); $t->decimal('debt_recovered',24,8); $t->decimal('net_wallet_credit',24,8); $t->decimal('remaining_debt',24,8); $t->timestamp('confirmed_at'); $t->timestamp('reversed_at')->nullable(); $t->timestamps(); },
+   'vendor_debt_repayments' => function ($t) { $t->id(); $t->unsignedBigInteger('seller_id'); $t->unsignedBigInteger('charge_id'); $t->unsignedBigInteger('deposit_id')->nullable(); $t->string('collection_type'); $t->decimal('amount',24,8); $t->char('event_key',64)->unique(); $t->timestamp('reversed_at')->nullable(); $t->timestamps(); },
+   'vendor_debt_events' => function ($t) { $t->id(); $t->unsignedBigInteger('seller_id'); $t->unsignedBigInteger('charge_id')->nullable(); $t->unsignedBigInteger('deposit_id')->nullable(); $t->string('event_type'); $t->decimal('amount',24,8); $t->char('event_key',64)->unique(); $t->timestamp('created_at'); },
+  ] as $table => $definition) Schema::create($table, $definition);
+  try {
+   $ledger=app(SellerLedgerService::class);
+   $ledger->post(1,'funding','debt-operating',[['bucket'=>'operating','direction'=>'credit','amount'=>250]]);
+   app(\App\Services\VendorDebtService::class)->createAdministrativeDebt(1,'80','دين قائم لا يمنع الشراء','debt-open',9);
+   $result=app(SellerPackagePurchaseService::class)->purchaseWithPaymentsBalance(Seller::findOrFail(1),$this->plan(),'debt-does-not-block',250,9);
+   $this->assertSame(1,$result['status']);
+   $this->assertSame(0.0,$ledger->summary(1)['operating']);
+   $this->assertSame(80.0,(float)\Illuminate\Support\Facades\DB::table('vendor_debt_charges')->value('outstanding'));
+  } finally {
+   foreach (['vendor_debt_events','vendor_debt_repayments','vendor_deposit_allocations','vendor_debt_charges'] as $table) Schema::dropIfExists($table);
+  }
+ }
 }

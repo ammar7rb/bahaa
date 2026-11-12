@@ -1323,6 +1323,8 @@ enum GlobalConstant
         'notification_broadcast' => 'إرسال إشعارات إدارية',
         'product_view_adjust' => 'إضافة مشاهدات إدارية للمنتجات',
         'customer_account_close' => 'إغلاق حسابات العملاء',
+        'vendor_financial_view' => 'عرض ماليات التجار',
+        'vendor_financial_manage' => 'إدارة مدفوعات وديون واشتراكات التجار',
         'reports' => 'reports',
         'business_settings' => 'business_settings',
         'payment_destinations_manage' => 'تعديل جهات استلام المدفوعات',

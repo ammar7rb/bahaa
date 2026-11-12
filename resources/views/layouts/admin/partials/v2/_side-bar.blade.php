@@ -264,7 +264,7 @@
             <div class="v2-ctx-group">
                 @foreach(['list'=>['قائمة التجار','shop'],'payments'=>['مدفوعات','wallet'],'debts'=>['الديون','receipt'],'subscriptions'=>['الاشتراكات','calendar']] as $vendorPage=>$vendorNav)
                 @if($vendorPage==='list' || (int)auth('admin')->user()->admin_role_id===1 || Helpers::module_permission_check('vendor_financial_view') || Helpers::module_permission_check('vendor_financial_manage'))
-                <a class="v2-nav-item {{ request()->is('admin/vendors/accounts/'.$vendorPage) ? 'v2-is-active' : '' }}" data-item="vendor-accounts-{{ $vendorPage }}" href="{{ route('admin.vendors.accounts.index',array_filter(['page'=>$vendorPage,'seller_id'=>request()->is('admin/vendors/accounts*')?request('seller_id'):null])) }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-{{ $vendorNav[1] }}"></i></span><span class="v2-nav-label">{{ $vendorNav[0] }}</span></span></a>
+                <a class="v2-nav-item {{ request()->is('admin/vendors/accounts/'.$vendorPage) ? 'v2-is-active' : '' }}" data-item="vendor-accounts-{{ $vendorPage }}" href="{{ route('admin.vendors.accounts.index',array_filter(['page'=>$vendorPage,'seller_id'=>request()->is('admin/vendors/accounts*')?request('seller_id'):(request()->routeIs('admin.vendors.view')?request()->route('id'):null)])) }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-{{ $vendorNav[1] }}"></i></span><span class="v2-nav-label">{{ $vendorNav[0] }}</span></span></a>
                 @endif
                 @endforeach
                 @if(Helpers::module_permission_check('business_settings'))

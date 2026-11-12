@@ -162,7 +162,7 @@ class VendorAccountsController extends Controller
         } catch (DomainException $e) {
             if (str_contains($e->getMessage(), 'الرصيد غير كاف') || str_contains($e->getMessage(), 'رصيد المدفوعات غير كاف')) {
                 $this->notifyInsufficientBalance($seller->id, $data['request_key']);
-                return back()->withErrors(['extra_ad' => 'رصيدكم الحالي لا يسمح بإضافة الإعلان المنفرد. اشحنوا المحفظة أولًا.']);
+                return back()->withErrors(['extra_ad' => 'رصيدكم الحالي لا يسمح. اشحنوا محفظة المدفوعات أولًا.']);
             }
             return back()->withErrors(['extra_ad' => $e->getMessage().' راجع العملية والسجل قبل إعادة المحاولة.']);
         }
@@ -181,7 +181,7 @@ class VendorAccountsController extends Controller
         DB::table('notifications')->insertOrIgnore([
             'seller_id' => $sellerId, 'customer_event_key' => 'vendor-extra-ad-insufficient-'.$requestKey,
             'sent_by' => 'admin', 'sent_to' => 'seller', 'title' => 'رصيد الإعلان المنفرد',
-            'description' => 'رصيدكم الحالي لا يسمح بإضافة الإعلان المنفرد. يرجى شحن محفظة المدفوعات أولًا.',
+            'description' => 'رصيدكم الحالي لا يسمح',
             'status' => 1, 'notification_count' => 1, 'image' => '', 'created_at' => now(), 'updated_at' => now(),
         ]);
     }
