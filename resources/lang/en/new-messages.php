@@ -2666,10 +2666,4 @@ return [
 	"Invalid_image_format_type_must_be" => "Invalid image format type must be",
 	"هذا_الرقم_مسجل_بالفعل._سجّل_الدخول_إلى_حسابك." => "هذا الرقم مسجل بالفعل. سجّل الدخول إلى حسابك.",
 	"Monthly_Packages" => "Monthly Packages",
-	"preparing_for_shipment" => "Preparing for shipment",
-	"order_returned" => "Order returned",
-	"order_failed" => "Order failed",
-	"The_password_must_be_at_least_6_characters." => "The password must be at least 6 characters.",
-	"vendor_order_waiting_for_administrative_release" => "Vendor order waiting for administrative release",
-	"هذا_الإجراء_من_صلاحيات_الإدارة." => "هذا الإجراء من صلاحيات الإدارة.",
 ];
