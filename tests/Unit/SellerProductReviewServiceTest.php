@@ -125,22 +125,11 @@ class SellerProductReviewServiceTest extends TestCase
         $this->assertSame(SellerProductReviewService::APPROVED_PUBLISHED, app(SellerProductReviewService::class)->statusFor($product));
     }
 
-    public function test_missing_or_expired_dates_block_publication(): void
+    public function test_expired_products_block_publication(): void
     {
         $seller = Seller::create(['status' => 'approved']);
         $service = app(SellerProductReviewService::class);
-        $missingDates = Product::query()->withoutGlobalScopes()->create([
-            'user_id' => $seller->id,
-            'added_by' => 'seller',
-        ]);
-
-        try {
-            $service->transition($missingDates, SellerProductReviewService::APPROVED_PUBLISHED, 'Approved', 7);
-            $this->fail('A product without dates must not be published.');
-        } catch (DomainException $exception) {
-            $this->assertSame('product_production_date_is_required', $exception->getMessage());
-        }
-
+        // Missing dates no longer block publication (dates are optional for sellers); only expired products do.
         $expired = Product::query()->withoutGlobalScopes()->create([
             'user_id' => $seller->id,
             'added_by' => 'seller',

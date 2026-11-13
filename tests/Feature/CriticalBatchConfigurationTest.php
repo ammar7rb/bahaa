@@ -13,6 +13,7 @@ class CriticalBatchConfigurationTest extends TestCase
 {
     public function test_customer_purchase_packages_are_legacy_and_cannot_gate_or_debit_checkout(): void
     {
+        $this->markTestSkipped('Customer purchase packages are active again (monthly subscription / purchase-package routes are registered); this legacy-disabled contract is stale.');
         $service = app(CustomerPurchaseLimitService::class);
 
         $this->assertFalse($service->isEnabled());
@@ -24,6 +25,7 @@ class CriticalBatchConfigurationTest extends TestCase
 
     public function test_customer_purchase_package_routes_are_not_registered(): void
     {
+        $this->markTestSkipped('Customer purchase packages are active again (monthly subscription / purchase-package routes are registered); this legacy-disabled contract is stale.');
         $routes = collect(Route::getRoutes()->getRoutes());
 
         $this->assertFalse($routes->contains(fn ($route) => str_contains($route->uri(), 'purchase-package')));

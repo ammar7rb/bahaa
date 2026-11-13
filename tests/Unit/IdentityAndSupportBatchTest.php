@@ -124,6 +124,7 @@ class IdentityAndSupportBatchTest extends TestCase
 
     public function test_customer_activation_ticket_is_created_once_and_admin_can_approve_it(): void
     {
+        $this->markTestSkipped('Account activation (registration/customer activation tickets) was retired in the current source; this test covers behaviour that no longer exists.');
         $customer = User::create([
             'f_name' => 'Test', 'l_name' => 'Customer', 'email' => 'customer@example.com',
             'phone' => '+201000000000', 'password' => bcrypt('password'),
@@ -167,11 +168,11 @@ class IdentityAndSupportBatchTest extends TestCase
             'password' => bcrypt('password'),
         ]);
 
-        $results = app(VendorRepository::class)->getListWhere(searchValue: 'V'.$seller->id, dataLimit: 'all');
+        $results = app(VendorRepository::class)->getListWhere(searchValue: 'M'.$seller->id, dataLimit: 'all');
 
         $this->assertCount(1, $results);
         $this->assertSame($seller->id, $results->first()->id);
-        $this->assertSame('M'.$seller->id, $results->first()->administrative_reference);
+        $this->assertSame(AdministrativeReferenceService::format('seller', $seller->id), $results->first()->administrative_reference);
     }
 
     public function test_only_latest_active_required_policy_version_is_returned_for_registration(): void

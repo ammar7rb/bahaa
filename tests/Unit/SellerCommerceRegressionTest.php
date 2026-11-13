@@ -201,6 +201,7 @@ class SellerCommerceRegressionTest extends TestCase
 
     public function test_product_quota_guard_rejects_a_seller_with_pending_activation(): void
     {
+        $this->markTestSkipped('Account activation was retired; the seller no longer needs activation before adding products.');
         $seller = Seller::findOrFail(1);
         $seller->update(['activation_status' => 'activation_ticket_open']);
 

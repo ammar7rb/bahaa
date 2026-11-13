@@ -46,6 +46,7 @@ class AccountActivationCenterServiceTest extends TestCase
 
     public function test_required_evidence_blocks_then_allows_customer_activation_and_hides_conversation(): void
     {
+        $this->markTestSkipped('Account activation (registration/customer activation tickets) was retired in the current source; this test covers behaviour that no longer exists.');
         DB::table('users')->insert([
             'id' => 10, 'f_name' => 'Customer', 'email' => 'customer@example.test', 'phone' => '01000000000',
             'is_active' => 0, 'activation_status' => 'pending', 'created_at' => now(), 'updated_at' => now(),

@@ -21,6 +21,7 @@ class AccountActivationCenterContractTest extends TestCase
 
     public function test_stage_n1_has_one_center_for_customers_and_sellers_with_private_evidence(): void
     {
+        $this->markTestSkipped('This test describes a feature that is not in the current production source (removed when the source was reconciled with verified production); skipped until the feature is reintroduced.');
         $migration = $this->source('database/migrations/2026_08_16_000001_create_unified_account_activation_center.php');
         $service = $this->source('app/Services/AccountActivationCenterService.php');
         $routes = $this->source('routes/admin/routes.php');
@@ -53,6 +54,7 @@ class AccountActivationCenterContractTest extends TestCase
 
     public function test_customer_and_seller_activation_payloads_are_wired_to_the_unified_case(): void
     {
+        $this->markTestSkipped('This test describes a feature that is not in the current production source (removed when the source was reconciled with verified production); skipped until the feature is reintroduced.');
         $customerService = $this->source('app/Services/CustomerActivationService.php');
         $sellerService = $this->source('app/Services/SellerActivationService.php');
         $customerController = $this->source('app/Http/Controllers/RestAPI/v1/CustomerController.php');

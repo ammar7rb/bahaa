@@ -116,6 +116,7 @@ class CustomerPostPurchaseInsuranceFlowTest extends TestCase
 
     public function test_purchase_payment_and_insurance_are_two_distinct_steps_and_references(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         Carbon::setTestNow('2026-08-14 10:00:00');
         $order = $this->order('unpaid', 2000, 'purchase-ref-100');
         $service = app(CustomerPostPurchaseInsuranceService::class);
@@ -137,6 +138,7 @@ class CustomerPostPurchaseInsuranceFlowTest extends TestCase
 
     public function test_insurance_wallet_payment_moves_order_to_admin_review_without_touching_purchase_wallet(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $order = $this->order('paid', 2000);
         $service = app(CustomerPostPurchaseInsuranceService::class);
         $insurance = $service->initializeNewOrder($order, $this->calculation(100));
@@ -155,6 +157,7 @@ class CustomerPostPurchaseInsuranceFlowTest extends TestCase
 
     public function test_offline_evidence_can_be_rejected_and_resubmitted_without_releasing_order(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $order = $this->order('paid', 2000);
         $service = app(CustomerPostPurchaseInsuranceService::class);
         $insurance = $service->initializeNewOrder($order, $this->calculation(100));
@@ -171,6 +174,7 @@ class CustomerPostPurchaseInsuranceFlowTest extends TestCase
 
     public function test_payment_method_cannot_change_while_offline_evidence_is_under_review(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $service = app(CustomerPostPurchaseInsuranceService::class);
         $insurance = $service->initializeNewOrder($this->order('paid', 2000), $this->calculation(100));
         $review = $service->submitOfflinePayment($insurance, ['method_id' => 9, 'reference' => 'proof-locked']);
@@ -188,6 +192,7 @@ class CustomerPostPurchaseInsuranceFlowTest extends TestCase
 
     public function test_support_ticket_is_linked_once_to_the_insurance_claim(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $insurance = app(CustomerPostPurchaseInsuranceService::class)
             ->initializeNewOrder($this->order('paid', 2000), $this->calculation(100));
         $service = app(CustomerPostPurchaseInsuranceService::class);
@@ -202,6 +207,7 @@ class CustomerPostPurchaseInsuranceFlowTest extends TestCase
 
     public function test_decline_schedules_purchase_refund_then_credits_purchase_wallet_once(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         Carbon::setTestNow('2026-08-14 10:00:00');
         $order = $this->order('paid', 2000);
         $service = app(CustomerPostPurchaseInsuranceService::class);
@@ -222,6 +228,7 @@ class CustomerPostPurchaseInsuranceFlowTest extends TestCase
 
     public function test_paid_insurance_cannot_be_declined(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $insurance = app(CustomerPostPurchaseInsuranceService::class)
             ->initializeNewOrder($this->order('paid', 2000), $this->calculation(100));
         $paid = app(CustomerPostPurchaseInsuranceService::class)->markPaid($insurance, 'digital_payment', 'insurance-ref-1');

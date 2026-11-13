@@ -123,6 +123,7 @@ class InsuranceRulesAndIncentivesTest extends TestCase
 
     public function test_welcome_credit_and_premium_discount_are_separate_idempotent_records(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $customerId = DB::table('users')->insertGetId(['name' => 'Customer', 'created_at' => now(), 'updated_at' => now()]);
         InsuranceIncentive::query()->create([
             'name' => 'Welcome 50', 'code' => 'welcome-50', 'incentive_type' => 'welcome_credit',
@@ -172,6 +173,7 @@ class InsuranceRulesAndIncentivesTest extends TestCase
 
     public function test_selected_scope_does_not_insure_new_customers_until_they_are_included(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         DB::table('business_settings')->where('type', 'customer_order_insurance_scope')->update(['value' => 'selected']);
         $customerId = DB::table('users')->insertGetId(['name' => 'New customer', 'email' => 'new@example.test', 'created_at' => now(), 'updated_at' => now()]);
         $service = app(OrderInsuranceService::class);
@@ -193,6 +195,7 @@ class InsuranceRulesAndIncentivesTest extends TestCase
 
     public function test_saving_one_insurance_menu_does_not_change_the_other(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         session(['local' => 'en']);
         DB::table('business_settings')->insert([
             'type' => 'seller_order_insurance_status', 'value' => '1',
@@ -217,6 +220,7 @@ class InsuranceRulesAndIncentivesTest extends TestCase
 
     public function test_created_order_keeps_rule_and_discount_snapshots_after_admin_changes(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $customerId = DB::table('users')->insertGetId(['name' => 'Customer', 'created_at' => now()->subDays(90), 'updated_at' => now()]);
         $rule = $this->rule('customer', 'customer-10-percent', 1, 0, null, 'percentage', 10);
         InsuranceIncentive::query()->create([

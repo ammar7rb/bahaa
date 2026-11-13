@@ -5,10 +5,25 @@ use App\Http\Controllers\Web\WebController;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CustomerEmptyCartTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // getWebConfig() reads the settings table; an empty one is enough for the cart pages.
+        if (! Schema::hasTable('business_settings')) {
+            Schema::create('business_settings', function ($table) {
+                $table->id();
+                $table->string('type')->nullable();
+                $table->longText('value')->nullable();
+                $table->timestamps();
+            });
+        }
+    }
+
     public function test_a_signed_in_customer_can_open_an_empty_cart_without_being_sent_to_login(): void {
         if (!defined('VIEW_FILE_NAMES')) define('VIEW_FILE_NAMES',include(base_path('resources/themes/default/file_names.php')));
         app('view')->addLocation(base_path('resources/themes/default'));
