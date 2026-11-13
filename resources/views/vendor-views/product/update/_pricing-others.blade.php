@@ -72,7 +72,7 @@
                             <div class="form-group mb-0">
                                 <div class="d-flex gap-2">
                                     <label class="title-color" for="current_stock">
-                                        {{ translate('current_stock_qty') }}
+                                        <span data-stock-text>{{ translate('current_stock_qty') }}</span>
                                         <span class="input-required-icon">*</span>
                                     </label>
 
@@ -81,9 +81,12 @@
                                         <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/info-circle.svg') }}" alt="">
                                     </span>
                                 </div>
-                                <input type="number" min="0" value={{ $product['current_stock'] }} step="1"
-                                        placeholder="{{ translate('quantity') }}"
-                                        name="current_stock" id="current_stock" class="form-control only-number-input" required>
+                                <div class="vpf-field">
+                                    <svg class="vpf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>
+                                    <input type="number" min="0" value="{{ $product['current_stock'] }}" step="1" inputmode="numeric"
+                                            placeholder="{{ translate('available_stock_placeholder') }}"
+                                            name="current_stock" id="current_stock" class="form-control only-number-input" data-required-msg="{{ translate('available_stock_is_required') }}" required>
+                                </div>
                             </div>
                         </div>
                         <input type="hidden" name="discount" id="discount" value="0">

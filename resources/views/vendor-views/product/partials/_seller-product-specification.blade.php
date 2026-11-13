@@ -32,7 +32,7 @@
                     @endif
                     @if(($specPart ?? 'all') !== 'measurements')
                     <div class="col-md-6 col-lg-4" id="sale_unit_selector">
-                        <label class="title-color" for="sale_unit_type">{{ translate('seller_product_sale_unit_type') }} <span class="input-required-icon">*</span></label>
+                        <label class="title-color" for="sale_unit_type"><svg class="vpf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></svg>{{ translate('seller_product_sale_unit_type') }} <span class="input-required-icon">*</span></label>
                         <select class="form-control" name="sale_unit_type" id="sale_unit_type" data-package-price="{{ translate('price_per_package') }}" data-piece-price="{{ translate('price_per_piece') }}" data-package-quantity="{{ translate('quantity_packages') }}" data-piece-quantity="{{ translate('quantity_pieces') }}" required>
                             <option value="piece" {{ $saleUnitType === 'piece' ? 'selected' : '' }}>{{ translate('seller_product_sale_unit_piece') }}</option>
                             <option value="package" {{ $saleUnitType === 'package' ? 'selected' : '' }}>{{ translate('seller_product_sale_unit_package') }}</option>
@@ -45,7 +45,7 @@
                         @endif
                     </div>
                     <div class="col-md-6 col-lg-4" id="pieces_per_unit_wrapper" @if($saleUnitType !== 'package') style="display: none;" @endif>
-                        <label class="title-color" for="pieces_per_unit">{{ translate('seller_product_pieces_per_unit') }} <span class="input-required-icon">*</span></label>
+                        <label class="title-color" for="pieces_per_unit"><svg class="vpf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>{{ translate('seller_product_pieces_per_unit') }} <span class="input-required-icon">*</span></label>
                         <input class="form-control" type="number" min="1" step="1" name="pieces_per_unit" id="pieces_per_unit" @if($saleUnitType === 'package') required @else disabled @endif
                                value="{{ old('pieces_per_unit', data_get($sellerProduct, 'pieces_per_unit')) }}"
                                placeholder="{{ translate('seller_product_pieces_per_unit') }}">

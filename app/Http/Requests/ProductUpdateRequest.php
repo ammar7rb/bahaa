@@ -176,6 +176,11 @@ class ProductUpdateRequest extends FormRequest
                     );
                 }
 
+                if ($this['product_type'] == 'physical' && ! $this->has('colors') && empty($this['choice_attributes'])
+                    && (! $this->filled('current_stock') || ! is_numeric($this['current_stock']) || (int) $this['current_stock'] < 0)) {
+                    $validator->errors()->add('current_stock', translate('available_stock_is_required').'!');
+                }
+
                 $contentIndex = array_search('ar', (array) $this->input('lang', []), true);
                 $contentIndex = $contentIndex === false ? 0 : $contentIndex;
                 if (empty($this->input('name')[$contentIndex] ?? null)) {

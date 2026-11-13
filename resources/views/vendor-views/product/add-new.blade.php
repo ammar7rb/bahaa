@@ -40,9 +40,6 @@
             @endif
             <div id="product-publish-feedback" class="alert alert-info" role="status" tabindex="-1" hidden></div>
             <input type="hidden" name="publish_product" value="1">
-            @if(!request()->filled('slot_id') && !request()->boolean('extra_ad_publish'))
-                <div class="alert alert-info" role="status">يمكنك إرسال المنتج دون باقة مدفوعة. ستراجعه الإدارة قبل نشره، ولن يشغل مساحة إعلانية.</div>
-            @endif
             @if(config('vendor_advertising.creation_slots_enabled') && (request()->filled('slot_id') || request()->boolean('extra_ad_publish')))
                 @if(request()->boolean('extra_ad_publish'))
                 <input type="hidden" name="extra_ad_publish" value="1">

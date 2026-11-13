@@ -141,7 +141,8 @@
             const stockLabel = document.querySelector('label[for="'+stock.id+'"]') || stock.parentElement.querySelector('label');
             const priceText = priceLabel && (priceLabel.querySelector('[data-unit-price-text]') || priceLabel);
             if(priceText) priceText.textContent = isPackage ? unit.dataset.packagePrice : unit.dataset.piecePrice;
-            if(stockLabel) stockLabel.textContent = isPackage ? unit.dataset.packageQuantity : unit.dataset.pieceQuantity;
+            const stockText = stockLabel && (stockLabel.querySelector('[data-stock-text]') || stockLabel);
+            if(stockText) stockText.textContent = isPackage ? unit.dataset.packageQuantity : unit.dataset.pieceQuantity;
         };
         stock.addEventListener('input',sync); unit.addEventListener('change',sync); sync();
     }

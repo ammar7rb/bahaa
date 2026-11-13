@@ -99,6 +99,10 @@ class ProductUpdateRequest extends FormRequest
                 }
             }
             // Discount validation
+            if (($this->product_type ?? 'physical') == 'physical' && ! $this->has('colors') && empty($this->choice_attributes)
+                && (! $this->filled('current_stock') || ! is_numeric($this->current_stock) || (int) $this->current_stock < 0)) {
+                $validator->errors()->add('current_stock', translate('available_stock_is_required') . '!');
+            }
             $discount = $this->discount_type == 'percent' ? (($this->unit_price / 100) * $this->discount) : $this->discount;
             if ($this->unit_price <= $discount) {
                 $validator->errors()->add('unit_price', translate('Discount can not be more or equal to the price!'));

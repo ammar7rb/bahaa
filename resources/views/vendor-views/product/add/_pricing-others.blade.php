@@ -69,7 +69,7 @@
                             <div class="form-group">
                                 <div class="d-flex gap-2 mb-2">
                                     <label class="title-color mb-0" for="current_stock">
-                                        {{ translate('current_stock_qty') }}
+                                        <span data-stock-text>{{ translate('current_stock_qty') }}</span>
                                         <span class="input-required-icon">*</span>
                                     </label>
 
@@ -79,10 +79,12 @@
                                 </span>
                                 </div>
 
-                                <input type="number" min="0" value="0" step="1"
-                                        placeholder="{{ translate('quantity') }}" name="current_stock" id="current_stock"
-                                        class="form-control only-number-input"
-                                        >
+                                <div class="vpf-field">
+                                    <svg class="vpf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>
+                                    <input type="number" min="0" value="{{ old('current_stock') }}" step="1" inputmode="numeric"
+                                            placeholder="{{ translate('available_stock_placeholder') }}" name="current_stock" id="current_stock"
+                                            class="form-control only-number-input" data-required-msg="{{ translate('available_stock_is_required') }}" required>
+                                </div>
                             </div>
                         </div>
                         <input type="hidden" name="discount" id="discount" value="0">

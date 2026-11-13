@@ -7326,4 +7326,6 @@ return [
     'summary_sales_scope' => 'All time · paid and delivered merchandise per financial report',
     'summary_active_subscriptions' => 'Subscriptions currently active, not payments or unique subscribers',
     'summary_pending_review' => 'Awaiting review',
+    "available_stock_is_required" => "Enter the available stock for this product",
+    "available_stock_placeholder" => "e.g. 50",
 ];

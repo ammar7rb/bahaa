@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-dark-mode.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-dark-mode.css')) }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-account.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-account.css')) }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-avatar.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-avatar.css')) }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-product-form.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-product-form.css')) }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-workspace.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-workspace.css')) }}">
     @include('layouts.partials._unified-print-styles')
 

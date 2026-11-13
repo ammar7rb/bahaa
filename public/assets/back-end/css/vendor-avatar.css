@@ -4,7 +4,7 @@
 .sv-avatar:hover{transform:scale(1.05);box-shadow:0 0 0 2px #1a428a}
 .sv-avatar:focus-visible{outline:3px solid #1a428a;outline-offset:3px}
 .sv-avatar>img,.sv-avatar__initial{grid-area:1/1;width:100%;height:100%;border-radius:50%}
-.sv-avatar>img{object-fit:cover;position:relative;z-index:1}
+.sv-avatar>img[data-sv-avatar-img]{object-fit:cover;position:relative;z-index:1;border:0;background:transparent;width:100%;height:100%}
 .sv-avatar__initial{display:grid;place-items:center;font-weight:800;font-size:1.1em;line-height:1}
 .sv-avatar--xl .sv-avatar__initial{font-size:30px}
 .sv-avatar.is-broken>img{display:none}
@@ -12,9 +12,9 @@
 .sv-avatar--xl .sv-avatar__cam{width:28px;height:28px}
 .sv-avatar:hover .sv-avatar__cam{transform:scale(1.12)}
 .sv-avatar__cam svg{width:12px;height:12px}.sv-avatar--xl .sv-avatar__cam svg{width:15px;height:15px}
-.sv-avatar__busy{display:none;position:absolute;inset:0;z-index:3;border-radius:50%;background:rgba(255,255,255,.7)}
+.sv-avatar>.sv-avatar__busy{display:none;margin:0;position:absolute;inset:0;z-index:3;border-radius:50%;background:rgba(255,255,255,.7)}
 .sv-avatar__busy::after{content:"";position:absolute;inset:30%;border:3px solid #1a428a;border-top-color:transparent;border-radius:50%;animation:sv-spin .7s linear infinite}
-.sv-avatar.is-busy .sv-avatar__busy{display:block}.sv-avatar.is-busy{pointer-events:none}
+.sv-avatar.is-busy>.sv-avatar__busy{display:block}.sv-avatar.is-busy{pointer-events:none}
 @keyframes sv-spin{to{transform:rotate(360deg)}}
 .vendor-sidebar-person .sv-avatar{margin-inline-end:2px}
 .v2-dropdown-header .sv-avatar{width:44px;height:44px}
@@ -29,3 +29,8 @@
 .v2-theme-dark .sv-avatar{border-color:#1b2535;background:#25324a;color:#cfe0ff;box-shadow:0 0 0 1px #3a4a68}
 .v2-theme-dark .sv-avatar__cam{border-color:#1b2535;background:#4d7cd6}
 @media (prefers-reduced-motion:reduce){.sv-avatar,.sv-avatar__cam,.vendor-reference-copy,.sv-toast{transition:none}.sv-avatar__busy::after{animation-duration:1.6s}}
+
+/* Neutralise generic `.vendor-sidebar-person span` rules */
+.sv-avatar>.sv-avatar__initial,.sv-avatar>.sv-avatar__cam{margin:0}
+.sv-avatar>.sv-avatar__initial{display:grid}.sv-avatar>.sv-avatar__cam{display:grid}
+.sv-avatar>.sv-avatar__cam{inset-inline-end:-4px;bottom:-4px}
