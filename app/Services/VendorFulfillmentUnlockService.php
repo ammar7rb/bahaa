@@ -10,17 +10,57 @@ use Illuminate\Support\Facades\{Crypt, DB};
 
 class VendorFulfillmentUnlockService
 {
+    /** True when the seller owns a paid, running package subscription. */
+    public function hasActivePackage(int $sellerId): bool
+    {
+        return SellerPackageSubscription::where('seller_id', $sellerId)->where('payment_status', 'paid')
+            ->where('status', 'active')->where('starts_at', '<=', now())->where('expires_at', '>', now())->exists();
+    }
+
+    /** Self-heals restricted orders of a seller who already owns a running package (e.g. before this rule existed). */
+    public function releaseForSeller(int $sellerId): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('vendor_fulfillment_requests')) return;
+        if (! VendorFulfillmentRequest::where('seller_id', $sellerId)->whereIn('status', ['locked', 'pending_vendor'])->exists()) return;
+        $subscription = SellerPackageSubscription::where('seller_id', $sellerId)->where('payment_status', 'paid')->where('status', 'active')
+            ->where('starts_at', '<=', now())->where('expires_at', '>', now())->orderByDesc('id')->first();
+        if ($subscription) $this->notifyPackageConfirmed($subscription);
+    }
+
+    /**
+     * Buying a package opens every restricted order of the seller at once: no
+     * slot choice and no extra charge. Closed orders stay as they were.
+     */
     public function notifyPackageConfirmed(SellerPackageSubscription $subscription): void
     {
-        if(!\Illuminate\Support\Facades\Schema::hasColumn('vendor_fulfillment_events','metadata'))return;
-        foreach(VendorFulfillmentRequest::where('seller_id',$subscription->seller_id)->whereIn('status',['locked','pending_vendor'])->get() as $row){
-            $inserted=DB::table('vendor_fulfillment_events')->insertOrIgnore(['request_id'=>$row->id,'event_type'=>'package_confirmed',
-                'metadata'=>json_encode(['subscription_id'=>$subscription->id,'payment_status'=>'paid','accepted'=>false]),'created_at'=>now()]);
-            if($inserted&&\Illuminate\Support\Facades\Schema::hasColumn('notifications','customer_event_key'))DB::table('notifications')->insertOrIgnore([
-                'customer_event_key'=>'fulfillment-package-confirmed-'.$row->id,'sent_by'=>'admin','sent_to'=>'seller','seller_id'=>$row->seller_id,
-                'title'=>'تم تأكيد الباقة — أكمل تخصيص المساحة','description'=>'طلب #'.$row->order_id.' بانتظار تخصيص مساحة لعرض التفاصيل. لم يتم قبول الطلب.',
-                'image'=>'','status'=>1,'notification_count'=>1,'created_at'=>now(),'updated_at'=>now(),
-            ]);
+        if (! \Illuminate\Support\Facades\Schema::hasTable('vendor_fulfillment_requests')
+            || ! \Illuminate\Support\Facades\Schema::hasTable('vendor_fulfillment_events')) return;
+        if (! $this->hasActivePackage((int) $subscription->seller_id)) return;
+        $metadata = \Illuminate\Support\Facades\Schema::hasColumn('vendor_fulfillment_events', 'metadata');
+        $hasKey = \Illuminate\Support\Facades\Schema::hasColumn('notifications', 'customer_event_key');
+        $ids = VendorFulfillmentRequest::where('seller_id', $subscription->seller_id)
+            ->whereIn('status', ['locked', 'pending_vendor'])->orderBy('id')->pluck('id');
+        foreach ($ids as $id) {
+            DB::transaction(function () use ($id, $subscription, $metadata, $hasKey) {
+                $initial = VendorFulfillmentRequest::find($id);
+                if (! $initial) return;
+                $order = Order::whereKey($initial->order_id)->lockForUpdate()->first();
+                $row = VendorFulfillmentRequest::lockForUpdate()->find($id);
+                if (! $order || ! $row || ! in_array($row->status, ['locked', 'pending_vendor'], true)) return;
+                if (in_array($order->order_status, ['canceled', 'returned', 'failed', 'delivered'], true)) return;
+                $snapshot = ['auto_unlock' => 'package_purchase', 'subscription_id' => $subscription->id];
+                $row->update(['status' => 'available', 'unlocked_at' => now(), 'unlock_snapshot' => $snapshot]);
+                DB::table('vendor_fulfillment_events')->insert(array_filter([
+                    'request_id' => $id, 'event_type' => 'unlocked',
+                    'metadata' => $metadata ? json_encode($snapshot) : null, 'created_at' => now(),
+                ], fn ($v, $k) => $k !== 'metadata' || $v !== null, ARRAY_FILTER_USE_BOTH));
+                app(VendorFulfillmentDecisionService::class)->record($order, $row, 'unlocked', 'تم فتح تفاصيل الطلب تلقائيًا بعد تفعيل الباقة.', 'system');
+                if ($hasKey) DB::table('notifications')->insertOrIgnore([
+                    'customer_event_key' => 'fulfillment-package-unlocked-'.$id, 'sent_by' => 'admin', 'sent_to' => 'seller', 'seller_id' => $row->seller_id,
+                    'title' => 'تم فتح تفاصيل طلبك', 'description' => 'تم تفعيل باقتك، وأصبحت تفاصيل طلب #'.$row->order_id.' متاحة الآن.',
+                    'image' => '', 'status' => 1, 'notification_count' => 1, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+            });
         }
     }
 

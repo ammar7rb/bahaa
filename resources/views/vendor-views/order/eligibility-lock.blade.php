@@ -1,10 +1,32 @@
 @php($eligibility = $row['fulfillment_eligibility'])
-<section class="vf-section vendor-eligibility-lock" dir="rtl" aria-label="جزء مقيد من طلب التنفيذ">
-    <div class="d-flex align-items-center mb-3" style="gap:8px;flex-wrap:wrap"><i class="fi fi-rr-lock" aria-hidden="true"></i><strong>{{ $eligibility['pending_on_vendor_side'] ? 'طلبات معلقة من جهة التاجر' : 'تفاصيل تنفيذ مقيدة' }}</strong><span class="badge bg-danger text-white">!</span></div>
-    <p>{{ $eligibility['details_locked'] ? 'إجمالي طلب التنفيذ المستحق لك' : 'إجمالي الجزء المقيد فقط، منفصل عن المنتجات المتاحة' }}: <strong><bdi>{{ webCurrencyConverter($eligibility['restricted_amount']) }}</bdi></strong></p>
-    <p class="text-muted">وقت تحويل الإدارة: <bdi>{{ \Carbon\Carbon::parse($eligibility['forwarded_at'])->format('Y-m-d H:i') }}</bdi></p>
-    <div aria-hidden="true" style="filter:blur(5px);user-select:none;pointer-events:none;padding:18px;background:#f1f5fa;border-radius:12px;margin-bottom:16px">تفاصيل المنتجات والتنفيذ<br>ــــــــــــــــــــــــــــــــــ<br>ــــــــــــــــــــ</div>
-    <button class="btn btn-outline-primary" type="button" onclick="alert('برجاء اختيار إحدى الباقات')"><i class="fi fi-rr-lock" aria-hidden="true"></i> عرض التفاصيل</button>
-    <a class="btn btn-primary" href="{{ route('vendor.packages.index') }}">اختيار باقة</a>
-    <p class="text-muted mt-3 mb-0">برجاء اختيار إحدى الباقات. يظل الطلب محفوظًا دون إلغاء تلقائي أو غرامة بسبب القفل.</p>
+@php($fullyLocked = (bool) ($eligibility['details_locked'] ?? false))
+<section class="vo-lock" dir="rtl" aria-labelledby="vo-lock-title-{{ $row['id'] }}">
+    <div class="vo-lock__head">
+        <span class="vo-lock__badge" aria-hidden="true"><i class="fi fi-rr-lock"></i></span>
+        <div>
+            <h3 id="vo-lock-title-{{ $row['id'] }}" class="vo-lock__title">{{ $fullyLocked ? 'عندك طلب جديد في انتظارك!' : 'جزء من الطلب في انتظار الباقة' }}</h3>
+            <p class="vo-lock__sub">{{ $eligibility['pending_on_vendor_side'] ? 'الطلب بانتظارك — اشترك في باقة لتبدأ التنفيذ.' : 'اشترك في باقة وتفتح لك التفاصيل كاملة فورًا.' }}</p>
+        </div>
+    </div>
+
+    <div class="vo-lock__amount">
+        <span>{{ $fullyLocked ? 'إجمالي الطلب المستحق لك' : 'إجمالي الجزء المخفي' }}</span>
+        <strong><bdi>{{ webCurrencyConverter($eligibility['restricted_amount']) }}</bdi></strong>
+    </div>
+
+    <div class="vo-lock__preview" aria-hidden="true">
+        <div class="vo-lock__skeleton">
+            <div class="vo-lock__row"><i></i><b style="width:46%"></b><b style="width:18%"></b></div>
+            <div class="vo-lock__row"><i></i><b style="width:58%"></b><b style="width:14%"></b></div>
+            <div class="vo-lock__row"><i></i><b style="width:38%"></b><b style="width:20%"></b></div>
+            <div class="vo-lock__row vo-lock__row--wide"><b style="width:70%"></b></div>
+            <div class="vo-lock__row vo-lock__row--wide"><b style="width:52%"></b></div>
+        </div>
+        <div class="vo-lock__veil"><span class="vo-lock__veil-icon"><i class="fi fi-rr-lock"></i></span><strong>التفاصيل مخفية</strong><small>المنتجات • بيانات العميل • عنوان التسليم</small></div>
+    </div>
+
+
+    <div class="vo-lock__actions">
+        <a class="vo-lock__cta" href="{{ route('vendor.packages.index') }}">اشترك الآن وافتح الطلب</a>
+    </div>
 </section>

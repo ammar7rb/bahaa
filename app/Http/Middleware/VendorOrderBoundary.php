@@ -17,6 +17,11 @@ class VendorOrderBoundary
 {
     public function handle(Request $request, Closure $next, int $sellerId): mixed
     {
+        try {
+            app(\App\Services\VendorFulfillmentUnlockService::class)->releaseForSeller($sellerId);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
         $action = (string) ($request->route()?->getAction('controller') ?? '');
         [$controller, $method] = array_pad(explode('@', $action), 2, '');
         if (in_array(class_basename($controller), ['ShippingProofController', 'SellerShippingResponseController', 'SellerShippingSupportController'], true)) {

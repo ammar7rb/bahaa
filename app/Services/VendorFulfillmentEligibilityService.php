@@ -70,6 +70,7 @@ class VendorFulfillmentEligibilityService
             if (($existing = $this->requests($locked))->isNotEmpty()) return $existing;
             $pricing = OrderVendorPricing::where('order_id', $locked->id)->first();
             if (!$pricing) throw new DomainException('اعتمد مبلغ التاجر قبل تحويل طلب التنفيذ.');
+            $packageActive = app(VendorFulfillmentUnlockService::class)->hasActivePackage((int) $locked->seller_id);
             $groups = ['advertising' => [], 'outside_slot' => []];
             $original = ['advertising' => 0.0, 'outside_slot' => 0.0];
             foreach ($locked->details()->lockForUpdate()->get() as $line) {
@@ -77,7 +78,8 @@ class VendorFulfillmentEligibilityService
                 $price = $line->getRawOriginal('vendor_unit_price_snapshot');
                 if ($price === null || !is_numeric($price) || (float) $price < 0) throw new DomainException('سعر التاجر الأصلي غير محفوظ.');
                 $slot = $this->slotFor((int) $locked->seller_id, (int) $line->product_id);
-                $portion = $slot ? 'advertising' : 'outside_slot';
+                // A seller with a running package sees the whole order; otherwise it stays locked.
+                $portion = ($slot || $packageActive) ? 'advertising' : 'outside_slot';
                 $groups[$portion][] = ['line' => $line, 'slot' => $slot];
                 $original[$portion] += (float) $price * (int) $line->qty;
             }

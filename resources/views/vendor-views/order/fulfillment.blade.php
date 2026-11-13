@@ -2,6 +2,7 @@
 @section('title', 'طلبات التوريد والتنفيذ')
 @push('css_or_js')
 <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-fulfillment.css') }}?v=20261024.1">
+<link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-order-lock.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-order-lock.css')) }}">
 @endpush
 @section('content')
 <div class="content container-fluid vf-page" dir="rtl">
