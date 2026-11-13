@@ -537,7 +537,7 @@ class OperationsCatalogTest extends HomepageSectionBuilderPhaseSixTest
     public function test_device_public_templates_only_offer_the_gated_report_flow(): void
     {
         foreach (['index', 'show'] as $name) {
-            $source = file_get_contents(resource_path('views/medical-devices/'.$name.'.blade.php'));
+            $source = file_get_contents(resource_path('views/medical-devices/'.$name.'.blade.php')).($name === 'index' ? file_get_contents(resource_path('views/medical-devices/_grid.blade.php')) : '');
             $this->assertStringContainsString('تقرير فني', $source);
             foreach (['add-to-cart', 'checkout', 'buy_now', 'unit_price', 'purchase-limit'] as $forbidden) {
                 $this->assertStringNotContainsString($forbidden, $source);

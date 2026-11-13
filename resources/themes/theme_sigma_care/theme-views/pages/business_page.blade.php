@@ -35,6 +35,12 @@
                     @if($businessPage->slug === 'buy-now-pay-later')
                         <div class="care-bnpl-details-copy">{!! $businessPage?->description !!}</div>
                         @include('theme-views.partials._care-credit-request')
+                    @elseif($businessPage->slug === 'medical-devices-accessories')
+                        @include('medical-devices._styles')
+                        @php
+                            $catalogDevices = \App\Models\CompanyMedicalDevice::published()->paginate(24);
+                        @endphp
+                        <div class="medical-device-catalog">@include('medical-devices._grid', ['devices' => $catalogDevices])</div>
                     @else
                         {!! $businessPage?->description !!}
                         @if($businessPage->slug === 'terms-and-conditions')<p>ثمن التقرير الفني للأجهزة الطبية غير قابل للاسترجاع بعد سداده.</p>@endif

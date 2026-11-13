@@ -24,4 +24,21 @@ class MedicalDevicesPageUrlTest extends TestCase
             $this->assertStringNotContainsString('customer-payment-notices', file_get_contents(base_path($layout)));
         }
     }
+
+    public function test_business_page_view_compiles_and_grid_lists_only_published_devices(): void
+    {
+        $compiled = \Illuminate\Support\Facades\Blade::compileString(file_get_contents(base_path('resources/themes/theme_sigma_care/theme-views/pages/business_page.blade.php')));
+        $this->assertIsArray(token_get_all($compiled, TOKEN_PARSE));
+        $this->assertStringContainsString("medical-devices._grid", $compiled);
+        \Illuminate\Support\Facades\Schema::create('company_medical_devices', function ($t) {
+            $t->id(); $t->string('name'); $t->text('description')->nullable(); $t->text('specifications')->nullable(); $t->json('images')->nullable();
+            $t->boolean('is_published')->default(false); $t->unsignedInteger('sort_order')->default(10); $t->decimal('price', 24, 3)->nullable();
+            $t->decimal('report_price', 24, 3)->nullable(); $t->string('device_condition')->nullable(); $t->string('origin_country')->nullable(); $t->timestamps(); $t->softDeletes();
+        });
+        \App\Models\CompanyMedicalDevice::create(['name' => 'جهاز ظاهر', 'is_published' => true]);
+        \App\Models\CompanyMedicalDevice::create(['name' => 'جهاز مخفي', 'is_published' => false]);
+        $html = view('medical-devices._grid', ['devices' => \App\Models\CompanyMedicalDevice::published()->paginate(24)])->render();
+        $this->assertStringContainsString('جهاز ظاهر', $html);
+        $this->assertStringNotContainsString('جهاز مخفي', $html);
+    }
 }
