@@ -22,18 +22,20 @@
                 <label class="d-block"><input type="radio" name="selection" value="selected" checked> المنتجات المؤشّر عليها</label>
                 <label class="d-block"><input type="radio" name="selection" value="page"> كل منتجات الصفحة الحالية ({{ $products->count() }})</label>
                 <label class="d-block"><input type="radio" name="selection" value="matching"> كل نتائج التاجر المطابقة للبحث ({{ $products->total() }})</label>
+                <label class="d-block"><input type="radio" name="selection" value="all_vendors"> كل منتجات كل التجار (لا يلزم تحديد تاجر)</label>
             </fieldset>
             <div class="row g-2 mt-1"><div class="col-md-3"><label class="form-label" for="view-amount">عدد المشاهدات الإضافية لكل منتج</label><input id="view-amount" class="form-control" type="number" name="amount" min="1" max="1000000" required></div>
                 <div class="col-md-7"><label class="form-label" for="view-reason">سبب الإضافة</label><input id="view-reason" class="form-control" name="reason" minlength="5" maxlength="500" required></div>
-                <div class="col-md-2 align-self-end"><button class="btn btn-primary w-100" @disabled(!$vendor)>معاينة الزيادة</button></div></div>
+                <div class="col-md-2 align-self-end"><button class="btn btn-primary w-100">معاينة الزيادة</button></div></div>
         </form>
     </div></section>
     @if($preview)
         <section class="card border-primary"><div class="card-body"><h2 class="h5">٣. راجع ثم أكد</h2>
-            <p>التاجر #{{ $preview['vendor_id'] }} · عدد المنتجات {{ count($preview['products']) }} · زيادة مستقلة لكل منتج: <strong>+{{ $preview['amount'] }}</strong> · السبب: {{ $preview['reason'] }}</p>
+            <p>{{ $preview['vendor_id'] ? 'التاجر #'.$preview['vendor_id'] : 'كل التجار' }} · عدد المنتجات {{ count($preview['products']) }} · زيادة مستقلة لكل منتج: <strong>+{{ $preview['amount'] }}</strong> · السبب: {{ $preview['reason'] }}</p>
             <div class="table-responsive" style="max-height: 320px; overflow: auto"><table class="table table-sm"><thead><tr><th>المنتج</th><th>الحالي</th><th>الزيادة</th><th>بعد الإضافة</th></tr></thead><tbody>
-                @foreach($preview['products'] as $item)<tr><td>{{ $item['name'] }} · #{{ $item['id'] }}</td><td>{{ $item['total'] }} <small>(مسجلة {{ $item['actual'] }} + إدارية {{ $item['added'] }})</small></td><td>+{{ $preview['amount'] }}</td><td><strong>{{ $item['result'] }}</strong></td></tr>@endforeach
+                @foreach(array_slice($preview['products'], 0, 100) as $item)<tr><td>{{ $item['name'] }} · #{{ $item['id'] }}</td><td>{{ $item['total'] }} <small>(مسجلة {{ $item['actual'] }} + إدارية {{ $item['added'] }})</small></td><td>+{{ $preview['amount'] }}</td><td><strong>{{ $item['result'] }}</strong></td></tr>@endforeach
             </tbody></table></div>
+            @if(count($preview['products']) > 100)<p class="text-muted">يعرض أول 100 منتج من {{ count($preview['products']) }}؛ الزيادة تُطبق على الكل.</p>@endif
             <form method="post" action="{{ route('admin.settings.product-views.apply') }}" class="mt-3">@csrf<input type="hidden" name="key" value="{{ $preview['key'] }}"><button class="btn btn-danger" onclick="return confirm('تأكيد إضافة المشاهدات لكل المنتجات المعروضة في المعاينة؟')">تأكيد الإضافة</button></form>
         </div></section>
     @endif

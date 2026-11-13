@@ -34,12 +34,14 @@ class ProductViewsController extends Controller
 
     public function preview(Request $request, ProductViewCountService $counts)
     {
-        $data = $request->validate(['vendor_id' => 'required|integer|exists:sellers,id',
-            'product_q' => 'nullable|string|max:100', 'selection' => 'required|in:selected,page,matching',
+        $data = $request->validate(['vendor_id' => 'required_unless:selection,all_vendors|nullable|integer|exists:sellers,id',
+            'product_q' => 'nullable|string|max:100', 'selection' => 'required|in:selected,page,matching,all_vendors',
             'page' => 'nullable|integer|min:1',
             'product_ids' => 'required_if:selection,selected|array|max:500',
             'product_ids.*' => 'integer|distinct', 'amount' => 'required|integer|min:1|max:1000000',
             'reason' => 'required|string|min:5|max:500']);
+        // "All vendors" adds the same amount to every vendor product, regardless of vendor or search filters.
+        if ($data['selection'] === 'all_vendors') $data['vendor_id'] = $data['product_q'] = null;
         $query = $this->products($data);
         if ($data['selection'] === 'selected') $query->whereIn('id', $data['product_ids'] ?? []);
         if ($data['selection'] === 'page') {
@@ -48,18 +50,21 @@ class ProductViewsController extends Controller
             $query->whereIn('id', $pageIds);
         }
         $products = $query->orderBy('id')->get(['id', 'name', 'user_id']);
+        if ($data['selection'] === 'all_vendors' && $products->count() > 5000) {
+            throw ValidationException::withMessages(['selection' => 'عدد المنتجات كبير جدًا لعملية واحدة؛ اختر تاجرًا محددًا.']);
+        }
         if ($products->isEmpty() || ($data['selection'] === 'selected' && $products->count() !== count($data['product_ids'] ?? []))) {
             throw ValidationException::withMessages(['selection' => 'اختر منتجات تابعة للتاجر المحدد.']);
         }
         $totals = $counts->totalsForProducts($products->pluck('id')->all());
-        $preview = ['key' => (string) Str::uuid(), 'vendor_id' => (int) $data['vendor_id'],
+        $preview = ['key' => (string) Str::uuid(), 'vendor_id' => $data['vendor_id'] ? (int) $data['vendor_id'] : null,
             'selection' => $data['selection'], 'amount' => (int) $data['amount'], 'reason' => trim($data['reason']),
             'products' => $products->map(fn ($item) => ['id' => $item->id, 'name' => $item->name,
                 'actual' => $totals[$item->id]['actual'], 'added' => $totals[$item->id]['added'],
                 'total' => $totals[$item->id]['total'], 'result' => $totals[$item->id]['total'] + (int) $data['amount']])->all(),
             'created_at' => now()->timestamp];
         $request->session()->put('product_view_preview', $preview);
-        return redirect()->route('admin.settings.product-views.index', ['vendor_id' => $data['vendor_id'],
+        return redirect()->route('admin.settings.product-views.index', ['vendor_id' => $data['vendor_id'] ?? null,
             'product_q' => $data['product_q'] ?? null, 'page' => $data['page'] ?? 1]);
     }
 
@@ -80,7 +85,8 @@ class ProductViewsController extends Controller
             if (!$inserted) return;
             $batch = DB::table('product_view_adjustment_batches')->where('request_key', $preview['key'])->first();
             $validIds = Product::withoutGlobalScopes()->where('added_by', 'seller')
-                ->where('user_id', $preview['vendor_id'])->whereIn('id', $ids)->lockForUpdate()->pluck('id');
+                ->when($preview['vendor_id'], fn ($query, $vendorId) => $query->where('user_id', $vendorId))
+                ->whereIn('id', $ids)->lockForUpdate()->pluck('id');
             if ($validIds->count() !== count($ids)) throw ValidationException::withMessages(['selection' => 'تغيرت ملكية المنتجات؛ أعد المعاينة.']);
             $current = $counts->totalsForProducts($ids);
             foreach ($preview['products'] as $product) {
@@ -97,7 +103,7 @@ class ProductViewsController extends Controller
             }
         }, 3);
         $request->session()->forget('product_view_preview');
-        return redirect()->route('admin.settings.product-views.index', ['vendor_id' => $preview['vendor_id']])
+        return redirect()->route('admin.settings.product-views.index', array_filter(['vendor_id' => $preview['vendor_id']]))
             ->with('success', 'أُضيفت الزيادة المستقلة لكل منتج مع تسجيل المسؤول والسبب.');
     }
 

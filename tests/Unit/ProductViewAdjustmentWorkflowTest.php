@@ -79,4 +79,48 @@ class ProductViewAdjustmentWorkflowTest extends TestCase
             Schema::dropIfExists('products'); Schema::dropIfExists('sellers');
         }
     }
+
+    public function test_all_vendors_scope_adds_the_same_amount_to_every_vendor_product(): void
+    {
+        Schema::create('products', function (Blueprint $t) {
+            $t->id(); $t->string('added_by'); $t->unsignedBigInteger('user_id'); $t->string('name'); $t->timestamps();
+        });
+        Schema::create('sellers', fn (Blueprint $t) => $t->id());
+        Schema::create('product_view_adjustments', function (Blueprint $t) {
+            $t->id(); $t->unsignedBigInteger('product_id'); $t->unsignedBigInteger('admin_id');
+            $t->unsignedInteger('amount'); $t->timestamps();
+        });
+        $migration = require base_path('database/migrations/2026_11_11_000001_extend_product_view_adjustments.php');
+        $migration->up();
+        try {
+            DB::table('sellers')->insert([['id' => 5], ['id' => 6]]);
+            DB::table('products')->insert([
+                ['id' => 1, 'added_by' => 'seller', 'user_id' => 5, 'name' => 'A'],
+                ['id' => 2, 'added_by' => 'seller', 'user_id' => 6, 'name' => 'B'],
+                ['id' => 3, 'added_by' => 'admin', 'user_id' => 1, 'name' => 'Admin product'],
+            ]);
+            $admin = new Admin(); $admin->id = 9; auth('admin')->setUser($admin);
+            $session = new Store('test', new ArraySessionHandler(60)); $session->start();
+            $controller = new ProductViewsController();
+            $preview = Request::create('/admin/settings/product-views/preview', 'POST', [
+                'selection' => 'all_vendors', 'amount' => 3, 'reason' => 'حملة كل التجار',
+            ]);
+            $preview->setLaravelSession($session);
+            $controller->preview($preview, app(ProductViewCountService::class));
+            $stored = $session->get('product_view_preview');
+            $this->assertNull($stored['vendor_id']);
+            $this->assertEqualsCanonicalizing([1, 2], array_column($stored['products'], 'id'));
+
+            $apply = Request::create('/admin/settings/product-views/apply', 'POST', ['key' => $stored['key']]);
+            $apply->setLaravelSession($session);
+            $controller->apply($apply, app(ProductViewCountService::class));
+            $this->assertSame(3, app(ProductViewCountService::class)->totals(1)['added']);
+            $this->assertSame(3, app(ProductViewCountService::class)->totals(2)['added']);
+            $this->assertSame(0, app(ProductViewCountService::class)->totals(3)['added']);
+        } finally {
+            auth('admin')->forgetUser();
+            $migration->down(); Schema::dropIfExists('product_view_adjustments');
+            Schema::dropIfExists('products'); Schema::dropIfExists('sellers');
+        }
+    }
 }
