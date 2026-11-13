@@ -1,1 +1,45 @@
-.medical-device-catalog{--device-blue:#1a428a;--device-ink:#172942;color:var(--device-ink);padding-block:2.5rem}.medical-device-catalog h1{font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;margin-block-end:1rem}.medical-device-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.25rem}.medical-device-card{display:flex;flex-direction:column;border:1px solid #dce4f0;border-radius:12px;padding:1rem;background:#fff;gap:1rem}.medical-device-card>a:first-child{display:block}.medical-device-card img{width:100%;aspect-ratio:1;object-fit:contain}.medical-device-card h2{font-size:1.1rem;line-height:1.6}.medical-device-card .btn{margin-block-start:auto}.medical-device-catalog .btn-primary{background:var(--device-blue);border-color:var(--device-blue);color:#fff}.medical-device-detail{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:2rem;align-items:start}.medical-device-main-image{width:100%;max-height:480px;object-fit:contain;border:1px solid #dce4f0;border-radius:12px}.medical-device-images{display:flex;gap:.75rem;flex-wrap:wrap;margin-block-start:1rem}.medical-device-images img{width:100px;height:100px;object-fit:contain}.medical-device-copy{white-space:pre-wrap;line-height:1.9;overflow-wrap:anywhere}.medical-device-catalog :focus-visible{outline:2px solid var(--device-blue);outline-offset:3px}.medical-device-catalog button{min-height:44px}@media(max-width:991px){.medical-device-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:575px){.medical-device-detail{grid-template-columns:1fr}.medical-device-grid{gap:.75rem}.medical-device-card{padding:.75rem}.medical-device-card h2{font-size:1rem}}
+.medical-device-catalog{--md-blue:#1a428a;--md-ink:#172942;--md-muted:#5b6b82;--md-line:#dce4f0;--md-soft:#f4f7fb;color:var(--md-ink);padding-block:1.5rem 3rem}
+.medical-device-catalog h1{font-size:clamp(1.5rem,3vw,2.1rem);font-weight:800;line-height:1.5;margin:0 0 1rem}
+.medical-device-catalog .btn-primary{background:var(--md-blue);border-color:var(--md-blue);color:#fff}
+.medical-device-catalog :focus-visible{outline:2px solid var(--md-blue);outline-offset:3px}
+.medical-device-catalog button,.medical-device-cta{min-height:46px}
+/* grid + cards */
+.medical-device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1.25rem;width:100%}
+.medical-device-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--md-line);border-radius:16px;overflow:hidden;transition:box-shadow .2s,transform .2s}
+.medical-device-card:hover{box-shadow:0 10px 28px rgba(23,41,66,.12);transform:translateY(-2px)}
+.medical-device-media{position:relative;display:block;background:var(--md-soft);aspect-ratio:4/3}
+.medical-device-media img{width:100%;height:100%;object-fit:contain;padding:.75rem}
+.medical-device-media .medical-device-chip{position:absolute;inset-block-start:.75rem;inset-inline-start:.75rem}
+.medical-device-body{display:flex;flex-direction:column;gap:.5rem;padding:1rem;flex:1}
+.medical-device-body h2{font-size:1.05rem;font-weight:700;line-height:1.6;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.medical-device-body h2 a{color:inherit;text-decoration:none}
+.medical-device-origin{margin:0;font-size:.9rem;color:var(--md-muted)}.medical-device-origin strong{color:var(--md-ink)}
+.medical-device-excerpt{margin:0;font-size:.9rem;line-height:1.7;color:var(--md-muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.medical-device-footer{margin-block-start:auto;display:flex;flex-direction:column;gap:.75rem;padding-block-start:.75rem;border-top:1px dashed var(--md-line)}
+.medical-device-price{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}.medical-device-price span{font-size:.85rem;color:var(--md-muted)}.medical-device-price strong{font-size:1.25rem;color:var(--md-blue)}
+.medical-device-cta{display:flex;align-items:center;justify-content:center;width:100%;border-radius:10px;font-weight:700}
+.medical-device-chip{display:inline-block;padding:.2rem .7rem;border-radius:999px;font-size:.8rem;font-weight:700;line-height:1.6}
+.medical-device-chip--new{background:#e3f6ea;color:#0f6b36}.medical-device-chip--used{background:#fff1d6;color:#8a5a00}
+.medical-device-empty{grid-column:1/-1;text-align:center;padding:3rem 1rem;color:var(--md-muted)}
+/* detail */
+.medical-device-crumbs{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:.9rem;color:var(--md-muted);margin-block-end:1.25rem}.medical-device-crumbs a{color:var(--md-blue);text-decoration:none}
+.medical-device-detail{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:2rem;align-items:start}
+.medical-device-stage{background:var(--md-soft);border:1px solid var(--md-line);border-radius:16px;padding:1rem;display:flex;align-items:center;justify-content:center;aspect-ratio:4/3}
+.medical-device-main-image{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;border:0}
+.medical-device-images{display:flex;gap:.6rem;flex-wrap:wrap;margin-block-start:.75rem}
+.medical-device-thumb{width:72px;height:72px;min-height:0!important;padding:4px;background:#fff;border:2px solid var(--md-line);border-radius:10px;cursor:pointer}.medical-device-thumb.is-active{border-color:var(--md-blue)}.medical-device-thumb img{width:100%;height:100%;object-fit:contain}
+.medical-device-info{background:#fff;border:1px solid var(--md-line);border-radius:16px;padding:1.5rem}
+.medical-device-facts{list-style:none;margin:0 0 1.25rem;padding:0;display:grid;gap:.6rem}
+.medical-device-facts li{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.65rem .9rem;background:var(--md-soft);border-radius:10px}
+.medical-device-facts li span{color:var(--md-muted);font-size:.9rem}.medical-device-facts li strong{font-weight:700}
+.medical-device-fact-price{background:#eaf0fb!important}.medical-device-fact-price strong{font-size:1.4rem;color:var(--md-blue)}
+.medical-device-block{margin-block-end:1.25rem}.medical-device-block h2{font-size:1.05rem;font-weight:700;margin:0 0 .5rem}
+.medical-device-copy{white-space:pre-wrap;line-height:1.9;overflow-wrap:anywhere;margin:0}
+.medical-device-action{margin-block-start:1.5rem;padding-block-start:1.25rem;border-top:1px solid var(--md-line);display:grid;gap:.75rem}
+.medical-device-note{margin:0;font-size:.9rem;line-height:1.8;color:var(--md-muted)}.medical-device-note strong{color:var(--md-ink)}
+/* business-page wrapper: let the catalog use the full container instead of the narrow text card */
+.care-medical-devices-page{width:100%}
+@media(max-width:991px){.medical-device-detail{grid-template-columns:1fr}}
+@media(max-width:575px){.medical-device-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.medical-device-body{padding:.75rem}.medical-device-body h2{font-size:.95rem}.medical-device-excerpt{display:none}.medical-device-price strong{font-size:1.05rem}.medical-device-info{padding:1rem}}
+@media(max-width:360px){.medical-device-grid{grid-template-columns:1fr}}
+.medical-device-cta,.medical-device-cta:hover{text-decoration:none}

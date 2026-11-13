@@ -1,1 +1,1 @@
-@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/medical-devices.css') }}">@endpush
+@push('css_or_js')<link rel="stylesheet" href="{{ asset('assets/front-end/css/medical-devices.css') }}?v={{ substr(hash_file('sha256', public_path('assets/front-end/css/medical-devices.css')), 0, 12) }}">@endpush

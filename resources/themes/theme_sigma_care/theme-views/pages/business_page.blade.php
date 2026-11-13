@@ -30,23 +30,25 @@
             </div>
 
             @endif
+            @if($businessPage->slug === 'medical-devices-accessories')
+                @include('medical-devices._styles')
+                @php
+                    $catalogDevices = \App\Models\CompanyMedicalDevice::published()->paginate(24);
+                @endphp
+                <div class="medical-device-catalog care-medical-devices-page">@include('medical-devices._grid', ['devices' => $catalogDevices])</div>
+            @else
             <div class="card my-4 {{ $businessPage->slug === 'about-us' ? 'care-about-content' : '' }} {{ in_array($businessPage->slug, ['buy-now-pay-later', 'medical-devices-accessories', 'veterinary-services']) ? 'care-pay-later-content mx-auto' : '' }}">
                 <div class="card-body p-lg-4 text-dark page-paragraph {{ $businessPage->slug === 'terms-and-conditions' ? 'care-legal-document' : '' }} {{ in_array($businessPage->slug, ['buy-now-pay-later', 'medical-devices-accessories', 'veterinary-services']) ? 'care-page-placeholder' : '' }}">
                     @if($businessPage->slug === 'buy-now-pay-later')
                         <div class="care-bnpl-details-copy">{!! $businessPage?->description !!}</div>
                         @include('theme-views.partials._care-credit-request')
-                    @elseif($businessPage->slug === 'medical-devices-accessories')
-                        @include('medical-devices._styles')
-                        @php
-                            $catalogDevices = \App\Models\CompanyMedicalDevice::published()->paginate(24);
-                        @endphp
-                        <div class="medical-device-catalog">@include('medical-devices._grid', ['devices' => $catalogDevices])</div>
                     @else
                         {!! $businessPage?->description !!}
                         @if($businessPage->slug === 'terms-and-conditions')<p>ثمن التقرير الفني للأجهزة الطبية غير قابل للاسترجاع بعد سداده.</p>@endif
                     @endif
                 </div>
             </div>
+            @endif
         </div>
     </main>
 @endsection
