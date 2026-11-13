@@ -9,6 +9,7 @@
     $seller = auth('seller')->user();
 @endphp
 <div class="content container-fluid vendor-dashboard sigma-dashboard">
+    @include('vendor-views.dashboard.partials._welcome-banner')
     <div class="sigma-dashboard-intro">
         <div><h1>{{ translate('dashboard') }}</h1><p>{{ translate('vendor_workspace_intro') }}</p></div>
     </div>
