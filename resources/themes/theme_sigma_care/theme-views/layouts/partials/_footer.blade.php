@@ -126,7 +126,7 @@
                                     @foreach($careFooterPages->where('default_status', 1) as $businessPage)
                                         <li>
                                             <a class="text-capitalize"
-                                               href="{{ route('business-page.view', ['slug' => $businessPage['slug']]) }}">
+                                               href="{{ ($businessPage['slug'] === 'medical-devices-accessories' ? route('medical-devices-accessories') : route('business-page.view', ['slug' => $businessPage['slug']])) }}">
                                                 {{ $businessPage['slug'] === 'terms-and-conditions' ? $businessPage['title'] : Str::limit(translate($businessPage['title']), 25, '...') }}
                                             </a>
                                         </li>
@@ -150,7 +150,7 @@
                             <ul class="d-flex flex-wrap justify-content-center align-content-center flex-column flex-sm-row gap-3 row-gap-2 m-0">
                                 @foreach($careFooterPages->where('default_status', 0) as $businessPage)
                                     <li class="pe-3 opacity-75 fs-12">
-                                        <a href="{{ route('business-page.view', ['slug' => $businessPage['slug']]) }}"
+                                        <a href="{{ ($businessPage['slug'] === 'medical-devices-accessories' ? route('medical-devices-accessories') : route('business-page.view', ['slug' => $businessPage['slug']])) }}"
                                            class="text-absolute-white">
                                             {{ Str::limit($businessPage['title'], 25, '...') }}
                                         </a>

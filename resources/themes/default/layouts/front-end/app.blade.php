@@ -189,7 +189,6 @@
 @endif
 @include('customer-account.profile-header')
 @yield('content')
-@include('web-views.users-profile.partials.customer-payment-notices')
 
 <span id="message-otp-sent-again" data-text="{{ translate('OTP_has_been_sent_again.') }}"></span>
 <span id="message-wait-for-new-code" data-text="{{ translate('please_wait_for_new_code.') }}"></span>

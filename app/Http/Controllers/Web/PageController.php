@@ -28,6 +28,9 @@ class PageController extends Controller
         if ($request->route('slug') === 'buy-now-pay-later' && $request->routeIs('business-page.view') && !$request->has('source')) {
             return redirect()->route('buy-now-pay-later', [], 301);
         }
+        if ($request->route('slug') === 'medical-devices-accessories' && $request->routeIs('business-page.view') && !$request->has('source')) {
+            return redirect()->route('medical-devices-accessories', [], 301);
+        }
         $request->merge(['slug' => $request->route('slug')]);
         $filter = ['slug' => $request['slug']];
         if (!($request->input('source') === 'admin' && auth('admin')->check())) {

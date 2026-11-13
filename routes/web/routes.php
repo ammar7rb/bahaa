@@ -142,6 +142,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
 
     Route::controller(PageController::class)->group(function () {
         Route::get('buy-now-pay-later', 'getPageView')->defaults('slug', 'buy-now-pay-later')->name('buy-now-pay-later');
+        Route::get('medical-devices-accessories', 'getPageView')->defaults('slug', 'medical-devices-accessories')->name('medical-devices-accessories');
         Route::get('buy-now-pay-later/products', [\App\Http\Controllers\Web\ProductCreditRequestController::class, 'index'])->name('credit-products');
         Route::post('credit-requests/{product}', [\App\Http\Controllers\Web\ProductCreditRequestController::class, 'store'])->middleware(['customer', 'throttle:6,1'])->name('credit-requests.store');
         Route::post('buy-now-pay-later/request', [\App\Http\Controllers\Web\CreditRequestController::class, 'store'])->middleware('throttle:6,1')->name('credit-request.store');

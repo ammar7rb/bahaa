@@ -117,7 +117,6 @@
 @endif
 @include('customer-account.profile-header')
 @yield('content')
-@include('web-views.users-profile.partials.customer-payment-notices')
 @include('theme-views.layouts.partials._feature')
 @include('theme-views.layouts.partials._footer')
 
