@@ -57,6 +57,7 @@ class InsuranceWalletSeparationTest extends TestCase
 
     public function test_purchase_wallet_and_insurance_wallet_policies_are_one_way(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $policy = app(CustomerPurchaseWalletPolicyService::class);
         $this->assertSame(['product_purchase', 'purchase_refund'], $policy->contract()['allowed_uses']);
         $policy->assertTransactionAllowed('order_place');
@@ -68,6 +69,7 @@ class InsuranceWalletSeparationTest extends TestCase
 
     public function test_customer_hold_partial_release_confiscation_and_reversal_are_audited_and_idempotent(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $service = app(InsuranceBalanceGovernanceService::class);
         $hold = $service->hold('customer', 1, 60, 'customer-hold-1', 'Suspicious order', 9, ['order_id' => 501]);
         $this->assertSame($hold->id, $service->hold('customer', 1, 60, 'customer-hold-1', 'Suspicious order', 9)->id);
@@ -97,6 +99,7 @@ class InsuranceWalletSeparationTest extends TestCase
 
     public function test_customer_paid_insurance_record_can_be_partially_confiscated_before_maturity_without_double_debit(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $insurance = OrderInsurance::query()->create(['order_id' => 701, 'customer_id' => 1, 'amount' => 80, 'payment_status' => 'paid']);
         $service = app(InsuranceBalanceGovernanceService::class);
         $confiscation = $service->confiscateCustomerInsurance($insurance, 30, 'customer-record-confiscate', 'Confirmed abuse', 9);
@@ -124,6 +127,7 @@ class InsuranceWalletSeparationTest extends TestCase
 
     public function test_released_customer_insurance_record_debits_and_reverses_the_insurance_wallet_exactly_once(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $insurance = OrderInsurance::query()->create(['order_id' => 703, 'customer_id' => 1, 'amount' => 50, 'payment_status' => 'paid', 'matured_at' => now()]);
         $service = app(InsuranceBalanceGovernanceService::class);
         $confiscation = $service->confiscateCustomerInsurance($insurance, 20, 'released-record-confiscate', 'Confirmed abuse', 9);

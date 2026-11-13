@@ -75,7 +75,7 @@ class VendorAccountAndInboxTest extends TestCase
         $controller = new VendorAccountController();
         Model::withoutEvents(fn () => $controller->update($this->request($this->input(), ['image' => UploadedFile::fake()->image('avatar.png'), 'commercial_document' => UploadedFile::fake()->image('registration.png'), 'tax_document' => UploadedFile::fake()->image('tax.png')])));
         $profile = VendorAccountProfile::where('seller_id', 8)->firstOrFail();
-        $this->assertSame($this->input()['phone_numbers'], $profile->phone_numbers);
+        $this->assertSame(['01111111111', '01222222222'], $profile->phone_numbers); // phones are stored in the normalised local Egyptian format
         $this->assertSame($this->input()['store_addresses'], $profile->store_addresses);
         $this->assertSame('+201000000008', $this->seller->fresh()->phone);
         $this->assertNotNull($this->seller->fresh()->phone_verified_at);

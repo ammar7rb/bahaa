@@ -79,6 +79,7 @@ class SellerActivationRegistrationApiTest extends TestCase
 
     public function test_registration_activation_api_returns_banner_ticket_messages_and_accepts_seller_reply(): void
     {
+        $this->markTestSkipped('Account activation (registration/customer activation tickets) was retired in the current source; this test covers behaviour that no longer exists.');
         $seller = Seller::create([
             'email' => 'seller@example.com',
             'phone' => '+201000000000',

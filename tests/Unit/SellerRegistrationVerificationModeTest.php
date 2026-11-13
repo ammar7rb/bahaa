@@ -38,7 +38,8 @@ class SellerRegistrationVerificationModeTest extends TestCase
 
         $this->assertSame(SellerRegistrationVerificationService::MODE_SUPPORT_TICKET_ONLY, $service->verificationMode());
         $this->assertFalse($service->requiresOtp());
-        $this->assertTrue($service->requiresSupportTicket());
+        // Registration no longer forces a support ticket (requiresSupportTicket() is always false).
+        $this->assertFalse($service->requiresSupportTicket());
         $this->assertFalse($service->requiresPhoneVerification($seller));
     }
 
@@ -58,7 +59,7 @@ class SellerRegistrationVerificationModeTest extends TestCase
 
         $service->setVerificationMode(SellerRegistrationVerificationService::MODE_OTP_AND_SUPPORT_TICKET);
         $this->assertTrue($service->requiresOtp());
-        $this->assertTrue($service->requiresSupportTicket());
+        $this->assertFalse($service->requiresSupportTicket());
     }
 
     public function test_invalid_mode_is_rejected(): void

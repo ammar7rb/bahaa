@@ -31,7 +31,7 @@ class CustomerCommunicationFeedTest extends TestCase
         });
         Schema::create('support_ticket_convs', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('support_ticket_id'); $t->unsignedBigInteger('admin_id')->nullable();
-            $t->text('admin_message')->nullable(); $t->text('customer_message')->nullable(); $t->timestamps();
+            $t->text('admin_message')->nullable(); $t->text('customer_message')->nullable(); $t->timestamp('customer_hidden_at')->nullable(); $t->timestamps();
         });
         Schema::create('orders', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('customer_id'); $t->boolean('is_guest')->default(false); $t->string('order_status'); $t->timestamps();

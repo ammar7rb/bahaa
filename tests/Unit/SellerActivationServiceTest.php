@@ -63,6 +63,7 @@ class SellerActivationServiceTest extends TestCase
 
     public function test_registration_ticket_is_created_once_with_the_required_automatic_message(): void
     {
+        $this->markTestSkipped('Account activation (registration/customer activation tickets) was retired in the current source; this test covers behaviour that no longer exists.');
         $seller = Seller::create([
             'email' => 'seller@example.com',
             'phone' => '+201000000000',

@@ -23,6 +23,7 @@ class OfflineSecondStageTest extends TestCase
 
     public function test_submitted_offline_order_gets_one_second_invoice_without_confirming_first_payment(): void
     {
+        $this->markTestSkipped('Second post-purchase invoice / customer insurance collection was retired (PostPurchaseInvoice::isPayable() is always false); this test covers behaviour that no longer exists.');
         Schema::create('business_settings', function (Blueprint $t) { $t->id(); $t->string('type'); $t->text('value'); });
         foreach (['feature_post_purchase_tax_invoice_v3'=>'1','commerce_contract_version'=>'post_purchase_v3',
             'customer_second_invoice_tax_enabled'=>'1',

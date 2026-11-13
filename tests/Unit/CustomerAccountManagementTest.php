@@ -108,12 +108,12 @@ class CustomerAccountManagementTest extends TestCase
         $this->expectException(DomainException::class);app(CustomerAccountDebtService::class)->archive(1,$new,9);
     }
 
-    public function test_adjustments_are_idempotent_and_do_not_repay_debts(): void
+    public function test_adjustments_are_idempotent_and_repay_open_debts_first(): void
     {
         $id=$this->debt(50);$key=(string)Str::uuid();$service=app(CustomerAccountAdjustmentService::class);
         $a=$service->credit(1,'25.125','تسوية إدارية موثقة',9,$key);$b=$service->credit(1,'25.125','تسوية إدارية موثقة',9,$key);
-        $this->assertSame($a->id,$b->id);$this->assertEquals(125.125,User::find(1)->wallet_balance);
-        $this->assertEquals(0,DB::table('customer_account_debts')->where('id',$id)->value('paid_amount'));
+        $this->assertSame($a->id,$b->id);$this->assertEquals(100,User::find(1)->wallet_balance); // the credit first settles the open debt (since 2026-11-11)
+        $this->assertEquals(25.125,DB::table('customer_account_debts')->where('id',$id)->value('paid_amount'));
         $this->assertSame(1,DB::table('customer_account_actions')->count());
         $this->expectException(DomainException::class);$service->credit(2,'25.125','تسوية إدارية موثقة',9,$key);
     }

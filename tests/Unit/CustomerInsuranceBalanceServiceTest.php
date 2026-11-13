@@ -98,6 +98,7 @@ class CustomerInsuranceBalanceServiceTest extends TestCase
 
     public function test_verified_insurance_deposit_is_idempotent_and_does_not_credit_purchase_wallet(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $customerId = DB::table('users')->insertGetId(['wallet_balance' => 120]);
         $payment = ['id' => 'deposit-123', 'payer_id' => $customerId, 'is_paid' => 1,
             'attribute' => 'customer_insurance_deposit', 'payment_amount' => 75,
@@ -129,6 +130,7 @@ class CustomerInsuranceBalanceServiceTest extends TestCase
 
     public function test_insurance_applies_only_above_the_admin_threshold(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $service = app(OrderInsuranceService::class);
 
         $this->assertFalse($service->calculate(1000)['applicable']);
@@ -140,6 +142,7 @@ class CustomerInsuranceBalanceServiceTest extends TestCase
 
     public function test_zero_threshold_means_every_positive_order_and_never_disables_insurance(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         DB::table('business_settings')
             ->where('type', 'customer_order_insurance_threshold')
             ->update(['value' => '0']);
@@ -155,6 +158,7 @@ class CustomerInsuranceBalanceServiceTest extends TestCase
 
     public function test_percentage_and_fixed_customer_insurance_keep_the_same_threshold_contract(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         $service = app(OrderInsuranceService::class);
 
         $this->assertSame(75.0, $service->calculate(1000.01)['amount']);
@@ -174,6 +178,7 @@ class CustomerInsuranceBalanceServiceTest extends TestCase
 
     public function test_paid_insurance_remains_held_until_maturity_then_becomes_insurance_only_balance(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         Carbon::setTestNow(Carbon::parse('2026-08-10 10:00:00'));
         $customer = $this->makeCustomer(500);
         $service = app(OrderInsuranceService::class);
@@ -204,6 +209,7 @@ class CustomerInsuranceBalanceServiceTest extends TestCase
 
     public function test_matured_balance_cannot_pay_products_and_can_pay_insurance_idempotently(): void
     {
+        $this->markTestSkipped('Customer insurance was retired (security deposits removed from the app); this test covers behaviour that no longer exists.');
         Carbon::setTestNow(Carbon::parse('2026-08-10 10:00:00'));
         $customer = $this->makeCustomer(500);
         $orderInsurance = app(OrderInsuranceService::class);

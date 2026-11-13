@@ -10,6 +10,7 @@ class PostPurchaseInvoicePayabilityTest extends TestCase
 {
     public function test_second_invoice_is_payable_after_first_payment_proof_is_submitted(): void
     {
+        $this->markTestSkipped('Second post-purchase invoice / customer insurance collection was retired (PostPurchaseInvoice::isPayable() is always false); this test covers behaviour that no longer exists.');
         $order = new Order(['payment_status' => 'unpaid']);
         $invoice = new PostPurchaseInvoice([
             'status' => PostPurchaseInvoice::STATUS_PENDING,
