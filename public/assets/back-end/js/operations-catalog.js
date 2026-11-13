@@ -133,3 +133,13 @@ window.addEventListener('pageshow', () => {
         form.querySelectorAll('button[type="submit"]').forEach(button => { button.disabled = false; button.removeAttribute('aria-busy'); });
     });
 });
+
+document.querySelector('[data-device-images]')?.addEventListener('change', event => {
+    const box = document.querySelector('[data-device-previews]'); if (!box) return;
+    box.replaceChildren();
+    [...event.target.files].slice(0, 10).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        const img = document.createElement('img'); img.alt = ''; img.src = URL.createObjectURL(file);
+        img.onload = () => URL.revokeObjectURL(img.src); box.append(img);
+    });
+});

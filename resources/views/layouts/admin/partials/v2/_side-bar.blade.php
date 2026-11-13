@@ -47,7 +47,7 @@
 <a class="v2-nav-item {{ request()->routeIs($route) ? 'v2-is-active' : '' }}" data-item="{{ str_replace('.', '-', $route) }}" href="{{ route($route) }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-{{ $icon }}"></i></span><span class="v2-nav-label">{{ $label }}</span></span></a>
 @endforeach
 @if(Helpers::module_permission_check('catalog'))
-<a class="v2-nav-item {{ request()->routeIs('admin.operations.medical-devices.*') ? 'v2-is-active' : '' }}" data-item="medical-devices" href="{{ route('admin.operations.medical-devices.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-heart-rate"></i></span><span class="v2-nav-label">{{ __('operations.medical_devices') }}</span></span></a>
+<a class="v2-nav-item {{ (request()->routeIs('admin.operations.medical-devices.*') && ! request()->routeIs('admin.operations.medical-devices.inquir*', 'admin.operations.medical-devices.status', 'admin.operations.medical-devices.report')) ? 'v2-is-active' : '' }}" data-item="medical-devices" href="{{ route('admin.operations.medical-devices.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-heart-rate"></i></span><span class="v2-nav-label">{{ __('operations.medical_devices') }}</span></span></a>
 @endif
             </div>
             <div class="v2-ctx-group">
@@ -141,6 +141,12 @@
 
                 @if (Helpers::module_permission_check('orders'))
                 <a class="v2-nav-item {{ request()->routeIs('admin.orders.logistics.*') ? 'v2-is-active' : '' }}" data-item="order-tracking" href="{{ route('admin.orders.logistics.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-route"></i></span><span class="v2-nav-label">تتبع الطلبات</span></span></a>
+                @endif
+                @if (Helpers::module_permission_check('people'))
+                @php
+                    $deviceNew = \Illuminate\Support\Facades\Schema::hasTable('medical_device_inquiries') ? \App\Models\MedicalDeviceInquiry::where('status', 'new')->count() : 0;
+                @endphp
+                <a class="v2-nav-item {{ request()->routeIs('admin.operations.medical-devices.inquir*', 'admin.operations.medical-devices.status', 'admin.operations.medical-devices.report') ? 'v2-is-active' : '' }}" data-item="medical-device-requests" href="{{ route('admin.operations.medical-devices.inquiries') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-heart-rate"></i></span><span class="v2-nav-label">طلبات الأجهزة الطبية</span>@if($deviceNew > 0)<span class="badge badge-soft-danger">{{ $deviceNew }}</span>@endif</span></a>
                 @endif
                 @if (Helpers::module_permission_check('people') || Helpers::module_permission_check('orders'))
                 <a class="v2-nav-item {{ request()->routeIs('admin.payment-reviews.*') || request()->is('admin/workspace/reviews/payments') || request()->routeIs('admin.vendors.balance-funding-settings.*') ? 'v2-is-active' : '' }}" data-item="payment-reviews" href="{{ route('admin.payment-reviews.index') }}"><span class="v2-nav-btn"><span class="v2-nav-icon" aria-hidden="true"><i class="fi fi-rr-credit-card"></i></span><span class="v2-nav-label">{{ __('payments.title') }}</span></span><span class="v2-nav-right"><span data-v2-tag="primary" data-nav-workspace-count="payments" class="{{ empty($sidebarWorkspaceCategories['payments']['count']) ? 'd-none' : '' }}">{{ ($sidebarWorkspaceCategories['payments']['count'] ?? 0) > 99 ? '99+' : ($sidebarWorkspaceCategories['payments']['count'] ?? 0) }}</span></span></a>

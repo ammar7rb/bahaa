@@ -36,3 +36,7 @@
 .operations-workspace .operations-section-settings>summary{padding:0;display:flex;align-items:center;gap:.5rem;font-weight:600;color:var(--operations-primary)}.operations-section-settings .operations-fields{margin-block-start:1rem}
 
 :root[data-ba-admin-theme="dark"] .operations-product-picker .table-hover tbody tr:hover{background:#22324b!important}
+
+.device-form .device-card{margin-bottom:1rem;border-radius:12px}.device-form .device-card-title{font-size:1rem;font-weight:700;color:var(--operations-primary);margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid rgba(128,128,128,.25)}
+.device-form .device-previews{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem}.device-form .device-previews img{width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid rgba(128,128,128,.35)}
+.device-form .device-actions{display:flex;gap:.75rem;position:sticky;bottom:0;padding:.75rem 0;background:inherit}
