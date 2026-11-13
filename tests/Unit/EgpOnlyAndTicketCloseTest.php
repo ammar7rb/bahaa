@@ -7,6 +7,14 @@ use Tests\TestCase;
 
 class EgpOnlyAndTicketCloseTest extends TestCase
 {
+    use \Tests\Support\CreatesBaselineTables;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->ensureBusinessSettings();
+    }
+
     public function test_currency_model_is_always_single_so_nothing_is_converted(): void
     {
         $this->assertSame('single_currency', getWebConfig(name: 'currency_model'));

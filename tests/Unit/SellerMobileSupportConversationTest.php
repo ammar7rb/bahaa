@@ -11,7 +11,7 @@ class SellerMobileSupportConversationTest extends TestCase
 {
     protected function setUp(): void {
         parent::setUp();
-        Schema::create('contacts', function (Blueprint $t) { $t->id(); $t->string('mobile_support_token_hash')->nullable()->unique(); $t->string('name'); $t->string('email'); $t->string('mobile_number'); $t->string('subject'); $t->text('message'); $t->boolean('seen'); $t->timestamps(); });
+        Schema::create('contacts', function (Blueprint $t) { $t->id(); $t->string('mobile_support_token_hash')->nullable()->unique(); $t->string('name'); $t->string('email'); $t->string('mobile_number'); $t->string('subject'); $t->text('message'); $t->boolean('seen'); $t->string('sender_type')->nullable(); $t->timestamps(); });
         Schema::create('contact_conversation_messages', function (Blueprint $t) { $t->id(); $t->integer('contact_id'); $t->string('sender'); $t->text('body'); $t->timestamps(); });
     }
     protected function tearDown(): void { Schema::dropIfExists('contact_conversation_messages'); Schema::dropIfExists('contacts'); parent::tearDown(); }

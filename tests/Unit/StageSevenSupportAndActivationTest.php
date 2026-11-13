@@ -16,6 +16,9 @@ class StageSevenSupportAndActivationTest extends TestCase
 
     public function test_customer_inbox_is_backed_by_administration_support_tickets(): void
     {
+        if (! is_dir('E:/project/user-app-main/lib')) {
+            $this->markTestSkipped('Application sources are not available in this environment: E:/project/user-app-main');
+        }
         $inbox = file_get_contents('E:/project/user-app-main/lib/features/chat/screens/inbox_screen.dart');
         $orderContact = file_get_contents('E:/project/user-app-main/lib/features/order_details/widgets/cal_chat_widget.dart');
         $router = file_get_contents('E:/project/user-app-main/lib/helper/route_healper.dart');

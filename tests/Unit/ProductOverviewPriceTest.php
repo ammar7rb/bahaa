@@ -7,10 +7,19 @@ use Tests\TestCase;
 
 class ProductOverviewPriceTest extends TestCase
 {
+    use \Tests\Support\CreatesBaselineTables;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->ensureCurrencies();
+    }
+
     public function test_saved_price_revision_without_workspace_renders_safely_as_unverified(): void
     {
         Schema::create('business_settings',function(Blueprint $t){$t->id();$t->string('type');$t->text('value');});
         DB::table('business_settings')->insert(['type'=>'system_default_currency','value'=>'1']);
+        DB::table('currencies')->insert(['id'=>1,'name'=>'EGP','symbol'=>'EGP','code'=>'EGP','exchange_rate'=>1,'status'=>1]);
         session()->put('system_default_currency_info',['id'=>1]);
         session()->put('currency_code','EGP');session()->put('currency_symbol','EGP');
         $data=['product'=>(object)['added_by'=>'seller'],'original'=>['unit_price'=>80],'submission'=>null];
