@@ -42,9 +42,6 @@ class VendorAdvertisingOverviewService
                 'unit_price' => (float) $product->unit_price, 'current_stock' => $remainingStock, 'request_status' => 1,
                 'status' => (int) $visible,
                 'product_view_count' => $views['total'],
-                'recorded_product_visits' => $views['actual'],
-                'administrative_view_additions' => $views['added'],
-                'product_view_count_is_adjusted' => $views['added'] > 0,
                 'vendor_workspace' => ['private_reference' => $state?->private_reference, 'legacy_exempt' => (bool) $state?->legacy_exempt,
                     'advertising_visible' => (bool) $visible],
             ];

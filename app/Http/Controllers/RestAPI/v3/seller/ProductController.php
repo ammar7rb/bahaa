@@ -697,9 +697,6 @@ class ProductController extends Controller
     {
         $product['product_view_count_label'] = 'عدد المشاهدات';
         $product['product_view_count'] = $counts['total'];
-        $product['recorded_product_visits'] = $counts['actual'];
-        $product['administrative_view_additions'] = $counts['added'];
-        $product['product_view_count_is_adjusted'] = $counts['added'] > 0;
     }
 
     public function getProductImages(Request $request, $id):JsonResponse

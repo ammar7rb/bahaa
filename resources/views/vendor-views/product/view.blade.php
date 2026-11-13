@@ -10,7 +10,7 @@
     <div class="content container-fluid text-start">
         @include('vendor-views.product.partials._workspace-notice')
         @php($viewTotals = app(\App\Services\ProductViewCountService::class)->totals((int) $product->id))
-        <p class="fw-semibold">عدد المشاهدات: {{ $viewTotals['total'] }} <small class="text-muted">(زيارات مسجلة {{ $viewTotals['actual'] }} + إضافات إدارية {{ $viewTotals['added'] }})</small></p>
+        <p class="fw-semibold">عدد المشاهدات: {{ $viewTotals['total'] }}</p>
         <div class="d-flex align-items-stretch justify-content-end flex-wrap gap-3 mb-3">
             <div class="flex-grow-1">
                 <h2 class="h1 text-capitalize mb-1">
