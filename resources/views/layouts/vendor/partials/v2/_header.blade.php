@@ -130,8 +130,8 @@
             <button class="v2-avatar-wrap" type="button" data-v2-dropdown-toggle
                     data-v2-tooltip="{{ $v2Vendor->f_name ?? '' }}" aria-label="{{ $v2Vendor->f_name ?? '' }}">
                 <span class="v2-avatar">
-                    <img src="{{ getStorageImages(path: $v2Vendor->image_full_url ?? '', type: 'backend-profile') }}"
-                         alt="{{ translate('image_description') }}">
+                    <img data-sv-photo src="{{ getStorageImages(path: $v2Vendor->image_full_url ?? '', type: 'backend-profile') }}"
+                         alt="{{ translate('image_description') }}" onerror="this.onerror=null;this.src='{{ dynamicAsset(path: 'public/assets/back-end/img/placeholder/user.png') }}'">
                     @if($v2Vendor->status === 'approved')<span class="v2-avatar-status" aria-hidden="true"></span>@endif
                 </span>
                 <span class="v2-profile-inline">
@@ -145,8 +145,7 @@
             </button>
             <div class="v2-dropdown-menu">
                 <div class="v2-dropdown-header">
-                    <img src="{{ getStorageImages(path: $v2Vendor->image_full_url ?? '', type: 'backend-profile') }}"
-                         alt="{{ translate('image_description') }}">
+                    @include('layouts.vendor.partials.v2._avatar', ['svSeller' => $v2Vendor, 'svSize' => 'sm'])
                     <div>
                         <div class="v2-profile-name">{{ $v2Vendor->f_name ?? '' }}</div>
                         <div class="v2-profile-role">{{ $v2Vendor->email ?? '' }}</div>

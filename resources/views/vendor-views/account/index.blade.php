@@ -9,7 +9,7 @@
     <form method="post" action="{{ route('vendor.account.update') }}" enctype="multipart/form-data" class="card">@csrf
         <div class="card-body">
             <div class="vendor-account-avatar">
-                <img src="{{ getStorageImages(path: $data['image'], type: 'backend-profile') }}" alt="{{ translate('profile_picture') }}" width="80" height="80">
+                @include('layouts.vendor.partials.v2._avatar', ['svSize' => 'xl'])
                 <div><label for="account-image">{{ translate('profile_picture') }}</label><input class="form-control" type="file" id="account-image" name="image" accept="image/jpeg,image/png,image/webp"><small>{{ translate('vendor_document_limit') }}</small></div>
             </div>
             <div class="row">

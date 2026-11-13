@@ -27,9 +27,10 @@ class AccountPhotoController extends Controller
         abort_unless($access->canView($kind, $id), 404);
         $account = ($kind === 'customer' ? User::query() : Seller::query())->findOrFail($id);
         $filename = (string) $account->image;
+        $directory = $kind === 'customer' ? 'profile' : 'seller';
+        $filename = $this->recoverTruncatedName($filename, $directory);
         abort_unless(preg_match('/\A[a-zA-Z0-9_-]+\.(?:webp|png|jpe?g|gif)\z/i', $filename), 404);
 
-        $directory = $kind === 'customer' ? 'profile' : 'seller';
         $path = $directory.'/'.$filename;
         $disk = Storage::disk('local');
         $privatePath = 'private-account-photos/'.$path;
@@ -45,5 +46,25 @@ class AccountPhotoController extends Controller
             'Cache-Control' => 'private, no-store',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /**
+     * Older uploads were saved as "<uuid>.webp" (41 chars) into a varchar(30) column, so the
+     * database kept only the first 30 characters. Recover the real file by its unique prefix.
+     */
+    private function recoverTruncatedName(string $filename, string $directory): string
+    {
+        if ($filename === '' || $filename === 'def.png' || str_contains($filename, '.')
+            || !preg_match('/\A[a-zA-Z0-9_-]{16,40}\z/', $filename)) {
+            return $filename;
+        }
+        foreach (Storage::disk('local')->files('private-account-photos/'.$directory) as $file) {
+            $base = basename($file);
+            if (str_starts_with($base, $filename) && preg_match('/\.(?:webp|png|jpe?g|gif)\z/i', $base)) {
+                return $base;
+            }
+        }
+
+        return $filename;
     }
 }

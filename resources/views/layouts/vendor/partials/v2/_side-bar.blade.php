@@ -14,7 +14,7 @@
 @endphp
 <aside class="v2-ctxpanel" id="v2-ctxpanel" aria-label="{{ translate('vendor_navigation') }}">
     <div class="vendor-sidebar-brand"><a href="{{ route('vendor.dashboard.index') }}"><img src="{{ getStorageImages(path: getWebConfig(name: 'company_web_logo'), type: 'backend-logo') }}" alt="{{ getWebConfig(name: 'company_name') }}"></a><button type="button" data-vendor-sidebar-close aria-label="{{ translate('close') }}">&times;</button></div>
-    <div class="vendor-store-identity"><div class="vendor-sidebar-person"><img src="{{ getStorageImages(path: $seller->image_full_url, type: 'backend-profile') }}" alt="" width="44" height="44"><div><strong>{{ trim($seller->f_name.' '.$seller->l_name) ?: translate('vendor_account') }}</strong><span>{{ $seller->shop?->name ?: '—' }}</span></div></div>@if($seller->created_at)<span class="vendor-since">{{ translate('sigma_joined') }} <bdi>{{ $seller->created_at->format('Y/m/d') }}</bdi></span>@endif</div>
+    <div class="vendor-store-identity"><div class="vendor-sidebar-person">@include('layouts.vendor.partials.v2._avatar', ['svSeller' => $seller, 'svSize' => 'sm'])<div><strong>{{ trim($seller->f_name.' '.$seller->l_name) ?: translate('vendor_account') }}</strong><span>{{ $seller->shop?->name ?: '—' }}</span></div></div>@if($seller->created_at)<span class="vendor-since">{{ translate('sigma_joined') }} <bdi>{{ $seller->created_at->format('Y/m/d') }}</bdi></span>@endif</div>
     <nav class="v2-ctx-scroll vendor-main-navigation">
         @foreach($sections as [$icon,$label,$name,$parameters,$active])
             <a class="vendor-main-nav-item {{ $active ? 'is-active' : '' }}" href="{{ route($name,$parameters) }}{{ $icon === 'settings' ? '#account-settings' : '' }}" @if($active) aria-current="page" @endif>

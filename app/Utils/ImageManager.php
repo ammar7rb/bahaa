@@ -11,7 +11,7 @@ class ImageManager
     public static function upload(string $dir, string $format, $image, $file_type = 'image'): string
     {
         if ($image !== null && in_array($dir, ['profile/', 'seller/'], true)) {
-            $name = \Illuminate\Support\Str::uuid().'.webp';
+            $name = \App\Services\AccountPhotoAccess::newFilename(); // <= 30 chars: images.image columns are varchar(30)
             $encoded = Image::make($image)->orientate()->encode('webp', 85);
             if (!Storage::disk('local')->put('private-account-photos/'.$dir.$name, (string) $encoded)) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['image' => 'تعذر حفظ صورة الحساب.']);

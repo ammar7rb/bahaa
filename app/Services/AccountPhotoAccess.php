@@ -6,6 +6,12 @@ use App\Models\Seller;
 
 class AccountPhotoAccess
 {
+    /** 24 hex chars + ".webp" = 29 chars, safe for the varchar(30) image columns. */
+    public static function newFilename(): string
+    {
+        return bin2hex(random_bytes(12)).'.webp';
+    }
+
     public function canView(string $accountType, int $accountId): bool
     {
         if (!$accountId || app()->runningInConsole() && !app()->runningUnitTests()) {

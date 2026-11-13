@@ -135,6 +135,12 @@ class VendorAccountController extends Controller
             throw $exception;
         }
         if ($previousAvatar && $previousAvatar !== $avatar) ImageManager::delete('seller/'.$previousAvatar);
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => translate('profile_photo_updated'),
+                'url' => route('account-photos.show', ['seller', $seller->id]).'?v='.substr(md5((string) $avatar), 0, 8),
+            ]);
+        }
         return back()->with('vendor_image_saved', true);
     }
 

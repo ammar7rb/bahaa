@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-v2.css') }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-dark-mode.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-dark-mode.css')) }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-account.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-account.css')) }}">
+    <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-avatar.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-avatar.css')) }}">
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/back-end/css/vendor-workspace.css') }}?v={{ filemtime(public_path('assets/back-end/css/vendor-workspace.css')) }}">
     @include('layouts.partials._unified-print-styles')
 
@@ -76,6 +77,8 @@
     @stack("script")
     @stack("script_2")
     <script src="{{ dynamicAsset(path: 'public/assets/sigma-motion/sigma-motion.js') }}?v={{ filemtime(public_path('assets/sigma-motion/sigma-motion.js')) }}" defer></script>
+    <span hidden id="sv-avatar-config" data-url="{{ route('vendor.account.image') }}" data-msg-ok="{{ translate('profile_photo_updated') }}" data-msg-invalid="{{ translate('profile_photo_invalid') }}" data-msg-fail="{{ translate('profile_photo_failed') }}" data-msg-copied="{{ translate('account_id_copied') }}"></span>
+    <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/vendor-avatar.js') }}?v={{ filemtime(public_path('assets/back-end/js/vendor-avatar.js')) }}" defer></script>
 
     @if(env('APP_MODE')=='demo')
         <script src="{{ dynamicAsset(path: 'public/js/demo.js')}}"></script>

@@ -422,4 +422,10 @@ return [
     'sigma_account_status_pending' => 'قيد الانتظار',
     'sigma_account_status_suspended' => 'معلّق',
     'sigma_account_status_rejected' => 'مرفوض',
+    'change_profile_photo' => 'تغيير الصورة الشخصية',
+    'copy_account_id' => 'نسخ رقم الحساب',
+    'account_id_copied' => 'تم نسخ رقم الحساب',
+    'profile_photo_updated' => 'تم تحديث الصورة الشخصية',
+    'profile_photo_invalid' => 'اختر صورة JPG أو PNG أو WEBP بحجم لا يزيد عن 5 ميجابايت',
+    'profile_photo_failed' => 'تعذر تحديث الصورة، حاول مرة أخرى',
 ];
